@@ -26,6 +26,8 @@ lazy val buildSettings = Seq(
 lazy val scalaz = "org.scalaz" %% "scalaz-core" % "7.1.4"
 lazy val shapeless = "com.chuusai" %% "shapeless" % "2.2.5"
 lazy val monocle = "com.github.julien-truffaut" %%  "monocle-core" % "1.2.0-M1"
+
+lazy val argo = "io.argonaut" %% "argonaut" % "6.1"
 lazy val scalatest = "org.scalatest" %% "scalatest" % "2.2.4"  % "test"
 
 
@@ -41,3 +43,9 @@ lazy val core = project
   .settings(moduleName := "dsentric-core")
   .settings(settings)
   .settings(libraryDependencies := Seq(scalaz, shapeless, monocle, scalatest))
+
+lazy val argonaut = project
+  .settings(moduleName := "dsentric-argonaut")
+  .settings(settings)
+  .settings(libraryDependencies := Seq(scalaz, shapeless, monocle, scalatest, argo))
+  .dependsOn(core)

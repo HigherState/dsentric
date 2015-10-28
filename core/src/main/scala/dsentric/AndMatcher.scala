@@ -5,3 +5,4 @@ trait AndMatcher {
     def unapply[A](a: A) = Some((a, a))
   }
 }
+object AndMatcher extends AndMatcher
