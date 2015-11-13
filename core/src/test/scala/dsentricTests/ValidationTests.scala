@@ -1,6 +1,6 @@
-package dsentric
+package dsentricTests
 
-import dsentric.J.{JsObject, Json}
+import dsentric.{Validator, MaybePessimistic}
 import org.scalatest.{Matchers, FunSuite}
 
 /**

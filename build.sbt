@@ -7,7 +7,7 @@ lazy val buildSettings = Seq(
     "-deprecation",
     "-encoding", "UTF-8",
     "-feature",
-    "-language:implicitConversions", "-language:higherKinds", "-language:postfixOps",
+    "-language:implicitConversions", "-language:higherKinds", "-language:postfixOps", "-language:reflectiveCalls",
     "-unchecked",
     "-Xfatal-warnings",
     "-Yinline-warnings",
@@ -23,6 +23,7 @@ lazy val buildSettings = Seq(
   )
 )
 
+lazy val reflect = "org.scala-lang" % "scala-reflect" % "2.11.7"
 lazy val scalaz = "org.scalaz" %% "scalaz-core" % "7.1.4"
 lazy val shapeless = "com.chuusai" %% "shapeless" % "2.2.5"
 lazy val monocle = "com.github.julien-truffaut" %%  "monocle-core" % "1.2.0-M1"
@@ -42,7 +43,7 @@ lazy val dsentric = project.in(file("."))
 lazy val core = project
   .settings(moduleName := "dsentric-core")
   .settings(settings)
-  .settings(libraryDependencies := Seq(scalaz, shapeless, monocle, scalatest))
+  .settings(libraryDependencies := Seq(reflect, scalaz, shapeless, monocle, scalatest))
 
 lazy val argonaut = project
   .settings(moduleName := "dsentric-argonaut")

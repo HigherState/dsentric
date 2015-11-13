@@ -1,13 +1,12 @@
 package dsentric.argonaut
 
 import argonaut.{Json, JsonObject}
-import dsentric._
 import monocle._
 
 import scalaz.{-\/, \/-, Applicative, \/}
 
 object Dsentric extends
-  AndMatcher
+  dsentric.AndMatcher
 
 object Index {
   implicit val index =  new function.Index[JsonObject, String, Json] {

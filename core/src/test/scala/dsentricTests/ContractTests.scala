@@ -1,10 +1,8 @@
-package dsentric
+package dsentricTests
 
-import monocle.{POptional, Optional, function, Prism}
+import dsentric._
 import org.scalatest.{Matchers, FunSuite}
 import AndMatcher._
-
-import scalaz.{Applicative, \/}
 
 class ContractTests extends FunSuite with Matchers {
 
@@ -12,10 +10,10 @@ class ContractTests extends FunSuite with Matchers {
 
   implicit val strictness = MaybePessimistic
 
-  object Test extends Contract[Json, JsObject] {
-    val one = new Expected[Json, JsObject, String](Validator.empty, None)
-    val two = new Maybe[Json, JsObject, Boolean](Validator.empty, None)
-    val three = new Default[Json, JsObject, Int](3, Validator.empty, None)
+  object Test extends J.Contract {
+    val one = \[String]
+    val two = \?[Boolean]
+    val three = \![Int](3)
   }
 
   test("Contract pattern matching") {
@@ -73,5 +71,18 @@ class ContractTests extends FunSuite with Matchers {
       case Test.two(None) => true
       case _ => false
     }) should be(true)
+  }
+
+  object Nested extends J.Contract {
+    val parent = new \\ {
+      val string = \[String]
+    }
+  }
+
+  test("nested properties") {
+    (JsObject(Map("parent" -> JsObject(Map("string" -> JsString("string"))))) match {
+      case Nested.parent.string(s) =>
+        s
+    }) should equal("string")
   }
 }

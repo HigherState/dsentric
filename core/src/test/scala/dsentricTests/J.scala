@@ -1,4 +1,6 @@
-package dsentric
+package dsentricTests
+
+import dsentric.ExpectedSubContract
 import monocle._
 
 import scalaz.{Applicative, \/}
@@ -30,4 +32,21 @@ object J {
       override def modifyF[F[_]](f: (Json) => F[Json])(s: JsObject)(implicit evidence$1: Applicative[F]): F[JsObject] = ???
     }
   }
+
+  object \ extends dsentric.ExpectedDsl[Json, JsObject]
+
+  object \! extends dsentric.DefaultDsl[Json, JsObject]
+
+  object \? extends dsentric.MaybeDsl[Json, JsObject]
+
+  abstract class Contract extends dsentric.Contract[Json, JsObject]
+
+  abstract class \\(private val name:Option[String]) extends ExpectedSubContract[Json, JsObject](name) {
+    def this() = this(None)
+    def this(name:String) = this(Some(name))
+  }
+
+
 }
+
+
