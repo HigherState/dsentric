@@ -8,7 +8,7 @@ abstract class ExpectedDsl[Data, IndexedData](implicit index: Index[IndexedData,
     new Expected[Data, IndexedData, T](Validator.empty, None)
 
   def apply[T](validator:Validator[T])(implicit prism: Prism[Data, T]) =
-    new Expected[Data, IndexedData, T](Validator.empty, None)
+    new Expected[Data, IndexedData, T](validator, None)
 
   def apply[T](name:String)(implicit prism: Prism[Data, T]) =
     new Expected[Data, IndexedData, T](Validator.empty, Some(name))

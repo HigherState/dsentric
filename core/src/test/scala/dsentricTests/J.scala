@@ -19,7 +19,7 @@ object J {
 
   implicit val jsString = Prism[Json, String]{ case JsString(s) => Some(s); case _ => None}(JsString.apply)
   implicit val jsBool = Prism[Json, Boolean]{ case JsBool(b) => Some(b); case _ => None}(JsBool.apply)
-  implicit val jsNumber = Prism[Json, Int]{ case JsNumber(n) => Some(n); case _ => None}(JsNumber.apply)
+  implicit val jsInt = Prism[Json, Int]{ case JsNumber(n) => Some(n); case _ => None}(JsNumber.apply)
   implicit val jsArray  = Prism[Json, List[Json]]{ case JsArray(a) => Some(a); case _ => None}(JsArray.apply)
   implicit val jsObject = Prism[Json, Map[String, Json]]{ case JsObject(m) => Some(m); case _ => None}(JsObject.apply)
   implicit val jsO:Prism[Json, JsObject] = Prism[Json, JsObject]{ case j:JsObject => Some(j); case _ => None}(j => j)
