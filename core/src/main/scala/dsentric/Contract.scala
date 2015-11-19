@@ -64,7 +64,7 @@ private[dsentric] sealed trait ContractBase[Data, IndexedData] extends Struct wi
     }
   }
 
-  private [dsentric] def _validateFields(path:Path, value:Option[Data], currentState:Option[Data]) =
+  private[dsentric] def _validateFields(path:Path, value:Option[Data], currentState:Option[Data]) =
     value.flatMap(_prism.getOption).fold(Failures.empty){ indexedData =>
       val cs = currentState.flatMap(_prism.getOption)
       _fields.flatMap{kv =>
@@ -78,8 +78,9 @@ private[dsentric] sealed trait ContractBase[Data, IndexedData] extends Struct wi
 }
 
 
-abstract class ExpectedSubContract[Data, IndexedData](private[dsentric] override val _pathValidator:Validator[IndexedData], private[dsentric] override val _nameOverride:Option[String])
- (implicit private[dsentric] override val __prism: Prism[Data, IndexedData],  private[dsentric] override val __index:Index[IndexedData, String, Data])
+abstract class ExpectedSubContract[Data, IndexedData]
+  (private[dsentric] override val _pathValidator:Validator[IndexedData], private[dsentric] override val _nameOverride:Option[String])
+  (implicit private[dsentric] override val __prism: Prism[Data, IndexedData],  private[dsentric] override val __index:Index[IndexedData, String, Data])
   extends Expected[Data, IndexedData, IndexedData](_pathValidator, _nameOverride) with ContractBase[Data, IndexedData]{
 
   def this(name:Option[String])(implicit prism: Prism[Data, IndexedData], index:Index[IndexedData, String, Data]) =
@@ -94,8 +95,9 @@ abstract class ExpectedSubContract[Data, IndexedData](private[dsentric] override
     }
 }
 
-abstract class MaybeSubContract[Data, IndexedData](private[dsentric] override val _pathValidator:Validator[Option[IndexedData]], private[dsentric] override val _nameOverride:Option[String])
-                                                     (implicit private[dsentric] override val __prism: Prism[Data, IndexedData],  private[dsentric] override val __index:Index[IndexedData, String, Data], strictness:Strictness)
+abstract class MaybeSubContract[Data, IndexedData]
+  (private[dsentric] override val _pathValidator:Validator[Option[IndexedData]], private[dsentric] override val _nameOverride:Option[String])
+  (implicit private[dsentric] override val __prism: Prism[Data, IndexedData],  private[dsentric] override val __index:Index[IndexedData, String, Data], strictness:Strictness)
   extends Maybe[Data, IndexedData, IndexedData](_pathValidator, _nameOverride) with ContractBase[Data, IndexedData]{
 
   def this(name:Option[String])(implicit prism: Prism[Data, IndexedData], index:Index[IndexedData, String, Data], strictness:Strictness) =
@@ -111,7 +113,8 @@ abstract class MaybeSubContract[Data, IndexedData](private[dsentric] override va
 }
 
 
-abstract class Contract[Data, IndexedData](implicit private[dsentric] val __prism:Prism[Data, IndexedData], private[dsentric] val __index:Index[IndexedData, String, Data])
+abstract class Contract[Data, IndexedData]
+  (implicit private[dsentric] val __prism:Prism[Data, IndexedData], private[dsentric] val __index:Index[IndexedData, String, Data])
   extends ContractBase[Data, IndexedData] with App {
 
   private[dsentric] val _pathPrism = Some(__prism.asOptional)
@@ -127,8 +130,9 @@ abstract class Contract[Data, IndexedData](implicit private[dsentric] val __pris
     }
 }
 
-class Expected[Data, IndexedData, T](private[dsentric] val _pathValidator:Validator[T], private[dsentric] val _nameOverride:Option[String])
-                                     (implicit private[dsentric] val __prism: Prism[Data, T], private[dsentric] val __index: Index[IndexedData, String, Data])
+class Expected[Data, IndexedData, T]
+  (private[dsentric] val _pathValidator:Validator[T], private[dsentric] val _nameOverride:Option[String])
+  (implicit private[dsentric] val __prism: Prism[Data, T], private[dsentric] val __index: Index[IndexedData, String, Data])
   extends Property[Data, IndexedData, T] with MapImplicits[Data, IndexedData, T] {
 
   def unapply(j:Data):Option[T] =

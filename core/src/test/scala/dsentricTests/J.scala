@@ -1,6 +1,6 @@
 package dsentricTests
 
-import dsentric.ExpectedSubContract
+import dsentric.{Strictness, MaybeSubContract, ExpectedSubContract}
 import monocle._
 
 import scalaz.{Applicative, \/}
@@ -46,6 +46,10 @@ object J {
     def this(name:String) = this(Some(name))
   }
 
+  abstract class \?(private val name:Option[String])(implicit strictness:Strictness) extends MaybeSubContract[Json, JsObject](name) {
+    def this()(implicit strictness:Strictness) = this(None)
+    def this(name:String)(implicit strictness:Strictness) = this(Some(name))
+  }
 
 }
 
