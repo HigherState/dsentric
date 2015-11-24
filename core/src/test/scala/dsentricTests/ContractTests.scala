@@ -52,10 +52,10 @@ class ContractTests extends FunSuite with Matchers {
       case _ => false
     }) should equal(false)
 
-    (JsObject(Map("two" -> JsNull)) match {
-      case Test.two(None) => true
-      case _ => false
-    }) should be(true)
+//    (JsObject(Map("two" -> JsNull)) match {
+//      case Test.two(None) => true
+//      case _ => false
+//    }) should be(true)
 
     (JsObject(Map("two" -> JsString("false"))) match {
       case Test.two(Some(i)) => true

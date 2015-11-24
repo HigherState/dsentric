@@ -12,8 +12,8 @@ private[dsentric] sealed trait Struct {
 
 sealed trait Property[Data, IndexedData, T <: Any] extends Struct {
   private[dsentric] var _path:Option[Optional[Data, Data]] = None
-  private[dsentric] lazy val _pathPrism: Option[Optional[Data, T]] =
-    _path.map(_.composePrism(_prism))
+  private[dsentric] lazy val _pathPrism: Optional[Data, T] =
+    _path.fold(_prism.asOptional)(_.composePrism(_prism))
 
   private[dsentric] def _index: Index[IndexedData, String, Data]
   private[dsentric] def _prism: Prism[Data, T]
@@ -40,7 +40,7 @@ private[dsentric] sealed trait ContractBase[Data, IndexedData] extends Struct wi
   private var __fields = Vector.empty[(String, Property[Data, IndexedData, Any])]
 
   private[dsentric] def _prism:Prism[Data, IndexedData]
-  private[dsentric] val _pathPrism:Option[Optional[Data, IndexedData]]
+  private[dsentric] val _pathPrism:Optional[Data, IndexedData]
   private[dsentric] def _fields = __fields
 
   private[dsentric] def _setPropertyNames():Unit = {
@@ -49,7 +49,7 @@ private[dsentric] sealed trait ContractBase[Data, IndexedData] extends Struct wi
         m.invoke(this) match {
           case prop: Property[Data, IndexedData, Any]@unchecked =>
             val name = prop._nameOverride.getOrElse(m.getName)
-            prop._path = _pathPrism.map(_.composeOptional(index[IndexedData, String, Data](name)(prop._index)))
+            prop._path = Some(_pathPrism.composeOptional(index[IndexedData, String, Data](name)(prop._index)))
             prop match {
               case c: ContractBase[Data, IndexedData]@unchecked =>
                 c._setPropertyNames()
@@ -117,7 +117,7 @@ abstract class Contract[Data, IndexedData]
   (implicit private[dsentric] val __prism:Prism[Data, IndexedData], private[dsentric] val __index:Index[IndexedData, String, Data])
   extends ContractBase[Data, IndexedData] with App {
 
-  private[dsentric] val _pathPrism = Some(__prism.asOptional)
+  private[dsentric] val _pathPrism = __prism.asOptional
 
   override def delayedInit(body: => Unit) = {
     body
@@ -133,10 +133,10 @@ abstract class Contract[Data, IndexedData]
 class Expected[Data, IndexedData, T]
   (private[dsentric] val _pathValidator:Validator[T], private[dsentric] val _nameOverride:Option[String])
   (implicit private[dsentric] val __prism: Prism[Data, T], private[dsentric] val __index: Index[IndexedData, String, Data])
-  extends Property[Data, IndexedData, T] with MapImplicits[Data, IndexedData, T] {
+  extends Property[Data, IndexedData, T] with MapImplicits[Data, IndexedData, T] with ExpectedLens[Data, T] {
 
   def unapply(j:Data):Option[T] =
-    _pathPrism.flatMap(_.getOption(j))
+    _pathPrism.getOption(j)
 
   private[dsentric] def _isValidType(j:Data) =
     __prism.getOption(j).isDefined
@@ -205,7 +205,7 @@ abstract class ValueContract[Data, IndexedData, T] private[dsentric](val _pathVa
     __prism.getOption(j).isDefined
 
   def unapply(j:Data):Option[T] =
-    _pathPrism.flatMap(_.getOption(j))
+    _pathPrism.getOption(j)
 }
 
 //

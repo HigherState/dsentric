@@ -26,9 +26,14 @@ object J {
   implicit val jsIndex = new function.Index[JsObject, String, Json] {
     override def index(i: String): Optional[JsObject, Json] = new POptional[JsObject, JsObject, Json, Json] {
       override def getOrModify(s: JsObject): \/[JsObject, Json] = ???
-      override def modify(f: (Json) => Json): (JsObject) => JsObject = ???
-      override def set(b: Json): (JsObject) => JsObject = ???
-      override def getOption(s: JsObject): Option[Json] = s.m.get(i)
+      override def modify(f: (Json) => Json): (JsObject) => JsObject =
+        (j:JsObject) => j.m.get(i).fold(j){v =>
+          JsObject(j.m + (i -> f(v)))
+        }
+      override def set(b: Json): (JsObject) => JsObject =
+        (j:JsObject) => JsObject(j.m + (i -> b))
+      override def getOption(s: JsObject): Option[Json] =
+        s.m.get(i)
       override def modifyF[F[_]](f: (Json) => F[Json])(s: JsObject)(implicit evidence$1: Applicative[F]): F[JsObject] = ???
     }
   }

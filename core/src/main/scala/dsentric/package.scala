@@ -8,4 +8,7 @@ package object dsentric {
 
   type Path = Vector[Either[Int, String]]
   type Failures = Vector[(Path, String)]
+
+  def idFunc[Data]:Data => Data =
+    (d:Data) => d
 }

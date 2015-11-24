@@ -33,6 +33,7 @@ case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]
   }
 }
 
+//TODO separate definition for internal/reserved etc such that the or operator is not supported
 object Validator {
 
   val empty = new Validator[Nothing] {
