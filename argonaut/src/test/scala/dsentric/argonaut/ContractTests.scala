@@ -6,63 +6,63 @@ import Dsentric._
 
 class ContractTests extends FunSuite with Matchers {
 
+  object TestContract extends Contract {
+    val one = \[String]
+    val two = \?[Boolean]
+    val three = \![Int](3)
+  }
 
   test("Contract pattern matching") {
-    object Test extends Contract {
-      val one = \[String]
-      val two = \?[Boolean]
-      val three = \![Int](3)
-    }
 
     (Json("one" := "string", "two" := false) match {
-      case Test.one(s) && Test.two(Some(v)) => s -> v
+      case TestContract.one(s) && TestContract.two(Some(v)) => s -> v
     }) should equal ("string" -> false)
 
     (Json("one" := "string") match {
-      case Test.one(s) && Test.two(None) && Test.three(int) => s -> int
+      case TestContract.one(s) && TestContract.two(None) && TestContract.three(int) => s -> int
     }) should equal ("string" -> 3)
 
     (Json("one" := 123) match {
-      case Test.one(s) && Test.two(None) => s
+      case TestContract.one(s) && TestContract.two(None) => s
       case _ => "wrong type"
     }) should equal ("wrong type")
 
     (Json("two" := false) match {
-      case Test.one(s) && Test.two(None) => s
-      case Test.two(Some(false)) => "two match"
+      case TestContract.one(s) && TestContract.two(None) => s
+      case TestContract.two(Some(false)) => "two match"
     }) should equal ("two match")
 
     (Json("three" := 4) match {
-      case Test.three(i) => i
+      case TestContract.three(i) => i
     }) should equal (4)
 
     (Json("three" := "4") match {
-      case Test.three(i) => true
+      case TestContract.three(i) => true
       case _ => false
     }) should equal (false)
 
     (Json("two" := "String") match {
-      case Test.two(None) => true
+      case TestContract.two(None) => true
       case _ => false
     }) should equal (false)
 
     (Json("two" := jNull) match {
-      case Test.two(None) => true
+      case TestContract.two(None) => true
       case _ => false
     }) should be (true)
 
     (Json("two" := "false") match {
-      case Test.two(Some(i)) => true
+      case TestContract.two(Some(i)) => true
       case _ => false
     }) should equal (false)
 
     (Json("three" := "not a number") match {
-      case Test.three(i) => i
+      case TestContract.three(i) => i
       case _ => "wrong type"
     }) should equal ("wrong type")
 
     (jEmptyObject match {
-      case Test.two(None) => true
+      case TestContract.two(None) => true
       case _ => false
     }) should be (true)
   }

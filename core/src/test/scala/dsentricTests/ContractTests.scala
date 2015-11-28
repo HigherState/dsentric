@@ -70,7 +70,7 @@ class ContractTests extends FunSuite with Matchers {
     (JsObject(Map.empty) match {
       case Test.two(None) => true
       case _ => false
-    }) should be(true)
+    }) should be (true)
   }
 
   object Nested extends J.Contract {

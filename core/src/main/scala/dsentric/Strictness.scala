@@ -3,17 +3,28 @@ package dsentric
 import monocle.{Prism, Optional}
 
 trait Strictness {
-  def apply[Data, T](value:Data, path:Optional[Data, Data], prism:Prism[Data, T]):Option[Option[T]]
+  def apply[Data, T](value:Data, path:Optional[Data, Option[Data]], prism:Prism[Data, T]):Option[Option[T]] =
+    path.getOption(value).fold[Option[Option[T]]](Some(None)){
+      case None => Some(None)
+      case Some(v) => apply(v, prism)
+    }
+
+  def apply[Data, T](value:Data, prism:Prism[Data, T]):Option[Option[T]]
 }
 
-//Incorrect type is OK
+/*
+  An incorrect type will return a match with None
+ */
 object MaybeOptimistic extends Strictness {
-  def apply[Data, T](value: Data, path:Optional[Data, Data], prism:Prism[Data, T]): Option[Option[T]] =
-    Some(path.composePrism(prism).getOption(value))
+  def apply[Data, T](value:Data, prism:Prism[Data, T]):Option[Option[T]] =
+    Some(prism.getOption(value))
+
 }
 
-//Incorrect type is failure
+/*
+  An incorrect type will fail to return a match
+ */
 object MaybePessimistic extends Strictness {
-  def apply[Data, T](value: Data, path:Optional[Data, Data], prism:Prism[Data, T]): Option[Option[T]] =
-    path.getOption(value).fold[Option[Option[T]]](Some(None))(d => prism.getOption(d).map(Some.apply))
+  def apply[Data, T](value:Data, prism:Prism[Data, T]):Option[Option[T]] =
+    prism.getOption(value).map(Some.apply)
 }

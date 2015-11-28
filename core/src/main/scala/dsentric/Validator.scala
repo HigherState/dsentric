@@ -9,11 +9,15 @@ trait Validator[+T] {
   def &&[S >: T] (v:Validator[S]):Validator[S] = AndValidator(this, v)
 
   def ||[S >: T] (v:Validator[S]):Validator[S] = OrValidator(this, v)
+
+  private[dsentric] def isInternal:Boolean = false
 }
 
 case class AndValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]) extends Validator[T] {
   def apply[S >: T](path:Path, value:Option[S], currentState:Option[S]):Failures =
     left(path, value, currentState) ++ right(path, value, currentState)
+
+  private[dsentric] override def isInternal:Boolean = left.isInternal || right.isInternal
 }
 
 case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]) extends Validator[T] {
@@ -31,6 +35,8 @@ case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]
       }
     }
   }
+
+  private[dsentric] override def isInternal:Boolean = left.isInternal || right.isInternal
 }
 
 //TODO separate definition for internal/reserved etc such that the or operator is not supported
@@ -45,6 +51,8 @@ object Validator {
 
     def apply[S >: Option[Nothing]](path:Path, value: Option[S], currentState: Option[S]): Failures =
       value.fold(Failures.empty)(_ => Failures(path -> "Value is reserved and cannot be provided."))
+
+    private[dsentric] override def isInternal:Boolean = true
   }
 
   val reserved = new Validator[Option[Nothing]] {

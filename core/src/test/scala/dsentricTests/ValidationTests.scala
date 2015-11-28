@@ -49,5 +49,4 @@ class ValidationTests extends FunSuite with Matchers {
     Validator.nin(1,2,3)(Path.empty, Some(4), None) should be (Vector.empty)
     Validator.nin(1,2,3)(Path.empty, Some(2), None) should not be Vector.empty
   }
-
 }

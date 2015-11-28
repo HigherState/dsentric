@@ -1,7 +1,6 @@
 package dsentricTests
 
 import dsentric._
-import dsentric.MaybePessimistic
 import org.scalatest.{Matchers, FunSuite}
 
 class ContractValidationTests extends FunSuite with Matchers with FailureMatchers {
@@ -33,8 +32,6 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
   }
 
   object MaybeField extends Contract {
-    implicit def strictness = MaybePessimistic
-
     val mayNonEmpty = \?[String](Validator.nonEmptyOrWhiteSpace)
 
   }
@@ -47,8 +44,6 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
   }
 
   object DefaultField extends Contract {
-    implicit def strictness = MaybePessimistic
-
     val inDefault = \![String]("default", Validator.in("default", "one", "two"))
   }
 
@@ -73,8 +68,7 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
   }
 
   object NestedMaybeField extends Contract {
-    implicit def strictness = MaybePessimistic
-    val nested = new \?{
+    val nested = new \\?{
       val expected = \[String]
     }
   }
@@ -83,5 +77,22 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     NestedMaybeField.$validate(JsObject(Map.empty)) should be (Failures.empty)
     NestedMaybeField.$validate(JsObject(Map("nested" -> JsObject(Map.empty)))) should be (Failures(Path("nested", "expected") -> ValidationText.EXPECTED_VALUE))
     NestedExpectedField.$validate(JsObject(Map("nested" -> JsObject(Map("expected" -> JsString("value")))))) should be (Failures.empty)
+  }
+
+  object ToSanitize extends Contract {
+    val sanitize = \?[String](Validator.internal)
+    val value = \?[Boolean]
+    val nested = new \\ {
+      val sanitize = \?[String](Validator.internal)
+      val value = \?[Int]
+    }
+  }
+
+
+  test("Sanitize data") {
+    val j = JsObject(Map("sanitize" -> JsString("value"), "value" -> JsBool(true), "nested" -> JsObject(Map("sanitize" -> JsString("value"), "value" -> JsNumber(123)))))
+
+    ToSanitize.$sanitize(j) should
+      be (JsObject(Map("value" -> JsBool(true), "nested" -> JsObject(Map("value" -> JsNumber(123))))))
   }
 }
