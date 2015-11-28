@@ -21,23 +21,6 @@ object J {
   implicit val jsArray  = Prism[Json, List[Json]]{ case JsArray(a) => Some(a); case _ => None}(JsArray.apply)
   implicit val jsObject = Prism[Json, Map[String, Json]]{ case JsObject(m) => Some(m); case _ => None}(JsObject.apply)
   implicit val jsO:Prism[Json, JsObject] = Prism[Json, JsObject]{ case j:JsObject => Some(j); case _ => None}(j => j)
-  implicit val jsIndex = new function.Index[JsObject, String, Json] {
-    def index(i: String): Optional[JsObject, Json] = new POptional[JsObject, JsObject, Json, Json] {
-      def getOrModify(s: JsObject): scalaz.\/[JsObject, Json] =
-        s.m.get(i).fold[scalaz.\/[JsObject, Json]](scalaz.-\/(s))(scalaz.\/-.apply)
-      def modify(f: (Json) => Json): (JsObject) => JsObject =
-        (j:JsObject) => {
-          j.m.get(i).fold(j){v =>
-            JsObject(j.m + (i -> f(v)))
-          }
-        }
-      def set(b: Json): (JsObject) => JsObject =
-        (j:JsObject) => JsObject(j.m + (i -> b))
-      def getOption(s: JsObject): Option[Json] =
-        s.m.get(i)
-      def modifyF[F[_]](f: (Json) => F[Json])(s: JsObject)(implicit evidence$1: scalaz.Applicative[F]): F[JsObject] = ???
-    }
-  }
 
   implicit val jsAt = new At[JsObject, String, Json] {
     def at(i: String): Lens[JsObject, Option[Json]] =

@@ -37,25 +37,6 @@ object Dsentric extends
   implicit val jsObject =
     Prism[Json, JsonObject](_.obj)(Argonaut.jObject)
 
-  implicit val jsonObjectIndex = new function.Index[JsonObject, String, Json] {
-    def index(i: String): Optional[JsonObject, Json] = new POptional[JsonObject, JsonObject, Json, Json] {
-
-      def getOrModify(s: JsonObject): \/[JsonObject, Json] =
-        s(i).fold[\/[JsonObject, Json]](-\/(s))(\/-(_))
-
-      def modify(f: (Json) => Json): (JsonObject) => JsonObject =
-        j => j(i).fold(j)(v => j + (i, v))
-
-      def set(b: Json): (JsonObject) => JsonObject =
-        j => j + (i, b)
-
-      def getOption(s: JsonObject): Option[Json] =
-        s(i)
-
-      def modifyF[F[_]](f: (Json) => F[Json])(s: JsonObject)(implicit evidence$1: Applicative[F]): F[JsonObject] = ???
-    }
-  }
-
   implicit val jsonObjectAt = new function.At[JsonObject, String, Json] {
     override def at(i: String): Lens[JsonObject, Option[Json]] =  new PLens[JsonObject, JsonObject, Option[Json], Option[Json]]{
       def get(s: JsonObject): Option[Json] =

@@ -3,7 +3,7 @@ package dsentric
 import monocle.Prism
 import monocle.function.Index
 
-abstract class ExpectedDsl[Data, IndexedData](implicit index: Index[IndexedData, String, Data]) {
+trait ExpectedDsl[Data, IndexedData] {
   def apply[T](implicit prism: Prism[Data, T]) =
     new Expected[Data, IndexedData, T](Validator.empty, None)
 
@@ -17,7 +17,7 @@ abstract class ExpectedDsl[Data, IndexedData](implicit index: Index[IndexedData,
     new Expected[Data, IndexedData, T](validator, Some(name))
 }
 
-abstract class MaybeDsl[Data, IndexedData](implicit index: Index[IndexedData, String, Data]) {
+trait MaybeDsl[Data, IndexedData] {
   def apply[T](implicit prism: Prism[Data, T], strictness: Strictness) =
     new Maybe[Data, IndexedData, T](Validator.empty, None)
 
@@ -31,7 +31,7 @@ abstract class MaybeDsl[Data, IndexedData](implicit index: Index[IndexedData, St
     new Maybe[Data, IndexedData, T](validator, Some(name))
 }
 
-abstract class DefaultDsl[Data, IndexedData](implicit index: Index[IndexedData, String, Data]) {
+trait DefaultDsl[Data, IndexedData] {
 
   def apply[T](default:T)(implicit prism: Prism[Data, T], strictness:Strictness) =
     new Default[Data, IndexedData, T](default, Validator.empty, None)
