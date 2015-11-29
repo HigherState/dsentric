@@ -11,4 +11,5 @@ package object dsentric {
     (d:Data) => d
 
   implicit val strictness = MaybeOptimistic
+
 }

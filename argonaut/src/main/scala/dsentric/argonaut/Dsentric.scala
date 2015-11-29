@@ -84,4 +84,10 @@ object Dsentric extends
   implicit class DefaultDeltaDelete[T](val defaultProperty:dsentric.Default[Json, JsonObject, T]) extends AnyVal with dsentric.DefaultDeltaDelete[Json, JsonObject, T] {
     protected def deleteValue: Json = Argonaut.jNull
   }
+
+  object MaybeNull extends Strictness {
+    override def apply[Data, T](value: Data, prism: Prism[Data, T]): Option[Option[T]] =
+      if (value == Argonaut.jNull) Some(None)
+      else dsentric.MaybePessimistic(value, prism)
+  }
 }

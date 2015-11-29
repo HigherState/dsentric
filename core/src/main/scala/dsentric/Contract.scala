@@ -92,6 +92,12 @@ private[dsentric] sealed trait ContractBase[Data, IndexedData]
 
   def $create(f:Data => Data):Data =
     f(_prism.reverseGet(_empty.empty.reverseGet(())))
+
+  def $dynamic[T](field:String)(implicit prism:Prism[Data, T], strictness:Strictness) = {
+    val prop = new Maybe[Data, IndexedData, T](Validator.empty, None)(prism, strictness)
+    prop._path = _pathPrism.composeLens(at[IndexedData, String, Data](field))
+    prop
+  }
 }
 
 private[dsentric] sealed trait SubContract[Data, IndexedData] extends ContractBase[Data, IndexedData] {
