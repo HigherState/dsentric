@@ -26,6 +26,9 @@ class CompositorTests extends FunSuite with Matchers {
         i should equal (1)
         b should equal (false)
     }
+
+    TestObj.composite.$set(("string", 3, false))(json)
+    ()
   }
 
 }
