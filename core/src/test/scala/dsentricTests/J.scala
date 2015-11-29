@@ -2,7 +2,9 @@ package dsentricTests
 
 import dsentric.{Strictness, MaybeSubContract, ExpectedSubContract, LensCompositor}
 import monocle._
-import monocle.function.{Empty, At}
+import monocle.function.{Each, Empty, At}
+
+import scalaz.Applicative
 
 object J {
 
@@ -41,6 +43,12 @@ object J {
   implicit val jsEmpty = new Empty[JsObject] {
     override val empty: Prism[JsObject, Unit] =
       Prism[JsObject, Unit](j => if (j.m.isEmpty) Some(()) else None)(_ => JsObject(Map.empty))
+  }
+
+  implicit val jsEach = new Each[JsObject, (String, Json)] {
+    def each: Traversal[JsObject, (String, Json)] = new PTraversal[JsObject, JsObject, (String, Json), (String, Json)] {
+      def modifyF[F[_]](f: ((String, Json)) => F[(String, Json)])(s: JsObject)(implicit evidence$1: Applicative[F]): F[JsObject] = ???
+    }
   }
 
   object \ extends dsentric.ExpectedDsl[Json, JsObject]
