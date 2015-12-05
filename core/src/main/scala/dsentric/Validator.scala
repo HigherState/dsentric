@@ -1,5 +1,6 @@
 package dsentric
 
+import scala.util.matching.Regex
 import scalaz.Scalaz._
 
 trait Validator[+T] {
@@ -58,6 +59,17 @@ object Validator {
   val reserved = new Validator[Option[Nothing]] {
     def apply[S >: Option[Nothing]](path: Path, value: Option[S], currentState: Option[S]): Failures =
       value.fold(Failures.empty)(_ => Failures(path -> "Value is reserved and cannot be provided."))
+  }
+
+  val immutable = new Validator[Nothing] {
+    def apply[S >: Nothing](path:Path, value: Option[S], currentState: Option[S]):Failures =
+      (for {
+        v <- value
+        cs <- currentState
+        if v != cs
+      } yield
+        path -> "Immutable value cannot be changed."
+        ).toVector
   }
 
   val increment = new Validator[Numeric] {
@@ -179,6 +191,7 @@ object Validator {
   def in[T](values:T*) = new Validator[Optionable[T]] {
     def apply[S >: Optionable[T]](path:Path, value: Option[S], currentState: Option[S]): Failures =
       value
+        .flatMap(getT[T, S])
         .filterNot(values.contains)
         .map(v => path -> s"'$v is not an allowed value.")
         .toVector
@@ -187,6 +200,7 @@ object Validator {
   def nin[T](values:T*) = new Validator[Optionable[T]] {
     def apply[S >: Optionable[T]](path:Path, value: Option[S], currentState: Option[S]): Failures =
       value
+        .flatMap(getT[T, S])
         .filter(values.contains)
         .map(v => path -> s"'$v is not an allowed value.")
         .toVector
@@ -196,6 +210,7 @@ object Validator {
   def inCaseInsensitive(values:String*) = new Validator[Optionable[String]] {
     def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: Option[S]): Failures =
       value
+        .flatMap(getString)
         .filterNot(v => values.exists(_.equalsIgnoreCase(v.toString)))
         .map(v => path -> s"'$v is not an allowed value.")
         .toVector
@@ -204,6 +219,7 @@ object Validator {
   def ninCaseInsensitive(values:String*) = new Validator[Optionable[String]] {
     def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: Option[S]): Failures =
       value
+        .flatMap(getString)
         .filter(v => values.exists(_.equalsIgnoreCase(v.toString)))
         .map(v => path -> s"'$v is not an allowed value.")
         .toVector
@@ -226,9 +242,35 @@ object Validator {
           case Some(s: String) => s
         }
         .filter(_.trim().isEmpty)
-        .map(v => path -> "String must not empty or whitespace")
+        .map(v => path -> "String must not empty or whitespace.")
         .toVector
   }
+
+  def custom[T](f: T => Boolean, message:String) = new Validator[Optionable[T]] {
+
+    def apply[S >: Optionable[T]](path: Path, value: Option[S], currentState: Option[S]): Failures =
+      value
+        .flatMap(getT[T, S])
+        .toVector.flatMap{ s =>
+          if (f(s)) Vector.empty
+          else Vector(path -> message)
+        }
+  }
+
+  def regex(r:Regex):Validator[Optionable[String]] =
+    regex(r, s"String fails to match pattern '$r'.")
+
+  def regex(r:Regex, message:String):Validator[Optionable[String]] =
+    new Validator[Optionable[String]] {
+      def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: Option[S]): Failures =
+        value
+          .flatMap(getString)
+          .toVector
+          .flatMap{ s =>
+            if (r.pattern.matcher(s).matches) Vector.empty
+            else Vector(path -> message)
+          }
+    }
 
   private def getLength[S >: Optionable[Length]](x:S) =
     x match {
@@ -243,9 +285,22 @@ object Validator {
       case Some(a:Iterable[_]) =>
         Some(a.size)
       case Some(s:String) =>
-        Some(s.size)
+        Some(s.length)
       case _ =>
         None
+    }
+
+  private def getString[S >: Optionable[String]](x:S):Option[String] =
+    x match {
+      case Some(s:String) => Some(s)
+      case s:String => Some(s)
+      case _ =>  None
+    }
+
+  private def getT[T, S >: Optionable[T]](t:S):Option[T] =
+    t match {
+      case Some(s: T@unchecked) => Some(s)
+      case s: T@unchecked => Some(s)
     }
 
   private def resolve[S >: Numeric](value:S, target:S):Option[Int] =

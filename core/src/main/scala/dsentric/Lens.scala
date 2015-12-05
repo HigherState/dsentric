@@ -22,7 +22,7 @@ sealed trait PropertyLens[Data, T] {
     }
 }
 
-trait ExpectedLens[Data, T] extends PropertyLens[Data, T] with ComposableLens[Data, T, T] {
+trait ExpectedLens[Data, T] extends PropertyLens[Data, T] with ApplicativeLens[Data, T, T] {
 
   def $modify(f:T => T):Data => Data =
     _path.modify{
@@ -42,7 +42,7 @@ trait ExpectedLens[Data, T] extends PropertyLens[Data, T] with ComposableLens[Da
     }
 }
 
-trait MaybeLens[Data, T] extends PropertyLens[Data, T] with ComposableLens[Data, Option[T], T] {
+trait MaybeLens[Data, T] extends PropertyLens[Data, T] with ApplicativeLens[Data, Option[T], T] {
 
   private[dsentric] def _strictness:Strictness
 
@@ -71,7 +71,7 @@ trait MaybeLens[Data, T] extends PropertyLens[Data, T] with ComposableLens[Data,
     }
 }
 
-trait DefaultLens[Data, T] extends PropertyLens[Data, T] with ComposableLens[Data, T, T]{
+trait DefaultLens[Data, T] extends PropertyLens[Data, T] with ApplicativeLens[Data, T, T]{
 
   def _default:T
 
