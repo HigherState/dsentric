@@ -27,8 +27,7 @@ class CompositorTests extends FunSuite with Matchers {
         b should equal (false)
     }
 
-    TestObj.composite.$set(("string", 3, false))(json)
-    ()
+    TestObj.composite.$set(("string", 3, true))(json) should be (JsObject(Map("int" -> JsNumber(3), "bool" -> JsBool(true), "string" -> JsString("string"))))
   }
 
 }
