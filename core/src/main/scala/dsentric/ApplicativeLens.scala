@@ -4,7 +4,7 @@ import shapeless.ops.hlist.Tupler
 import shapeless.syntax.std.TupleOps
 import shapeless.{::, HNil, HList}
 
-private [dsentric] trait ComposableLens[Data, P, S] {
+private [dsentric] trait ApplicativeLens[Data, P, S] {
 
   def unapply(data:Data):Option[P]
 
@@ -12,7 +12,7 @@ private [dsentric] trait ComposableLens[Data, P, S] {
 
   //def $set(value:In):Data => Data
 
-  def @:[P1, S1, O](prev:ComposableLens[Data, P1, S1])(implicit ev: Compositor.Aux[Data, ComposableLens[Data, P1, S1] :: ComposableLens[Data, P, S] :: HNil, P1 :: P :: HNil, S1 :: S :: HNil], tplP:Tupler.Aux[P1 :: P :: HNil, O], tplS:Tupler.Aux[S1 :: S :: HNil, O]) =
+  def @:[P1, S1, O](prev:ComposableLens[Data, P1, S1])(implicit ev: ApplicativeLens.Aux[Data, ComposableLens[Data, P1, S1] :: ComposableLens[Data, P, S] :: HNil, P1 :: P :: HNil, S1 :: S :: HNil], tplP:Tupler.Aux[P1 :: P :: HNil, O], tplS:Tupler.Aux[S1 :: S :: HNil, O]) =
     LensList(prev :: this.asInstanceOf[ComposableLens[Data, P, S]] :: HNil, ev, tplP, tplS)
 }
 
@@ -21,11 +21,11 @@ trait Evaluator[Data, L <: HList] {
   type InS <: HList
 
   def patternMatch(data:Data, l:L):Option[OutP]
-  
+
   def set(l:L, s:InS):Data => Data
 }
 
-object Compositor {
+object ApplicativeLens {
 
   type Aux[Data, L <: HList, OP <: HList, IS <: HList] =
     Evaluator[Data, L]{
@@ -40,7 +40,7 @@ object Compositor {
     type InS = HNil
 
     def patternMatch(data:Data, lp:HNil) = Some(HNil)
-    
+
     def set(l:HNil, s:HNil) = Predef.identity[Data]
   }
 
@@ -54,7 +54,7 @@ object Compositor {
           h <- l.head.unapply(data)
           t <- evalT.patternMatch(data, l.tail)
         } yield h :: t
-      
+
       def set(l: E[Data, P, S] :: L, s: InS):Data => Data = {
         val h = l.head.$set(s.head)
         val t = evalT.set(l.tail, s.tail)
@@ -68,7 +68,7 @@ object Compositor {
   }
 }
 
-case class LensList[Data, L <: HList, OP <: HList, IS <: HList, TP1, TS1](maybes: L, ev: Compositor.Aux[Data, L, OP, IS], tplP:Tupler.Aux[OP, TP1], tplS:Tupler.Aux[IS, TS1]) {
+case class LensList[Data, L <: HList, OP <: HList, IS <: HList, TP1, TS1](maybes: L, ev: ApplicativeLens.Aux[Data, L, OP, IS], tplP:Tupler.Aux[OP, TP1], tplS:Tupler.Aux[IS, TS1]) {
 
   import shapeless.syntax.std.tuple._
 
@@ -87,7 +87,7 @@ case class LensList[Data, L <: HList, OP <: HList, IS <: HList, TP1, TS1](maybes
   //TODO: add $set method, look at FnFromProduct
 
   def @:[P, S, TP2, TS2](prev:ComposableLens[Data, P, S])(implicit tplP2:Tupler.Aux[P :: OP, TP2], tplS2:Tupler.Aux[S :: IS, TS2]) =
-    LensList(prev :: maybes, Compositor.evalHCons[Data, P, S, L](ev), tplP2, tplS2)
+    LensList(prev :: maybes, ApplicativeLens.evalHCons[Data, P, S, L](ev), tplP2, tplS2)
 }
 
 class Tupling[L <: HList, TP](tupler:Tupler.Aux[L, TP]) {

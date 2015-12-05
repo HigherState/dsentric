@@ -4,9 +4,9 @@ import dsentric._
 import org.scalatest.{FunSuite, Matchers}
 import shapeless.ops.hlist.Tupler
 
-class CompositorTests extends FunSuite with Matchers {
+class ApplicativeLensTests extends FunSuite with Matchers {
   import J._
-  import Compositor._
+  import ApplicativeLens._
   import Tupler._
 
   object TestObj extends Contract {
