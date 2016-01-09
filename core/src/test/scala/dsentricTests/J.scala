@@ -46,8 +46,14 @@ object J {
   }
 
   implicit val jsEach = new Each[JsObject, (String, Json)] {
+    import scalaz._
+    import Scalaz._
     def each: Traversal[JsObject, (String, Json)] = new PTraversal[JsObject, JsObject, (String, Json), (String, Json)] {
-      def modifyF[F[_]](f: ((String, Json)) => F[(String, Json)])(s: JsObject)(implicit evidence$1: Applicative[F]): F[JsObject] = ???
+      def modifyF[F[_]](f: ((String, Json)) => F[(String, Json)])(s: JsObject)(implicit evidence$1: Applicative[F]): F[JsObject] = {
+        val m = s.m.map(f)
+        val ss = evidence$1.sequence(m.toList)
+        ss.map(i => JsObject(i.toMap))
+      }
     }
   }
 

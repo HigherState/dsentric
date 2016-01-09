@@ -43,54 +43,59 @@ case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]
 //TODO separate definition for internal/reserved etc such that the or operator is not supported
 object Validator {
 
-  val empty = new Validator[Nothing] {
-    def apply[S >: Nothing](path:Path, value: Option[S], currentState: Option[S]):Failures =
-      Failures.empty
-  }
+  val empty =
+    new Validator[Nothing] {
+      def apply[S >: Nothing](path:Path, value: Option[S], currentState: Option[S]):Failures =
+        Failures.empty
+    }
 
-  val internal = new Validator[Option[Nothing]] {
+  val internal =
+    new Validator[Option[Nothing]] {
+      def apply[S >: Option[Nothing]](path:Path, value: Option[S], currentState: Option[S]): Failures =
+        value.fold(Failures.empty)(_ => Failures(path -> "Value is reserved and cannot be provided."))
 
-    def apply[S >: Option[Nothing]](path:Path, value: Option[S], currentState: Option[S]): Failures =
-      value.fold(Failures.empty)(_ => Failures(path -> "Value is reserved and cannot be provided."))
+      private[dsentric] override def isInternal:Boolean = true
+    }
 
-    private[dsentric] override def isInternal:Boolean = true
-  }
+  val reserved =
+    new Validator[Option[Nothing]] {
+      def apply[S >: Option[Nothing]](path: Path, value: Option[S], currentState: Option[S]): Failures =
+        value.fold(Failures.empty)(_ => Failures(path -> "Value is reserved and cannot be provided."))
+    }
 
-  val reserved = new Validator[Option[Nothing]] {
-    def apply[S >: Option[Nothing]](path: Path, value: Option[S], currentState: Option[S]): Failures =
-      value.fold(Failures.empty)(_ => Failures(path -> "Value is reserved and cannot be provided."))
-  }
+  val immutable =
+    new Validator[Nothing] {
+      def apply[S >: Nothing](path:Path, value: Option[S], currentState: Option[S]):Failures =
+        (for {
+          v <- value
+          cs <- currentState
+          if v != cs
+        } yield
+          path -> "Immutable value cannot be changed."
+          ).toVector
+    }
 
-  val immutable = new Validator[Nothing] {
-    def apply[S >: Nothing](path:Path, value: Option[S], currentState: Option[S]):Failures =
-      (for {
-        v <- value
-        cs <- currentState
-        if v != cs
-      } yield
-        path -> "Immutable value cannot be changed."
-        ).toVector
-  }
+  val increment =
+    new Validator[Numeric] {
+      def apply[S >: Numeric](path:Path, value: Option[S], currentState: Option[S]): Failures =
+        (for {
+          v <- value
+          c <- currentState
+          r <- resolve(c,v)
+          a <- (r >= 0).option(path -> "Value must increase.")
+        } yield a).toVector
+    }
 
-  val increment = new Validator[Numeric] {
-    def apply[S >: Numeric](path:Path, value: Option[S], currentState: Option[S]): Failures =
-      (for {
-        v <- value
-        c <- currentState
-        r <- resolve(c,v)
-        a <- (r >= 0).option(path -> "Value must increase.")
-      } yield a).toVector
-  }
-
-  val decrement = new Validator[Numeric] {
-    def apply[S >: Numeric](path:Path, value: Option[S], currentState: Option[S]): Failures =
-      (for {
-        v <- value
-        c <- currentState
-        r <- resolve(c,v)
-        a <- (r <= 0).option(path -> "Value must decrease.")
-      } yield a).toVector
-  }
+  val decrement =
+    new Validator[Numeric] {
+      def apply[S >: Numeric](path:Path, value: Option[S], currentState: Option[S]): Failures =
+        (for {
+          v <- value
+          c <- currentState
+          r <- resolve(c,v)
+          a <- (r <= 0).option(path -> "Value must decrease.")
+        } yield a).toVector
+    }
 
   def >(x:Long) = new Validator[Numeric] {
     def apply[S >: Numeric](path: Path, value: Option[S], currentState: Option[S]): Failures =
@@ -225,37 +230,39 @@ object Validator {
         .toVector
   }
 
-  val nonEmpty = new Validator[Optionable[Length]] {
-    def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: Option[S]): Failures =
-      value
-        .flatMap(getLength)
-        .filter(_ == 0)
-        .map(v => path -> s"Value must not be empty.")
-        .toVector
-  }
+  val nonEmpty =
+    new Validator[Optionable[Length]] {
+      def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: Option[S]): Failures =
+        value
+          .flatMap(getLength)
+          .filter(_ == 0)
+          .map(v => path -> s"Value must not be empty.")
+          .toVector
+    }
 
-  val nonEmptyOrWhiteSpace = new Validator[Optionable[String]] {
-    def apply[S >: Optionable[String]](path: Path, value: Option[S], currentState: Option[S]): Failures =
-      value
-        .collect {
-          case s: String => s
-          case Some(s: String) => s
-        }
-        .filter(_.trim().isEmpty)
-        .map(v => path -> "String must not empty or whitespace.")
-        .toVector
-  }
+  val nonEmptyOrWhiteSpace =
+    new Validator[Optionable[String]] {
+      def apply[S >: Optionable[String]](path: Path, value: Option[S], currentState: Option[S]): Failures =
+        value
+          .collect {
+            case s: String => s
+            case Some(s: String) => s
+          }
+          .filter(_.trim().isEmpty)
+          .map(v => path -> "String must not empty or whitespace.")
+          .toVector
+    }
 
-  def custom[T](f: T => Boolean, message:String) = new Validator[Optionable[T]] {
-
-    def apply[S >: Optionable[T]](path: Path, value: Option[S], currentState: Option[S]): Failures =
-      value
-        .flatMap(getT[T, S])
-        .toVector.flatMap{ s =>
-          if (f(s)) Vector.empty
-          else Vector(path -> message)
-        }
-  }
+  def custom[T](f: T => Boolean, message:String) =
+    new Validator[Optionable[T]] {
+      def apply[S >: Optionable[T]](path: Path, value: Option[S], currentState: Option[S]): Failures =
+        value
+          .flatMap(getT[T, S])
+          .toVector.flatMap{ s =>
+            if (f(s)) Vector.empty
+            else Vector(path -> message)
+          }
+    }
 
   def regex(r:Regex):Validator[Optionable[String]] =
     regex(r, s"String fails to match pattern '$r'.")

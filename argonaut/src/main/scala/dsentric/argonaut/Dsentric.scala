@@ -2,8 +2,9 @@ package dsentric.argonaut
 
 import argonaut._
 import dsentric.{LensCompositor, MaybeSubContract, Strictness, ExpectedSubContract}
+import dsentricTests.J.JsObject
 import monocle._
-import monocle.function.Empty
+import monocle.function.{Each, Empty}
 
 import scalaz.{-\/, \/-, Applicative, \/}
 
@@ -49,6 +50,18 @@ object Dsentric extends
 
       def modifyF[F[_]](f: (Option[Json]) => F[Option[Json]])(s: JsonObject)(implicit evidence$1: scalaz.Functor[F]): F[JsonObject] =
         ???
+    }
+  }
+
+  implicit val jsEach = new Each[JsonObject, (String, Json)] {
+    import scalaz._
+    import Scalaz._
+    def each: Traversal[JsonObject, (String, Json)] = new PTraversal[JsonObject, JsonObject, (String, Json), (String, Json)] {
+      def modifyF[F[_]](f: ((String, Json)) => F[(String, Json)])(s: JsonObject)(implicit evidence$1: Applicative[F]): F[JsonObject] = {
+        val m = s.toMap.map(f)
+        val ss = evidence$1.sequence(m.toList)
+        ss.map(i => JsonObjectInstance(i.toMap))
+      }
     }
   }
 

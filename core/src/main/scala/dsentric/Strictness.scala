@@ -18,7 +18,6 @@ trait Strictness {
 object MaybeOptimistic extends Strictness {
   def apply[Data, T](value:Data, prism:Prism[Data, T]):Option[Option[T]] =
     Some(prism.getOption(value))
-
 }
 
 /*

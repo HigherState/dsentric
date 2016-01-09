@@ -2,6 +2,7 @@ package dsentric.std
 
 import dsentric._
 import monocle._
+import monocle.function.Each
 
 trait CommonPrisms {
 
@@ -23,6 +24,18 @@ trait CommonPrisms {
   implicit val mapAt = monocle.std.map.atMap[String, Any]
 
   implicit val mapEmpty = monocle.std.map.mapEmpty[String, Any]
+
+  implicit val mapEach = new Each[Map[String, Any], (String, Any)] {
+    import scalaz._
+    import Scalaz._
+    def each: Traversal[Map[String, Any], (String, Any)] = new PTraversal[Map[String, Any], Map[String, Any], (String, Any), (String, Any)] {
+      def modifyF[F[_]](f: ((String, Any)) => F[(String, Any)])(s: Map[String, Any])(implicit evidence$1: Applicative[F]): F[Map[String, Any]] = {
+        val m = s.map(f)
+        val ss = evidence$1.sequence(m.toList)
+        ss.map(_.toMap)
+      }
+    }
+  }
 }
 
 //Types must match, (expected number primitives dont have to be exact type, just value)
