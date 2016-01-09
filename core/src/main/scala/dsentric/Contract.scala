@@ -37,14 +37,14 @@ private[dsentric] sealed trait ContractBase[Data, IndexedData]
   extends Struct with MapPrism[Data, IndexedData, IndexedData]{
   private var __fields = Vector.empty[(String, Property[Data, IndexedData, Any])]
 
-  implicit private[dsentric] val __at: At[IndexedData, String, Data]
+  implicit private[dsentric] val __at: At[IndexedData, String, Option[Data]]
   implicit private[dsentric] val __empty: Empty[IndexedData]
 
   private[dsentric] val _index: Index[IndexedData, String, Data] = Index.atIndex(_at)
-  private[dsentric] def _at: At[IndexedData, String, Data] = __at
+  private[dsentric] def _at: At[IndexedData, String, Option[Data]] = __at
   private[dsentric] def _empty: Empty[IndexedData] = __empty
   private[dsentric] def _prism:Prism[Data, IndexedData]
-  private[dsentric] def _pathPrism:Optional[Data, IndexedData]
+  private[dsentric] def _pathPrism:POptional[Data, Data, IndexedData, IndexedData]
   private[dsentric] def _fields = __fields
 
   private[dsentric] def _setPropertyNames():Unit = {
@@ -53,7 +53,7 @@ private[dsentric] sealed trait ContractBase[Data, IndexedData]
         m.invoke(this) match {
           case prop: Property[Data, IndexedData, Any]@unchecked =>
             val name = prop._nameOverride.getOrElse(m.getName)
-            prop._path = _pathPrism.composeLens(at[IndexedData, String, Data](name))
+            prop._path = _pathPrism.composeLens(at[IndexedData, String, Option[Data]](name))
             prop match {
               case c: SubContract[Data, IndexedData]@unchecked =>
                 c._pathPrism = _pathPrism.composeOptional(_index.index(name)).composeOptional(_prism.asOptional)
@@ -95,7 +95,7 @@ private[dsentric] sealed trait ContractBase[Data, IndexedData]
 
   def $dynamic[T](field:String)(implicit prism:Prism[Data, T], strictness:Strictness) = {
     val prop = new Maybe[Data, IndexedData, T](Validator.empty, None)(prism, strictness)
-    prop._path = _pathPrism.composeLens(at[IndexedData, String, Data](field))
+    prop._path = _pathPrism.composeLens(at[IndexedData, String, Option[Data]](field))
     prop
   }
 }
@@ -108,7 +108,7 @@ abstract class ExpectedSubContract[Data, IndexedData]
   (private[dsentric] override val _pathValidator:Validator[IndexedData], private[dsentric] override val _nameOverride:Option[String])
   (implicit
     private[dsentric] override val __prism: Prism[Data, IndexedData],
-    private[dsentric] override val __at:At[IndexedData, String, Data],
+    private[dsentric] override val __at:At[IndexedData, String, Option[Data]],
     private[dsentric] override val __empty:Empty[IndexedData]
   )
   extends
@@ -117,7 +117,7 @@ abstract class ExpectedSubContract[Data, IndexedData]
   {
 
 
-  def this(name:Option[String])(implicit prism: Prism[Data, IndexedData], at:At[IndexedData, String, Data], empty:Empty[IndexedData]) =
+  def this(name:Option[String])(implicit prism: Prism[Data, IndexedData], at:At[IndexedData, String, Option[Data]], empty:Empty[IndexedData]) =
     this(Validator.empty, name)
 
   override private[dsentric] def _validate(path:Path, value:Option[Data], currentState:Option[Data]):Failures =
@@ -133,12 +133,12 @@ abstract class MaybeSubContract[Data, IndexedData]
   (private[dsentric] override val _pathValidator:Validator[Option[IndexedData]], private[dsentric] override val _nameOverride:Option[String])
   (implicit
     private[dsentric] override val __prism: Prism[Data, IndexedData],
-    private[dsentric] override val __at:At[IndexedData, String, Data],
+    private[dsentric] override val __at:At[IndexedData, String, Option[Data]],
     private[dsentric] override val __empty:Empty[IndexedData],
     strictness:Strictness)
   extends Maybe[Data, IndexedData, IndexedData](_pathValidator, _nameOverride) with SubContract[Data, IndexedData]{
 
-  def this(name:Option[String])(implicit prism: Prism[Data, IndexedData], at:At[IndexedData, String, Data], empty:Empty[IndexedData], strictness:Strictness) =
+  def this(name:Option[String])(implicit prism: Prism[Data, IndexedData], at:At[IndexedData, String, Option[Data]], empty:Empty[IndexedData], strictness:Strictness) =
     this(Validator.empty, name)
 
   override private[dsentric] def _validate(path:Path, value:Option[Data], currentState:Option[Data]):Failures =
@@ -154,7 +154,7 @@ abstract class MaybeSubContract[Data, IndexedData]
 abstract class Contract[Data, IndexedData]
   (implicit
     private[dsentric] val __prism:Prism[Data, IndexedData],
-    private[dsentric] val __at:At[IndexedData, String, Data],
+    private[dsentric] val __at:At[IndexedData, String, Option[Data]],
     private[dsentric] override val __empty:Empty[IndexedData]
   )
   extends ContractBase[Data, IndexedData] with App {
@@ -167,7 +167,7 @@ abstract class Contract[Data, IndexedData]
   }
 
   def $validate(value:Data, currentState:Option[Data] = None):Failures =
-    __prism.getOption(value).fold(Failures(Path.empty -> ValidationText.UNEXPECTED_TYPE)){ _ =>
+    __prism.getOption(value).fold(Failures(Path.empty -> ValidationText.UNEXPECTED_TYPE)){ temp =>
       _validateFields(Path.empty, Some(value), currentState)
     }
 }

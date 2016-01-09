@@ -8,7 +8,7 @@ trait ObjectOps {
 
   def applyDelta[Data, IndexedData]
     (target: Data, delta: Data, deltaDelete: Option[Data])
-    (implicit prism: Prism[Data, IndexedData], empty: Empty[IndexedData], at: At[IndexedData, String, Data], each: Each[IndexedData, (String, Data)]): Data = {
+    (implicit prism: Prism[Data, IndexedData], empty: Empty[IndexedData], at: At[IndexedData, String, Option[Data]], each: Each[IndexedData, (String, Data)]): Data = {
       val traversal = each.each
       val emp = empty.empty.reverseGet(())
 
@@ -37,7 +37,7 @@ trait ObjectOps {
    */
   def deltaDifference[Data, IndexedData]
     (delta: Data, target: Data, deltaDelete: Option[Data])
-    (implicit prism: Prism[Data, IndexedData], empty: Empty[IndexedData], at: At[IndexedData, String, Data], each: Each[IndexedData, (String, Data)]): Option[Data] = {
+    (implicit prism: Prism[Data, IndexedData], empty: Empty[IndexedData], at: At[IndexedData, String, Option[Data]], each: Each[IndexedData, (String, Data)]): Option[Data] = {
       val traversal = each.each
       val emp = empty.empty.reverseGet(())
 

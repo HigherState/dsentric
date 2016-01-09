@@ -24,7 +24,7 @@ object J {
   implicit val jsObject = Prism[Json, Map[String, Json]]{ case JsObject(m) => Some(m); case _ => None}(JsObject.apply)
   implicit val jsO:Prism[Json, JsObject] = Prism[Json, JsObject]{ case j:JsObject => Some(j); case _ => None}(j => j)
 
-  implicit val jsAt = new At[JsObject, String, Json] {
+  implicit val jsAt = new At[JsObject, String, Option[Json]] {
     def at(i: String): Lens[JsObject, Option[Json]] =
       new PLens[JsObject, JsObject, Option[Json], Option[Json]]{
         def get(s: JsObject): Option[Json] =

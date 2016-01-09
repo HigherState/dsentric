@@ -32,6 +32,7 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
   }
 
   object MaybeField extends Contract {
+    implicit def strictness = MaybePessimistic
     val mayNonEmpty = \?[String](Validator.nonEmptyOrWhiteSpace)
 
   }
@@ -44,6 +45,7 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
   }
 
   object DefaultField extends Contract {
+    implicit def strictness = MaybePessimistic
     val inDefault = \![String]("default", Validator.in("default", "one", "two"))
   }
 
