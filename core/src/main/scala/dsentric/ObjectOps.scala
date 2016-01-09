@@ -4,6 +4,7 @@ import monocle.Prism
 import monocle.function.{Each, At, Empty}
 import scalaz.Scalaz._
 
+// Assumption that an empty object will be cleared out
 trait ObjectOps {
 
   def applyDelta[Data, IndexedData]
@@ -33,7 +34,7 @@ trait ObjectOps {
       deltaRecurse(target, delta)
     }
   /*
-    provides those values in source which do not match those in target
+    provides those values in the delta which are different from the target
    */
   def deltaDifference[Data, IndexedData]
     (delta: Data, target: Data, deltaDelete: Option[Data])
@@ -63,9 +64,31 @@ trait ObjectOps {
             }
             (newDelta != emp).option(prism.reverseGet(newDelta))
           case _ =>
-            Some(target)
+            Some(delta)
         }
     }
     diffRecurse(delta, target)
   }
+
+  def nestedMap[T, S, Data, IndexedData]
+    (target:Data)
+    (f:Function[T, S])
+    (implicit prism: Prism[Data, IndexedData], each: Each[IndexedData, (String, Data)], tPrism: Prism[Data, T], sPrism:Prism[Data, S]):Data = {
+      val traversal = each.each
+
+      def nestedRecurse(target:Data, f:Function[T, S]):Data = {
+        tPrism.getOption(target).fold{
+          prism.getOption(target).fold(target){ o =>
+            prism.reverseGet(each.each.modify(p => p._1 -> nestedRecurse(p._2, f))(o))
+          }
+        }{t =>
+          sPrism.reverseGet(f(t))
+        }
+      }
+      nestedRecurse(target, f)
+  }
+
+
+  def nestedIndexedDataMap[Data, IndexedData](target:Data)(f:Function[(String, Data), Option[(String, Data)]]):Option[Data] =
+    ???
 }

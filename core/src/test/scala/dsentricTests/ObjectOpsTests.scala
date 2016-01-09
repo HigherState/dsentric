@@ -49,4 +49,59 @@ class ObjectOpsTests  extends FunSuite with Matchers with ObjectOps {
           "six" -> JsString("vi")))))
       )
     }
+
+  test("Difference tests") {
+    val obj = JsObject(Map("one" -> JsNumber(1),
+      "obj" -> JsObject(Map(
+        "two" -> JsBool(false),
+        "three" -> JsArray(List(JsNumber(1),JsNumber(2),JsNumber(3),JsNumber(4))),
+        "four" -> JsObject(Map("five" -> JsNumber(5)))))))
+
+    deltaDifference[Json, JsObject](obj, obj, Some(JsNull)) should be (None)
+    deltaDifference[Json, JsObject](JsObject(Map.empty), obj, Some(JsNull)) should be (None)
+    deltaDifference[Json, JsObject](JsObject(Map("one" -> JsNumber(1))), obj, Some(JsNull)) should be (None)
+    deltaDifference[Json, JsObject](JsObject(Map("one" -> JsNumber(1), "obj" -> JsObject(Map("two" -> JsBool(false))))), obj, Some(JsNull)) should be (None)
+    deltaDifference[Json, JsObject](JsObject(Map("five" -> JsNull, "obj" -> JsObject(Map("six" -> JsNull)))), obj, Some(JsNull)) should be (None)
+    deltaDifference[Json, JsObject](JsObject(Map("obj" -> JsObject(Map("four" -> JsObject(Map.empty))))), obj, Some(JsNull)) should be (None)
+    deltaDifference[Json, JsObject](JsObject(Map("obj" -> JsObject(Map("four" -> JsObject(Map("five" -> JsNumber(5))))))), obj, Some(JsNull)) should be (None)
+
+    deltaDifference[Json, JsObject](JsObject(Map("one" -> JsNumber(2))), obj, Some(JsNull)) should be (Some(JsObject(Map("one" -> JsNumber(2)))))
+    deltaDifference[Json, JsObject](JsObject(Map("six" -> JsNumber(6))), obj, Some(JsNull)) should be (Some(JsObject(Map("six" -> JsNumber(6)))))
+    deltaDifference[Json, JsObject](JsObject(Map("obj" -> JsObject(Map("four" -> JsObject(Map("six" -> JsNumber(34))))))), obj, Some(JsNull)) should be (
+      Some(JsObject(Map("obj" -> JsObject(Map("four" -> JsObject(Map("six" -> JsNumber(34))))))))
+    )
+    deltaDifference[Json, JsObject](JsObject(Map("obj" -> JsObject(Map("two" -> JsBool(true), "three" -> JsArray(List(JsNumber(1),JsNumber(2),JsNumber(3),JsNumber(4))))))), obj, Some(JsNull)) should be (
+      Some(JsObject(Map("obj" -> JsObject(Map("two" -> JsBool(true))))))
+    )
+    deltaDifference[Json, JsObject](JsObject(Map("obj" -> JsObject(Map("three" -> JsArray(List(JsNumber(1),JsNumber(2),JsNumber(3),JsNumber(4),JsNumber(5),JsNumber(6))))))), obj, Some(JsNull)) should be (
+      Some(JsObject(Map("obj" -> JsObject(Map("three" -> JsArray(List(JsNumber(1),JsNumber(2),JsNumber(3),JsNumber(4),JsNumber(5),JsNumber(6))))))))
+    )
+  }
+
+  test("nested map") {
+    val obj = JsObject(
+      Map(
+        "one" -> JsNumber(1),
+        "obj" -> JsObject(Map(
+          "two" -> JsBool(false),
+          "three" -> JsArray(List(JsNumber(1),JsNumber(2),JsNumber(3),JsNumber(4))),
+          "four" -> JsObject(Map("five" -> JsNumber(5))))),
+        "five" -> JsNumber(0)
+      ))
+
+    nestedMap[Int, Int, Json, JsObject](obj){
+      case i => i + 1
+    } should equal (
+      JsObject(
+        Map(
+          "one" -> JsNumber(2),
+          "obj" -> JsObject(Map(
+            "two" -> JsBool(false),
+            "three" -> JsArray(List(JsNumber(1),JsNumber(2),JsNumber(3),JsNumber(4))),
+            "four" -> JsObject(Map("five" -> JsNumber(6))))),
+          "five" -> JsNumber(1)
+        )
+      )
+    )
+  }
 }
