@@ -47,7 +47,7 @@ trait ObjectOps {
       else
         (prism.getOption(delta), prism.getOption(target)) match {
           case (Some(d), Some(t)) =>
-            val newDelta = each.each.getAll(d).foldLeft(d){ (a, kv) =>
+            val newDelta = traversal.getAll(d).foldLeft(d){ (a, kv) =>
               val lens = at.at(kv._1)
               lens.get(t).fold{
                 if (deltaDelete.contains(kv._2))
@@ -79,7 +79,7 @@ trait ObjectOps {
       def nestedRecurse(target:Data, f:Function[T, S]):Data = {
         tPrism.getOption(target).fold{
           prism.getOption(target).fold(target){ o =>
-            prism.reverseGet(each.each.modify(p => p._1 -> nestedRecurse(p._2, f))(o))
+            prism.reverseGet(traversal.modify(p => p._1 -> nestedRecurse(p._2, f))(o))
           }
         }{t =>
           sPrism.reverseGet(f(t))
@@ -87,8 +87,4 @@ trait ObjectOps {
       }
       nestedRecurse(target, f)
   }
-
-
-  def nestedIndexedDataMap[Data, IndexedData](target:Data)(f:Function[(String, Data), Option[(String, Data)]]):Option[Data] =
-    ???
 }

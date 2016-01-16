@@ -39,7 +39,7 @@ lazy val settings = buildSettings
 lazy val dsentric = project.in(file("."))
   .settings(moduleName := "dsentric")
   .settings(settings)
-  .aggregate(core)
+  .aggregate(core, argonaut)
   .dependsOn(core)
 
 lazy val core = project

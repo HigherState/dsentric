@@ -2,11 +2,9 @@ package dsentric.argonaut
 
 import argonaut._
 import dsentric.{LensCompositor, MaybeSubContract, Strictness, ExpectedSubContract}
-import dsentricTests.J.JsObject
 import monocle._
 import monocle.function.{Each, Empty}
 
-import scalaz.{-\/, \/-, Applicative, \/}
 
 object Dsentric extends
   dsentric.AndMatcher {
@@ -38,19 +36,8 @@ object Dsentric extends
   implicit val jsObject =
     Prism[Json, JsonObject](_.obj)(Argonaut.jObject)
 
-  implicit val jsonObjectAt = new function.At[JsonObject, String, Json] {
-    override def at(i: String): Lens[JsonObject, Option[Json]] =  new PLens[JsonObject, JsonObject, Option[Json], Option[Json]]{
-      def get(s: JsonObject): Option[Json] =
-        s(i)
-      def modify(f: (Option[Json]) => Option[Json]): JsonObject => JsonObject =
-        j => set(f(get(j)))(j)
-
-      def set(b: Option[Json]): JsonObject => JsonObject =
-        j => b.fold(j - i){v => j + (i, v)}
-
-      def modifyF[F[_]](f: (Option[Json]) => F[Option[Json]])(s: JsonObject)(implicit evidence$1: scalaz.Functor[F]): F[JsonObject] =
-        ???
-    }
+  implicit val jsonObjectAt = new function.At[JsonObject, String, Option[Json]] {
+    def at(i: String) = Lens{m: JsonObject => m(i)}(optV => map => optV.fold(map - i)(v => map.+:(i -> v)))
   }
 
   implicit val jsEach = new Each[JsonObject, (String, Json)] {
@@ -60,7 +47,7 @@ object Dsentric extends
       def modifyF[F[_]](f: ((String, Json)) => F[(String, Json)])(s: JsonObject)(implicit evidence$1: Applicative[F]): F[JsonObject] = {
         val m = s.toMap.map(f)
         val ss = evidence$1.sequence(m.toList)
-        ss.map(i => JsonObjectInstance(i.toMap))
+        ss.map(i => JsonObject.from(i))
       }
     }
   }
