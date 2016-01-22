@@ -90,8 +90,8 @@ private[dsentric] sealed trait ContractBase[Data, IndexedData]
         f
     }
 
-  def $create(f:Data => Data):Data =
-    f(_prism.reverseGet(_empty.empty.reverseGet(())))
+  def $create(f:this.type => Data => Data):Data =
+    f(this)(_prism.reverseGet(_empty.empty.reverseGet(())))
 
   def $dynamic[T](field:String)(implicit prism:Prism[Data, T], strictness:Strictness) = {
     val prop = new Maybe[Data, IndexedData, T](Validator.empty, None)(prism, strictness)

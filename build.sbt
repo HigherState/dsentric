@@ -29,7 +29,6 @@ lazy val scalaz = "org.scalaz" %% "scalaz-core" % "7.2.0"
 lazy val shapeless = "com.chuusai" %% "shapeless" % "2.2.5"
 lazy val monocle = "com.github.julien-truffaut" %%  "monocle-core" % "1.2.0"
 lazy val scodec = "org.scodec" %% "scodec-bits" % "1.0.12"
-
 lazy val argo = "io.argonaut" %% "argonaut" % "6.1"
 lazy val scalatest = "org.scalatest" %% "scalatest" % "2.2.4"  % "test"
 
@@ -58,4 +57,10 @@ lazy val amf = project
   .settings(settings)
   .settings(libraryDependencies := Seq(scalaz, shapeless, monocle, scalatest, scodec))
   .dependsOn(core)
+
+lazy val performance = project
+  .settings(moduleName := "dsentric-performance")
+  .settings(settings)
+  .settings(libraryDependencies := Seq(scalaz, shapeless, monocle, scalatest, scodec))
+  .dependsOn(core, argonaut, amf)
 
