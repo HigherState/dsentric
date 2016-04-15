@@ -85,4 +85,29 @@ class ContractTests extends FunSuite with Matchers {
         s
     }) should equal("string")
   }
+
+  trait RecursiveSub extends Recursive[Json, JsObject] {
+    val name = \[String]
+    lazy val child = rec(new \\?("child") with RecursiveSub)
+  }
+
+  object RecursiveContract extends Contract with RecursiveSub
+
+  test("recursive properties") {
+    val hierarchy = JsObject(Map("name" -> JsString("parent"), "child" -> JsObject(Map("name" -> JsString("child"), "child" -> JsObject(Map("name" -> JsString("grandchild")))))))
+    (hierarchy match {
+      case RecursiveContract.name(v) =>
+        v
+    }) should equal ("parent")
+
+    (hierarchy match {
+      case RecursiveContract.child.name(v) =>
+        v
+    }) should equal ("child")
+
+    (hierarchy match {
+      case RecursiveContract.child.child.name(v) =>
+        v
+    }) should equal ("grandChild")
+  }
 }

@@ -2,7 +2,9 @@ package dsentric
 
 import monocle.Monocle._
 import monocle._
-import monocle.function.{Empty, At, Index}
+import monocle.function.{At, Empty, Index}
+
+import scala.util.Try
 
 private[dsentric] sealed trait Struct {
 
@@ -35,7 +37,7 @@ private[dsentric] sealed trait MapPrism[Data, IndexedData, T] {
 
 private[dsentric] sealed trait ContractBase[Data, IndexedData]
   extends Struct with MapPrism[Data, IndexedData, IndexedData]{
-  private var __fields = Vector.empty[(String, Property[Data, IndexedData, Any])]
+  private[dsentric] var __fields = Vector.empty[(String, Property[Data, IndexedData, Any])]
 
   implicit private[dsentric] val __at: At[IndexedData, String, Option[Data]]
   implicit private[dsentric] val __empty: Empty[IndexedData]
@@ -50,6 +52,7 @@ private[dsentric] sealed trait ContractBase[Data, IndexedData]
   private[dsentric] def _setPropertyNames():Unit = {
     __fields = this.getClass.getMethods.foldLeft(__fields) { (f, m) =>
       if (classOf[Struct].isAssignableFrom(m.getReturnType) && m.getTypeParameters.isEmpty) {
+
         m.invoke(this) match {
           case prop: Property[Data, IndexedData, Any]@unchecked =>
             val name = prop._nameOverride.getOrElse(m.getName)
@@ -98,10 +101,22 @@ private[dsentric] sealed trait ContractBase[Data, IndexedData]
     prop._path = _pathPrism.composeLens(at[IndexedData, String, Option[Data]](field))
     prop
   }
+
 }
 
 private[dsentric] sealed trait SubContract[Data, IndexedData] extends ContractBase[Data, IndexedData] {
   private[dsentric] var _pathPrism:Optional[Data, IndexedData] = null
+}
+
+trait Recursive[Data, IndexedData] extends ContractBase[Data, IndexedData] {
+  protected def rec[T <: MaybeSubContract[Data, IndexedData]](prop:T):T = {
+    val name = prop._nameOverride.getOrElse(throw new Exception("Name required for recursive properties"))
+    prop._path = _pathPrism.composeLens(at[IndexedData, String, Option[Data]](name))
+    prop._pathPrism = _pathPrism.composeOptional(_index.index(name)).composeOptional(_prism.asOptional)
+    prop._setPropertyNames()
+    __fields = __fields :+ name -> prop.asInstanceOf[Property[Data, IndexedData, Any]]
+    prop
+  }
 }
 
 abstract class ExpectedSubContract[Data, IndexedData]
