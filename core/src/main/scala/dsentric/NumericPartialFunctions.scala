@@ -1,4 +1,4 @@
-package dsentric.std
+package dsentric
 
 import java.text.NumberFormat
 

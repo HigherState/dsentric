@@ -1,11 +1,13 @@
 package dsentricTests
 
 import dsentric._
-import org.scalatest.{Matchers, FunSuite}
+import org.scalatest.{FunSuite, Matchers}
 
 class ContractValidationTests extends FunSuite with Matchers with FailureMatchers {
 
   import J._
+
+  implicit def strictness = MaybeOptimistic
 
   object Empty extends Contract
 

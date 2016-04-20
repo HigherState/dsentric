@@ -4,8 +4,6 @@ import monocle.Monocle._
 import monocle._
 import monocle.function.{At, Empty, Index}
 
-import scala.util.Try
-
 private[dsentric] sealed trait Struct {
 
   def apply[R](f:this.type => R):R = f(this)

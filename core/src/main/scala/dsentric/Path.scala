@@ -1,10 +1,10 @@
 package dsentric
 
 object Path {
-  val empty = Vector.empty[Either[Int, String]]
+  val empty = List.empty[Either[Int, String]]
 
   def apply(s:String*):Path =
-    s.map(Right.apply).toVector
+    s.map(Right.apply).toList
 }
 
 object Failures {

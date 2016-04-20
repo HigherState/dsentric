@@ -1,13 +1,12 @@
 package dsentricTests
 
-import dsentric._
 import org.scalatest.{FunSuite, Matchers}
 import shapeless.ops.hlist.Tupler
 
 class ApplicativeLensTests extends FunSuite with Matchers {
   import J._
-  import ApplicativeLens._
   import Tupler._
+  import dsentric.ApplicativeLens._
 
   object TestObj extends Contract {
     val int = \[Int]

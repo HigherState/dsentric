@@ -1,8 +1,8 @@
 package dsentricTests
 
+import dsentric.AndMatcher._
 import dsentric._
-import org.scalatest.{Matchers, FunSuite}
-import AndMatcher._
+import org.scalatest.{FunSuite, Matchers}
 
 class ContractTests extends FunSuite with Matchers {
 

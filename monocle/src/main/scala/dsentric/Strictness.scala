@@ -1,6 +1,6 @@
 package dsentric
 
-import monocle.{Prism, Optional}
+import monocle.{Optional, Prism}
 
 trait Strictness {
   def apply[Data, T](value:Data, path:Optional[Data, Option[Data]], prism:Prism[Data, T]):Option[Option[T]] =

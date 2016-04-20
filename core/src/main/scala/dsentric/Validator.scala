@@ -1,7 +1,6 @@
 package dsentric
 
 import scala.util.matching.Regex
-import scalaz.Scalaz._
 
 trait Validator[+T] {
 
@@ -82,7 +81,7 @@ object Validator {
           v <- value
           c <- currentState
           r <- resolve(c,v)
-          a <- (r >= 0).option(path -> "Value must increase.")
+          a <- if (r >= 0) Some(path -> "Value must increase.") else None
         } yield a).toVector
     }
 
@@ -93,7 +92,7 @@ object Validator {
           v <- value
           c <- currentState
           r <- resolve(c,v)
-          a <- (r <= 0).option(path -> "Value must decrease.")
+          a <- if (r <= 0) Some(path -> "Value must decrease.") else None
         } yield a).toVector
     }
 

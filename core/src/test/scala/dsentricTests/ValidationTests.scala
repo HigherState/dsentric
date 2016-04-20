@@ -5,8 +5,6 @@ import org.scalatest.{Matchers, FunSuite}
 
 class ValidationTests extends FunSuite with Matchers {
 
-  implicit val strictness = MaybePessimistic
-
   test("Numeric validators") {
     Validator.>(4)(Path.empty, Some(5), None) should be (Vector.empty)
     Validator.>(4)(Path.empty, Some(4), None) should not be Vector.empty

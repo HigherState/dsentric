@@ -1,10 +1,13 @@
 package dsentric.argonaut
 
+import dsentric.MaybePessimistic
 import org.scalatest.{Matchers, FunSuite}
 import argonaut._, Argonaut._
 import Dsentric._
 
 class ContractTests extends FunSuite with Matchers {
+
+  implicit def strictness = MaybePessimistic
 
   object TestContract extends Contract {
     val one = \[String]

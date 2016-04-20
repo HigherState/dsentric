@@ -1,10 +1,13 @@
 package dsentricTests
 
-import org.scalatest.{Matchers, FunSuite}
+import dsentric.MaybeOptimistic
+import org.scalatest.{FunSuite, Matchers}
 
 class LensTests extends FunSuite with Matchers with FailureMatchers {
 
   import J._
+
+  implicit def strictness = MaybeOptimistic
 
   object ExpectedField extends Contract {
     val field = \[String]

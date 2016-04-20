@@ -1,10 +1,8 @@
 package dsentricTests
 
-import dsentric.{Strictness, MaybeSubContract, ExpectedSubContract, LensCompositor}
+import dsentric.{ExpectedSubContract, LensCompositor, MaybeSubContract, Strictness}
 import monocle._
-import monocle.function.{Each, Empty, At}
-
-import scalaz.Applicative
+import monocle.function.{At, Each, Empty}
 
 object J {
 

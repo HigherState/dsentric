@@ -5,7 +5,6 @@ import dsentric.{LensCompositor, MaybeSubContract, Strictness, ExpectedSubContra
 import monocle._
 import monocle.function.{Each, Empty}
 
-
 object Dsentric extends
   dsentric.AndMatcher {
 

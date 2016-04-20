@@ -15,9 +15,8 @@ sealed trait PropertyLens[Data, T] {
 
   def $set(value:T):Data => Data =
     _path.set(Some(_prism.reverseGet(value)))
-
   def $maybeSet(value:Option[T]):Data => Data =
-    value.fold(idFunc[Data]){ v =>
+    value.fold((d:Data) => d){ v =>
       $set(v)
     }
 }

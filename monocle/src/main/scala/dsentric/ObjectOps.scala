@@ -1,7 +1,8 @@
 package dsentric
 
 import monocle.Prism
-import monocle.function.{Each, At, Empty}
+import monocle.function.{At, Each, Empty}
+
 import scalaz.Scalaz._
 
 // Assumption that an empty object will be cleared out

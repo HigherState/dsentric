@@ -1,7 +1,6 @@
 package dsentric
 
 import monocle.Prism
-import monocle.function.Index
 
 trait ExpectedDsl[Data, IndexedData] {
   def apply[T](implicit prism: Prism[Data, T]) =
