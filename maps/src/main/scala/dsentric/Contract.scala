@@ -51,6 +51,15 @@ private[dsentric] sealed trait BaseContract extends Struct {
   def \?[T](name:String, validator:Validator[T] = Validator.empty)(implicit codec:JCodec[T], strictness: Strictness) =
     new Maybe[T](validator, Some(name), this, codec, strictness)
 
+  def \![T](default:T)(implicit codec:JCodec[T], strictness: Strictness) =
+    new Default[T](default, Validator.empty, None, this, codec, strictness)
+
+  def \![T](default:T, validator:Validator[T])(implicit codec:JCodec[T], strictness: Strictness) =
+    new Default[T](default:T, validator, None, this, codec, strictness)
+
+  def \![T](name:String,default:T, validator:Validator[T] = Validator.empty)(implicit codec:JCodec[T], strictness: Strictness) =
+    new Default[T](default:T, validator, Some(name), this, codec, strictness)
+
 
 
 //  private[dsentric] def _validateFields(path:Path, value:Option[Data], currentState:Option[Data]) =
@@ -147,12 +156,12 @@ trait Contract extends BaseContract {
 //    }
 }
 
-class Expected[T]
+class Expected[T] private[dsentric]
   (private[dsentric] val _pathValidator:Validator[T],
    private[dsentric] val _nameOverride:Option[String],
    private[dsentric] val _parent:BaseContract,
    private[dsentric] val _codec:JCodec[T])
-  extends Property[T] {
+  extends Property[T] with ExpectedLens[T] {
 
   private[dsentric] def _isValidType(j:Any) =
     _codec.unapply(j).isDefined
@@ -174,7 +183,7 @@ class Expected[T]
 
 }
 
-class Maybe[T]
+class Maybe[T] private[dsentric]
   (private[dsentric] val _pathValidator:Validator[T],
    private[dsentric] val _nameOverride:Option[String],
    private[dsentric] val _parent:BaseContract,
@@ -184,9 +193,9 @@ class Maybe[T]
 
   private[dsentric] def _isValidType(j:Any) =
     _strictness(j, _codec).isDefined
-  def unapply(j:JObject):Option[Option[T]] = {
+
+  def unapply(j:JObject):Option[Option[T]] =
     _strictness(j.value, _path, _codec)
-  }
 
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
     value -> currentState match {
@@ -196,6 +205,33 @@ class Maybe[T]
         }
       case (None, c) =>
         _pathValidator(path, None, c.flatMap(_strictness(_, _codec)))
+    }
+}
+
+class Default[T] private[dsentric]
+  (val _default:T,
+   private[dsentric] val _pathValidator:Validator[T],
+   private[dsentric] val _nameOverride:Option[String],
+   private[dsentric] val _parent:BaseContract,
+   private[dsentric] val _codec:JCodec[T],
+   private[dsentric] val _strictness:Strictness)
+  extends Property[T] {
+
+  private[dsentric] def _isValidType(j:Any) =
+    _strictness(j, _codec).isDefined
+
+  def unapply(j:JObject):Option[T] =
+    _strictness(j.value, _path, _codec).map(_.getOrElse(_default))
+
+
+  private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
+    value -> currentState match {
+      case (Some(v), c) =>
+        _strictness(v, _codec).fold(Failures(path -> ValidationText.UNEXPECTED_TYPE)){ p =>
+          _pathValidator(path, Some(p), c.flatMap(_strictness(_, _codec)))
+        }
+      case (None, c) =>
+        _pathValidator(path, Some(_default), c.flatMap(_strictness(_, _codec)))
     }
 }
 
@@ -227,29 +263,23 @@ class \\? private(override private[dsentric] val _pathValidator:Validator[Map[St
     this(Validator.empty, Some(name), parent, strictness)
 }
 
+class \\! private(override val _default:Map[String, Any],
+                  override private[dsentric] val _pathValidator:Validator[Map[String, Any]],
+                  override private[dsentric] val _nameOverride:Option[String],
+                  override private[dsentric] val _parent:BaseContract,
+                  override private[dsentric] val _strictness:Strictness
+                 ) extends Default[Map[String, Any]](_default, _pathValidator, _nameOverride, _parent, DefaultCodecs.mapCodec, _strictness) with SubContract {
 
-//class Default[Data, IndexedData, T] private[dsentric](val _default:T, private[dsentric] val _pathValidator:Validator[Option[T]], private[dsentric] val _nameOverride:Option[String])
-//                                        (implicit private[dsentric] val __prism: Prism[Data, T], implicit private[dsentric] val __strictness:Strictness)
-//  extends Property[Data, IndexedData, T] with MapPrism[Data, IndexedData, T] with DefaultLens[Data, T] {
-//
-//  private[dsentric] def _strictness = __strictness
-//
-//  private[dsentric] def _isValidType(j:Data) =
-//    _strictness(j, __prism).isDefined
-//
-//  def unapply(j:Data):Option[T] =
-//    _strictness(j, _path, __prism).map(_.getOrElse(_default))
-//
-//  private[dsentric] def _validate(path:Path, value:Option[Data], currentState:Option[Data]):Failures =
-//    value -> currentState match {
-//      case (Some(v), c) =>
-//        _strictness(v, __prism).fold(Failures(path -> ValidationText.UNEXPECTED_TYPE)){ p =>
-//          _pathValidator(path, Some(p), c.flatMap(_strictness(_, __prism)))
-//        }
-//      case (None, c) =>
-//        _pathValidator(path, Some(_default), c.flatMap(_strictness(_, __prism)))
-//    }
-//}
+  def this(default:JObject)(implicit parent:BaseContract, strictness:Strictness) =
+    this(default.value, Validator.empty, None, parent, strictness)
+  def this(default:JObject, validator:Validator[Map[String, Any]])(implicit parent:BaseContract, strictness:Strictness) =
+    this(default.value, validator, None, parent, strictness)
+  def this(default:JObject, name:String, validator:Validator[Map[String, Any]])(implicit parent:BaseContract, strictness:Strictness) =
+    this(default.value, Validator.empty, Some(name), parent, strictness)
+}
+
+
+
 //
 //abstract class ValueContract[Data, IndexedData, T] private[dsentric](val _pathValidator: Validator[T] = Validator.empty)
 //                                                       (implicit private[dsentric] val __prism: Prism[Data, T])
