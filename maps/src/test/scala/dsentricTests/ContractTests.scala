@@ -7,20 +7,98 @@ import org.scalatest.{FunSuite, Matchers}
 class ContractTests extends FunSuite with Matchers {
 
   import PessimisticCodecs._
+  implicit def strictness = MaybePessimistic
 
-  object Test extends Contract {
+  object Flat extends Contract {
     val one = \[String]
-    //val two = \?[Boolean]
+    val two = \?[Boolean]
     //val three = \![Int](3)
   }
 
-  test("Contract pattern matching") {
+  object Nested extends Contract {
+    val child = new \\ {
+      val value = \[Int]
+    }
+  }
+
+  trait Recursive extends SubContract {
+    val name = \[String]
+    lazy val child = new \\? with Recursive
+  }
+
+  object Recursive extends Contract with Recursive
+
+  trait SubRecursive extends SubContract {
+    val name = \[String]
+    val first = new \\ {
+      val name2 = \[String]
+      lazy val second = new \\? with SubRecursive
+    }
+  }
+
+  object SubRecursive extends Contract with SubRecursive
+
+  test("Level Contract pattern matching") {
 
     (JObject(Map("one" -> "string", "two" -> false)) match {
-      case Test.one(s) =>
+      case Flat.one(s) =>
         s
     }) should equal("string")
 
+    (JObject(Map("one" -> "string", "two" -> false)) match {
+      case Flat.one(s) && Flat.two(Some(false)) =>
+        s
+    }) should equal("string")
+
+    (JObject(Map("one" -> "string", "two" -> false)) match {
+      case Flat.two(None) =>
+        assert(false)
+      case _ =>
+        "no match"
+    }) should equal("no match")
+  }
+
+  test("nested Contract pattern matching") {
+    (JObject(Map("child" -> Map("value" -> 2))) match {
+      case Nested.child.value(s) =>
+        s
+    }) should equal(2)
+  }
+
+  test("recursive Contract pattern matching") {
+    val obj = JObject(Map("name" -> "one", "child" -> Map("name" -> "two", "child" -> Map("name" -> "three"))))
+    (obj match {
+      case Recursive.name(name) =>
+        name
+    }) should equal ("one")
+    (obj match {
+      case Recursive.child.name(name) =>
+        name
+    }) should equal ("two")
+    (obj match {
+      case Recursive.child.child.name(name) =>
+        name
+    }) should equal ("three")
+
+    val subObj = JObject(Map("name" -> "one", "first" -> Map("name2" -> "two", "second" -> Map("name" -> "three", "first" -> Map("name2" -> "four")))))
+
+    (subObj match {
+      case SubRecursive.name(name) =>
+        name
+    }) should equal ("one")
+    (subObj match {
+      case SubRecursive.first.name2(name) =>
+        name
+    }) should equal ("two")
+    (subObj match {
+      case SubRecursive.first.second.name(name) =>
+        name
+    }) should equal ("three")
+    (subObj match {
+      case SubRecursive.first.second.first.name2(name) =>
+        name
+    }) should equal ("four")
+  }
 //    (JsObject(Map("one" -> JsString("string"))) match {
 //      case Test.one(s) && Test.two(None) && Test.three(int) =>
 //        true
@@ -69,7 +147,7 @@ class ContractTests extends FunSuite with Matchers {
 //      case Test.two(None) => true
 //      case _ => false
 //    }) should be (true)
-  }
+//  }
 
 //  object Nested extends J.Contract {
 //    val parent = new \\ {
