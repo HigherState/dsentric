@@ -10,6 +10,9 @@ sealed trait PropertyLens[T] {
       .traverse(data.value, _path)
       .flatMap(_codec.unapply)
 
+  private[dsentric] def strictGet(data:JObject):Option[Option[T]]
+
+
   def $set(value:T):JObject => JObject =
     d => JObject(PathOps.set(d.value, _path, value))
 
@@ -30,75 +33,81 @@ trait ExpectedLens[T] extends PropertyLens[T] with ApplicativeLens[JObject, T, T
         $set(p)(d)
       }
     }
+
+  //both empty or wrong value are bad values
+  private[dsentric] def strictGet(data:JObject):Option[Option[T]] =
+    $get(data).map(v => Some(v))
 }
-//
-//trait MaybeLens[T] extends PropertyLens[T] with ApplicativeLens[JObject, Option[T], T] {
-//
-//  private[dsentric] def _strictness:Strictness
-//
-//  def $modify(f:Option[T] => Option[T]):JObject => JObject =
-//    _path.modify{
-//      case None =>
-//        f(None).map(_prism.reverseGet)
-//      case Some(v) =>
-//        _strictness(v, _prism).fold[Option[Data]](Some(v)){ maybeT =>
-//          f(maybeT).map(_prism.reverseGet)
-//        }
-//    }
-//
-//  def $drop:Data => Data =
-//    _path.modify(_ => None)
-//
-//  def $setOrDrop(value:Option[T]):Data => Data =
-//    _path.modify(_ => value.map(_prism.reverseGet))
-//
-//  //no enforcement of strict yet
-//  def $copy(p:PropertyLens[Data, T]):Data => Data =
-//    (d:Data) => {
-//      p.$get(d).fold($drop(d)){p =>
-//        $set(p)(d)
-//      }
-//    }
-//}
-//
-//trait DefaultLens[Data, T] extends PropertyLens[Data, T] with ApplicativeLens[Data, T, T]{
-//
-//  def _default:T
-//
-//  private[dsentric] def _strictness:Strictness
-//
-//  override def $get(data:Data):Option[T] =
-//    _path.getOption(data).flatMap{
-//      case Some(v) =>
-//        _strictness(v, _prism).map(_.getOrElse(_default))
-//      case None =>
-//        Some(_default)
-//    }
-//
-//  def $modify(f:T => T):Data => Data =
-//    _path.modify{
-//      case None =>
-//        Some(_prism.reverseGet(f(_default)))
-//      case Some(v) =>
-//        _strictness(v, _prism).fold[Option[Data]](Some(v)){ maybeT =>
-//          Some(_prism.reverseGet(f(maybeT.getOrElse(_default))))
-//        }
-//    }
-//
-//  def $restore:Data => Data =
-//    _path.modify(_ => None)
-//
-//  def $setOrRestore(value:Option[T]):Data => Data =
-//    _path.modify(_ => value.map(_prism.reverseGet))
-//
-//  def $copy(p:PropertyLens[Data, T]):Data => Data =
-//    (d:Data) => {
-//      p.$get(d).fold(d){p =>
-//        $set(p)(d)
-//      }
-//    }
-//}
-//
+
+trait MaybeLens[T] extends PropertyLens[T] with ApplicativeLens[JObject, Option[T], T] {
+
+  private[dsentric] def _strictness:Strictness
+
+  def $modify(f:Option[T] => T):JObject => JObject =
+    d => PathOps.maybeModify(d.value, _path, _codec, _strictness, f).fold(d)(JObject.apply)
+
+  def $modifyOrDrop(f:Option[T] => Option[T]):JObject => JObject =
+    d => PathOps.maybeModifyOrDrop(d.value, _path, _codec, _strictness, f).fold(d)(JObject.apply)
+
+  def $drop:JObject => JObject =
+    d => PathOps.drop(d.value, _path).fold(d)(JObject.apply)
+
+  def $setOrDrop(value:Option[T]):JObject => JObject =
+    value.fold($drop)(v => $set(v))
+
+  def $copy(p:PropertyLens[T]):JObject => JObject =
+    (d) => {
+      p.strictGet(d)
+        .fold(d)(v => $setOrDrop(v)(d))
+    }
+
+  private[dsentric] def strictGet(data:JObject):Option[Option[T]] =
+    PathOps
+      .traverse(data.value, _path) match {
+        case None => Some(None)
+        case Some(v) => _strictness(v, _codec)
+    }
+}
+
+trait DefaultLens[T] extends PropertyLens[T] with ApplicativeLens[JObject, T, T]{
+
+  def _default:T
+
+  private[dsentric] def _strictness:Strictness
+
+  private val toDefault =
+    (maybe:Option[T]) => maybe.getOrElse(_default)
+
+  override def $get(data:JObject):Option[T] =
+    PathOps
+      .traverse(data.value, _path)
+        .fold[Option[T]](Some(_default)) { t =>
+          _strictness(t, _codec).map(_.getOrElse(_default))
+        }
+
+  def $modify(f:T => T):JObject => JObject =
+    d => PathOps.maybeModify(d.value, _path, _codec, _strictness, toDefault.andThen(f)).fold(d)(JObject.apply)
+
+  def $restore:JObject => JObject =
+    d => PathOps.drop(d.value, _path).fold(d)(JObject.apply)
+
+  def $setOrRestore(value:Option[T]):JObject => JObject =
+    value.fold($restore)(v => $set(v))
+
+  def $copy(p:PropertyLens[T]):JObject => JObject =
+    (d) => {
+      p.strictGet(d)
+        .fold(d)(v => $setOrRestore(v)(d))
+    }
+
+  private[dsentric] def strictGet(data:JObject):Option[Option[T]] =
+    PathOps
+      .traverse(data.value, _path) match {
+      case None => Some(Some(_default))
+      case Some(v) => _strictness(v, _codec).map(v2 => Some(v2.getOrElse(_default)))
+    }
+}
+
 //trait MaybeDeltaDelete[Data, IndexedData, T] extends Any {
 //  def maybeProperty:Maybe[Data, IndexedData, T]
 //  protected def deleteValue:Data

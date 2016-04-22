@@ -49,6 +49,12 @@ trait PessimisticCodecs extends DefaultCodecs {
 
 }
 
+private[dsentric] object AnyCodec extends JCodec[Any] {
+  def apply(t: Any): Any = t
+
+  def unapply(a: Any): Option[Any] = Some(a)
+}
+
 object DefaultCodecs extends DefaultCodecs
 
 object PessimisticCodecs extends PessimisticCodecs

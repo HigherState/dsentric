@@ -116,44 +116,12 @@ sealed trait Property[T <: Any] extends Struct {
       }
       __path
     }
-
-  private[dsentric] def _getValue(data:Map[String, Any]) =
-    PathOps.traverse(data, _path).flatMap(_codec.unapply)
 }
 trait SubContract extends BaseContract
 
 
-
-//
-//abstract class MaybeSubContract[Data, IndexedData]
-//  (private[dsentric] override val _pathValidator:Validator[Option[IndexedData]], private[dsentric] override val _nameOverride:Option[String])
-//  (implicit val parent:BaseContract)
-//    private[dsentric] override val __prism: Prism[Data, IndexedData],
-//    private[dsentric] override val __at:At[IndexedData, String, Option[Data]],
-//    private[dsentric] override val __empty:Empty[IndexedData],
-//    strictness:Strictness)
-//  extends Maybe[Data, IndexedData, IndexedData](_pathValidator, _nameOverride) with SubContract[Data, IndexedData]{
-//
-//  def this(name:Option[String])(implicit prism: Prism[Data, IndexedData], at:At[IndexedData, String, Option[Data]], empty:Empty[IndexedData], strictness:Strictness) =
-//    this(Validator.empty, name)
-//
-//  override private[dsentric] def _validate(path:Path, value:Option[Data], currentState:Option[Data]):Failures =
-//    super._validate(path, value, currentState) match {
-//      case Failures.empty =>
-//        _validateFields(path, value, currentState)
-//      case failures =>
-//        failures
-//    }
-//}
-
-
 trait Contract extends BaseContract {
   def _path = Path.empty
-
-//  def $validate(value:Data, currentState:Option[Data] = None):Failures =
-//    __prism.getOption(value).fold(Failures(Path.empty -> ValidationText.UNEXPECTED_TYPE)){ temp =>
-//      _validateFields(Path.empty, Some(value), currentState)
-//    }
 }
 
 class Expected[T] private[dsentric]
@@ -179,7 +147,7 @@ class Expected[T] private[dsentric]
     }
 
   def unapply(j: JObject): Option[T] =
-    _getValue(j.value)
+    strictGet(j).get
 
 }
 
@@ -189,13 +157,13 @@ class Maybe[T] private[dsentric]
    private[dsentric] val _parent:BaseContract,
    private[dsentric] val _codec:JCodec[T],
    private[dsentric] val _strictness:Strictness)
-  extends Property[T] {
+  extends Property[T] with MaybeLens[T] {
 
   private[dsentric] def _isValidType(j:Any) =
     _strictness(j, _codec).isDefined
 
   def unapply(j:JObject):Option[Option[T]] =
-    _strictness(j.value, _path, _codec)
+    strictGet(j)
 
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
     value -> currentState match {
@@ -215,13 +183,13 @@ class Default[T] private[dsentric]
    private[dsentric] val _parent:BaseContract,
    private[dsentric] val _codec:JCodec[T],
    private[dsentric] val _strictness:Strictness)
-  extends Property[T] {
+  extends Property[T] with DefaultLens[T] {
 
   private[dsentric] def _isValidType(j:Any) =
     _strictness(j, _codec).isDefined
 
   def unapply(j:JObject):Option[T] =
-    _strictness(j.value, _path, _codec).map(_.getOrElse(_default))
+    strictGet(j).map(_.get)
 
 
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
