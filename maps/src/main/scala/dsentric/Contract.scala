@@ -62,35 +62,31 @@ private[dsentric] sealed trait BaseContract extends Struct {
 
 
 
-//  private[dsentric] def _validateFields(path:Path, value:Option[Data], currentState:Option[Data]) =
-//    value.flatMap(_prism.getOption).fold(Failures.empty){ indexedData =>
-//      val cs = currentState.flatMap(_prism.getOption)
-//      _fields.flatMap{kv =>
-//        val i = _index.index(kv._1)
-//        val v = i.getOption(indexedData)
-//        val c = cs.flatMap(i.getOption)
-//        kv._2._validate(path :+ Right(kv._1), v, c)
-//      }
-//    }
-//
-//  lazy val $sanitize:Data => Data =
-//    __fields.foldLeft[Data => Data](Predef.identity[Data]) {
-//      case (f, (_, prop:Maybe[Data, IndexedData, _]@unchecked)) if prop._pathValidator.isInternal =>
-//        prop.$drop.compose(f)
-//      case (f, (_, prop:ContractBase[Data, IndexedData]@unchecked)) =>
-//        prop.$sanitize.compose(f)
-//      case (f, _) =>
-//        f
-//    }
-//
-//  def $create(f:this.type => Data => Data):Data =
-//    f(this)(_prism.reverseGet(_empty.empty.reverseGet(())))
-//
-//  def $dynamic[T](field:String)(implicit prism:Prism[Data, T], strictness:Strictness) = {
-//    val prop = new Maybe[Data, IndexedData, T](Validator.empty, None)(prism, strictness)
-//    prop._path = _pathPrism.composeLens(at[IndexedData, String, Option[Data]](field))
-//    prop
-//  }
+  private[dsentric] def _validateFields(path:Path, value:Map[String, Any], currentState:Option[Map[String, Any]]) =
+    _fields.flatMap{kv =>
+      val i = value.get(kv._1)
+      val c = currentState.flatMap(_.get(kv._1))
+      kv._2._validate(path :+ Right(kv._1), i, c)
+    }
+
+
+  lazy val $sanitize:JObject => JObject =
+    __fields.foldLeft[JObject=> JObject](Predef.identity[JObject]) {
+      case (f, (_, prop:Maybe[_]@unchecked)) if prop._pathValidator.isInternal =>
+        prop.$drop.compose(f)
+      case (f, (_, prop:BaseContract@unchecked)) =>
+        prop.$sanitize.compose(f)
+      case (f, _) =>
+        f
+    }
+
+  def $create(f:this.type => JObject => JObject):JObject =
+    f(this)(JObject.empty)
+
+  def $dynamic[T](field:String)(implicit codec:JCodec[ T], strictness:Strictness) = {
+    val prop = new Maybe[T](Validator.empty, Some(field), this, codec, strictness)
+    prop
+  }
 }
 
 
@@ -122,6 +118,9 @@ trait SubContract extends BaseContract
 
 trait Contract extends BaseContract {
   def _path = Path.empty
+
+  def $validate(value:JObject, currentState:Option[JObject] = None):Failures =
+    _validateFields(Path.empty, value.value, currentState.map(_.value))
 }
 
 class Expected[T] private[dsentric]
@@ -147,7 +146,7 @@ class Expected[T] private[dsentric]
     }
 
   def unapply(j: JObject): Option[T] =
-    strictGet(j).get
+    strictGet(j).map(_.get)
 
 }
 
@@ -215,6 +214,15 @@ class \\ private(override private[dsentric] val _pathValidator:Validator[Map[Str
   def this(name:String, validator:Validator[Map[String, Any]])(implicit parent:BaseContract) =
     this(Validator.empty, Some(name), parent)
 
+  override private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
+    super._validate(path, value, currentState) match {
+      case Failures.empty =>
+        value.flatMap(DefaultCodecs.mapCodec.unapply).fold(Failures.empty){v =>
+          _validateFields(path, v, currentState.flatMap(DefaultCodecs.mapCodec.unapply))
+        }
+      case failures =>
+        failures
+    }
 }
 
 class \\? private(override private[dsentric] val _pathValidator:Validator[Map[String, Any]],
@@ -229,6 +237,16 @@ class \\? private(override private[dsentric] val _pathValidator:Validator[Map[St
     this(validator, None, parent, strictness)
   def this(name:String, validator:Validator[Map[String, Any]])(implicit parent:BaseContract, strictness:Strictness) =
     this(Validator.empty, Some(name), parent, strictness)
+
+  override private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
+    super._validate(path, value, currentState) match {
+      case Failures.empty =>
+        value.flatMap(DefaultCodecs.mapCodec.unapply).fold(Failures.empty){v =>
+          _validateFields(path, v, currentState.flatMap(DefaultCodecs.mapCodec.unapply))
+        }
+      case failures =>
+        failures
+    }
 }
 
 class \\! private(override val _default:Map[String, Any],
@@ -244,6 +262,16 @@ class \\! private(override val _default:Map[String, Any],
     this(default.value, validator, None, parent, strictness)
   def this(default:JObject, name:String, validator:Validator[Map[String, Any]])(implicit parent:BaseContract, strictness:Strictness) =
     this(default.value, Validator.empty, Some(name), parent, strictness)
+
+  override private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
+    super._validate(path, value, currentState) match {
+      case Failures.empty =>
+        value.flatMap(DefaultCodecs.mapCodec.unapply).fold(Failures.empty){v =>
+          _validateFields(path, v, currentState.flatMap(DefaultCodecs.mapCodec.unapply))
+        }
+      case failures =>
+        failures
+    }
 }
 
 

@@ -1,8 +1,6 @@
 package dsentric
 
-/**
-  * Created by Jamie Pullar on 20/04/2016.
-  */
+
 trait JCodec[T] {
   def apply(t:T):Any
   def unapply(a:Any):Option[T]
@@ -24,10 +22,30 @@ private sealed trait NumericCodec[T] extends JCodec[T] {
 }
 
 trait DefaultCodecs {
-  implicit val mapCodec:JCodec[Map[String, Any]] =
+  //Breaks JObject so not implicit
+  val mapCodec:JCodec[Map[String, Any]] =
     new DirectCodec[Map[String, Any]] {
       protected def isMatch(a: Any): Boolean =
         a.isInstanceOf[Map[String, Any]@unchecked]
+    }
+
+  implicit val jobjectCodec:JCodec[JObject] =
+    new JCodec[JObject] {
+      def apply(t: JObject): Any = t.value
+
+      def unapply(a: Any): Option[JObject] =
+        a match {
+          case m:Map[String, Any]@unchecked =>
+            Some(JObject(m))
+          case _ =>
+            None
+        }
+    }
+
+  implicit val jNullCodec:JCodec[JNull] =
+    new DirectCodec[JNull] {
+      protected def isMatch(a: Any): Boolean =
+        a.isInstanceOf[JNull]
     }
 }
 
@@ -45,14 +63,6 @@ trait PessimisticCodecs extends DefaultCodecs {
     def unapply(a: Any): Option[Int] =
       NumericPartialFunctions.int.lift(a)
   }
-
-
-}
-
-private[dsentric] object AnyCodec extends JCodec[Any] {
-  def apply(t: Any): Any = t
-
-  def unapply(a: Any): Option[Any] = Some(a)
 }
 
 object DefaultCodecs extends DefaultCodecs

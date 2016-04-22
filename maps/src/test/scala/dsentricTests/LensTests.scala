@@ -14,29 +14,29 @@ class LensTests extends FunSuite with Matchers with FailureMatchers {
   }
 
   test("expected lens") {
-    ExpectedField.field.$set("test")(JObject(Map.empty)) should be (JObject(Map("field" -> "test")))
-    ExpectedField.field.$set("test2")(JObject(Map("field" -> "test"))) should be (JObject(Map("field" -> "test2")))
+    ExpectedField.field.$set("test")(JObject.empty) should be (JObject("field" := "test"))
+    ExpectedField.field.$set("test2")(JObject("field" := "test")) should be (JObject("field" := "test2"))
 
-    ExpectedField.field.$get(JObject(Map.empty)) should be (None)
-    ExpectedField.field.$get(JObject(Map("field" -> "test"))) should be (Some("test"))
+    ExpectedField.field.$get(JObject.empty) should be (None)
+    ExpectedField.field.$get(JObject("field" := "test")) should be (Some("test"))
 
-    ExpectedField.field.$maybeSet(None)(JObject(Map.empty)) should be (JObject(Map.empty))
-    ExpectedField.field.$maybeSet(Some("test"))(JObject(Map.empty)) should be (JObject(Map("field" -> "test")))
-    ExpectedField.field.$maybeSet(Some("test2"))(JObject(Map("field" -> "test"))) should be (JObject(Map("field" -> "test2")))
+    ExpectedField.field.$maybeSet(None)(JObject.empty) should be (JObject.empty)
+    ExpectedField.field.$maybeSet(Some("test"))(JObject.empty) should be (JObject("field" := "test"))
+    ExpectedField.field.$maybeSet(Some("test2"))(JObject("field" := "test")) should be (JObject("field" := "test2"))
 
-    ExpectedField.field.$modify(_ + "2")(JObject(Map.empty)) should be (JObject(Map.empty))
-    ExpectedField.field.$modify(_ + "2")(JObject(Map("field" -> false))) should be (JObject(Map("field" -> false)))
-    ExpectedField.field.$modify(_ + "2")(JObject(Map("field" -> "test"))) should be (JObject(Map("field" -> "test2")))
+    ExpectedField.field.$modify(_ + "2")(JObject.empty) should be (JObject.empty)
+    ExpectedField.field.$modify(_ + "2")(JObject("field" := false)) should be (JObject("field" := false))
+    ExpectedField.field.$modify(_ + "2")(JObject("field" := "test")) should be (JObject("field" := "test2"))
 
-    ExpectedField.copy.$copy(ExpectedField.field)(JObject(Map.empty)) should be (JObject(Map.empty))
-    ExpectedField.copy.$copy(ExpectedField.field)(JObject(Map("copy" -> "leave"))) should be (JObject(Map("copy" -> "leave")))
-    ExpectedField.copy.$copy(ExpectedField.field)(JObject(Map("field" -> "test"))) should be (JObject(Map("field" -> "test", "copy" -> "test")))
+    ExpectedField.copy.$copy(ExpectedField.field)(JObject.empty) should be (JObject.empty)
+    ExpectedField.copy.$copy(ExpectedField.field)(JObject("copy" := "leave")) should be (JObject("copy" := "leave"))
+    ExpectedField.copy.$copy(ExpectedField.field)(JObject("field" := "test")) should be (JObject("field" := "test", "copy" := "test"))
   }
 
   test("Compositor") {
     ExpectedField.field.$set("test") ~
     ExpectedField.copy.$set("test2") |>
-      JObject(Map.empty) should be (JObject(Map("field" -> "test", "copy" -> "test2")))
+      JObject.empty should be (JObject("field" := "test", "copy" := "test2"))
   }
 
   object NestedField extends Contract {
@@ -49,12 +49,12 @@ class LensTests extends FunSuite with Matchers with FailureMatchers {
   }
 
   test("nested lens, nested objects exist") {
-    NestedField.nested.field.$set("test")(JObject(Map("nested" -> Map.empty))) should
-      be (JObject(Map("nested" -> Map("field" -> "test"))))
-    NestedField.nested.field.$modify(_ + "2")(JObject(Map("nested" -> Map("field" -> "test")))) should
-      be (JObject(Map("nested" -> Map("field" -> "test2"))))
-    NestedField.nested.field.$copy(NestedField.nested.nested.copy)(JObject(Map("nested" -> Map("nested" -> Map("copy" -> "test"))))) should
-      be (JObject(Map("nested" -> Map("field" -> "test"), "nested" -> Map("copy" -> "test"))))
+    NestedField.nested.field.$set("test")(JObject("nested" := JObject.empty)) should
+      be (JObject("nested" := JObject("field" := "test")))
+    NestedField.nested.field.$modify(_ + "2")(JObject("nested" := JObject("field" := "test"))) should
+      be (JObject("nested" := JObject("field" := "test2")))
+    NestedField.nested.field.$copy(NestedField.nested.nested.copy)(JObject("nested" := JObject("nested" := JObject("copy" := "test")))) should
+      be (JObject("nested" := JObject("field" := "test"), "nested" := JObject("copy" := "test")))
   }
 
 
@@ -64,27 +64,27 @@ class LensTests extends FunSuite with Matchers with FailureMatchers {
   }
 
   test("maybe lens") {
-    MaybeField.field.$set("test")(JObject(Map.empty)) should be (JObject(Map("field" -> "test")))
-    MaybeField.field.$set("test2")(JObject(Map("field" -> "test"))) should be (JObject(Map("field" -> "test2")))
+    MaybeField.field.$set("test")(JObject.empty) should be (JObject("field" := "test"))
+    MaybeField.field.$set("test2")(JObject("field" := "test")) should be (JObject("field" := "test2"))
 
-    MaybeField.field.$get(JObject(Map.empty)) should be (None)
-    MaybeField.field.$get(JObject(Map("field" -> "test"))) should be (Some("test"))
+    MaybeField.field.$get(JObject.empty) should be (None)
+    MaybeField.field.$get(JObject("field" := "test")) should be (Some("test"))
 
-    MaybeField.field.$maybeSet(None)(JObject(Map.empty)) should be (JObject(Map.empty))
-    MaybeField.field.$maybeSet(Some("test"))(JObject(Map.empty)) should be (JObject(Map("field" -> "test")))
-    MaybeField.field.$maybeSet(Some("test2"))(JObject(Map("field" -> "test"))) should be (JObject(Map("field" -> "test2")))
+    MaybeField.field.$maybeSet(None)(JObject.empty) should be (JObject.empty)
+    MaybeField.field.$maybeSet(Some("test"))(JObject.empty) should be (JObject("field" := "test"))
+    MaybeField.field.$maybeSet(Some("test2"))(JObject("field" := "test")) should be (JObject("field" := "test2"))
 
-    MaybeField.field.$modifyOrDrop(t => t.map(_ + "2"))(JObject(Map.empty)) should be (JObject(Map.empty))
+    MaybeField.field.$modifyOrDrop(t => t.map(_ + "2"))(JObject.empty) should be (JObject.empty)
     //strict
-    MaybeField.field.$modifyOrDrop(t => t.map(_ + "2"))(JObject(Map("field" -> false))) should be (JObject(Map("field" -> false)))
-    MaybeField.field.$modifyOrDrop(t => t.map(_ + "2"))(JObject(Map("field" -> "test"))) should be (JObject(Map("field" -> "test2")))
+    MaybeField.field.$modifyOrDrop(t => t.map(_ + "2"))(JObject("field" := false)) should be (JObject("field" := false))
+    MaybeField.field.$modifyOrDrop(t => t.map(_ + "2"))(JObject("field" := "test")) should be (JObject("field" := "test2"))
 
-    MaybeField.copy.$copy(MaybeField.field)(JObject(Map.empty)) should be (JObject(Map.empty))
+    MaybeField.copy.$copy(MaybeField.field)(JObject.empty) should be (JObject.empty)
     //strict
-    MaybeField.copy.$copy(MaybeField.field)(JObject(Map("copy" -> "remove"))) should be (JObject(Map.empty))
-    MaybeField.copy.$copy(MaybeField.field)(JObject(Map("field" -> "test"))) should be (JObject(Map("field" -> "test", "copy" -> "test")))
+    MaybeField.copy.$copy(MaybeField.field)(JObject("copy" := "remove")) should be (JObject.empty)
+    MaybeField.copy.$copy(MaybeField.field)(JObject("field" := "test")) should be (JObject("field" := "test", "copy" := "test"))
 
-    MaybeField.field.$drop(JObject(Map("field" -> "test"))) should be (JObject(Map.empty))
+    MaybeField.field.$drop(JObject("field" := "test")) should be (JObject.empty)
 
   }
 
@@ -94,27 +94,27 @@ class LensTests extends FunSuite with Matchers with FailureMatchers {
   }
 
   test("default lens") {
-    DefaultField.field.$set("test")(JObject(Map.empty)) should be (JObject(Map("field" -> "test")))
-    DefaultField.field.$set("test2")(JObject(Map("field" -> "test"))) should be (JObject(Map("field" -> "test2")))
+    DefaultField.field.$set("test")(JObject.empty) should be (JObject("field" := "test"))
+    DefaultField.field.$set("test2")(JObject("field" := "test")) should be (JObject("field" := "test2"))
 
-    DefaultField.field.$get(JObject(Map.empty)) should be (Some("default1"))
-    DefaultField.field.$get(JObject(Map("field" -> "test"))) should be (Some("test"))
+    DefaultField.field.$get(JObject.empty) should be (Some("default1"))
+    DefaultField.field.$get(JObject("field" := "test")) should be (Some("test"))
 
-    DefaultField.field.$maybeSet(None)(JObject(Map.empty)) should be (JObject(Map.empty))
-    DefaultField.field.$maybeSet(Some("test"))(JObject(Map.empty)) should be (JObject(Map("field" -> "test")))
-    DefaultField.field.$maybeSet(Some("test2"))(JObject(Map("field" -> "test"))) should be (JObject(Map("field" -> "test2")))
+    DefaultField.field.$maybeSet(None)(JObject.empty) should be (JObject.empty)
+    DefaultField.field.$maybeSet(Some("test"))(JObject.empty) should be (JObject("field" := "test"))
+    DefaultField.field.$maybeSet(Some("test2"))(JObject("field" := "test")) should be (JObject("field" := "test2"))
 
-    DefaultField.field.$modify(t => t + "2")(JObject(Map.empty)) should be (JObject(Map("field" -> "default12")))
+    DefaultField.field.$modify(t => t + "2")(JObject.empty) should be (JObject("field" := "default12"))
     //Strict
-    DefaultField.field.$modify(t => t + "2")(JObject(Map("field" -> false))) should be (JObject(Map("field" -> false)))
-    DefaultField.field.$modify(t => t + "2")(JObject(Map("field" -> "test"))) should be (JObject(Map("field" -> "test2")))
+    DefaultField.field.$modify(t => t + "2")(JObject("field" := false)) should be (JObject("field" := false))
+    DefaultField.field.$modify(t => t + "2")(JObject("field" := "test")) should be (JObject("field" := "test2"))
 
-    DefaultField.copy.$copy(DefaultField.field)(JObject(Map.empty)) should be (JObject(Map("copy" -> "default1")))
-    DefaultField.copy.$copy(DefaultField.field)(JObject(Map("copy" -> "value"))) should be (JObject(Map("copy" -> "default1")))
-    DefaultField.copy.$copy(DefaultField.field)(JObject(Map("field" -> "test"))) should be (JObject(Map("field" -> "test", "copy" -> "test")))
+    DefaultField.copy.$copy(DefaultField.field)(JObject.empty) should be (JObject("copy" := "default1"))
+    DefaultField.copy.$copy(DefaultField.field)(JObject("copy" := "value")) should be (JObject("copy" := "default1"))
+    DefaultField.copy.$copy(DefaultField.field)(JObject("field" := "test")) should be (JObject("field" := "test", "copy" := "test"))
 
-    DefaultField.field.$restore(JObject(Map("field" -> "test"))) should be (JObject(Map.empty))
+    DefaultField.field.$restore(JObject("field" := "test")) should be (JObject.empty)
 
-    //DefaultField.field.$deltaDelete(JObject(Map("field" -> "test")))) should be (JObject(Map("field" -> JsNull)))
+    //DefaultField.field.$deltaDelete(JObject("field" := "test")))) should be (JObject("field" := JsNull)))
   }
 }

@@ -8,6 +8,7 @@ class ContractTests extends FunSuite with Matchers {
 
   import PessimisticCodecs._
   implicit def strictness = MaybePessimistic
+  import Dsentric._
 
   object Flat extends Contract {
     val one = \[String]
@@ -40,82 +41,82 @@ class ContractTests extends FunSuite with Matchers {
 
   test("Level Contract pattern matching") {
 
-    (JObject(Map("one" -> "string", "two" -> false)) match {
+    (JObject("one" := "string", "two" := false) match {
       case Flat.one(s) =>
         s
     }) should equal("string")
 
-    (JObject(Map("one" -> "string", "two" -> false)) match {
+    (JObject("one" := "string", "two" := false) match {
       case Flat.one(s) && Flat.two(Some(false)) =>
         s
     }) should equal("string")
 
-    (JObject(Map("one" -> "string", "two" -> false)) match {
+    (JObject("one" := "string", "two" := false) match {
       case Flat.two(None) =>
         assert(false)
       case _ =>
         "no match"
     }) should equal("no match")
 
-    (JObject(Map("one" -> "string")) match {
+    (JObject("one" := "string") match {
       case Flat.one(s) && Flat.two(None) && Flat.three(int) =>
         true
     }) should equal(true)
 
-    (JObject(Map("one" -> 123)) match {
+    (JObject("one" := 123) match {
       case Flat.one(s) && Flat.two(None) => s
       case _ => "wrong type"
     }) should equal("wrong type")
 
-    (JObject(Map("two" -> false)) match {
+    (JObject("two" := false) match {
       case Flat.one(s) && Flat.two(None) => s
       case Flat.two(Some(false)) => "two match"
     }) should equal("two match")
 
-    (JObject(Map("three" -> 4)) match {
+    (JObject("three" := 4) match {
       case Flat.three(i) => i
     }) should equal(4)
 
-    (JObject(Map("three" -> "4")) match {
+    (JObject("three" := "4") match {
       case Flat.three(i) => true
       case _ => false
     }) should equal(false)
 
-    (JObject(Map("two" -> "String")) match {
+    (JObject("two" := "String") match {
       case Flat.two(None) => true
       case _ => false
     }) should equal(false)
 
-    //    (JsObject(Map("two" -> JsNull)) match {
+    //    (JsObject("two" := JsNull)) match {
     //      case Test.two(None) => true
     //      case _ => false
     //    }) should be(true)
 
-    (JObject(Map("two" -> "false")) match {
+    (JObject("two" := "false") match {
       case Flat.two(Some(i)) => true
       case _ => false
     }) should equal(false)
 
-    (JObject(Map("three" -> "not a number")) match {
+    (JObject("three" := "not a number") match {
       case Flat.three(i) => i
       case _ => "wrong type"
     }) should equal("wrong type")
 
-    (JObject(Map.empty) match {
+    (JObject.empty match {
       case Flat.two(None) => true
       case _ => false
     }) should be (true)
   }
 
   test("nested Contract pattern matching") {
-    (JObject(Map("child" -> Map("value" -> 2))) match {
+    (JObject("child" := JObject("value" := 2)) match {
       case Nested.child.value(s) =>
         s
     }) should equal(2)
   }
 
   test("recursive Contract pattern matching") {
-    val obj = JObject(Map("name" -> "one", "child" -> Map("name" -> "two", "child" -> Map("name" -> "three"))))
+    val obj = JObject("name" := "one", "child" := JObject("name" := "two", "child" := JObject("name" := "three")))
     (obj match {
       case Recursive.name(name) =>
         name
@@ -129,7 +130,7 @@ class ContractTests extends FunSuite with Matchers {
         name
     }) should equal ("three")
 
-    val subObj = JObject(Map("name" -> "one", "first" -> Map("name2" -> "two", "second" -> Map("name" -> "three", "first" -> Map("name2" -> "four")))))
+    val subObj = JObject("name" := "one", "first" := JObject("name2" := "two", "second" := JObject("name" := "three", "first" := JObject("name2" := "four"))))
 
     (subObj match {
       case SubRecursive.name(name) =>
