@@ -81,20 +81,48 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     NestedExpectedField.$validate(JObject("nested" := JObject("expected" := "value"))) should be (Failures.empty)
   }
 
-//  object ToSanitize extends Contract {
-//    val sanitize = \?[String](Validator.internal)
-//    val value = \?[Boolean]
-//    val nested = new \\ {
-//      val sanitize = \?[String](Validator.internal)
-//      val value = \?[Int]
-//    }
-//  }
-//
-//
-//  test("Sanitize data") {
-//    val j = JObject("sanitize" := "value", "value" := true, "nested" := JObject("sanitize" := "value", "value" := 123))
-//
-//    ToSanitize.$sanitize(j) should
-//      be (JObject("value" := true, "nested" := JObject("value" := 123)))
-//  }
+  test("Nested validation") {
+    implicit def strictness = MaybePessimistic
+    object NestValid extends Contract {
+      val value1 = \[String]
+      val nest1 = new \\ {
+        val value2 = \[String]
+        val value3 = \[String]
+      }
+      val nest2 = new \\? {
+        val nest3 = new \\ {
+          val value4 = \[String]
+        }
+        val value5 = \[String]
+      }
+    }
+
+    val json1 = JObject("value1" := "V", "nest1" := JObject("value2" := "V", "value3" := "V"))
+    NestValid.$validate(json1) should be (Failures.empty)
+    val json2 = JObject("value1" := "V", "nest1" := JObject("value2" := "V", "value3" := "V"), "nest2" := JObject("nest3" := JObject("value4" := "V"), "value5" := "V"))
+    NestValid.$validate(json2) should be (Failures.empty)
+
+    NestValid.$validate(JObject("value1" := "V", "nest1" := JObject("value3" := 3))) should
+      be (Vector("nest1"\"value2" -> "Value was expected.", "nest1"\"value3" -> "Value is not of the expected type."))
+
+    NestValid.$validate(JObject("value1" := "V", "nest2" := JObject.empty)) should
+      be (Vector(Path("nest1") -> "Value was expected." , "nest2"\"nest3" -> "Value was expected.", "nest2"\"value5" -> "Value was expected."))
+  }
+
+  object ToSanitize extends Contract {
+    val sanitize = \?[String](Validator.internal)
+    val value = \?[Boolean]
+    val nested = new \\ {
+      val sanitize = \?[String](Validator.internal)
+      val value = \?[Int]
+    }
+  }
+
+
+  test("Sanitize data") {
+    val j = JObject("sanitize" := "value", "value" := true, "nested" := JObject("sanitize" := "value", "value" := 123))
+
+    ToSanitize.$sanitize(j) should
+      be (JObject("value" := true, "nested" := JObject("value" := 123)))
+  }
 }

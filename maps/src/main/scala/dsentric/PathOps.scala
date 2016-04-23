@@ -5,7 +5,7 @@ import scala.annotation.tailrec
 object PathOps {
 
   @tailrec
-  def traverse(map:Map[String, Any], path:Path):Option[Any] =
+  private[dsentric] final def traverse(map:Map[String, Any], path:Path):Option[Any] =
     path match {
       case Right(head) :: tail =>
         if (tail.isEmpty) map.get(head)
@@ -20,7 +20,7 @@ object PathOps {
         Some(map)
     }
 
-  def set(map:Map[String, Any], path:Path, value:Any):Map[String, Any] =
+  private[dsentric] def set(map:Map[String, Any], path:Path, value:Any):Map[String, Any] =
     path match {
       case Right(head) :: Nil =>
         map + (head -> value)
@@ -36,7 +36,7 @@ object PathOps {
   /*
   Returns None if no change
    */
-  def modify[T](map:Map[String, Any], path:Path, codec:JCodec[T], f:T => T):Option[Map[String, Any]] =
+  private[dsentric] def modify[T](map:Map[String, Any], path:Path, codec:JCodec[T], f:T => T):Option[Map[String, Any]] =
     path match {
       case Right(head) :: Nil =>
         for {
@@ -58,7 +58,7 @@ object PathOps {
     }
 
   //Can create nested objects
-  def maybeModify[T](map:Map[String, Any], path:Path, codec:JCodec[T], strictness:Strictness, f:Option[T] => T):Option[Map[String, Any]] =
+  private[dsentric] def maybeModify[T](map:Map[String, Any], path:Path, codec:JCodec[T], strictness:Strictness, f:Option[T] => T):Option[Map[String, Any]] =
     path match {
       case Right(head) :: Nil =>
         map.get(head) match {
@@ -84,7 +84,7 @@ object PathOps {
         None
     }
 
-  def drop(map:Map[String, Any], path:Path):Option[Map[String, Any]] =
+  private[dsentric] def drop(map:Map[String, Any], path:Path):Option[Map[String, Any]] =
     path match {
       case Right(head) :: Nil =>
         if (map.contains(head)) Some(map - head)
@@ -109,7 +109,7 @@ object PathOps {
         None
     }
 
-  def maybeModifyOrDrop[T](map:Map[String, Any], path:Path, codec:JCodec[T], strictness:Strictness, f:Option[T] => Option[T]):Option[Map[String, Any]] =
+  private[dsentric] def maybeModifyOrDrop[T](map:Map[String, Any], path:Path, codec:JCodec[T], strictness:Strictness, f:Option[T] => Option[T]):Option[Map[String, Any]] =
     path match {
       case Right(head) :: Nil =>
         map.get(head) match {
@@ -135,5 +135,5 @@ object PathOps {
       case _ =>
         None
     }
-
 }
+

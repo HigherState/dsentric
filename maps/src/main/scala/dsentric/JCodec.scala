@@ -36,7 +36,7 @@ trait DefaultCodecs {
       def unapply(a: Any): Option[JObject] =
         a match {
           case m:Map[String, Any]@unchecked =>
-            Some(JObject(m))
+            Some(new JObject(m))
           case _ =>
             None
         }

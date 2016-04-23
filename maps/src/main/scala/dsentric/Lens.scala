@@ -14,7 +14,7 @@ sealed trait PropertyLens[T] {
 
 
   def $set(value:T):JObject => JObject =
-    d => JObject(PathOps.set(d.value, _path, value))
+    d => new JObject(PathOps.set(d.value, _path, value))
 
   def $maybeSet(value:Option[T]):JObject => JObject =
     value.fold((d:JObject) => d){ v =>

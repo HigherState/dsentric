@@ -113,6 +113,11 @@ class ContractTests extends FunSuite with Matchers {
       case Nested.child.value(s) =>
         s
     }) should equal(2)
+
+    (JObject("child" := JObject("value" := 2)) match {
+      case Nested.child(j) =>
+        j
+    }) should equal(JObject("value" := 2))
   }
 
   test("recursive Contract pattern matching") {

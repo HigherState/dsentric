@@ -1,10 +1,15 @@
 package dsentric
 
+
 object Path {
+  type Mix = Int with String
   val empty = List.empty[Either[Int, String]]
 
-  def apply(s:String*):Path =
-    s.map(Right.apply).toList
+  def apply[T >: Mix](s:T*):Path =
+    s.collect {
+      case i:Int => Left(i)
+      case s:String => Right(s)
+    }.toList
 }
 
 object Failures {

@@ -1,24 +1,27 @@
 package dsentric
 
-case class JObject(value:Map[String, Any]) extends AnyVal {
+class JObject(val value:Map[String, Any]) extends AnyVal {
   def +(v:JPair) =
-    JObject(value + v.toTuple)
+    new JObject(value + v.toTuple)
 
   def ++(v:TraversableOnce[JPair]) =
-    JObject(value ++ v.map(_.toTuple))
+    new JObject(value ++ v.map(_.toTuple))
 
   def ++(m:JObject) =
-    JObject(value ++ m.value)
+    new JObject(value ++ m.value)
 
   def -(key:String) =
-    JObject(value - key)
+    new JObject(value - key)
 
   def --(keys:TraversableOnce[String]) =
-    JObject(value -- keys)
+    new JObject(value -- keys)
 
   def size = value.size
 
   def isEmpty = value.isEmpty
+
+  def applyDelta(delta:JObject):JObject =
+    new JObject(ComparisonOps.applyDelta(value, delta.value))
 
 }
 
@@ -31,7 +34,10 @@ object JNull extends JNull
 
 object JObject{
 
-  val empty = JObject(Map.empty[String, Any])
+  val empty = new JObject(Map.empty[String, Any])
+
+  def apply(map:Map[String, Any]):JObject =
+    new JObject(map)
   def apply(values:JPair*):JObject =
-    JObject(values.toIterator.map(_.toTuple).toMap)
+    new JObject(values.toIterator.map(_.toTuple).toMap)
 }
