@@ -27,5 +27,4 @@ package object dsentric {
     def \(part:String):Path = List(Left(self), Right(part))
     def \(part:Int):Path = List(Left(self), Left(part))
   }
-
 }

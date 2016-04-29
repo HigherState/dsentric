@@ -30,6 +30,7 @@ lazy val shapeless = "com.chuusai" %% "shapeless" % "2.2.5"
 lazy val monoclecore = "com.github.julien-truffaut" %%  "monocle-core" % "1.2.0"
 lazy val scodec = "org.scodec" %% "scodec-bits" % "1.0.12"
 lazy val argo = "io.argonaut" %% "argonaut" % "6.1"
+lazy val cats = "org.typelevel" %% "cats" % "0.4.1"
 lazy val scalatest = "org.scalatest" %% "scalatest" % "2.2.4"  % "test"
 
 
@@ -55,7 +56,7 @@ lazy val monocle = project
 lazy val maps = project
   .settings(moduleName := "dsentric-maps")
   .settings(settings)
-  .settings(libraryDependencies := Seq(reflect, shapeless, scalatest))
+  .settings(libraryDependencies := Seq(reflect, shapeless, scalatest, cats))
   .dependsOn(core)
 
 lazy val argonaut = project

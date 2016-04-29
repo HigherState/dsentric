@@ -9,4 +9,6 @@ object Dsentric {
     def :=[T](t:T)(implicit jCodec: JCodec[T]):JPair =
       JPair(self, jCodec(t))
   }
+
+  val jNull:JNull = new JNull {}
 }

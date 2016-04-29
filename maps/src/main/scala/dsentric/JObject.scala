@@ -21,16 +21,14 @@ class JObject(val value:Map[String, Any]) extends AnyVal {
   def isEmpty = value.isEmpty
 
   def applyDelta(delta:JObject):JObject =
-    new JObject(ComparisonOps.applyDelta(value, delta.value))
-
+    ReduceConcatMonoid.combine(this, delta)
 }
 
 case class JPair(key:String, value:Any) {
   def toTuple = key -> value
 }
 
-sealed trait JNull
-object JNull extends JNull
+trait JNull
 
 object JObject{
 
