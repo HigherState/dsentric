@@ -7,8 +7,10 @@ object Path {
 
   def apply[T >: Mix](s:T*):Path =
     s.collect {
-      case i:Int => Left(i)
-      case s:String => Right(s)
+      case i:Int =>
+        Left(i)
+      case s:String =>
+        Right(s)
     }.toList
 }
 

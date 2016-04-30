@@ -9,8 +9,8 @@ package object dsentric {
 
   implicit class PathExt(val self:Path) extends AnyVal {
 
-    def \(part:String) = self :+ Left(part)
-    def \(part:Int) = self :+ Right(part)
+    def \(part:String):Path = self :+ Right(part)
+    def \(part:Int):Path = self :+ Left(part)
 
     def hasSubPath(path:Path) =
       path.zip(self).foldLeft(true) {

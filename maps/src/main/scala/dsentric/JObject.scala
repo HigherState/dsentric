@@ -21,7 +21,13 @@ class JObject(val value:Map[String, Any]) extends AnyVal {
   def isEmpty = value.isEmpty
 
   def applyDelta(delta:JObject):JObject =
-    ReduceConcatMonoid.combine(this, delta)
+    JObjectOps.rightReduceConcat(this, delta)
+
+  def select(projection:JObject):JObject =
+    JObjectOps.select(this, projection)
+
+  def reduce:Option[JObject] =
+    JObjectOps.reduce(this)
 }
 
 case class JPair(key:String, value:Any) {
