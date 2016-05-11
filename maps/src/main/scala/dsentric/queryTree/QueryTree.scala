@@ -11,9 +11,9 @@ object QueryTree {
   }
   private def buildTree(query:Map[String, Any], path:Path):Tree = {
     &(query.flatMap{
-      case ("$and", values:Iterable[Any]@unchecked) =>
+      case ("$and", values:Vector[Any]@unchecked) =>
         Some(&(values.collect { case m:Map[String,Any]@unchecked => buildTree(m, path)}.toList))
-      case ("$or", values:Iterable[Any]@unchecked) =>
+      case ("$or", values:Vector[Any]@unchecked) =>
         Some(|(values.collect { case m:Map[String,Any]@unchecked => buildTree(m, path)}.toList))
       case ("$not", value:Map[String,Any]@unchecked) =>
         Some(!!(buildTree(value, path)))
@@ -31,7 +31,8 @@ object QueryTree {
       case ("$options", _) =>
         None
       case (key, value:Map[String,Any]@unchecked) =>
-        Some(buildTree(value, path \ key))
+        val p:Path = path \ key
+        Some(buildTree(value, p))
       case (key, j) =>
         Some(?(path \ key, "$eq", j))
     }.toSeq)

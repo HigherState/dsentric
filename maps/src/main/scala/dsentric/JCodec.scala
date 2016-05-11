@@ -30,7 +30,21 @@ trait DefaultCodecs {
         a.isInstanceOf[Map[String, Any]@unchecked]
     }
 
-  implicit val jobjectCodec:JCodec[JObject] =
+  val vectorCodec:JCodec[Vector[Any]] =
+    new MatchCodec[Vector[Any]] {
+      protected def isMatch(a: Any): Boolean =
+        a.isInstanceOf[Vector[Any]@unchecked]
+    }
+
+  implicit val jsonCodec:JCodec[Json] =
+    new JCodec[Json] {
+      def unapply(a: Any): Option[Json] =
+        Some(new Json(a))
+      def apply(t: Json): Any =
+        t.value
+    }
+
+  implicit val jObjectCodec:JCodec[JObject] =
     new JCodec[JObject] {
       def apply(t: JObject): Any =
         t.value
@@ -44,12 +58,25 @@ trait DefaultCodecs {
         }
     }
 
+  implicit val jArrayCodec:JCodec[JArray] =
+    new JCodec[JArray] {
+      def apply(t: JArray): Any =
+        t.value
+
+      def unapply(a: Any): Option[JArray] =
+        a match {
+          case v:Vector[Any]@unchecked =>
+            Some(new JArray(v))
+          case _ =>
+            None
+        }
+    }
+
   implicit val jNullCodec:JCodec[JNull] =
     new MatchCodec[JNull] {
       protected def isMatch(a: Any): Boolean =
         a.isInstanceOf[JNull]
     }
-
 }
 
 trait PessimisticCodecs extends DefaultCodecs {
@@ -64,16 +91,43 @@ trait PessimisticCodecs extends DefaultCodecs {
       protected def isMatch(a: Any): Boolean =
         a.isInstanceOf[Boolean]
     }
-  implicit val intCodec:JCodec[Int] =
-    new DirectCodec[Int] {
-      def unapply(a: Any): Option[Int] =
-        NumericPartialFunctions.int.lift(a)
+  implicit val longCodec:JCodec[Long] =
+    new DirectCodec[Long] {
+      def unapply(a: Any): Option[Long] =
+        NumericPartialFunctions.long.lift(a)
     }
-
   implicit val doubleCodec:JCodec[Double] =
     new DirectCodec[Double] {
       def unapply(a: Any): Option[Double] =
         NumericPartialFunctions.double.lift(a)
+    }
+  implicit val intCodec:JCodec[Int] =
+    new JCodec[Int] {
+      def apply(t: Int): Any =
+        t.toLong
+      def unapply(a: Any): Option[Int] =
+        NumericPartialFunctions.int.lift(a)
+    }
+  implicit val shortCodec:JCodec[Short] =
+    new JCodec[Short] {
+      def apply(t: Short): Any =
+        t.toLong
+      def unapply(a: Any): Option[Short] =
+        NumericPartialFunctions.short.lift(a)
+    }
+  implicit val byteCodec:JCodec[Byte] =
+    new JCodec[Byte] {
+      def apply(t: Byte): Any =
+        t.toLong
+      def unapply(a: Any): Option[Byte] =
+        NumericPartialFunctions.byte.lift(a)
+    }
+  implicit val floatCodec:JCodec[Float] =
+    new JCodec[Float] {
+      def apply(t: Float): Any =
+        t.toDouble
+      def unapply(a: Any): Option[Float] =
+        NumericPartialFunctions.float.lift(a)
     }
 
   implicit def listCodec[T](implicit C:JCodec[T]):JCodec[List[T]] =
