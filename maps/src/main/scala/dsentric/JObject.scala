@@ -1,6 +1,27 @@
 package dsentric
 
-class JObject(val value:Map[String, Any]) extends AnyVal {
+class Json(val value:Any) extends AnyVal {
+  def asObject:Option[JObject] =
+    value match {
+      case m:Map[String, Any]@unchecked =>
+        Some(new JObject(m))
+      case _ =>
+        None
+    }
+
+  def asArray:Option[JArray] =
+    value match {
+      case v:Vector[Any]@unchecked =>
+        Some(new JArray(v))
+      case _ =>
+        None
+    }
+
+  def toString(implicit R:Renderer) =
+    R.print(value)
+}
+
+class JObject(val value:Map[String, Any]) extends AnyVal{
   def +(v:JPair) =
     new JObject(value + v.toTuple)
 
@@ -28,6 +49,14 @@ class JObject(val value:Map[String, Any]) extends AnyVal {
 
   def reduce:Option[JObject] =
     JObjectOps.reduce(this)
+
+  def toString(implicit R:Renderer) =
+    R.print(value)
+}
+
+class JArray(val value:Vector[Any]) extends AnyVal {
+  def toString(implicit R:Renderer) =
+    R.print(value)
 }
 
 case class JPair(key:String, value:Any) {
@@ -35,6 +64,11 @@ case class JPair(key:String, value:Any) {
 }
 
 trait JNull
+
+object Json{
+  def apply[T](value:T)(implicit codec:JCodec[T]):Json =
+    new Json(codec.apply(value))
+}
 
 object JObject{
 
@@ -44,4 +78,12 @@ object JObject{
     new JObject(map)
   def apply(values:JPair*):JObject =
     new JObject(values.toIterator.map(_.toTuple).toMap)
+}
+
+object JArray{
+
+  val empty = new JArray(Vector.empty)
+
+  def apply[T](values:T*)(implicit codec:JCodec[T]) =
+    new JArray(values.flatMap(codec.unapply).toVector)
 }

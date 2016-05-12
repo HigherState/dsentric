@@ -206,7 +206,7 @@ class Default[T] private[dsentric]
 class \\ private(override private[dsentric] val _pathValidator:Validator[JObject],
                 override private[dsentric] val _nameOverride:Option[String],
                 override private[dsentric] val _parent:BaseContract
-               ) extends Expected[JObject](_pathValidator, _nameOverride, _parent, DefaultCodecs.jobjectCodec) with SubContract {
+               ) extends Expected[JObject](_pathValidator, _nameOverride, _parent, DefaultCodecs.jObjectCodec) with SubContract {
 
   def this()(implicit parent:BaseContract) =
     this(Validator.empty, None, parent)
@@ -230,7 +230,7 @@ class \\? private(override private[dsentric] val _pathValidator:Validator[Option
                   override private[dsentric] val _nameOverride:Option[String],
                   override private[dsentric] val _parent:BaseContract,
                   override private[dsentric] val _strictness:Strictness
-                 ) extends Maybe[JObject](_pathValidator, _nameOverride, _parent, DefaultCodecs.jobjectCodec, _strictness) with SubContract {
+                 ) extends Maybe[JObject](_pathValidator, _nameOverride, _parent, DefaultCodecs.jObjectCodec, _strictness) with SubContract {
 
   def this()(implicit parent:BaseContract, strictness:Strictness) =
     this(Validator.empty, None, parent, strictness)
@@ -255,7 +255,7 @@ class \\! private(override val _default:JObject,
                   override private[dsentric] val _nameOverride:Option[String],
                   override private[dsentric] val _parent:BaseContract,
                   override private[dsentric] val _strictness:Strictness
-                 ) extends Default[JObject](_default, _pathValidator, _nameOverride, _parent, DefaultCodecs.jobjectCodec, _strictness) with SubContract {
+                 ) extends Default[JObject](_default, _pathValidator, _nameOverride, _parent, DefaultCodecs.jObjectCodec, _strictness) with SubContract {
 
   def this(default:JObject)(implicit parent:BaseContract, strictness:Strictness) =
     this(default, Validator.empty, None, parent, strictness)
