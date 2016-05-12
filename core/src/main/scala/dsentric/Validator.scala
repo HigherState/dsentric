@@ -21,20 +21,21 @@ case class AndValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B
 }
 
 case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]) extends Validator[T] {
-  def apply[S >: T](path:Path, value:Option[S], currentState:Option[S]):Failures = {
+  def apply[S >: T](path:Path, value:Option[S], currentState:Option[S]):Failures =
     left(path, value, currentState) match {
       case Failures.empty =>
         Failures.empty
-      case list => right(path, value, currentState) match {
-        case Failures.empty =>
-          Failures.empty
-        case list2 if list2.size < list.size =>
-          list2
-        case _ =>
-          list
-      }
+      case list =>
+        right(path, value, currentState) match {
+          case Failures.empty =>
+            Failures.empty
+          case list2 if list2.size < list.size =>
+            list2
+          case _ =>
+            list
+        }
     }
-  }
+
 
   private[dsentric] override def isInternal:Boolean = left.isInternal || right.isInternal
 }

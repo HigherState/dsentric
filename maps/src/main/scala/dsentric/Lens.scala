@@ -5,13 +5,7 @@ sealed trait PropertyLens[T] {
   def _path:Path
   private[dsentric] def _codec: JCodec[T]
 
-  def $get(data:JObject):Option[T] =
-    PathOps
-      .traverse(data.value, _path)
-      .flatMap(_codec.unapply)
-
-  private[dsentric] def strictGet(data:JObject):Option[Option[T]]
-
+  private[dsentric] def _strictGet(data:JObject):Option[Option[T]]
 
   def $set(value:T):JObject => JObject =
     d => new JObject(PathOps.set(d.value, _path, value))
@@ -24,24 +18,34 @@ sealed trait PropertyLens[T] {
 
 trait ExpectedLens[T] extends PropertyLens[T] with ApplicativeLens[JObject, T, T] {
 
+  def $get(data:JObject):Option[T] =
+    PathOps
+      .traverse(data.value, _path)
+      .flatMap(_codec.unapply)
+
   def $modify(f:T => T):JObject => JObject =
     d => PathOps.modify(d.value, _path, _codec, f).fold(d)(JObject.apply)
 
   def $copy(p:PropertyLens[T]):JObject => JObject =
     d => {
-      p.$get(d).fold(d){p =>
+      p._strictGet(d).flatten.fold(d){p =>
         $set(p)(d)
       }
     }
 
   //both empty or wrong value are bad values
-  private[dsentric] def strictGet(data:JObject):Option[Option[T]] =
+  private[dsentric] def _strictGet(data:JObject):Option[Option[T]] =
     $get(data).map(v => Some(v))
 }
 
 trait MaybeLens[T] extends PropertyLens[T] with ApplicativeLens[JObject, Option[T], T] {
 
   private[dsentric] def _strictness:Strictness
+
+  def $get(data:JObject):Option[T] =
+    PathOps
+      .traverse(data.value, _path)
+      .flatMap(_codec.unapply)
 
   def $modify(f:Option[T] => T):JObject => JObject =
     d => PathOps.maybeModify(d.value, _path, _codec, _strictness, f).fold(d)(JObject.apply)
@@ -57,11 +61,11 @@ trait MaybeLens[T] extends PropertyLens[T] with ApplicativeLens[JObject, Option[
 
   def $copy(p:PropertyLens[T]):JObject => JObject =
     (d) => {
-      p.strictGet(d)
+      p._strictGet(d)
         .fold(d)(v => $setOrDrop(v)(d))
     }
 
-  private[dsentric] def strictGet(data:JObject):Option[Option[T]] =
+  private[dsentric] def _strictGet(data:JObject):Option[Option[T]] =
     PathOps
       .traverse(data.value, _path) match {
         case None => Some(None)
@@ -78,12 +82,12 @@ trait DefaultLens[T] extends PropertyLens[T] with ApplicativeLens[JObject, T, T]
   private val toDefault =
     (maybe:Option[T]) => maybe.getOrElse(_default)
 
-  override def $get(data:JObject):Option[T] =
+  def $get(data:JObject):T =
     PathOps
       .traverse(data.value, _path)
-        .fold[Option[T]](Some(_default)) { t =>
-          _strictness(t, _codec).map(_.getOrElse(_default))
-        }
+      .fold(_default) { t =>
+        _codec.unapply(t).getOrElse(_default)
+      }
 
   def $modify(f:T => T):JObject => JObject =
     d => PathOps.maybeModify(d.value, _path, _codec, _strictness, toDefault.andThen(f)).fold(d)(JObject.apply)
@@ -96,11 +100,11 @@ trait DefaultLens[T] extends PropertyLens[T] with ApplicativeLens[JObject, T, T]
 
   def $copy(p:PropertyLens[T]):JObject => JObject =
     (d) => {
-      p.strictGet(d)
+      p._strictGet(d)
         .fold(d)(v => $setOrRestore(v)(d))
     }
 
-  private[dsentric] def strictGet(data:JObject):Option[Option[T]] =
+  private[dsentric] def _strictGet(data:JObject):Option[Option[T]] =
     PathOps
       .traverse(data.value, _path) match {
       case None => Some(Some(_default))

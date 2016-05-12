@@ -121,6 +121,7 @@ trait Contract extends BaseContract {
 
   def $validate(value:JObject, currentState:Option[JObject] = None):Failures =
     _validateFields(Path.empty, value.value, currentState.map(_.value))
+
 }
 
 class Expected[T] private[dsentric]
@@ -146,7 +147,7 @@ class Expected[T] private[dsentric]
     }
 
   def unapply(j: JObject): Option[T] =
-    strictGet(j).map(_.get)
+    _strictGet(j).map(_.get)
 
 }
 
@@ -162,7 +163,7 @@ class Maybe[T] private[dsentric]
     _strictness(j, _codec).isDefined
 
   def unapply(j:JObject):Option[Option[T]] =
-    strictGet(j)
+    _strictGet(j)
 
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
     value -> currentState match {
@@ -188,7 +189,7 @@ class Default[T] private[dsentric]
     _strictness(j, _codec).isDefined
 
   def unapply(j:JObject):Option[T] =
-    strictGet(j).map(_.get)
+    _strictGet(j).map(_.get)
 
 
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
