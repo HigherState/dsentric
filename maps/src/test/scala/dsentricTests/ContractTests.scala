@@ -155,4 +155,65 @@ class ContractTests extends FunSuite with Matchers {
     }) should equal ("four")
   }
 
+  test("Type contracts required field") {
+    object Existence extends ContractType("req") {
+      val req = \[String]
+      val value = \[Boolean]
+    }
+    (JObject("req" := "test") match {
+      case Existence.isType() => true
+    }) should be (true)
+
+    (JObject("value" := "test") match {
+      case Existence.isType() => true
+      case _ => false
+    }) should be (false)
+  }
+
+  test("Type contracts field value match") {
+    object Existence extends ContractType("req", "test") {
+      val req = \[String]
+      val value = \[Boolean]
+    }
+    (JObject("req" := "test") match {
+      case Existence.isType() => true
+      case _ => false
+    }) should be (true)
+
+    (JObject("req" := "test2") match {
+      case Existence.isType() => true
+      case _ => false
+    }) should be (false)
+
+    (JObject("value" := "test") match {
+      case Existence.isType() => true
+      case _ => false
+    }) should be (false)
+  }
+
+  test("name override") {
+    object Override extends Contract {
+      val _type = \[String]("type")
+    }
+
+    (JObject("type" := "value") match {
+      case Override._type(t) => t == "value"
+    }) should be (true)
+  }
+
+  test("Expected Property") {
+    val property = \[Boolean]("property")
+
+    (JObject("property" := true) match {
+      case property(t) => t
+    }) should be (true)
+  }
+  test("Expected Property path") {
+    val property = \[String]("first" \ "second" \ "third")
+
+    (JObject("first" := JObject("second" := JObject("third" := "value"))) match {
+      case property(t) => t == "value"
+    }) should be (true)
+  }
+
 }

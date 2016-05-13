@@ -1,19 +1,32 @@
 package dsentric
 
+import scala.collection.immutable.VectorBuilder
 import scala.collection.mutable.ListBuffer
 
 
 trait JCodec[T] {
-  def apply(t:T):Any
+  def apply(t:T):Json
   def unapply(a:Any):Option[T]
 }
 
-//Use only if T is stored as is in Map
-trait DirectCodec[T] extends JCodec[T]{
-  def apply(t:T):Any = t
+trait JValueCodec[T] extends JCodec[T] {
+  override def apply(t:T):JValue
 }
 
-private sealed trait MatchCodec[T] extends DirectCodec[T] {
+trait JObjectCodec[T] extends JCodec[T] {
+  override def apply(t:T):JObject
+}
+
+trait JArrayCodec[T] extends JCodec[T] {
+  override def apply(t:T):JArray
+}
+
+
+
+//Use only if T is stored as is in Map
+
+
+private sealed trait MatchCodec[T] extends JCodec[T] {
 
   def unapply(a:Any):Option[T] =
     if (isMatch(a)) Some(a.asInstanceOf[T])
@@ -22,32 +35,49 @@ private sealed trait MatchCodec[T] extends DirectCodec[T] {
   protected def isMatch(a:Any):Boolean
 }
 
+private sealed trait DirectCodec[T] extends JValueCodec[T] {
+  override def apply(t: T): JValue =
+    new JValue(t)
+}
+
 trait DefaultCodecs {
   //Breaks JObject so not implicit
-  val mapCodec:JCodec[Map[String, Any]] =
-    new MatchCodec[Map[String, Any]] {
-      protected def isMatch(a: Any): Boolean =
-        a.isInstanceOf[Map[String, Any]@unchecked]
-    }
-
-  val vectorCodec:JCodec[Vector[Any]] =
-    new MatchCodec[Vector[Any]] {
-      protected def isMatch(a: Any): Boolean =
-        a.isInstanceOf[Vector[Any]@unchecked]
-    }
+//  val mapCodec:JObjectCodec[Map[String, Any]] =
+//    new MatchCodec[Map[String, Any]] with JObjectCodec[Map[String, Any]] {
+//
+//      override def apply(t: Map[String, Any]): JObject =
+//        new JObject(t)
+//
+//      protected def isMatch(a: Any): Boolean =
+//        a.isInstanceOf[Map[String, Any]@unchecked]
+//    }
+//
+//  val vectorCodec:JArrayCodec[Vector[Any]] =
+//    new MatchCodec[Vector[Any]] with JArrayCodec[Vector[Any]] {
+//
+//      protected def isMatch(a: Any): Boolean =
+//        a.isInstanceOf[Vector[Any]@unchecked]
+//    }
 
   implicit val jsonCodec:JCodec[Json] =
     new JCodec[Json] {
       def unapply(a: Any): Option[Json] =
-        Some(new Json(a))
-      def apply(t: Json): Any =
-        t.value
+        a match {
+          case a:Map[String, Any]@unchecked =>
+            Some(new JObject(a))
+          case v:Vector[Any]@unchecked =>
+            Some(new JArray(v))
+          case j =>
+            Some(new JValue(j))
+        }
+      def apply(t: Json): Json =
+        t
     }
 
-  implicit val jObjectCodec:JCodec[JObject] =
-    new JCodec[JObject] {
-      def apply(t: JObject): Any =
-        t.value
+  implicit val jObjectCodec:JObjectCodec[JObject] =
+    new JObjectCodec[JObject] {
+      def apply(t: JObject): JObject =
+        t
 
       def unapply(a: Any): Option[JObject] =
         a match {
@@ -58,10 +88,10 @@ trait DefaultCodecs {
         }
     }
 
-  implicit val jArrayCodec:JCodec[JArray] =
-    new JCodec[JArray] {
-      def apply(t: JArray): Any =
-        t.value
+  implicit val jArrayCodec:JArrayCodec[JArray] =
+    new JArrayCodec[JArray] {
+      def apply(t: JArray): JArray =
+        t
 
       def unapply(a: Any): Option[JArray] =
         a match {
@@ -73,7 +103,7 @@ trait DefaultCodecs {
     }
 
   implicit val jNullCodec:JCodec[JNull] =
-    new MatchCodec[JNull] {
+    new MatchCodec[JNull] with DirectCodec[JNull] {
       protected def isMatch(a: Any): Boolean =
         a.isInstanceOf[JNull]
     }
@@ -81,68 +111,89 @@ trait DefaultCodecs {
 
 trait PessimisticCodecs extends DefaultCodecs {
 
-  implicit val stringCodec:JCodec[String] =
-    new MatchCodec[String] {
+  implicit val stringCodec:JValueCodec[String] =
+    new DirectCodec[String] with MatchCodec[String] {
       protected def isMatch(a: Any): Boolean =
         a.isInstanceOf[String]
     }
-  implicit val booleanCodec:JCodec[Boolean] =
-    new MatchCodec[Boolean] {
+  implicit val booleanCodec:JValueCodec[Boolean] =
+    new DirectCodec[Boolean] with MatchCodec[Boolean] {
       protected def isMatch(a: Any): Boolean =
         a.isInstanceOf[Boolean]
     }
-  implicit val longCodec:JCodec[Long] =
+  implicit val longCodec:JValueCodec[Long] =
     new DirectCodec[Long] {
       def unapply(a: Any): Option[Long] =
         NumericPartialFunctions.long.lift(a)
     }
-  implicit val doubleCodec:JCodec[Double] =
+  implicit val doubleCodec:JValueCodec[Double] =
     new DirectCodec[Double] {
       def unapply(a: Any): Option[Double] =
         NumericPartialFunctions.double.lift(a)
     }
-  implicit val intCodec:JCodec[Int] =
-    new JCodec[Int] {
-      def apply(t: Int): Any =
-        t.toLong
+
+  implicit val intCodec:JValueCodec[Int] =
+    new JValueCodec[Int] {
+      def apply(t: Int): JValue =
+        new JValue(t.toLong)
       def unapply(a: Any): Option[Int] =
         NumericPartialFunctions.int.lift(a)
     }
-  implicit val shortCodec:JCodec[Short] =
-    new JCodec[Short] {
-      def apply(t: Short): Any =
-        t.toLong
+  implicit val shortCodec:JValueCodec[Short] =
+    new JValueCodec[Short] {
+      def apply(t: Short): JValue =
+        new JValue(t.toLong)
       def unapply(a: Any): Option[Short] =
         NumericPartialFunctions.short.lift(a)
     }
-  implicit val byteCodec:JCodec[Byte] =
-    new JCodec[Byte] {
-      def apply(t: Byte): Any =
-        t.toLong
+  implicit val byteCodec:JValueCodec[Byte] =
+    new JValueCodec[Byte] {
+      def apply(t: Byte): JValue =
+        new JValue(t.toLong)
       def unapply(a: Any): Option[Byte] =
         NumericPartialFunctions.byte.lift(a)
     }
-  implicit val floatCodec:JCodec[Float] =
-    new JCodec[Float] {
-      def apply(t: Float): Any =
-        t.toDouble
+  implicit val floatCodec:JValueCodec[Float] =
+    new JValueCodec[Float] {
+      def apply(t: Float): JValue =
+        new JValue(t.toDouble)
       def unapply(a: Any): Option[Float] =
         NumericPartialFunctions.float.lift(a)
     }
 
-  implicit def listCodec[T](implicit C:JCodec[T]):JCodec[List[T]] =
-    new JCodec[List[T]] {
-      def apply(t: List[T]): Any =
+  implicit def listCodec[T](implicit C:JCodec[T]):JArrayCodec[List[T]] =
+    new JArrayCodec[List[T]] {
+      def apply(t: List[T]): JArray =
         if (C.isInstanceOf[DirectCodec[T]])
-          t
+          new JArray(t.toVector)
         else
-          t.map(C.apply)
+          new JArray(t.map(C.apply(_).value).toVector)
 
       def unapply(a: Any): Option[List[T]] =
         a match {
-          case s:Iterable[Any]@unchecked =>
+          case s:Vector[Any]@unchecked =>
             s.toIterator.map(C.unapply).foldLeft[Option[ListBuffer[T]]](Some(new ListBuffer[T])){
               case (Some(lb), Some(t)) => Some(lb += t)
+              case _ => None
+            }.map(_.result())
+          case _ =>
+            None
+        }
+    }
+
+  implicit def vectorCodec[T](implicit C:JCodec[T]):JArrayCodec[Vector[T]] =
+    new JArrayCodec[Vector[T]] {
+      def apply(t: Vector[T]): JArray =
+        if (C.isInstanceOf[DirectCodec[T]])
+          new JArray(t)
+        else
+          new JArray(t.map(C.apply(_).value))
+
+      def unapply(a: Any): Option[Vector[T]] =
+        a match {
+          case s:Vector[Any]@unchecked =>
+            s.toIterator.map(C.unapply).foldLeft[Option[VectorBuilder[T]]](Some(new VectorBuilder[T])){
+              case (Some(vb), Some(t)) => Some(vb += t)
               case _ => None
             }.map(_.result())
           case _ =>

@@ -42,7 +42,7 @@ object PathOps {
         for {
           v <- map.get(head)
           t <- codec.unapply(v)
-          a = codec(f(t))
+          a = codec(f(t)).value
           r <- if (a == v) None else Some(a) //return None if same value
         } yield map + (head -> r)
 
@@ -63,11 +63,11 @@ object PathOps {
       case Right(head) :: Nil =>
         map.get(head) match {
           case None =>
-            Some(map + (head -> codec(f(None))))
+            Some(map + (head -> codec(f(None)).value))
           case Some(v) =>
             for {
               t <- strictness(v, codec)
-              a = codec(f(t))
+              a = codec(f(t)).value
               r <- if (t.contains(a)) None else Some(a)
             } yield map + (head -> r)
         }
@@ -115,12 +115,12 @@ object PathOps {
         map.get(head) match {
           case None =>
             f(None)
-              .map(codec.apply)
+              .map(codec(_).value)
               .map(v => map + (head -> v))
 
           case Some(v) =>
             strictness(v, codec).map { t =>
-              f(t).map(codec.apply).fold(map - head){r => map + (head -> r)}
+              f(t).map(codec(_).value).fold(map - head){r => map + (head -> r)}
             }
         }
 

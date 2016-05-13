@@ -54,9 +54,8 @@ class LensTests extends FunSuite with Matchers with FailureMatchers {
     NestedField.nested.field.$modify(_ + "2")(JObject("nested" := JObject("field" := "test"))) should
       be (JObject("nested" := JObject("field" := "test2")))
     NestedField.nested.field.$copy(NestedField.nested.nested.copy)(JObject("nested" := JObject("nested" := JObject("copy" := "test")))) should
-      be (JObject("nested" := JObject("field" := "test"), "nested" := JObject("copy" := "test")))
+      be (JObject("nested" := JObject("field" := "test", "nested" := JObject("copy" := "test"))))
   }
-
 
   object MaybeField extends Contract {
     val field = \?[String]
@@ -97,8 +96,8 @@ class LensTests extends FunSuite with Matchers with FailureMatchers {
     DefaultField.field.$set("test")(JObject.empty) should be (JObject("field" := "test"))
     DefaultField.field.$set("test2")(JObject("field" := "test")) should be (JObject("field" := "test2"))
 
-    DefaultField.field.$get(JObject.empty) should be (Some("default1"))
-    DefaultField.field.$get(JObject("field" := "test")) should be (Some("test"))
+    DefaultField.field.$get(JObject.empty) should be ("default1")
+    DefaultField.field.$get(JObject("field" := "test")) should be ("test")
 
     DefaultField.field.$maybeSet(None)(JObject.empty) should be (JObject.empty)
     DefaultField.field.$maybeSet(Some("test"))(JObject.empty) should be (JObject("field" := "test"))

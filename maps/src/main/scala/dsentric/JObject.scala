@@ -1,32 +1,23 @@
 package dsentric
 
-class Json(val value:Any) extends AnyVal {
-  def asObject:Option[JObject] =
-    value match {
-      case m:Map[String, Any]@unchecked =>
-        Some(new JObject(m))
-      case _ =>
-        None
-    }
+import cats.data.{Xor, _}
 
-  def asArray:Option[JArray] =
-    value match {
-      case v:Vector[Any]@unchecked =>
-        Some(new JArray(v))
-      case _ =>
-        None
-    }
+trait Json extends Any {
+
+  def value:Any
 
   def toString(implicit R:Renderer) =
     R.print(value)
 }
 
-class JObject(val value:Map[String, Any]) extends AnyVal{
-  def +(v:JPair) =
-    new JObject(value + v.toTuple)
+class JValue(val value:Any) extends AnyVal with Json
 
-  def ++(v:TraversableOnce[JPair]) =
-    new JObject(value ++ v.map(_.toTuple))
+class JObject(val value:Map[String, Any]) extends AnyVal with Json{
+  def +(v:(String, Json)) =
+    new JObject(value + (v._1 -> v._2.value))
+
+  def ++(v:TraversableOnce[(String, Json)]) =
+    new JObject(value ++ v.map(t => t._1 -> t._2.value))
 
   def ++(m:JObject) =
     new JObject(value ++ m.value)
@@ -50,24 +41,57 @@ class JObject(val value:Map[String, Any]) extends AnyVal{
   def reduce:Option[JObject] =
     JObjectOps.reduce(this)
 
-  def toString(implicit R:Renderer) =
-    R.print(value)
 }
 
-class JArray(val value:Vector[Any]) extends AnyVal {
-  def toString(implicit R:Renderer) =
-    R.print(value)
+class JQuery(val value:Map[String, Any]) extends AnyVal{
+
+
+  def isMatch(j:JObject):Boolean =
+    Query(Some(j.value), value)
+
+  def &&(d:JQuery):JQuery =
+    (value.get("$and"), d.value.get("$and")) match {
+      case (None, None) =>
+        if (value.contains("$or") || d.value.contains("$or"))
+          new JQuery(Map("$and" -> Vector(value, d.value)))
+        else
+          new JQuery(JObjectOps.concatMap(value, d.value))
+      case (None, Some(vr:Vector[Any]@unchecked)) =>
+        new JQuery(Map("$and" -> (value +: vr)))
+      case (Some(vl:Vector[Any]@unchecked), None) =>
+        new JQuery(Map("$and" -> (vl :+ d.value)))
+      case (Some(vl:Vector[Any]@unchecked), Some(vr:Vector[Any]@unchecked)) =>
+        new JQuery(Map("$and" -> (vl ++ vr)))
+      case _ =>
+        new JQuery(Map("$and" -> Vector(value, d.value)))
+    }
+
+
+  def ||(d:JQuery):JQuery =
+    (value.get("$or"), d.value.get("$or")) match {
+      case (None, Some(vr:Vector[Any]@unchecked)) =>
+        new JQuery(Map("$or" -> (value +: vr)))
+      case (Some(vl:Vector[Any]@unchecked), None) =>
+        new JQuery(Map("$or" -> (vl :+ d.value)))
+      case (Some(vl:Vector[Any]@unchecked), Some(vr:Vector[Any]@unchecked)) =>
+        new JQuery(Map("$or" -> (vl ++ vr)))
+      case _ =>
+        new JQuery(Map("$or" -> Vector(value, d.value)))
+    }
+
+  def ! :JQuery =
+    new JQuery(Map("$not" -> value))
+
+  def not:JQuery = this.!
 }
 
-case class JPair(key:String, value:Any) {
-  def toTuple = key -> value
-}
+class JArray(val value:Vector[Any]) extends AnyVal with Json
 
 trait JNull
 
 object Json{
   def apply[T](value:T)(implicit codec:JCodec[T]):Json =
-    new Json(codec.apply(value))
+    codec.apply(value)
 }
 
 object JObject{
@@ -76,8 +100,8 @@ object JObject{
 
   def apply(map:Map[String, Any]):JObject =
     new JObject(map)
-  def apply(values:JPair*):JObject =
-    new JObject(values.toIterator.map(_.toTuple).toMap)
+  def apply(values:(String, Json)*):JObject =
+    new JObject(values.toIterator.map(p => p._1 -> p._2.value).toMap)
 }
 
 object JArray{
@@ -85,5 +109,14 @@ object JArray{
   val empty = new JArray(Vector.empty)
 
   def apply[T](values:T*)(implicit codec:JCodec[T]) =
-    new JArray(values.flatMap(codec.unapply).toVector)
+    new JArray(values.map(codec.apply(_).value).toVector)
+}
+
+object JQuery{
+
+  //TODO confirm is valid query structure
+  def apply(map:Map[String, Any]):NonEmptyList[(String, Path)] Xor JQuery =
+    Xor.right(new JQuery(map))
+  def apply(values:(String, Json)*):NonEmptyList[(String, Path)] Xor JQuery =
+    Xor.right(new JQuery(values.toIterator.map(p => p._1 -> p._2.value).toMap))
 }

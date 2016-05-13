@@ -4,7 +4,7 @@ import scala.util.matching.Regex
 
 trait Validator[+T] {
 
-  def apply[S >: T](path:Path, value:Option[S], currentState:Option[S]): Failures
+  def apply[S >: T](path:Path, value:Option[S], currentState: => Option[S]): Failures
 
   def &&[S >: T] (v:Validator[S]):Validator[S] = AndValidator(this, v)
 
@@ -14,14 +14,14 @@ trait Validator[+T] {
 }
 
 case class AndValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]) extends Validator[T] {
-  def apply[S >: T](path:Path, value:Option[S], currentState:Option[S]):Failures =
+  def apply[S >: T](path:Path, value:Option[S], currentState: => Option[S]):Failures =
     left(path, value, currentState) ++ right(path, value, currentState)
 
   private[dsentric] override def isInternal:Boolean = left.isInternal || right.isInternal
 }
 
 case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]) extends Validator[T] {
-  def apply[S >: T](path:Path, value:Option[S], currentState:Option[S]):Failures =
+  def apply[S >: T](path:Path, value:Option[S], currentState: => Option[S]):Failures =
     left(path, value, currentState) match {
       case Failures.empty =>
         Failures.empty
@@ -45,13 +45,13 @@ object Validator {
 
   val empty =
     new Validator[Nothing] {
-      def apply[S >: Nothing](path:Path, value: Option[S], currentState: Option[S]):Failures =
+      def apply[S >: Nothing](path:Path, value: Option[S], currentState: => Option[S]):Failures =
         Failures.empty
     }
 
   val internal =
     new Validator[Option[Nothing]] {
-      def apply[S >: Option[Nothing]](path:Path, value: Option[S], currentState: Option[S]): Failures =
+      def apply[S >: Option[Nothing]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         value.fold(Failures.empty)(_ => Failures(path -> "Value is reserved and cannot be provided."))
 
       private[dsentric] override def isInternal:Boolean = true
@@ -59,13 +59,13 @@ object Validator {
 
   val reserved =
     new Validator[Option[Nothing]] {
-      def apply[S >: Option[Nothing]](path: Path, value: Option[S], currentState: Option[S]): Failures =
+      def apply[S >: Option[Nothing]](path: Path, value: Option[S], currentState: => Option[S]): Failures =
         value.fold(Failures.empty)(_ => Failures(path -> "Value is reserved and cannot be provided."))
     }
 
   val immutable =
     new Validator[Nothing] {
-      def apply[S >: Nothing](path:Path, value: Option[S], currentState: Option[S]):Failures =
+      def apply[S >: Nothing](path:Path, value: Option[S], currentState: => Option[S]):Failures =
         (for {
           v <- value
           cs <- currentState
@@ -77,7 +77,7 @@ object Validator {
 
   val increment =
     new Validator[Numeric] {
-      def apply[S >: Numeric](path:Path, value: Option[S], currentState: Option[S]): Failures =
+      def apply[S >: Numeric](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         (for {
           v <- value
           c <- currentState
@@ -88,7 +88,7 @@ object Validator {
 
   val decrement =
     new Validator[Numeric] {
-      def apply[S >: Numeric](path:Path, value: Option[S], currentState: Option[S]): Failures =
+      def apply[S >: Numeric](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         (for {
           v <- value
           c <- currentState
@@ -98,7 +98,7 @@ object Validator {
     }
 
   def >(x:Long) = new Validator[Numeric] {
-    def apply[S >: Numeric](path: Path, value: Option[S], currentState: Option[S]): Failures =
+    def apply[S >: Numeric](path: Path, value: Option[S], currentState: => Option[S]): Failures =
       (for {
         v <- value
         c <- compare(x, v)
@@ -108,7 +108,7 @@ object Validator {
   }
 
   def >(x:Double) = new Validator[Numeric] {
-    def apply[S >: Numeric](path:Path, value: Option[S], currentState: Option[S]): Failures =
+    def apply[S >: Numeric](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       (for {
         v <- value
         c <- compare(x, v)
@@ -118,7 +118,7 @@ object Validator {
   }
 
   def >=(x:Long) = new Validator[Numeric] {
-    def apply[S >: Numeric](path:Path, value: Option[S], currentState: Option[S]): Failures =
+    def apply[S >: Numeric](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       (for {
         v <- value
         c <- compare(x, v)
@@ -128,7 +128,7 @@ object Validator {
   }
 
   def >=(x:Double) = new Validator[Numeric] {
-    def apply[S >: Numeric](path:Path, value: Option[S], currentState: Option[S]): Failures =
+    def apply[S >: Numeric](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       (for {
         v <- value
         c <- compare(x, v)
@@ -138,7 +138,7 @@ object Validator {
   }
 
   def <(x:Long) = new Validator[Numeric] {
-    def apply[S >: Numeric](path:Path, value: Option[S], currentState: Option[S]): Failures =
+    def apply[S >: Numeric](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       (for {
         v <- value
         c <- compare(x, v)
@@ -148,7 +148,7 @@ object Validator {
   }
 
   def <(x:Double) = new Validator[Numeric] {
-    def apply[S >: Numeric](path:Path, value: Option[S], currentState: Option[S]): Failures =
+    def apply[S >: Numeric](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       (for {
         v <- value
         c <- compare(x, v)
@@ -158,7 +158,7 @@ object Validator {
   }
 
   def <=(x:Long) = new Validator[Numeric] {
-    def apply[S >: Numeric](path:Path, value: Option[S], currentState: Option[S]): Failures =
+    def apply[S >: Numeric](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       (for {
         v <- value
         c <- compare(x, v)
@@ -168,7 +168,7 @@ object Validator {
   }
 
   def <=(x:Double) = new Validator[Numeric] {
-    def apply[S >: Numeric](path:Path, value: Option[S], currentState: Option[S]): Failures =
+    def apply[S >: Numeric](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       (for {
         v <- value
         c <- compare(x, v)
@@ -178,7 +178,7 @@ object Validator {
   }
 
   def minLength(x: Int) = new Validator[Optionable[Length]] {
-    def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: Option[S]): Failures =
+    def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value.flatMap(getLength)
         .filter(_ < x)
         .map(v => path -> s"Value must have a length of at least $x.")
@@ -186,7 +186,7 @@ object Validator {
   }
 
   def maxLength(x: Int) = new Validator[Optionable[Length]] {
-    def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: Option[S]): Failures =
+    def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value.flatMap(getLength)
         .filter(_ > x)
         .map(v => path -> s"Value must have a length of at most $x.")
@@ -194,7 +194,7 @@ object Validator {
   }
 
   def in[T](values:T*) = new Validator[Optionable[T]] {
-    def apply[S >: Optionable[T]](path:Path, value: Option[S], currentState: Option[S]): Failures =
+    def apply[S >: Optionable[T]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value
         .flatMap(getT[T, S])
         .filterNot(values.contains)
@@ -203,7 +203,7 @@ object Validator {
   }
 
   def nin[T](values:T*) = new Validator[Optionable[T]] {
-    def apply[S >: Optionable[T]](path:Path, value: Option[S], currentState: Option[S]): Failures =
+    def apply[S >: Optionable[T]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value
         .flatMap(getT[T, S])
         .filter(values.contains)
@@ -213,7 +213,7 @@ object Validator {
 
   //maybe change to generic equality
   def inCaseInsensitive(values:String*) = new Validator[Optionable[String]] {
-    def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: Option[S]): Failures =
+    def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value
         .flatMap(getString)
         .filterNot(v => values.exists(_.equalsIgnoreCase(v.toString)))
@@ -222,7 +222,7 @@ object Validator {
   }
 
   def ninCaseInsensitive(values:String*) = new Validator[Optionable[String]] {
-    def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: Option[S]): Failures =
+    def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value
         .flatMap(getString)
         .filter(v => values.exists(_.equalsIgnoreCase(v.toString)))
@@ -232,17 +232,17 @@ object Validator {
 
   val nonEmpty =
     new Validator[Optionable[Length]] {
-      def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: Option[S]): Failures =
+      def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         value
           .flatMap(getLength)
           .filter(_ == 0)
-          .map(v => path -> s"Value must not be empty.")
+          .map(v => path -> "Value must not be empty.")
           .toVector
     }
 
   val nonEmptyOrWhiteSpace =
     new Validator[Optionable[String]] {
-      def apply[S >: Optionable[String]](path: Path, value: Option[S], currentState: Option[S]): Failures =
+      def apply[S >: Optionable[String]](path: Path, value: Option[S], currentState: => Option[S]): Failures =
         value
           .collect {
             case s: String => s
@@ -255,7 +255,7 @@ object Validator {
 
   def custom[T](f: T => Boolean, message:String) =
     new Validator[Optionable[T]] {
-      def apply[S >: Optionable[T]](path: Path, value: Option[S], currentState: Option[S]): Failures =
+      def apply[S >: Optionable[T]](path: Path, value: Option[S], currentState: => Option[S]): Failures =
         value
           .flatMap(getT[T, S])
           .toVector.flatMap{ s =>
@@ -269,7 +269,7 @@ object Validator {
 
   def regex(r:Regex, message:String):Validator[Optionable[String]] =
     new Validator[Optionable[String]] {
-      def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: Option[S]): Failures =
+      def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         value
           .flatMap(getString)
           .toVector

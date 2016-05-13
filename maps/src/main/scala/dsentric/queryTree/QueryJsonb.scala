@@ -1,7 +1,7 @@
 package dsentric.queryTree
 
 import cats.data.{OneAnd, Xor, NonEmptyList}
-import dsentric.{Renderer, JNull, JObject, Path}
+import dsentric.{Renderer, JNull, JQuery, Path}
 
 /*
 Experimental feature for converting from mongo db style query to a PostGres jsonb query
@@ -11,7 +11,7 @@ object QueryJsonb {
 
   type JbValid = NonEmptyList[(String, Path)] Xor String
 
-  def apply(field:String, query:JObject)(implicit R:Renderer): JbValid =
+  def apply(field:String, query:JQuery)(implicit R:Renderer): JbValid =
     treeToPostgres(field, R)(QueryTree(query) -> false).map(_.mkString)
 
   def apply(field:String, query:Tree)(implicit R:Renderer): JbValid =
@@ -108,6 +108,8 @@ object QueryJsonb {
       Vector(" ?? '", escape(tail), "'")
     case head :: tail =>
       " -> '" +: escape(head) +: "'" +: toSearch(tail)
+    case Nil =>
+      Vector.empty
   }
 
   private def toElement(path:Path):String =

@@ -125,4 +125,28 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     ToSanitize.$sanitize(j) should
       be (JObject("value" := true, "nested" := JObject("value" := 123)))
   }
+
+  object ContractArray extends Contract {
+    val array = \:(ExpectedField)
+  }
+
+  test("Contract array validation") {
+    ContractArray.$validate(JObject.empty) should be (Failures(Path("array") -> ValidationText.EXPECTED_VALUE))
+    ContractArray.$validate(JObject("array" -> JArray.empty)) should be (Failures.empty)
+
+    ContractArray.$validate(JObject("array" -> JArray(JObject("expGT" := 6)))) should be (Failures.empty)
+    ContractArray.$validate(JObject("array" -> JArray(JObject("expGT" := 6), JObject("expGT" := 8)))) should be (Failures.empty)
+    ContractArray.$validate(JObject("array" -> JArray(JObject("expGT" := 4)))) should be (Failures("array" \ 0 \ "expGT" -> "Value 4 is not greater than 5."))
+    ContractArray.$validate(JObject("array" -> JArray(JObject("expGT" := 6), JObject("expGT" := 4)))) should be (Failures("array" \ 1 \ "expGT" -> "Value 4 is not greater than 5."))
+  }
+
+  object ContractArrayNonEmpty extends Contract {
+    val array  = \:(ExpectedField, Validator.nonEmpty)
+  }
+
+  test("Contract array nonEmpty validation") {
+    ContractArrayNonEmpty.$validate(JObject.empty) should be (Failures(Path("array") -> ValidationText.EXPECTED_VALUE))
+    ContractArrayNonEmpty.$validate(JObject("array" -> JArray.empty)) should be (Failures(Path("array") -> "Value must not be empty."))
+    ContractArrayNonEmpty.$validate(JObject("array" -> JArray(JObject("expGT" := 6)))) should be (Failures.empty)
+  }
 }

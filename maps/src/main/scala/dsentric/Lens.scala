@@ -8,7 +8,7 @@ sealed trait PropertyLens[T] {
   private[dsentric] def _strictGet(data:JObject):Option[Option[T]]
 
   def $set(value:T):JObject => JObject =
-    d => new JObject(PathOps.set(d.value, _path, value))
+    d => new JObject(PathOps.set(d.value, _path, _codec(value).value))
 
   def $maybeSet(value:Option[T]):JObject => JObject =
     value.fold((d:JObject) => d){ v =>

@@ -1,12 +1,11 @@
 package dsentric.queryTree
 
-import dsentric.{Path, JObject}
-
 import dsentric._
+import Dsentric._
 
 object QueryTree {
 
-  def apply(query:JObject) = {
+  def apply(query:JQuery):Tree = {
     buildTree(query.value, Path.empty)
   }
   private def buildTree(query:Map[String, Any], path:Path):Tree = {

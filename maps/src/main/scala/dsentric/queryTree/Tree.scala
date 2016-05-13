@@ -1,11 +1,12 @@
 package dsentric.queryTree
 
-import dsentric.Path
+import dsentric.{JObject, Path, Query}
+
 import scala.util.matching.Regex
 
 sealed trait Tree {
-//  def isMatch(json:JObject) =
-//    Query.apply(json, this)
+  def isMatch(j:JObject) =
+    Query.apply(j.value, this)
 }
 final case class ?(path:Path, op:String, value:Any) extends Tree
 final case class ∃(path:Path, tree:Tree) extends Tree
