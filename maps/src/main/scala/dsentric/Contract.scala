@@ -70,6 +70,16 @@ private[dsentric] sealed trait BaseContract extends Struct {
   def \:[T <: Contract](contract:T, name:String, validator:Validator[Vector[JObject]] = Validator.empty)(implicit codec:JCodec[Vector[JObject]]) =
     new ExpectedObjectArray[T](contract, validator, Some(name), this, codec)
 
+  def \:?[T <: Contract](contract:T)(implicit codec:JCodec[Vector[JObject]], strictness:Strictness) =
+    new MaybeObjectArray[T](contract, Validator.empty, None, this, strictness, codec)
+
+  def \:?[T <: Contract](contract:T, validator:Validator[Option[Vector[JObject]]])(implicit codec:JCodec[Vector[JObject]], strictness:Strictness) =
+    new MaybeObjectArray[T](contract, validator, None, this, strictness, codec)
+
+  def \:?[T <: Contract](contract:T, name:String, validator:Validator[Option[Vector[JObject]]] = Validator.empty)(implicit codec:JCodec[Vector[JObject]], strictness:Strictness) =
+    new MaybeObjectArray[T](contract, validator, Some(name), this, strictness, codec)
+
+
 
   private[dsentric] def _validateFields(path:Path, value:Map[String, Any], currentState:Option[Map[String, Any]]) =
     _fields.flatMap{kv =>
@@ -340,7 +350,31 @@ class ExpectedObjectArray[T <: Contract](private[dsentric] val contract:T,
     _strictGet(j).map(_.get)
 }
 
+class MaybeObjectArray[T <: Contract](private[dsentric] val contract:T,
+                                      private[dsentric] val _pathValidator:Validator[Option[Vector[JObject]]],
+                                      private[dsentric] val _nameOverride:Option[String],
+                                      private[dsentric] val _parent:BaseContract,
+                                      private[dsentric] val _strictness:Strictness,
+                                      private[dsentric] val _codec:JCodec[Vector[JObject]]
+                                      ) extends Property[Vector[JObject]] with MaybeLens[Vector[JObject]] {
+  import Dsentric._
 
+  private[dsentric] def _isValidType(j:Any) =
+    _strictness(j, _codec).isDefined
+
+  def unapply(j:JObject):Option[Option[Vector[JObject]]] =
+    _strictGet(j)
+
+  private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
+    value -> currentState match {
+      case (Some(v), c)  =>
+        _strictness(v, _codec).fold(Failures(path -> ValidationText.UNEXPECTED_TYPE)){ p =>
+          _pathValidator(path, Some(p), c.flatMap(_strictness(_, _codec)))
+        }
+      case (None, c) =>
+        _pathValidator(path, None, c.flatMap(_strictness(_, _codec)))
+    }
+}
 
 //
 //abstract class ValueContract[Data, IndexedData, T] private[dsentric](val _pathValidator: Validator[T] = Validator.empty)
