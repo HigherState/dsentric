@@ -357,6 +357,7 @@ class MaybeObjectArray[T <: Contract](private[dsentric] val contract:T,
                                       private[dsentric] val _strictness:Strictness,
                                       private[dsentric] val _codec:JCodec[Vector[JObject]]
                                       ) extends Property[Vector[JObject]] with MaybeLens[Vector[JObject]] {
+
   import Dsentric._
 
   private[dsentric] def _isValidType(j:Any) =
@@ -369,30 +370,12 @@ class MaybeObjectArray[T <: Contract](private[dsentric] val contract:T,
     value -> currentState match {
       case (Some(v), c)  =>
         _strictness(v, _codec).fold(Failures(path -> ValidationText.UNEXPECTED_TYPE)){ p =>
-          _pathValidator(path, Some(p), c.flatMap(_strictness(_, _codec)))
+          _pathValidator(path, Some(p), c.flatMap(_strictness(_, _codec))) ++
+            p.fold(Failures.empty) {
+              _.zipWithIndex.flatMap { case (obj, ind) => contract._validateFields(path \ ind, obj.value, None) }
+            }
         }
       case (None, c) =>
         _pathValidator(path, None, c.flatMap(_strictness(_, _codec)))
     }
 }
-
-//
-//abstract class ValueContract[Data, IndexedData, T] private[dsentric](val _pathValidator: Validator[T] = Validator.empty)
-//                                                       (implicit private[dsentric] val __prism: Prism[Data, T])
-//  extends Property[Data, IndexedData, T] with MapPrism[Data, IndexedData, T]{
-//
-//  private[dsentric] def _isValidType(j:Data) =
-//    __prism.getOption(j).isDefined
-//
-//  def unapply(j:Data):Option[T] =
-//    _getValue(j)
-//}
-
-//
-//class EmptyProperty[Data, IndexedData, T](implicit val _codec: CodecJson[T]) extends Property[T] {
-//
-//  private[jsentric] def _nameOverride: Option[String] = None
-//  def _pathValidator: Validator[T] = ???
-//  def _isValidType(j:Json) = false
-//}
-

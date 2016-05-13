@@ -149,4 +149,18 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     ContractArrayNonEmpty.$validate(JObject("array" -> JArray.empty)) should be (Failures(Path("array") -> "Value must not be empty."))
     ContractArrayNonEmpty.$validate(JObject("array" -> JArray(JObject("expGT" := 6)))) should be (Failures.empty)
   }
+
+  object ContractMaybeArray extends Contract {
+    val array = \:?(ExpectedField)
+  }
+
+  test("Contract maybe array validation") {
+    ContractMaybeArray.$validate(JObject.empty) should be (Failures.empty)
+    ContractMaybeArray.$validate(JObject("array" -> JArray.empty)) should be (Failures.empty)
+
+    ContractMaybeArray.$validate(JObject("array" -> JArray(JObject("expGT" := 6)))) should be (Failures.empty)
+    ContractMaybeArray.$validate(JObject("array" -> JArray(JObject("expGT" := 6), JObject("expGT" := 8)))) should be (Failures.empty)
+    ContractMaybeArray.$validate(JObject("array" -> JArray(JObject("expGT" := 4)))) should be (Failures("array" \ 0 \ "expGT" -> "Value 4 is not greater than 5."))
+    ContractMaybeArray.$validate(JObject("array" -> JArray(JObject("expGT" := 6), JObject("expGT" := 4)))) should be (Failures("array" \ 1 \ "expGT" -> "Value 4 is not greater than 5."))
+  }
 }
