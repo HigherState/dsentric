@@ -41,48 +41,48 @@ class ContractTests extends FunSuite with Matchers {
 
   test("Level Contract pattern matching") {
 
-    (JObject("one" := "string", "two" := false) match {
+    (DObject("one" := "string", "two" := false) match {
       case Flat.one(s) =>
         s
     }) should equal("string")
 
-    (JObject("one" := "string", "two" := false) match {
+    (DObject("one" := "string", "two" := false) match {
       case Flat.one(s) && Flat.two(Some(false)) =>
         s
     }) should equal("string")
 
-    (JObject("one" := "string", "two" := false) match {
+    (DObject("one" := "string", "two" := false) match {
       case Flat.two(None) =>
         assert(false)
       case _ =>
         "no match"
     }) should equal("no match")
 
-    (JObject("one" := "string") match {
+    (DObject("one" := "string") match {
       case Flat.one(s) && Flat.two(None) && Flat.three(int) =>
         true
     }) should equal(true)
 
-    (JObject("one" := 123) match {
+    (DObject("one" := 123) match {
       case Flat.one(s) && Flat.two(None) => s
       case _ => "wrong type"
     }) should equal("wrong type")
 
-    (JObject("two" := false) match {
+    (DObject("two" := false) match {
       case Flat.one(s) && Flat.two(None) => s
       case Flat.two(Some(false)) => "two match"
     }) should equal("two match")
 
-    (JObject("three" := 4) match {
+    (DObject("three" := 4) match {
       case Flat.three(i) => i
     }) should equal(4)
 
-    (JObject("three" := "4") match {
+    (DObject("three" := "4") match {
       case Flat.three(i) => true
       case _ => false
     }) should equal(false)
 
-    (JObject("two" := "String") match {
+    (DObject("two" := "String") match {
       case Flat.two(None) => true
       case _ => false
     }) should equal(false)
@@ -92,36 +92,36 @@ class ContractTests extends FunSuite with Matchers {
     //      case _ => false
     //    }) should be(true)
 
-    (JObject("two" := "false") match {
+    (DObject("two" := "false") match {
       case Flat.two(Some(i)) => true
       case _ => false
     }) should equal(false)
 
-    (JObject("three" := "not a number") match {
+    (DObject("three" := "not a number") match {
       case Flat.three(i) => i
       case _ => "wrong type"
     }) should equal("wrong type")
 
-    (JObject.empty match {
+    (DObject.empty match {
       case Flat.two(None) => true
       case _ => false
     }) should be (true)
   }
 
   test("nested Contract pattern matching") {
-    (JObject("child" := JObject("value" := 2)) match {
+    (DObject("child" := DObject("value" := 2)) match {
       case Nested.child.value(s) =>
         s
     }) should equal(2)
 
-    (JObject("child" := JObject("value" := 2)) match {
+    (DObject("child" := DObject("value" := 2)) match {
       case Nested.child(j) =>
         j
-    }) should equal(JObject("value" := 2))
+    }) should equal(DObject("value" := 2))
   }
 
   test("recursive Contract pattern matching") {
-    val obj = JObject("name" := "one", "child" := JObject("name" := "two", "child" := JObject("name" := "three")))
+    val obj = DObject("name" := "one", "child" := DObject("name" := "two", "child" := DObject("name" := "three")))
     (obj match {
       case Recursive.name(name) =>
         name
@@ -135,7 +135,7 @@ class ContractTests extends FunSuite with Matchers {
         name
     }) should equal ("three")
 
-    val subObj = JObject("name" := "one", "first" := JObject("name2" := "two", "second" := JObject("name" := "three", "first" := JObject("name2" := "four"))))
+    val subObj = DObject("name" := "one", "first" := DObject("name2" := "two", "second" := DObject("name" := "three", "first" := DObject("name2" := "four"))))
 
     (subObj match {
       case SubRecursive.name(name) =>
@@ -160,11 +160,11 @@ class ContractTests extends FunSuite with Matchers {
       val req = \[String]
       val value = \[Boolean]
     }
-    (JObject("req" := "test") match {
+    (DObject("req" := "test") match {
       case Existence.isType() => true
     }) should be (true)
 
-    (JObject("value" := "test") match {
+    (DObject("value" := "test") match {
       case Existence.isType() => true
       case _ => false
     }) should be (false)
@@ -175,17 +175,17 @@ class ContractTests extends FunSuite with Matchers {
       val req = \[String]
       val value = \[Boolean]
     }
-    (JObject("req" := "test") match {
+    (DObject("req" := "test") match {
       case Existence.isType() => true
       case _ => false
     }) should be (true)
 
-    (JObject("req" := "test2") match {
+    (DObject("req" := "test2") match {
       case Existence.isType() => true
       case _ => false
     }) should be (false)
 
-    (JObject("value" := "test") match {
+    (DObject("value" := "test") match {
       case Existence.isType() => true
       case _ => false
     }) should be (false)
@@ -196,7 +196,7 @@ class ContractTests extends FunSuite with Matchers {
       val _type = \[String]("type")
     }
 
-    (JObject("type" := "value") match {
+    (DObject("type" := "value") match {
       case Override._type(t) => t == "value"
     }) should be (true)
   }
@@ -204,14 +204,14 @@ class ContractTests extends FunSuite with Matchers {
   test("Expected Property") {
     val property = \[Boolean]("property")
 
-    (JObject("property" := true) match {
+    (DObject("property" := true) match {
       case property(t) => t
     }) should be (true)
   }
   test("Expected Property path") {
     val property = \[String]("first" \ "second" \ "third")
 
-    (JObject("first" := JObject("second" := JObject("third" := "value"))) match {
+    (DObject("first" := DObject("second" := DObject("third" := "value"))) match {
       case property(t) => t == "value"
     }) should be (true)
   }

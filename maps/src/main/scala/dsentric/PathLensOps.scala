@@ -2,7 +2,7 @@ package dsentric
 
 import scala.annotation.tailrec
 
-object PathOps {
+object PathLensOps {
 
   @tailrec
   private[dsentric] final def traverse(map:Map[String, Any], path:Path):Option[Any] =
@@ -36,7 +36,7 @@ object PathOps {
   /*
   Returns None if no change
    */
-  private[dsentric] def modify[T](map:Map[String, Any], path:Path, codec:JCodec[T], f:T => T):Option[Map[String, Any]] =
+  private[dsentric] def modify[T](map:Map[String, Any], path:Path, codec:DCodec[T], f:T => T):Option[Map[String, Any]] =
     path match {
       case Right(head) :: Nil =>
         for {
@@ -58,7 +58,7 @@ object PathOps {
     }
 
   //Can create nested objects
-  private[dsentric] def maybeModify[T](map:Map[String, Any], path:Path, codec:JCodec[T], strictness:Strictness, f:Option[T] => T):Option[Map[String, Any]] =
+  private[dsentric] def maybeModify[T](map:Map[String, Any], path:Path, codec:DCodec[T], strictness:Strictness, f:Option[T] => T):Option[Map[String, Any]] =
     path match {
       case Right(head) :: Nil =>
         map.get(head) match {
@@ -109,7 +109,7 @@ object PathOps {
         None
     }
 
-  private[dsentric] def maybeModifyOrDrop[T](map:Map[String, Any], path:Path, codec:JCodec[T], strictness:Strictness, f:Option[T] => Option[T]):Option[Map[String, Any]] =
+  private[dsentric] def maybeModifyOrDrop[T](map:Map[String, Any], path:Path, codec:DCodec[T], strictness:Strictness, f:Option[T] => Option[T]):Option[Map[String, Any]] =
     path match {
       case Right(head) :: Nil =>
         map.get(head) match {

@@ -12,7 +12,7 @@ class JsonDeserializationTest  extends FunSuite with Matchers  {
     val init = JacksonMapper.readValue(JsonStringExample.text, classOf[Vector[Any]])
     val t = System.currentTimeMillis()
     var c = 0
-    for (_ <- 1 to 10000) {
+    for (_ <- 1 to 1000000) {
       c += JacksonMapper.readValue(JsonStringExample.text, classOf[Vector[Any]]).size
     }
     println("Jack " + c + " " + (System.currentTimeMillis() - t))
@@ -23,7 +23,7 @@ class JsonDeserializationTest  extends FunSuite with Matchers  {
     val init = TokenReader(JsonStringExample.text).asInstanceOf[Vector[Any]]
     val t = System.currentTimeMillis()
     var c = 0
-    for (_ <- 1 to 10000) {
+    for (_ <- 1 to 1000000) {
       c += TokenReader(JsonStringExample.text).asInstanceOf[Vector[Any]].size
     }
     println("Jack " + c + " " + (System.currentTimeMillis() - t))
@@ -33,7 +33,7 @@ class JsonDeserializationTest  extends FunSuite with Matchers  {
     val init = argonaut.Parse.parse(JsonStringExample.text)
     val t = System.currentTimeMillis()
     var c = 0
-    for (_ <- 1 to 10000) {
+    for (_ <- 1 to 100000) {
       c += argonaut.Parse.parse(JsonStringExample.text).map(_.arrayOrEmpty.size).getOrElse(0)
     }
     println("Argo " + c + " " + (System.currentTimeMillis() - t))

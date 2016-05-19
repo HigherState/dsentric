@@ -20,3 +20,20 @@ object Failures {
   def apply(elems:(Path, String)*) =
     Vector.apply(elems:_*)
 }
+
+final class PathOps(val self:Path) extends AnyVal {
+
+  def \(part:String):Path = self ++ List[Either[Int, String]](Right(part))
+  def \(part:Int):Path = self ++List[Either[Int, String]](Left(part))
+
+  def hasSubPath(path:Path) =
+    path.zip(self).foldLeft(true) {
+      case (a, (s, p)) =>  a && s == p
+    }
+}
+
+trait ToPathOps {
+  implicit def toPathOps(path:Path):PathOps =
+    new PathOps(path)
+}
+

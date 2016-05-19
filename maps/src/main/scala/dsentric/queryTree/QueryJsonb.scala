@@ -1,7 +1,7 @@
 package dsentric.queryTree
 
 import cats.data.{OneAnd, Xor, NonEmptyList}
-import dsentric.{Renderer, JNull, JQuery, Path}
+import dsentric.{Renderer, DNull, DQuery, Path}
 
 /*
 Experimental feature for converting from mongo db style query to a PostGres jsonb query
@@ -11,7 +11,7 @@ object QueryJsonb {
 
   type JbValid = NonEmptyList[(String, Path)] Xor String
 
-  def apply(field:String, query:JQuery)(implicit R:Renderer): JbValid =
+  def apply(field:String, query:DQuery)(implicit R:Renderer): JbValid =
     treeToPostgres(field, R)(QueryTree(query) -> false).map(_.mkString)
 
   def apply(field:String, query:Tree)(implicit R:Renderer): JbValid =
@@ -92,7 +92,7 @@ object QueryJsonb {
     case (false, _) => Xor.Right("false")
     case (l:Long, _) => Xor.Right(l.toString)
     case (d:Double, _) => Xor.Right(d.toString)
-    case (_:JNull, _) => Xor.Right("null")
+    case (_:DNull, _) => Xor.Right("null")
     case (_, path) =>
       Xor.Left(NonEmptyList("Unsupported type" -> path))
   }
@@ -122,7 +122,7 @@ object QueryJsonb {
     case (_:Boolean,_) => Xor.Right("boolean")
     case (_:Map[String, Any]@unchecked,_) => Xor.Right("object")
     case (_:Vector[Any]@unchecked,_) => Xor.Right("array")
-    case (_:JNull,_) => Xor.Right("null")
+    case (_:DNull,_) => Xor.Right("null")
     case (_, path) =>
       Xor.Left(NonEmptyList("Unsupported type" -> path))
   }

@@ -1,7 +1,7 @@
 package dsentricTests
 
 import cats.data.Xor
-import dsentric.{JObject, _}
+import dsentric.{DObject$, _}
 import dsentric.queryTree.QueryTree
 import org.scalatest.{FunSuite, Matchers}
 
@@ -21,18 +21,18 @@ class QueryTests extends FunSuite with Matchers {
     val query = Query1.field.$exists(true)
     val tree = QueryTree(query)
 
-    query.isMatch(JObject("field" := "value")) should be (true)
-    query.isMatch(JObject("field2" := "value")) should be (false)
-    tree.isMatch(JObject("field" := "value")) should be (true)
-    tree.isMatch(JObject("field2" := "value")) should be (false)
+    query.isMatch(DObject("field" := "value")) should be (true)
+    query.isMatch(DObject("field2" := "value")) should be (false)
+    tree.isMatch(DObject("field" := "value")) should be (true)
+    tree.isMatch(DObject("field2" := "value")) should be (false)
 
     val query2 = Query1.field.$exists(false) && Query1.nested.field2.$exists(true)
     val tree2 = QueryTree(query2)
 
-    query2.isMatch(JObject("nested" -> JObject("field2" := "value"))) should be (true)
-    query2.isMatch(JObject("field" := "value", "nested" -> JObject("field2" := "value"))) should be (false)
-    tree2.isMatch(JObject("nested" -> JObject("field2" := "value"))) should be (true)
-    tree2.isMatch(JObject("field" := "value", "nested" -> JObject("field2" := "value"))) should be (false)
+    query2.isMatch(DObject("nested" -> DObject("field2" := "value"))) should be (true)
+    query2.isMatch(DObject("field" := "value", "nested" -> DObject("field2" := "value"))) should be (false)
+    tree2.isMatch(DObject("nested" -> DObject("field2" := "value"))) should be (true)
+    tree2.isMatch(DObject("field" := "value", "nested" -> DObject("field2" := "value"))) should be (false)
 
   }
 
@@ -45,78 +45,78 @@ class QueryTests extends FunSuite with Matchers {
     }
     val query1 = Query2.field.$eq("TEST") || Query2.nested.field2.$eq(45)
     val tree1 = QueryTree(query1)
-    query1.isMatch(JObject("field" := "TEST")) should be (true)
-    query1.isMatch(JObject.empty) should be (false)
-    query1.isMatch(JObject("field" := "TEST2")) should be (false)
-    query1.isMatch(JObject("nested" -> JObject("field2" := 45))) should be (true)
-    query1.isMatch(JObject("field" := "TEST", "nested" -> JObject("field2" := 45))) should be (true)
-    tree1.isMatch(JObject("field" := "TEST")) should be (true)
-    tree1.isMatch(JObject.empty) should be (false)
-    tree1.isMatch(JObject("field" := "TEST2")) should be (false)
-    tree1.isMatch(JObject("nested" -> JObject("field2" := 45))) should be (true)
-    tree1.isMatch(JObject("field" := "TEST", "nested" -> JObject("field2" := 45))) should be (true)
+    query1.isMatch(DObject("field" := "TEST")) should be (true)
+    query1.isMatch(DObject.empty) should be (false)
+    query1.isMatch(DObject("field" := "TEST2")) should be (false)
+    query1.isMatch(DObject("nested" -> DObject("field2" := 45))) should be (true)
+    query1.isMatch(DObject("field" := "TEST", "nested" -> DObject("field2" := 45))) should be (true)
+    tree1.isMatch(DObject("field" := "TEST")) should be (true)
+    tree1.isMatch(DObject.empty) should be (false)
+    tree1.isMatch(DObject("field" := "TEST2")) should be (false)
+    tree1.isMatch(DObject("nested" -> DObject("field2" := 45))) should be (true)
+    tree1.isMatch(DObject("field" := "TEST", "nested" -> DObject("field2" := 45))) should be (true)
 
     val query2 = Query2.field.$ne("TEST") || Query2.nested(n => n.field2.$gte(45) && n.field2.$lt(52))
     val tree2 = QueryTree(query2)
 
-    query2.isMatch(JObject("field" := "TEST")) should be (false)
-    query2.isMatch(JObject("field" := "TEST", "nested" -> JObject("field2" := 44))) should be (false)
-    query2.isMatch(JObject("field" := "TEST", "nested" -> JObject("field2" := 52))) should be (false)
-    query2.isMatch(JObject("field" := "TEST2", "nested" -> JObject("field2" := 45))) should be (true)
-    query2.isMatch(JObject("nested" -> JObject("field2" := 44))) should be (true)
-    tree2.isMatch(JObject("field" := "TEST")) should be (false)
-    tree2.isMatch(JObject("field" := "TEST", "nested" -> JObject("field2" := 44))) should be (false)
-    tree2.isMatch(JObject("field" := "TEST", "nested" -> JObject("field2" := 52))) should be (false)
-    tree2.isMatch(JObject("field" := "TEST2", "nested" -> JObject("field2" := 45))) should be (true)
-    tree2.isMatch(JObject("nested" -> JObject("field2" := 44))) should be (true)
+    query2.isMatch(DObject("field" := "TEST")) should be (false)
+    query2.isMatch(DObject("field" := "TEST", "nested" -> DObject("field2" := 44))) should be (false)
+    query2.isMatch(DObject("field" := "TEST", "nested" -> DObject("field2" := 52))) should be (false)
+    query2.isMatch(DObject("field" := "TEST2", "nested" -> DObject("field2" := 45))) should be (true)
+    query2.isMatch(DObject("nested" -> DObject("field2" := 44))) should be (true)
+    tree2.isMatch(DObject("field" := "TEST")) should be (false)
+    tree2.isMatch(DObject("field" := "TEST", "nested" -> DObject("field2" := 44))) should be (false)
+    tree2.isMatch(DObject("field" := "TEST", "nested" -> DObject("field2" := 52))) should be (false)
+    tree2.isMatch(DObject("field" := "TEST2", "nested" -> DObject("field2" := 45))) should be (true)
+    tree2.isMatch(DObject("nested" -> DObject("field2" := 44))) should be (true)
 
     val query3 = Query2(q => q.field.$in("TEST", "TEST2") && q.nested.field2.$nin(4,5,6))
     val tree3 = QueryTree(query3)
-    query3.isMatch(JObject("field" := "TEST")) should be (true)
-    query3.isMatch(JObject("field" := "TEST", "nested" -> JObject("field2" := 3))) should be (true)
-    query3.isMatch(JObject("field" := "TEST", "nested" -> JObject("field2" := 4))) should be (false)
-    query3.isMatch(JObject("field" := "TEST3")) should be (false)
-    query3.isMatch(JObject("field" := "TEST3", "nested" -> JObject("field2" := 3))) should be (false)
-    query3.isMatch(JObject("nested" -> JObject("field2" := 3))) should be (false)
-    tree3.isMatch(JObject("field" := "TEST")) should be (true)
-    tree3.isMatch(JObject("field" := "TEST", "nested" -> JObject("field2" := 3))) should be (true)
-    tree3.isMatch(JObject("field" := "TEST", "nested" -> JObject("field2" := 4))) should be (false)
-    tree3.isMatch(JObject("field" := "TEST3")) should be (false)
-    tree3.isMatch(JObject("field" := "TEST3", "nested" -> JObject("field2" := 3))) should be (false)
-    tree3.isMatch(JObject("nested" -> JObject("field2" := 3))) should be (false)
+    query3.isMatch(DObject("field" := "TEST")) should be (true)
+    query3.isMatch(DObject("field" := "TEST", "nested" -> DObject("field2" := 3))) should be (true)
+    query3.isMatch(DObject("field" := "TEST", "nested" -> DObject("field2" := 4))) should be (false)
+    query3.isMatch(DObject("field" := "TEST3")) should be (false)
+    query3.isMatch(DObject("field" := "TEST3", "nested" -> DObject("field2" := 3))) should be (false)
+    query3.isMatch(DObject("nested" -> DObject("field2" := 3))) should be (false)
+    tree3.isMatch(DObject("field" := "TEST")) should be (true)
+    tree3.isMatch(DObject("field" := "TEST", "nested" -> DObject("field2" := 3))) should be (true)
+    tree3.isMatch(DObject("field" := "TEST", "nested" -> DObject("field2" := 4))) should be (false)
+    tree3.isMatch(DObject("field" := "TEST3")) should be (false)
+    tree3.isMatch(DObject("field" := "TEST3", "nested" -> DObject("field2" := 3))) should be (false)
+    tree3.isMatch(DObject("nested" -> DObject("field2" := 3))) should be (false)
 
     //TODO not a generalised solution
     val query4 = Query2.field.$like("value")
     val tree4 = QueryTree(query4)
-    query4.isMatch(JObject("field" := "Value")) should be (true)
-    query4.isMatch(JObject.empty) should be (false)
-    query4.isMatch(JObject("field" := "Values")) should be (false)
-    tree4.isMatch(JObject("field" := "Value")) should be (true)
-    tree4.isMatch(JObject.empty) should be (false)
-    tree4.isMatch(JObject("field" := "Values")) should be (false)
+    query4.isMatch(DObject("field" := "Value")) should be (true)
+    query4.isMatch(DObject.empty) should be (false)
+    query4.isMatch(DObject("field" := "Values")) should be (false)
+    tree4.isMatch(DObject("field" := "Value")) should be (true)
+    tree4.isMatch(DObject.empty) should be (false)
+    tree4.isMatch(DObject("field" := "Values")) should be (false)
 
     val query5 = Query2.field.$like("%lue")
     val tree5 = QueryTree(query5)
-    query5.isMatch(JObject("field" := "ValuE")) should be (true)
-    query5.isMatch(JObject.empty) should be (false)
-    query5.isMatch(JObject("field" := "Values")) should be (false)
-    tree5.isMatch(JObject("field" := "ValuE")) should be (true)
-    tree5.isMatch(JObject.empty) should be (false)
-    tree5.isMatch(JObject("field" := "Values")) should be (false)
+    query5.isMatch(DObject("field" := "ValuE")) should be (true)
+    query5.isMatch(DObject.empty) should be (false)
+    query5.isMatch(DObject("field" := "Values")) should be (false)
+    tree5.isMatch(DObject("field" := "ValuE")) should be (true)
+    tree5.isMatch(DObject.empty) should be (false)
+    tree5.isMatch(DObject("field" := "Values")) should be (false)
 
     val query6 = Query2.field.$regex("vaLUe", "i")
     val tree6 = QueryTree(query6)
-    query6.isMatch(JObject("field" := "Value")) should be (true)
-    query6.isMatch(JObject.empty) should be (false)
-    query6.isMatch(JObject("field" := "Values")) should be (false)
-    tree6.isMatch(JObject("field" := "Value")) should be (true)
-    tree6.isMatch(JObject.empty) should be (false)
-    tree6.isMatch(JObject("field" := "Values")) should be (false)
+    query6.isMatch(DObject("field" := "Value")) should be (true)
+    query6.isMatch(DObject.empty) should be (false)
+    query6.isMatch(DObject("field" := "Values")) should be (false)
+    tree6.isMatch(DObject("field" := "Value")) should be (true)
+    tree6.isMatch(DObject.empty) should be (false)
+    tree6.isMatch(DObject("field" := "Values")) should be (false)
   }
 
   test("Long double equality") {
-    JQuery("field" := 1L).map(_.isMatch(JObject("field" := 1.00D))) should be (Xor.right(true))
-    JQuery("field" := 1L).map(QueryTree(_).isMatch(JObject("field" := 1.00D))) should be (Xor.right(true))
+    DQuery("field" := 1L).map(_.isMatch(DObject("field" := 1.00D))) should be (Xor.right(true))
+    DQuery("field" := 1L).map(QueryTree(_).isMatch(DObject("field" := 1.00D))) should be (Xor.right(true))
   }
 
   test("element value match") {
@@ -129,14 +129,14 @@ class QueryTests extends FunSuite with Matchers {
 
     val query1 = Query3.doubles.$elemMatch(_.$gt(4))
 
-    query1.isMatch(JObject("doubles" := Vector(3, 5))) should be (true)
-    query1.isMatch(JObject("doubles" := Vector(2, 4))) should be (false)
-    query1.isMatch(JObject("doubles" -> JArray.empty)) should be (false)
+    query1.isMatch(DObject("doubles" := Vector(3, 5))) should be (true)
+    query1.isMatch(DObject("doubles" := Vector(2, 4))) should be (false)
+    query1.isMatch(DObject("doubles" -> DArray.empty)) should be (false)
   }
 
   test("element object match") {
     object Query3 extends Contract {
-      val objs = \[JArray]
+      val objs = \[DArray]
     }
     object Element extends Contract {
       val value = \[String]
@@ -144,9 +144,9 @@ class QueryTests extends FunSuite with Matchers {
 
     val query1 = Query3.objs.$elemMatch(_ => Element.value.$eq("Test"))
 
-    query1.isMatch(JObject("objs" := JArray(JObject("value" := "Test2"), JObject("value" := "Test")))) should be (true)
-    query1.isMatch(JObject("objs" := JArray(JObject("value" := "Test2"), JObject("value" := "Test3")))) should be (false)
-    query1.isMatch(JObject("objs" -> JArray.empty)) should be (false)
+    query1.isMatch(DObject("objs" := DArray(DObject("value" := "Test2"), DObject("value" := "Test")))) should be (true)
+    query1.isMatch(DObject("objs" := DArray(DObject("value" := "Test2"), DObject("value" := "Test3")))) should be (false)
+    query1.isMatch(DObject("objs" -> DArray.empty)) should be (false)
   }
 
   test("boolean operators") {
@@ -156,30 +156,30 @@ class QueryTests extends FunSuite with Matchers {
 
     val query1 = Query4.value.$gt(0) || Query4.value.$lt(-10)
     val tree1 = QueryTree(query1)
-    query1.isMatch(JObject("value" := 2)) should be (true)
-    query1.isMatch(JObject("value" := -3)) should be (false)
-    query1.isMatch(JObject("value" := -15)) should be (true)
-    tree1.isMatch(JObject("value" := 2)) should be (true)
-    tree1.isMatch(JObject("value" := -3)) should be (false)
-    tree1.isMatch(JObject("value" := -15)) should be (true)
+    query1.isMatch(DObject("value" := 2)) should be (true)
+    query1.isMatch(DObject("value" := -3)) should be (false)
+    query1.isMatch(DObject("value" := -15)) should be (true)
+    tree1.isMatch(DObject("value" := 2)) should be (true)
+    tree1.isMatch(DObject("value" := -3)) should be (false)
+    tree1.isMatch(DObject("value" := -15)) should be (true)
 
     val query2 = query1!
     val tree2 = QueryTree(query2)
-    query2.isMatch(JObject("value" := 2)) should be (false)
-    query2.isMatch(JObject("value" := -3)) should be (true)
-    query2.isMatch(JObject("value" := -15)) should be (false)
-    tree2.isMatch(JObject("value" := 2)) should be (false)
-    tree2.isMatch(JObject("value" := -3)) should be (true)
-    tree2.isMatch(JObject("value" := -15)) should be (false)
+    query2.isMatch(DObject("value" := 2)) should be (false)
+    query2.isMatch(DObject("value" := -3)) should be (true)
+    query2.isMatch(DObject("value" := -15)) should be (false)
+    tree2.isMatch(DObject("value" := 2)) should be (false)
+    tree2.isMatch(DObject("value" := -3)) should be (true)
+    tree2.isMatch(DObject("value" := -15)) should be (false)
 
     val query3 = Query4.value.$gte(0) && Query4.value.$lt(50)
     val tree3 = QueryTree(query3)
-    query3.isMatch(JObject("value" := 12)) should be (true)
-    query3.isMatch(JObject("value" := -3)) should be (false)
-    query3.isMatch(JObject("value" := 50)) should be (false)
-    tree3.isMatch(JObject("value" := 12)) should be (true)
-    tree3.isMatch(JObject("value" := -3)) should be (false)
-    tree3.isMatch(JObject("value" := 50)) should be (false)
+    query3.isMatch(DObject("value" := 12)) should be (true)
+    query3.isMatch(DObject("value" := -3)) should be (false)
+    query3.isMatch(DObject("value" := 50)) should be (false)
+    tree3.isMatch(DObject("value" := 12)) should be (true)
+    tree3.isMatch(DObject("value" := -3)) should be (false)
+    tree3.isMatch(DObject("value" := 50)) should be (false)
   }
 
   test("contract element match") {
@@ -191,9 +191,9 @@ class QueryTests extends FunSuite with Matchers {
     }
 
     val query = Query5.elements.$elemMatch(_.value.$gt(5))
-    query.isMatch(JObject("elements" -> JArray.empty)) should be (false)
-    query.isMatch(JObject("elements" -> JArray(JObject("value" := 6)))) should be (true)
-    query.isMatch(JObject("elements" -> JArray(JObject("value" := 4)))) should be (false)
-    query.isMatch(JObject("elements" -> JArray(JObject("value" := 4), JObject("value" := 3), JObject("value" := 7), JObject("value" := 4)))) should be (true)
+    query.isMatch(DObject("elements" -> DArray.empty)) should be (false)
+    query.isMatch(DObject("elements" -> DArray(DObject("value" := 6)))) should be (true)
+    query.isMatch(DObject("elements" -> DArray(DObject("value" := 4)))) should be (false)
+    query.isMatch(DObject("elements" -> DArray(DObject("value" := 4), DObject("value" := 3), DObject("value" := 7), DObject("value" := 4)))) should be (true)
   }
 }

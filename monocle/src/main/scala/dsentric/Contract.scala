@@ -95,7 +95,7 @@ private[dsentric] sealed trait ContractBase[Data, IndexedData]
     f(this)(_prism.reverseGet(_empty.empty.reverseGet(())))
 
   def $dynamic[T](field:String)(implicit prism:Prism[Data, T], strictness:Strictness) = {
-    val prop = new Maybe[Data, IndexedData, T](Validator.empty, None)(prism, strictness)
+    val prop = new Maybe[Data, IndexedData, T](Validators.empty, None)(prism, strictness)
     prop._path = _pathPrism.composeLens(at[IndexedData, String, Option[Data]](field))
     prop
   }
@@ -131,7 +131,7 @@ abstract class ExpectedSubContract[Data, IndexedData]
 
 
   def this(name:Option[String])(implicit prism: Prism[Data, IndexedData], at:At[IndexedData, String, Option[Data]], empty:Empty[IndexedData]) =
-    this(Validator.empty, name)
+    this(Validators.empty, name)
 
   override private[dsentric] def _validate(path:Path, value:Option[Data], currentState:Option[Data]):Failures =
     super._validate(path, value, currentState) match {
@@ -152,7 +152,7 @@ abstract class MaybeSubContract[Data, IndexedData]
   extends Maybe[Data, IndexedData, IndexedData](_pathValidator, _nameOverride) with SubContract[Data, IndexedData]{
 
   def this(name:Option[String])(implicit prism: Prism[Data, IndexedData], at:At[IndexedData, String, Option[Data]], empty:Empty[IndexedData], strictness:Strictness) =
-    this(Validator.empty, name)
+    this(Validators.empty, name)
 
   override private[dsentric] def _validate(path:Path, value:Option[Data], currentState:Option[Data]):Failures =
     super._validate(path, value, currentState) match {
@@ -256,7 +256,7 @@ class Default[Data, IndexedData, T] private[dsentric](val _default:T, private[ds
     }
 }
 
-abstract class ValueContract[Data, IndexedData, T] private[dsentric](val _pathValidator: Validator[T] = Validator.empty)
+abstract class ValueContract[Data, IndexedData, T] private[dsentric](val _pathValidator: Validator[T] = Validators.empty)
                                                        (implicit private[dsentric] val __prism: Prism[Data, T])
   extends Property[Data, IndexedData, T] with MapPrism[Data, IndexedData, T]{
 

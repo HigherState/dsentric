@@ -1,9 +1,9 @@
 package dsentric
 
-trait JObjectOps {
+trait DObjectOps {
 
-  def concat(x :JObject, y:JObject):JObject =
-    JObject(concatMap(x.value, y.value))
+  def concat(x :DObject, y:DObject):DObject =
+    DObject(concatMap(x.value, y.value))
 
   private[dsentric] def concatMap(x: Map[String, Any], y: Map[String, Any]): Map[String, Any] =
     y.foldLeft(x){
@@ -19,12 +19,12 @@ trait JObjectOps {
     }
 
   //Nulls and Empty object will reduce out when applied from the right
-  def rightReduceConcat(x: JObject, y: JObject): JObject =
-    JObject(rightReduceConcatMap(x.value, y.value))
+  def rightReduceConcat(x: DObject, y: DObject): DObject =
+    DObject(rightReduceConcatMap(x.value, y.value))
 
   private[dsentric] def rightReduceConcatMap(x: Map[String, Any], y: Map[String, Any]): Map[String, Any] =
     y.foldLeft(x){
-      case (acc, (k, _:JNull)) =>
+      case (acc, (k, _:DNull)) =>
         acc - k
       case (acc, (k, v:Map[String, Any]@unchecked)) if v.isEmpty =>
         acc - k
@@ -43,8 +43,8 @@ trait JObjectOps {
         acc + (k -> v)
     }
 
-  def rightDifference(x: JObject, y: JObject): JObject =
-    rightDifferenceMap(x.value -> y.value).fold(JObject.empty)(new JObject(_))
+  def rightDifference(x: DObject, y: DObject): DObject =
+    rightDifferenceMap(x.value -> y.value).fold(DObject.empty)(new DObject(_))
 
   private[dsentric] def rightDifferenceMap:Function[(Map[String, Any],Map[String, Any]),Option[Map[String, Any]]] = {
     case (s, d) if d == s =>
@@ -69,8 +69,8 @@ trait JObjectOps {
       else None
     }
 
-  def select(target:JObject, projection:JObject):JObject =
-    new JObject(selectMap(target.value, projection.value))
+  def select(target:DObject, projection:DObject):DObject =
+    new DObject(selectMap(target.value, projection.value))
 
   private[dsentric] def selectMap(target:Map[String, Any], projection:Map[String, Any]):Map[String, Any] =
     target.foldLeft(Map.empty[String, Any]) {
@@ -95,12 +95,12 @@ trait JObjectOps {
   /*
     Removes nulls and empty objects, return None if empty
    */
-  def reduce(target:JObject):Option[JObject] =
-    reduceMap(target.value).map(new JObject(_))
+  def reduce(target:DObject):Option[DObject] =
+    reduceMap(target.value).map(new DObject(_))
 
   private[dsentric] def reduceMap(target:Map[String, Any]):Option[Map[String, Any]] = {
     val reducedMap = target.flatMap {
-      case (k, _: JNull) =>
+      case (k, _: DNull) =>
         None
       case (k, m: Map[String, Any]@unchecked) =>
         reduceMap(m).map(k -> _)
@@ -112,7 +112,7 @@ trait JObjectOps {
   }
 }
 
-object JObjectOps extends JObjectOps
+object DObjectOps extends DObjectOps
 
 
 

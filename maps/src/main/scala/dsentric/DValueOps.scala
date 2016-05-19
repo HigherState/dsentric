@@ -3,9 +3,9 @@ package dsentric
 /**
   * Created by jamie.pullar on 12/05/2016.
   */
-trait JsonOps {
+trait DValueOps {
 
-  def order(x:Json, y:Json):Option[Int] = {
+  def order(x:DValue, y:DValue):Option[Int] = {
     order.lift(x.value -> y.value)
   }
 
@@ -25,4 +25,4 @@ trait JsonOps {
   }
 }
 
-object JsonOps extends JsonOps
+object DValueOps extends DValueOps

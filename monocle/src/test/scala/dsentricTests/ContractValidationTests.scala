@@ -21,7 +21,7 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
 
   object ExpectedField extends Contract {
 
-    val expGT = \[Int](Validator.>(5))
+    val expGT = \[Int](Validators.>(5))
   }
 
   test("validation of expected field") {
@@ -35,7 +35,7 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
 
   object MaybeField extends Contract {
     implicit def strictness = MaybePessimistic
-    val mayNonEmpty = \?[String](Validator.nonEmptyOrWhiteSpace)
+    val mayNonEmpty = \?[String](Validators.nonEmptyOrWhiteSpace)
 
   }
 
@@ -48,7 +48,7 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
 
   object DefaultField extends Contract {
     implicit def strictness = MaybePessimistic
-    val inDefault = \![String]("default", Validator.in("default", "one", "two"))
+    val inDefault = \![String]("default", Validators.in("default", "one", "two"))
   }
 
   test("validation of default field") {
@@ -84,10 +84,10 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
   }
 
   object ToSanitize extends Contract {
-    val sanitize = \?[String](Validator.internal)
+    val sanitize = \?[String](Validators.internal)
     val value = \?[Boolean]
     val nested = new \\ {
-      val sanitize = \?[String](Validator.internal)
+      val sanitize = \?[String](Validators.internal)
       val value = \?[Int]
     }
   }

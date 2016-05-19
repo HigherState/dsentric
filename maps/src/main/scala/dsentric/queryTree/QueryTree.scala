@@ -5,7 +5,7 @@ import Dsentric._
 
 object QueryTree {
 
-  def apply(query:JQuery):Tree = {
+  def apply(query:DQuery):Tree = {
     buildTree(query.value, Path.empty)
   }
   private def buildTree(query:Map[String, Any], path:Path):Tree = {

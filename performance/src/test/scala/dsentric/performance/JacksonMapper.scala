@@ -1,11 +1,8 @@
 package dsentric.performance
 
-import java.util.UUID
-
-import com.fasterxml.jackson.core.{JsonFactory, JsonToken, JsonParser, JsonGenerator}
+import com.fasterxml.jackson.core.{JsonFactory, JsonToken, JsonParser}
 import com.fasterxml.jackson.databind.deser.Deserializers
 import com.fasterxml.jackson.databind.deser.std.{UntypedObjectDeserializer => JacksonUntypedObjectDeserializer}
-import com.fasterxml.jackson.databind.ser.Serializers
 import com.fasterxml.jackson.databind._
 import com.fasterxml.jackson.module.scala._
 
@@ -25,13 +22,13 @@ private object NestedTypeObjectDeserializer extends JacksonUntypedObjectDeserial
       Vector(value)
     else {
       val value2 = deserialize(jp, ctxt)
-      if (jp.nextToken()  == JsonToken.END_ARRAY) {
+      if (jp.nextToken() == JsonToken.END_ARRAY)
         Vector(value, value2)
-      }
       else {
         val buffer = new VectorBuilder[Any] // no leasing
         buffer += value
         buffer += value2
+        buffer += deserialize(jp, ctxt)
         while(jp.nextToken() != JsonToken.END_ARRAY) {
           buffer += deserialize(jp, ctxt)
         }
@@ -137,23 +134,18 @@ object TokenReader {
     deserialize(jp)
   }
 
-  private def deserialize(jp:JsonParser) = {
-    val nt = jp.getCurrentToken
-    println(nt)
-    valMap(nt)(jp)
-  }
-
-  private val valMap = Map[JsonToken, JsonParser => Any](
-    JsonToken.VALUE_STRING -> (p => p.getText),
-    JsonToken.VALUE_NUMBER_INT -> (p => p.getLongValue),
-    JsonToken.VALUE_NUMBER_FLOAT -> (p => p.getDoubleValue),
-    JsonToken.VALUE_NULL -> (p => null),
-    JsonToken.VALUE_TRUE -> (p => true),
-    JsonToken.VALUE_FALSE -> (P => false),
-    JsonToken.START_OBJECT -> mapObject,
-    JsonToken.START_ARRAY -> mapArray
-  )
-
+  private def deserialize(jp:JsonParser) =
+    jp.getCurrentToken match {
+      case JsonToken.VALUE_STRING => jp.getText
+      case JsonToken.VALUE_NUMBER_INT => jp.getLongValue
+      case JsonToken.VALUE_NUMBER_FLOAT => jp.getDoubleValue
+      case JsonToken.VALUE_NULL => null
+      case JsonToken.VALUE_TRUE => true
+      case JsonToken.VALUE_FALSE => false
+      case JsonToken.START_OBJECT => mapObject(jp)
+      case JsonToken.START_ARRAY => mapArray(jp)
+      case _ => ???
+    }
 
   def mapArray(jp: JsonParser): Vector[Any] = {
     if (jp.nextToken()  == JsonToken.END_ARRAY) {
@@ -171,6 +163,7 @@ object TokenReader {
         val buffer = new VectorBuilder[Any] // no leasing
         buffer += value
         buffer += value2
+        buffer += deserialize(jp)
         while(jp.nextToken() != JsonToken.END_ARRAY) {
           buffer += deserialize(jp)
         }

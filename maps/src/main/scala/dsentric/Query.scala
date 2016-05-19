@@ -6,8 +6,8 @@ import queryTree.Tree
 
 trait PropertyExtension extends Any {
   def prop:Property[_]
-  protected def nest(value:Any):JQuery =
-    new JQuery(pathToObject(prop._path, value))
+  protected def nest(value:Any):DQuery =
+    new DQuery(pathToObject(prop._path, value))
 
   private def pathToObject(path:Path, value:Any):Map[String, Any] = {
     path match {
@@ -36,35 +36,35 @@ trait Query {
   implicit def stringQuery[T >: Optionable[String]](prop:Property[T]):StringQuery[T] =
     new StringQuery(prop)
 
-  implicit class ArrayQuery[T](val prop: Expected[Vector[T]])(implicit codec: JCodec[T]) extends PropertyExtension  {
+  implicit class ArrayQuery[T](val prop: Expected[Vector[T]])(implicit codec: DCodec[T]) extends PropertyExtension  {
 
-    def $elemMatch(f:Property[T] => JQuery):JQuery =
+    def $elemMatch(f:Property[T] => DQuery):DQuery =
       nest(Map("$elemMatch" -> f(new EmptyProperty[T]).value))
 
   }
 
-  implicit class MaybeArrayQuery[T](val prop: Maybe[Vector[T]])(implicit codec: JCodec[T]) extends PropertyExtension  {
+  implicit class MaybeArrayQuery[T](val prop: Maybe[Vector[T]])(implicit codec: DCodec[T]) extends PropertyExtension  {
 
-    def $elemMatch(f:Property[T] => JQuery):JQuery =
+    def $elemMatch(f:Property[T] => DQuery):DQuery =
       nest(Map("$elemMatch" -> f(new EmptyProperty[T]).value))
   }
 
-  implicit class JArrayQuery(val prop: Expected[JArray]) extends PropertyExtension  {
+  implicit class JArrayQuery(val prop: Expected[DArray]) extends PropertyExtension  {
 
-    def $elemMatch(f:Property[Json] => JQuery):JQuery =
-      nest(Map("$elemMatch" -> f(new EmptyProperty[Json]()(DefaultCodecs.jsonCodec)).value))
+    def $elemMatch(f:Property[Data] => DQuery):DQuery =
+      nest(Map("$elemMatch" -> f(new EmptyProperty[Data]()(DefaultCodecs.dataCodec)).value))
 
   }
 
-  implicit class MaybeJArrayQuery(val prop: Maybe[JArray]) extends PropertyExtension  {
+  implicit class MaybeJArrayQuery(val prop: Maybe[DArray]) extends PropertyExtension  {
 
-    def $elemMatch(f:Property[Json] => JQuery):JQuery =
-      nest(Map("$elemMatch" -> f(new EmptyProperty[Json]()(DefaultCodecs.jsonCodec)).value))
+    def $elemMatch(f:Property[Data] => DQuery):DQuery =
+      nest(Map("$elemMatch" -> f(new EmptyProperty[Data]()(DefaultCodecs.dataCodec)).value))
   }
 
   implicit class ObjectArrayQuery[T <: Contract](val prop: ExpectedObjectArray[T]) extends PropertyExtension  {
 
-    def $elemMatch(f:T => JQuery):JQuery =
+    def $elemMatch(f:T => DQuery):DQuery =
       nest(Map("$elemMatch" -> f(prop.contract).value))
 
   }
@@ -164,11 +164,11 @@ object Query extends Query {
     case (v, Nil) =>
       Some(v)
     case (v:Map[String, Any]@unchecked, p@(_ :: _)) =>
-      PathOps.traverse(v, p)
+      PathLensOps.traverse(v, p)
     case _ => None
   }
 
-  private val order = JsonOps.order.lift
+  private val order = DValueOps.order.lift
 
 }
 
