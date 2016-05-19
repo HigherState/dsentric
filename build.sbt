@@ -26,12 +26,17 @@ lazy val buildSettings = Seq(
 
 lazy val reflect = "org.scala-lang" % "scala-reflect" % "2.11.8"
 lazy val scalaz = "org.scalaz" %% "scalaz-core" % "7.2.0"
+lazy val scalaz_old = "org.scalaz" %% "scalaz-core" % "7.1.7"
 lazy val shapeless = "com.chuusai" %% "shapeless" % "2.2.5"
 lazy val monoclecore = "com.github.julien-truffaut" %%  "monocle-core" % "1.2.0"
 lazy val scodec = "org.scodec" %% "scodec-bits" % "1.0.12"
 lazy val argo = "io.argonaut" %% "argonaut" % "6.1"
 lazy val scalatest = "org.scalatest" %% "scalatest" % "2.2.4"  % "test"
 lazy val cats = "org.typelevel" %% "cats" % "0.5.0"
+lazy val jackson = "com.fasterxml.jackson.core" % "jackson-core" % "2.7.3"
+lazy val jackson_databind = "com.fasterxml.jackson.core" % "jackson-databind" % "2.7.3"
+//lazy val "com.fasterxml.jackson.core" % "jackson-annotations" % "2.7.3"
+lazy val jackson_scala = "com.fasterxml.jackson.module" % "jackson-module-scala_2.11" % "2.7.3"
 
 
 lazy val settings = buildSettings
@@ -74,6 +79,6 @@ lazy val argonaut = project
 lazy val performance = project
   .settings(moduleName := "dsentric-performance")
   .settings(settings)
-  .settings(libraryDependencies := Seq(scalatest))
-  .dependsOn(core, argonaut, maps)
+  .settings(libraryDependencies := Seq(scalatest, scalaz_old, argo, jackson, jackson_scala, jackson_databind))
+  .dependsOn(core, maps)
 
