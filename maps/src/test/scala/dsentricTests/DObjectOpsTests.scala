@@ -44,4 +44,5 @@ class DObjectOpsTests extends FunSuite with Matchers {
     DObjectOps.rightDifference(obj, DObject("obj" := DObject("two" := true, "three" := List(1,2,3,4)))) should be (DObject("obj" := DObject("two" := true)))
     DObjectOps.rightDifference(obj, DObject("obj" := DObject("three" := List(1,2,3,4,5,6)))) should be (DObject("obj" := DObject("three" := List(1,2,3,4,5,6))))
   }
+
 }

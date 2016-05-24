@@ -136,6 +136,10 @@ sealed trait Property[T <: Any] extends Struct {
       }
       __path
     }
+
+  def $:DProjection =
+    new DProjection(PathLensOps.pathToMap(_path, 1))
+
 }
 trait SubContract extends BaseContract
 
@@ -148,7 +152,7 @@ trait Contract extends BaseContract {
 
 }
 
-class MatcherUnapply private[dsentric](key: String, matcher:Matcher) {
+class MatcherUnapply private[dsentric](key: String, matcher:Matcher) extends ApplicativeMatcher[DObject] {
   def unapply(j:DObject):Boolean = {
     j.value
       .get(key)
@@ -158,6 +162,8 @@ class MatcherUnapply private[dsentric](key: String, matcher:Matcher) {
 
 abstract class ContractType(val $typeKey:String, val $keyMatcher:Matcher = ExistenceMatcher) extends Contract {
   val isType = new MatcherUnapply($typeKey, $keyMatcher)
+
+  //TODO create has matcher if possible.
 }
 
 class Expected[T] private[dsentric]

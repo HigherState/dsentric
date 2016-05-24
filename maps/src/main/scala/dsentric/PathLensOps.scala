@@ -135,5 +135,17 @@ object PathLensOps {
       case _ =>
         None
     }
+
+  private[dsentric] def pathToMap(path:Path, value:Any):Map[String, Any] = {
+    path match {
+      case Nil =>
+        value match {
+          case m:Map[String,Any]@unchecked => m
+          case _ => Map.empty
+        }
+      case Right(last) :: Nil => Map(last -> value)
+      case head :+ Right(tail) => pathToMap(head, Map(tail -> value))
+    }
+  }
 }
 

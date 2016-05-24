@@ -1,5 +1,7 @@
 package dsentric
 
+import scala.util.Try
+
 
 object Path {
   type Mix = Int with String
@@ -11,6 +13,12 @@ object Path {
         Left(i)
       case s:String =>
         Right(s)
+    }.toList
+
+  //TODO handle chars \ " etc
+  def fromString(s:String):Path =
+    s.split('\\').map{s =>
+      Try(s.toInt).map(Left(_)).getOrElse(Right(s))
     }.toList
 }
 

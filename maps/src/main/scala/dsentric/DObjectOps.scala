@@ -69,12 +69,12 @@ trait DObjectOps {
       else None
     }
 
-  def select(target:DObject, projection:DObject):DObject =
+  def select(target:DObject, projection:DProjection):DObject =
     new DObject(selectMap(target.value, projection.value))
 
   private[dsentric] def selectMap(target:Map[String, Any], projection:Map[String, Any]):Map[String, Any] =
-    target.foldLeft(Map.empty[String, Any]) {
-      case (acc, (k, true)) =>
+    projection.foldLeft(Map.empty[String, Any]) {
+      case (acc, (k, 1)) =>
         target.get(k).fold(acc){v =>
           acc + (k -> v)
         }

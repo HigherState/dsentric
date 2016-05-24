@@ -51,9 +51,6 @@ class DObject(val value:Map[String, Any]) extends AnyVal with Data{
   def applyDelta(delta:DObject):DObject =
     DObjectOps.rightReduceConcat(this, delta)
 
-  def select(projection:DObject):DObject =
-    DObjectOps.select(this, projection)
-
   def reduce:Option[DObject] =
     DObjectOps.reduce(this)
 
@@ -99,6 +96,22 @@ class DQuery(val value:Map[String, Any]) extends AnyVal{
     new DQuery(Map("$not" -> value))
 
   def not:DQuery = this.!
+
+  def toObject:DObject =
+    new DObject(value)
+}
+
+class DProjection(val value:Map[String, Any]) extends AnyVal {
+
+  def &(d:DProjection):DProjection =
+    new DProjection(DObjectOps.concatMap(value, d.value))
+
+  def toObject:DObject =
+    new DObject(value)
+
+  def select(obj:DObject):DObject =
+    new DObject(DObjectOps.selectMap(obj.value, value))
+
 }
 
 class DArray(val value:Vector[Any]) extends AnyVal with Data {

@@ -7,19 +7,8 @@ import queryTree.Tree
 trait PropertyExtension extends Any {
   def prop:Property[_]
   protected def nest(value:Any):DQuery =
-    new DQuery(pathToObject(prop._path, value))
+    new DQuery(PathLensOps.pathToMap(prop._path, value))
 
-  private def pathToObject(path:Path, value:Any):Map[String, Any] = {
-    path match {
-      case Nil =>
-        value match {
-          case m:Map[String,Any]@unchecked => m
-          case _ => Map.empty
-        }
-      case Right(last) :: Nil => Map(last -> value)
-      case head :+ Right(tail) => pathToObject(head, Map(tail -> value))
-    }
-  }
 }
 
 trait Query {

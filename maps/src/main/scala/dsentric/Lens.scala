@@ -16,7 +16,7 @@ sealed trait PropertyLens[T] {
     }
 }
 
-trait ExpectedLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, T, T] {
+trait ExpectedLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, T] {
 
   def $get(data:DObject):Option[T] =
     PathLensOps
@@ -41,7 +41,7 @@ trait ExpectedLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, T, T
     $get(data).map(v => Some(v))
 }
 
-trait MaybeLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, Option[T], T] {
+trait MaybeLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, Option[T]] {
 
   private[dsentric] def _strictness:Strictness
 
@@ -76,7 +76,7 @@ trait MaybeLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, Option[
     }
 }
 
-trait DefaultLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, T, T]{
+trait DefaultLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, T]{
 
   def _default:T
 
