@@ -50,7 +50,7 @@ private[dsentric] sealed trait BaseContract extends Struct {
 
   def \[T](path:Path)(implicit codec:DCodec[T]):Expected[T] = {
     val e = new Expected[T](Validators.empty, None, this, codec)
-    e._forcePath(_path ++ path)
+    e._forceLocalPath(path)
     e
   }
 
@@ -100,9 +100,9 @@ private[dsentric] sealed trait BaseContract extends Struct {
 
   private[dsentric] def _validateFields(path:Path, value:Map[String, Any], currentState:Option[Map[String, Any]]) =
     _fields.flatMap{kv =>
-      val i = value.get(kv._1)
-      val c = currentState.flatMap(_.get(kv._1))
-      kv._2._validate(path :+ Right(kv._1), i, c)
+      val i = PathLensOps.traverse(value, kv._2._localPath)
+      val c = currentState.flatMap(c => PathLensOps.traverse(c, kv._2._localPath))
+      kv._2._validate(path ++ kv._2._localPath, i, c)
     }
 
 
@@ -129,6 +129,7 @@ private[dsentric] sealed trait BaseContract extends Struct {
 sealed trait Property[T <: Any] extends Struct {
   private[dsentric] def _codec: DCodec[T]
   private var __path: Path = _
+  private var __localPath: Path = _
 
   @volatile
   private var _bitmap1:Boolean = false
@@ -139,20 +140,41 @@ sealed trait Property[T <: Any] extends Struct {
 
   private[dsentric] def _forcePath(path:Path) = {
     __path = path
+    __localPath = path
+    _bitmap1 = true
+  }
+
+  private[dsentric] def _forceLocalPath(path:Path) = {
+    __path = _parent._path ++ path
+    __localPath = path
     _bitmap1 = true
   }
 
   def _path:Path =
     if (_bitmap1) __path
     else {
-      this.synchronized{
-        __path = _parent._path :+ Right(_nameOverride.getOrElse {
-          _parent._fields.find(p => p._2 == this).get._1
-        })
-        _bitmap1 = true
-      }
+      sync
       __path
     }
+
+
+  def _localPath:Path =
+    if (_bitmap1) __localPath
+    else {
+      sync
+      __localPath
+    }
+
+  private def sync =
+    this.synchronized{
+      __localPath =
+        Path(_nameOverride.getOrElse {
+          _parent._fields.find(p => p._2 == this).get._1
+        })
+      __path = _parent._path ++ __localPath
+      _bitmap1 = true
+    }
+
 
   def $:DProjection =
     new DProjection(PathLensOps.pathToMap(_path, 1))
@@ -265,8 +287,9 @@ class Default[T] private[dsentric]
         _strictness(v, _codec).fold(Failures(path -> ValidationText.UNEXPECTED_TYPE)){ p =>
           _pathValidator(path, Some(p), c.flatMap(_strictness(_, _codec)))
         }
+      //We assume default is a guaranteed validation success.
       case (None, c) =>
-        _pathValidator(path, Some(_default), c.flatMap(_strictness(_, _codec)))
+        Vector.empty
     }
 }
 

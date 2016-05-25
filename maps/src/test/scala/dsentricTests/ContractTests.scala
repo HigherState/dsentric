@@ -199,6 +199,8 @@ class ContractTests extends FunSuite with Matchers {
     (DObject("type" := "value") match {
       case Override._type(t) => t == "value"
     }) should be (true)
+
+    Override.$create(_._type.$set("temp")) should be (DObject("type" := "temp"))
   }
 
   test("Expected Property") {

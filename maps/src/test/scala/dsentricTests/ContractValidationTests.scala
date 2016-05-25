@@ -172,8 +172,14 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     ContractMaybeArray.$validate(DObject("array" -> DArray(DObject("expGT" := 6), DObject("expGT" := 4)))) should be (f("array" \ 1 \ "expGT" -> "Value 4 is not greater than 5."))
   }
 
-  object Reserved extends Contract {
-    val id = \[String]("name", Validators.empty)
+  object Multi extends Contract {
+    val id = \[String]("id" \ "path")
+    val reserved = \?[String](Validators.reserved)
+    val default = \![Boolean](false, Validators.reserved)
+  }
+
+  test("multi validators") {
+    Multi.$validate(DObject("id" -> DObject("path" := "testId"))) should be (s(DObject("id" -> DObject("path" := "testId"))))
 
   }
 }
