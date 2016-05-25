@@ -198,7 +198,7 @@ trait Validators {
       value
         .flatMap(getT[T, S])
         .filterNot(values.contains)
-        .map(v => path -> s"'$v is not an allowed value.")
+        .map(v => path -> s"'$v' is not an allowed value.")
         .toVector
   }
 
@@ -207,7 +207,7 @@ trait Validators {
       value
         .flatMap(getT[T, S])
         .filter(values.contains)
-        .map(v => path -> s"'$v is not an allowed value.")
+        .map(v => path -> s"'$v' is not an allowed value.")
         .toVector
   }
 
@@ -217,7 +217,7 @@ trait Validators {
       value
         .flatMap(getString)
         .filterNot(v => values.exists(_.equalsIgnoreCase(v.toString)))
-        .map(v => path -> s"'$v is not an allowed value.")
+        .map(v => path -> s"'$v' is not an allowed value.")
         .toVector
   }
 
@@ -226,7 +226,7 @@ trait Validators {
       value
         .flatMap(getString)
         .filter(v => values.exists(_.equalsIgnoreCase(v.toString)))
-        .map(v => path -> s"'$v is not an allowed value.")
+        .map(v => path -> s"'$v' is not an allowed value.")
         .toVector
   }
 

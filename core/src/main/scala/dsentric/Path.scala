@@ -2,7 +2,6 @@ package dsentric
 
 import scala.util.Try
 
-
 object Path {
   type Mix = Int with String
   val empty = List.empty[Either[Int, String]]

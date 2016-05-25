@@ -26,6 +26,6 @@ class ApplicativeLensTests extends FunSuite with Matchers {
         b should equal (false)
     }
 
-    TestObj.triple.$set(("string", 3, true))(json) should be (JsObject(Map("int" -> JsNumber(3), "bool" -> JsBool(true), "string" -> JsString("string"))))
+    //TestObj.triple.$set(("string", 3, true))(json) should be (JsObject(Map("int" -> JsNumber(3), "bool" -> JsBool(true), "string" -> JsString("string"))))
   }
 }

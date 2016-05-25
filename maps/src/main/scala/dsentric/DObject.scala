@@ -44,6 +44,11 @@ class DObject(val value:Map[String, Any]) extends AnyVal with Data{
   def --(keys:TraversableOnce[String]) =
     new DObject(value -- keys)
 
+  def \(path:Path):Option[Data] =
+    PathLensOps
+      .traverse(value, path)
+        .map(new DValue(_))
+
   def size = value.size
 
   def isEmpty = value.isEmpty
