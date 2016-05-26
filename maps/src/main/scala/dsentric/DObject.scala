@@ -117,6 +117,22 @@ class DProjection(val value:Map[String, Any]) extends AnyVal {
   def select(obj:DObject):DObject =
     new DObject(DObjectOps.selectMap(obj.value, value))
 
+  def toPaths:Option[Set[Path]] =
+    getPaths(value, List.empty)
+
+  private def getPaths(projection:Map[String, Any], segments:Path):Option[Set[Path]] = {
+    val pairs = projection.flatMap {
+      case (key, 1) =>
+        Some(Set(segments :+ Right(key)))
+      case (key, j:Map[String, Any]@unchecked) =>
+        getPaths(j, segments :+ Right(key))
+      case _ =>
+        None
+    }.toList
+    if (pairs.length < projection.size) None
+    else Some(pairs.reduce(_ ++ _))
+  }
+
 }
 
 class DArray(val value:Vector[Any]) extends AnyVal with Data {
