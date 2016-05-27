@@ -30,12 +30,17 @@ trait Query {
     def $elemMatch(f:Property[T] => DQuery):DQuery =
       nest(Map("$elemMatch" -> f(new EmptyProperty[T]).value))
 
+    def $exists(isTrue:Boolean):DQuery =
+      nest(Map("$exists" -> isTrue))
   }
 
   implicit class MaybeArrayQuery[T](val prop: Maybe[Vector[T]])(implicit codec: DCodec[T]) extends PropertyExtension  {
 
     def $elemMatch(f:Property[T] => DQuery):DQuery =
       nest(Map("$elemMatch" -> f(new EmptyProperty[T]).value))
+
+    def $exists(isTrue:Boolean):DQuery =
+      nest(Map("$exists" -> isTrue))
   }
 
   implicit class JArrayQuery(val prop: Expected[DArray]) extends PropertyExtension  {
@@ -43,18 +48,47 @@ trait Query {
     def $elemMatch(f:Property[Data] => DQuery):DQuery =
       nest(Map("$elemMatch" -> f(new EmptyProperty[Data]()(DefaultCodecs.dataCodec)).value))
 
+    def $exists(isTrue:Boolean):DQuery =
+      nest(Map("$exists" -> isTrue))
+
   }
 
   implicit class MaybeJArrayQuery(val prop: Maybe[DArray]) extends PropertyExtension  {
 
     def $elemMatch(f:Property[Data] => DQuery):DQuery =
       nest(Map("$elemMatch" -> f(new EmptyProperty[Data]()(DefaultCodecs.dataCodec)).value))
+
+    def $exists(isTrue:Boolean):DQuery =
+      nest(Map("$exists" -> isTrue))
   }
 
   implicit class ObjectArrayQuery[T <: Contract](val prop: ExpectedObjectArray[T]) extends PropertyExtension  {
 
     def $elemMatch(f:T => DQuery):DQuery =
       nest(Map("$elemMatch" -> f(prop.contract).value))
+
+    def $exists(isTrue:Boolean):DQuery =
+      nest(Map("$exists" -> isTrue))
+
+  }
+
+  implicit class MaybeObjectArrayQuery[T <: Contract](val prop: MaybeObjectArray[T]) extends PropertyExtension  {
+
+    def $elemMatch(f:T => DQuery):DQuery =
+      nest(Map("$elemMatch" -> f(prop.contract).value))
+
+    def $exists(isTrue:Boolean):DQuery =
+      nest(Map("$exists" -> isTrue))
+
+  }
+
+  implicit class DefaultObjectArrayQuery[T <: Contract](val prop: DefaultObjectArray[T]) extends PropertyExtension  {
+
+    def $elemMatch(f:T => DQuery):DQuery =
+      nest(Map("$elemMatch" -> f(prop.contract).value))
+
+    def $exists(isTrue:Boolean):DQuery =
+      nest(Map("$exists" -> isTrue))
 
   }
 

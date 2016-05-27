@@ -53,11 +53,23 @@ class DObject(val value:Map[String, Any]) extends AnyVal with Data{
 
   def isEmpty = value.isEmpty
 
+  def nonEmpty = value.nonEmpty
+
+  def keys = value.keys
+
+  def keySet = value.keySet
+
+  def contains(key:String) = value.contains(key)
+
   def applyDelta(delta:DObject):DObject =
     DObjectOps.rightReduceConcat(this, delta)
 
   def reduce:Option[DObject] =
     DObjectOps.reduce(this)
+
+  def diff(compare:DObject):DObject =
+    DObjectOps.rightDifference(this, compare)
+
 
 }
 
@@ -142,7 +154,9 @@ class DArray(val value:Vector[Any]) extends AnyVal with Data {
   }
 }
 
-trait DNull
+trait DNull extends Data {
+  override def value:DNull = this
+}
 
 object Data{
   def apply[T](value:T)(implicit codec:DCodec[T]):Data =
@@ -174,4 +188,6 @@ object DQuery{
     Xor.right(new DQuery(map))
   def apply(values:(String, Data)*):NonEmptyList[(String, Path)] Xor DQuery =
     Xor.right(new DQuery(values.toIterator.map(p => p._1 -> p._2.value).toMap))
+
+  val empty = new DQuery(Map.empty)
 }

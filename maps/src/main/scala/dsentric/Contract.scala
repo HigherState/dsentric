@@ -96,6 +96,16 @@ private[dsentric] sealed trait BaseContract extends Struct {
   def \:?[T <: Contract](contract:T, name:String, validator:Validator[Option[Vector[DObject]]] = Validators.empty)(implicit codec:DCodec[Vector[DObject]], strictness:Strictness):MaybeObjectArray[T] =
     new MaybeObjectArray[T](contract, validator, Some(name), this, strictness, codec)
 
+  def \:![T <: Contract](contract:T, default:Vector[DObject])(implicit codec:DCodec[Vector[DObject]], strictness: Strictness):DefaultObjectArray[T] =
+    new DefaultObjectArray[T](default, contract, Validators.empty, None, this, strictness, codec)
+
+  def \:![T <: Contract](contract:T, default:Vector[DObject], validator:Validator[Option[Vector[DObject]]])(implicit codec:DCodec[Vector[DObject]], strictness: Strictness):DefaultObjectArray[T] =
+    new DefaultObjectArray[T](default, contract, validator, None, this, strictness, codec)
+
+  def \:![T <: Contract](contract:T, name:String, default:Vector[DObject], validator:Validator[Option[Vector[DObject]]] = Validators.empty)(implicit codec:DCodec[Vector[DObject]], strictness: Strictness):DefaultObjectArray[T] =
+    new DefaultObjectArray[T](default, contract, validator, Some(name), this, strictness, codec)
+
+
 
 
   private[dsentric] def _validateFields(path:Path, value:Map[String, Any], currentState:Option[Map[String, Any]]) =
@@ -186,10 +196,13 @@ trait SubContract extends BaseContract
 trait Contract extends BaseContract {
   def _path = Path.empty
 
+  def $validate(value:DObject):NonEmptyList[(Path, String)] Xor DObject =
+    $validate(value, None)
+
   def $validate(value:DObject, currentState:DObject):NonEmptyList[(Path, String)] Xor DObject =
     $validate(value, Some(currentState))
 
-  def $validate(value:DObject, currentState:Option[DObject] = None):NonEmptyList[(Path, String)] Xor DObject =
+  def $validate(value:DObject, currentState:Option[DObject]):NonEmptyList[(Path, String)] Xor DObject =
     _validateFields(Path.empty, value.value, currentState.map(_.value)) match {
       case head +: tail =>
         Xor.left(NonEmptyList(head, tail.toList))
@@ -431,5 +444,36 @@ class MaybeObjectArray[T <: Contract](private[dsentric] val contract:T,
         }
       case (None, c) =>
         _pathValidator(path, None, c.flatMap(_strictness(_, _codec)))
+    }
+}
+
+class DefaultObjectArray[T <: Contract](override val _default:Vector[DObject],
+                                      private[dsentric] val contract:T,
+                                      private[dsentric] val _pathValidator:Validator[Option[Vector[DObject]]],
+                                      private[dsentric] val _nameOverride:Option[String],
+                                      private[dsentric] val _parent:BaseContract,
+                                      private[dsentric] val _strictness:Strictness,
+                                      private[dsentric] val _codec:DCodec[Vector[DObject]]
+                                     ) extends Property[Vector[DObject]] with DefaultLens[Vector[DObject]] {
+
+  import Dsentric._
+
+  private[dsentric] def _isValidType(j:Any) =
+    _strictness(j, _codec).isDefined
+
+  def unapply(j:DObject):Option[Vector[DObject]] =
+    _strictGet(j).map(_.get)
+
+  private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
+    value -> currentState match {
+      case (Some(v), c)  =>
+        _strictness(v, _codec).fold(Failures(path -> ValidationText.UNEXPECTED_TYPE)){ p =>
+          _pathValidator(path, Some(p), c.flatMap(_strictness(_, _codec))) ++
+            p.fold(Failures.empty) {
+              _.zipWithIndex.flatMap { case (obj, ind) => contract._validateFields(path \ ind, obj.value, None) }
+            }
+        }
+      case (None, c) =>
+        Vector.empty
     }
 }

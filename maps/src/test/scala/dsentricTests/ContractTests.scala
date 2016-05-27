@@ -7,7 +7,6 @@ import org.scalatest.{FunSuite, Matchers}
 class ContractTests extends FunSuite with Matchers {
 
   import PessimisticCodecs._
-  implicit def strictness = MaybePessimistic
   import Dsentric._
 
   object Flat extends Contract {
@@ -216,6 +215,20 @@ class ContractTests extends FunSuite with Matchers {
     (DObject("first" := DObject("second" := DObject("third" := "value"))) match {
       case property(t) => t == "value"
     }) should be (true)
+  }
+
+  test("Default contract array") {
+    object Element extends Contract {
+      val value = \[Int]
+    }
+    object ContractArray extends Contract {
+      val elements = \:!(Element, Vector.empty)
+    }
+
+    (DObject.empty match {
+      case ContractArray.elements(elements) =>
+        elements.size
+    }) should be (0)
   }
 
 }
