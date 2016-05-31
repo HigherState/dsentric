@@ -132,6 +132,11 @@ class QueryTests extends FunSuite with Matchers {
     query1.isMatch(DObject("doubles" := Vector(3, 5))) should be (true)
     query1.isMatch(DObject("doubles" := Vector(2, 4))) should be (false)
     query1.isMatch(DObject("doubles" -> DArray.empty)) should be (false)
+
+    val query2 = Query3.nested.strings.$elemMatch(_.$eq("value"))
+
+    query2.isMatch(DObject("nested" -> DObject("strings" := Vector("value", "test")))) should be (true)
+    query2.isMatch(DObject("nested" -> DObject("strings" := Vector("test", "test2")))) should be (false)
   }
 
   test("element object match") {

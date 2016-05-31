@@ -198,7 +198,11 @@ object Query extends Query {
 //Handle default?
 class ValueQuery[T](val prop: Property[T]) extends AnyVal with PropertyExtension {
 
-  def $eq(value:T) = nest(prop._codec(value).value)
+  def $eq(value:T) =
+    if (prop.isInstanceOf[EmptyProperty[_]])
+      new DQuery(Map("$eq" -> prop._codec(value).value))
+    else
+      nest(prop._codec(value).value)
   //Currently not supporting chaining of $ne in an && for the same field
   def $ne(value:T) = nest(Map("$ne" -> prop._codec(value).value))
   def $in(values:T*) = nest(Map("$in" -> values.map(prop._codec(_).value).toVector))
