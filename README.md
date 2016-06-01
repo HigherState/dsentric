@@ -10,11 +10,11 @@ There is also a very light-weight, performance focussed Map[String, Any], Vector
 dsentric works by describing a singleton contract which represents data we might wish to extract from the data structure.  By doing so, we get easy validation, lenses and even a type safe mongo db query generator.
 
 ```scala
-    /*define a contract,
+  /*define a contract,
     \  \?  \! expected, optional, default properties
     \: \:?  \:!  expected, optional, default array properties
     \\ \\? expected, option object properties
-   */
+  */
   object OrderLine extends Contract {
     val product = \[String]
     val quanity = \[Int]
@@ -83,7 +83,7 @@ dsentric works by describing a singleton contract which represents data we might
   //validate against current state
   Order.$validate(statusDelta, pending)
   //apply delta to current state
-  val processing = pending.delta(statusDelta)
+  val processing = pending.applyDelta(statusDelta)
 
   //Define subcontract for reusable or recursive structures
   trait UserTimestamp extends SubContract {
