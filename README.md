@@ -15,6 +15,11 @@ dsentric works by describing a singleton contract which represents data we might
     \: \:?  \:!  expected, optional, default array properties
     \\ \\? expected, option object properties
    */
+  object OrderLine extends Contract {
+    val product = \[String]
+    val quanity = \[Int]
+  }
+  
   object Order extends Contract {
     val firstName = \[String](nonEmptyOrWhiteSpace)
     val lastName = \[String](nonEmptyOrWhiteSpace)
@@ -39,7 +44,7 @@ dsentric works by describing a singleton contract which represents data we might
     o.firstName.$set("John") ~
     o.lastName.$set("Smith") ~
     o.email.address.$set("johnSmith@test.com") ~
-    o.orderLines.
+    o.orderLines.$set(Vector(OrderLine.$create(l => l.product.$set("LightBulb") ~ l.quantity.$set(3))))
   }
 
   //validate a new data object
@@ -58,7 +63,7 @@ dsentric works by describing a singleton contract which represents data we might
     Order{o =>
       o.orderId.$set(123) ~
       o.status.$set("pending") ~
-      o.notes.$modify(maybe => Some(maybe.foldLeft("Order now pending.")(_ + _)))
+      o.notes.$modify(maybe => maybe.foldLeft("Order now pending.")(_ + _))
     }(newOrder)
 
   //strip out any properties marked internal
@@ -66,10 +71,13 @@ dsentric works by describing a singleton contract which represents data we might
 
   //generate query data
   val relatedOrdersQuery = Order.orderId.$gt(56) && Order.status.$in("processing", "sent")
+  
+  relatedOrdersQuery.isMatch(pending)
+  
+  //This produces a mongo query data structure
+  
   //experimental convert to postgres jsonb clause
   val postgresQuery = QueryJsonb("data", relatedOrdersQuery)
-
-
 
   val statusDelta = Order.$create(_.status.$set("processing"))
   //validate against current state
@@ -79,22 +87,23 @@ dsentric works by describing a singleton contract which represents data we might
 
   //Define subcontract for reusable or recursive structures
   trait UserTimestamp extends SubContract {
-    val account = \[String]("account")
+    val account = \[String]
     val timestamp = \[Long]("timestamp")
   }
   object Element extends Contract {
-    val created = new \\("created", immutable) with UserTimestamp
-    val modified = new \\("modified") with UserTimestamp
+    val created = new \\(immutable) with UserTimestamp
+    val modified = new \\ with UserTimestamp
   }
+  
+  trait Recursive extends SubContract {
+    lazy val rec = new \\? with Recursive
+  }
+  
+  //Produce a mongo style projection which extracts only those fields
+  val nameProjection = Order.firstName.$ & Order.lastName.$
+  nameProjection.select(pending)
 
-  //try to force a match even if wrong type
-  import LooseCodecs._
-  Json("orderId" := "23628") match {
-    case Order.orderId(Some(id)) => id
-  }
 ```
-
-*Auto generation of schema information is still a work in progress
 
 *mongo query is not a full feature set.
 
