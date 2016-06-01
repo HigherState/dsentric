@@ -1,8 +1,100 @@
 # dsentric
+Data contract patterns, validation, lenses and query
 
-Dsentric is a currently experimental approach to crafting lens.  The goal is such that one can abstract from the underlying data structures used.
+dsentric is an explorative library designed to provided accessor to dynamic data which is independent of the underlying data type.
 
-It is an evolution of the Json library [jsentric], which can be used as a guide on how to use dsentric, until the documentation is complete.
+There is a monocle implementation which can be extended to customised data types.
+
+There is also a very light-weight, performance focussed Map[String, Any], Vector[Any] based data structure implementation as well.  This also supports further functionality such as querying and projections.
+
+dsentric works by describing a singleton contract which represents data we might wish to extract from the data structure.  By doing so, we get easy validation, lenses and even a type safe mongo db query generator.
+
+```scala
+    /*define a contract,
+    \  \?  \! expected, optional, default properties
+    \: \:?  \:!  expected, optional, default array properties
+    \\ \\? expected, option object properties
+   */
+  object Order extends Contract {
+    val firstName = \[String](nonEmptyOrWhiteSpace)
+    val lastName = \[String](nonEmptyOrWhiteSpace)
+    val orderId = \?[Int](reserved && immutable)
+
+    val email = new \\ {
+      val friendlyName = \?[String]
+      val address = \[String]
+    }
+    val status = \?[String](in("pending", "processing", "sent") && reserved)
+    val notes = \?[String](internal)
+
+    val orderLines = \:(OrderLines)
+
+    import ApplicationLens._
+    //Combine properties to make a composite pattern matcher
+    lazy val fullName = firstName @: lastName
+  }
+
+  //Create a new data object
+  val newOrder = Order.$create{o =>
+    o.firstName.$set("John") ~
+    o.lastName.$set("Smith") ~
+    o.email.address.$set("johnSmith@test.com") ~
+    o.orderLines.
+  }
+
+  //validate a new data object
+  val validated = Order.$validate(newOrder)
+
+  //pattern match property values
+  newOrder match {
+    case Order.email.address(email) && Order.email.friendlyName(Some(name)) =>
+      println(s"$email <$name>")
+    case Order.email.address(email) && Order.fullName(firstName, lastName) =>
+      println(s"$email <$firstName $lastName>")
+  }
+
+  //make changes to the data object.
+  val pending =
+    Order{o =>
+      o.orderId.$set(123) ~
+      o.status.$set("pending") ~
+      o.notes.$modify(maybe => Some(maybe.foldLeft("Order now pending.")(_ + _)))
+    }(newOrder)
+
+  //strip out any properties marked internal
+  val sendToClient = Order.$sanitize(pending)
+
+  //generate query data
+  val relatedOrdersQuery = Order.orderId.$gt(56) && Order.status.$in("processing", "sent")
+  //experimental convert to postgres jsonb clause
+  val postgresQuery = QueryJsonb("data", relatedOrdersQuery)
 
 
-[jsentric]: https://github.com/HigherState/jsentric
+
+  val statusDelta = Order.$create(_.status.$set("processing"))
+  //validate against current state
+  Order.$validate(statusDelta, pending)
+  //apply delta to current state
+  val processing = pending.delta(statusDelta)
+
+  //Define subcontract for reusable or recursive structures
+  trait UserTimestamp extends SubContract {
+    val account = \[String]("account")
+    val timestamp = \[Long]("timestamp")
+  }
+  object Element extends Contract {
+    val created = new \\("created", immutable) with UserTimestamp
+    val modified = new \\("modified") with UserTimestamp
+  }
+
+  //try to force a match even if wrong type
+  import LooseCodecs._
+  Json("orderId" := "23628") match {
+    case Order.orderId(Some(id)) => id
+  }
+```
+
+*Auto generation of schema information is still a work in progress
+
+*mongo query is not a full feature set.
+
