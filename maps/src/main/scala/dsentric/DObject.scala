@@ -189,3 +189,15 @@ object DQuery{
 
   val empty = new DQuery(Map.empty)
 }
+
+object ForceWrapper {
+
+  def dObject(value:Map[String, Any])
+    = new DObject(value)
+
+  def dValue(value:Any)
+    = new DValue(value)
+
+  def dArray(value:Vector[Any])
+    = new DArray(value)
+}
