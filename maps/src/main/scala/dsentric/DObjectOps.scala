@@ -3,7 +3,7 @@ package dsentric
 trait DObjectOps {
 
   def concat(x :DObject, y:DObject):DObject =
-    DObject(concatMap(x.value, y.value))
+    new DObject(concatMap(x.value, y.value))
 
   private[dsentric] def concatMap(x: Map[String, Any], y: Map[String, Any]): Map[String, Any] =
     y.foldLeft(x){
@@ -20,7 +20,7 @@ trait DObjectOps {
 
   //Nulls and Empty object will reduce out when applied from the right
   def rightReduceConcat(x: DObject, y: DObject): DObject =
-    DObject(rightReduceConcatMap(x.value, y.value))
+    new DObject(rightReduceConcatMap(x.value, y.value))
 
   private[dsentric] def rightReduceConcatMap(x: Map[String, Any], y: Map[String, Any]): Map[String, Any] =
     y.foldLeft(x){

@@ -26,9 +26,9 @@ trait Data extends Any {
     }
 }
 
-class DValue(val value:Any) extends AnyVal with Data
+class DValue private[dsentric](val value:Any) extends AnyVal with Data
 
-class DObject(val value:Map[String, Any]) extends AnyVal with Data{
+class DObject private[dsentric](val value:Map[String, Any]) extends AnyVal with Data{
   def +(v:(String, Data)) =
     new DObject(value + (v._1 -> v._2.value))
 
@@ -73,7 +73,7 @@ class DObject(val value:Map[String, Any]) extends AnyVal with Data{
 
 }
 
-class DQuery(val value:Map[String, Any]) extends AnyVal{
+class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal{
 
 
   def isMatch(j:DObject):Boolean =
@@ -167,8 +167,6 @@ object DObject{
 
   val empty = new DObject(Map.empty[String, Any])
 
-  def apply(map:Map[String, Any]):DObject =
-    new DObject(map)
   def apply(values:(String, Data)*):DObject =
     new DObject(values.toIterator.map(p => p._1 -> p._2.value).toMap)
 }

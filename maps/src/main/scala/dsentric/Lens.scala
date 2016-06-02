@@ -24,7 +24,7 @@ trait ExpectedLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, T] {
       .flatMap(_codec.unapply)
 
   def $modify(f:T => T):DObject => DObject =
-    d => PathLensOps.modify(d.value, _path, _codec, f).fold(d)(DObject.apply)
+    d => PathLensOps.modify(d.value, _path, _codec, f).fold(d)(new DObject(_))
 
   def $copy(p:PropertyLens[T]):DObject => DObject =
     d => {
@@ -34,7 +34,7 @@ trait ExpectedLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, T] {
     }
 
   def $forceDrop:DObject => DObject =
-    d => PathLensOps.drop(d.value, _path).fold(d)(DObject.apply)
+    d => PathLensOps.drop(d.value, _path).fold(d)(new DObject(_))
 
   //both empty or wrong value are bad values
   private[dsentric] def _strictGet(data:DObject):Option[Option[T]] =
@@ -51,13 +51,13 @@ trait MaybeLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, Option[
       .flatMap(_codec.unapply)
 
   def $modify(f:Option[T] => T):DObject => DObject =
-    d => PathLensOps.maybeModify(d.value, _path, _codec, _strictness, f).fold(d)(DObject.apply)
+    d => PathLensOps.maybeModify(d.value, _path, _codec, _strictness, f).fold(d)(new DObject(_))
 
   def $modifyOrDrop(f:Option[T] => Option[T]):DObject => DObject =
-    d => PathLensOps.maybeModifyOrDrop(d.value, _path, _codec, _strictness, f).fold(d)(DObject.apply)
+    d => PathLensOps.maybeModifyOrDrop(d.value, _path, _codec, _strictness, f).fold(d)(new DObject(_))
 
   def $drop:DObject => DObject =
-    d => PathLensOps.drop(d.value, _path).fold(d)(DObject.apply)
+    d => PathLensOps.drop(d.value, _path).fold(d)(new DObject(_))
 
   def $setOrDrop(value:Option[T]):DObject => DObject =
     value.fold($drop)(v => $set(v))
@@ -93,10 +93,10 @@ trait DefaultLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, T]{
       }
 
   def $modify(f:T => T):DObject => DObject =
-    d => PathLensOps.maybeModify(d.value, _path, _codec, _strictness, toDefault.andThen(f)).fold(d)(DObject.apply)
+    d => PathLensOps.maybeModify(d.value, _path, _codec, _strictness, toDefault.andThen(f)).fold(d)(new DObject(_))
 
   def $restore:DObject => DObject =
-    d => PathLensOps.drop(d.value, _path).fold(d)(DObject.apply)
+    d => PathLensOps.drop(d.value, _path).fold(d)(new DObject(_))
 
   def $setOrRestore(value:Option[T]):DObject => DObject =
     value.fold($restore)(v => $set(v))
