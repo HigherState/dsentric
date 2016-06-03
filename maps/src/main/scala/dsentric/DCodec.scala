@@ -3,7 +3,6 @@ package dsentric
 import scala.collection.immutable.VectorBuilder
 import scala.collection.mutable.ListBuffer
 
-
 trait DCodec[T] {
   def apply(t:T):Data
   def unapply(a:Any):Option[T]
@@ -22,10 +21,6 @@ trait DArrayCodec[T] extends DCodec[T] {
 }
 
 
-
-//Use only if T is stored as is in Map
-
-
 trait MatchCodec[T] extends DCodec[T] {
 
   def unapply(a:Any):Option[T] =
@@ -41,23 +36,6 @@ trait DirectCodec[T] extends DValueCodec[T] {
 }
 
 trait DefaultCodecs {
-  //Breaks JObject so not implicit
-//  val mapCodec:JObjectCodec[Map[String, Any]] =
-//    new MatchCodec[Map[String, Any]] with JObjectCodec[Map[String, Any]] {
-//
-//      override def apply(t: Map[String, Any]): JObject =
-//        new JObject(t)
-//
-//      protected def isMatch(a: Any): Boolean =
-//        a.isInstanceOf[Map[String, Any]@unchecked]
-//    }
-//
-//  val vectorCodec:JArrayCodec[Vector[Any]] =
-//    new MatchCodec[Vector[Any]] with JArrayCodec[Vector[Any]] {
-//
-//      protected def isMatch(a: Any): Boolean =
-//        a.isInstanceOf[Vector[Any]@unchecked]
-//    }
 
   implicit val dataCodec:DCodec[Data] =
     new DCodec[Data] {
@@ -106,59 +84,6 @@ trait DefaultCodecs {
     new MatchCodec[DNull] with DirectCodec[DNull] {
       protected def isMatch(a: Any): Boolean =
         a.isInstanceOf[DNull]
-    }
-}
-
-trait PessimisticCodecs extends DefaultCodecs {
-
-  implicit val stringCodec:DValueCodec[String] =
-    new DirectCodec[String] with MatchCodec[String] {
-      protected def isMatch(a: Any): Boolean =
-        a.isInstanceOf[String]
-    }
-  implicit val booleanCodec:DValueCodec[Boolean] =
-    new DirectCodec[Boolean] with MatchCodec[Boolean] {
-      protected def isMatch(a: Any): Boolean =
-        a.isInstanceOf[Boolean]
-    }
-  implicit val longCodec:DValueCodec[Long] =
-    new DirectCodec[Long] {
-      def unapply(a: Any): Option[Long] =
-        NumericPartialFunctions.long.lift(a)
-    }
-  implicit val doubleCodec:DValueCodec[Double] =
-    new DirectCodec[Double] {
-      def unapply(a: Any): Option[Double] =
-        NumericPartialFunctions.double.lift(a)
-    }
-
-  implicit val intCodec:DValueCodec[Int] =
-    new DValueCodec[Int] {
-      def apply(t: Int): DValue =
-        new DValue(t.toLong)
-      def unapply(a: Any): Option[Int] =
-        NumericPartialFunctions.int.lift(a)
-    }
-  implicit val shortCodec:DValueCodec[Short] =
-    new DValueCodec[Short] {
-      def apply(t: Short): DValue =
-        new DValue(t.toLong)
-      def unapply(a: Any): Option[Short] =
-        NumericPartialFunctions.short.lift(a)
-    }
-  implicit val byteCodec:DValueCodec[Byte] =
-    new DValueCodec[Byte] {
-      def apply(t: Byte): DValue =
-        new DValue(t.toLong)
-      def unapply(a: Any): Option[Byte] =
-        NumericPartialFunctions.byte.lift(a)
-    }
-  implicit val floatCodec:DValueCodec[Float] =
-    new DValueCodec[Float] {
-      def apply(t: Float): DValue =
-        new DValue(t.toDouble)
-      def unapply(a: Any): Option[Float] =
-        NumericPartialFunctions.float.lift(a)
     }
 
   implicit def listCodec[T](implicit C:DCodec[T]):DArrayCodec[List[T]] =
@@ -228,6 +153,126 @@ trait PessimisticCodecs extends DefaultCodecs {
     }
 }
 
+trait PessimisticCodecs extends DefaultCodecs {
+
+  implicit val stringCodec:DValueCodec[String] =
+    new DirectCodec[String] with MatchCodec[String] {
+      protected def isMatch(a: Any): Boolean =
+        a.isInstanceOf[String]
+    }
+  implicit val booleanCodec:DValueCodec[Boolean] =
+    new DirectCodec[Boolean] with MatchCodec[Boolean] {
+      protected def isMatch(a: Any): Boolean =
+        a.isInstanceOf[Boolean]
+    }
+  implicit val longCodec:DValueCodec[Long] =
+    new DirectCodec[Long] {
+      def unapply(a: Any): Option[Long] =
+        NumericPartialFunctions.long.lift(a)
+    }
+  implicit val doubleCodec:DValueCodec[Double] =
+    new DirectCodec[Double] {
+      def unapply(a: Any): Option[Double] =
+        NumericPartialFunctions.double.lift(a)
+    }
+
+  implicit val intCodec:DValueCodec[Int] =
+    new DValueCodec[Int] {
+      def apply(t: Int): DValue =
+        new DValue(t.toLong)
+      def unapply(a: Any): Option[Int] =
+        NumericPartialFunctions.int.lift(a)
+    }
+  implicit val shortCodec:DValueCodec[Short] =
+    new DValueCodec[Short] {
+      def apply(t: Short): DValue =
+        new DValue(t.toLong)
+      def unapply(a: Any): Option[Short] =
+        NumericPartialFunctions.short.lift(a)
+    }
+  implicit val byteCodec:DValueCodec[Byte] =
+    new DValueCodec[Byte] {
+      def apply(t: Byte): DValue =
+        new DValue(t.toLong)
+      def unapply(a: Any): Option[Byte] =
+        NumericPartialFunctions.byte.lift(a)
+    }
+  implicit val floatCodec:DValueCodec[Float] =
+    new DValueCodec[Float] {
+      def apply(t: Float): DValue =
+        new DValue(t.toDouble)
+      def unapply(a: Any): Option[Float] =
+        NumericPartialFunctions.float.lift(a)
+    }
+}
+
+trait OptimisticCodecs extends DefaultCodecs {
+
+  implicit val stringCodec:DValueCodec[String] =
+    new DirectCodec[String] {
+      def unapply(a: Any): Option[String] =
+        Some(a.toString)
+    }
+
+  implicit val booleanCodec:DValueCodec[Boolean] =
+    new DirectCodec[Boolean] {
+      def unapply(a: Any): Option[Boolean] =
+        a match {
+          case true | "TRUE" | "true" | 1 => Some(true)
+          case false | "FALSE" | "false" | 0 => Some(false)
+          case _ => None
+        }
+    }
+  implicit val longCodec:DValueCodec[Long] =
+    new DirectCodec[Long] {
+      def unapply(a: Any): Option[Long] =
+        NumericPartialFunctions.stringDouble.lift(a)
+          .fold(NumericPartialFunctions.long.lift(a))(NumericPartialFunctions.long.lift)
+
+    }
+  implicit val doubleCodec:DValueCodec[Double] =
+    new DirectCodec[Double] {
+      def unapply(a: Any): Option[Double] =
+        NumericPartialFunctions.stringDouble.lift(a)
+          .orElse(NumericPartialFunctions.double.lift(a))
+    }
+
+  implicit val intCodec:DValueCodec[Int] =
+    new DValueCodec[Int] {
+      def apply(t: Int): DValue =
+        new DValue(t.toLong)
+      def unapply(a: Any): Option[Int] =
+        NumericPartialFunctions.stringDouble.lift(a)
+          .fold(NumericPartialFunctions.int.lift(a))(NumericPartialFunctions.int.lift)
+    }
+  implicit val shortCodec:DValueCodec[Short] =
+    new DValueCodec[Short] {
+      def apply(t: Short): DValue =
+        new DValue(t.toLong)
+      def unapply(a: Any): Option[Short] =
+        NumericPartialFunctions.stringDouble.lift(a)
+          .fold(NumericPartialFunctions.short.lift(a))(NumericPartialFunctions.short.lift)
+    }
+  implicit val byteCodec:DValueCodec[Byte] =
+    new DValueCodec[Byte] {
+      def apply(t: Byte): DValue =
+        new DValue(t.toLong)
+      def unapply(a: Any): Option[Byte] =
+        NumericPartialFunctions.stringDouble.lift(a)
+          .fold(NumericPartialFunctions.byte.lift(a))(NumericPartialFunctions.byte.lift)
+    }
+  implicit val floatCodec:DValueCodec[Float] =
+    new DValueCodec[Float] {
+      def apply(t: Float): DValue =
+        new DValue(t.toDouble)
+      def unapply(a: Any): Option[Float] =
+        NumericPartialFunctions.stringDouble.lift(a)
+          .fold(NumericPartialFunctions.float.lift(a))(NumericPartialFunctions.float.lift)
+    }
+}
+
 object DefaultCodecs extends DefaultCodecs
 
 object PessimisticCodecs extends PessimisticCodecs
+
+object OptimisticCodecs extends OptimisticCodecs
