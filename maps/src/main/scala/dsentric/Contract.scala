@@ -224,6 +224,18 @@ abstract class ContractType(val $typeKey:String, val $keyMatcher:Matcher = Exist
   val isType = new MatcherUnapply($typeKey, $keyMatcher)
 
   //TODO create has matcher if possible.
+  def $create():DObject = {
+    val seed = $keyMatcher match {
+      case ExistenceMatcher =>
+        true
+      case v:ValueMatcher[_]@unchecked =>
+        v.default
+    }
+    new DObject(Map($typeKey -> seed))
+  }
+
+  override def $create(f:this.type => DObject => DObject):DObject =
+    f(this)($create())
 }
 
 class Expected[T] private[dsentric]

@@ -24,6 +24,13 @@ trait Data extends Any {
       case _ =>
         None
     }
+
+
+  override def toString() = {
+    val sb = new StringBuilder()
+    Data.jsonPrint(sb)(value)
+    sb.result
+  }
 }
 
 class DValue private[dsentric](val value:Any) extends AnyVal with Data
@@ -116,6 +123,12 @@ class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal{
 
   def toObject:DObject =
     new DObject(value)
+
+  override def toString() = {
+    val sb = new StringBuilder()
+    Data.jsonPrint(sb)(value)
+    sb.result
+  }
 }
 
 class DProjection(val value:Map[String, Any]) extends AnyVal {
@@ -145,6 +158,11 @@ class DProjection(val value:Map[String, Any]) extends AnyVal {
     else Some(pairs.reduce(_ ++ _))
   }
 
+  override def toString() = {
+    val sb = new StringBuilder()
+    Data.jsonPrint(sb)(value)
+    sb.result
+  }
 }
 
 class DArray(val value:Vector[Any]) extends AnyVal with Data {
@@ -161,6 +179,47 @@ trait DNull extends Data {
 object Data{
   def apply[T](value:T)(implicit codec:DCodec[T]):Data =
     codec.apply(value)
+
+  private[dsentric] def jsonPrint(sb:StringBuilder):Function[Any, Unit] = {
+    case s:String =>
+      sb ++= "\"" ++= s.replace("\"", "\\\"") ++= "\""
+      ()
+    case n:Number =>
+      sb ++= n.toString
+      ()
+    case true =>
+      sb ++= "true"
+      ()
+    case false =>
+      sb ++= "false"
+      ()
+    case _:DNull =>
+      sb ++= "null"
+      ()
+    case v:Vector[Any]@unchecked =>
+      sb += '['
+      v.foreach(jsonPrint(sb).apply)
+      sb += ']'
+      ()
+    case m:Map[String, Any]@unchecked =>
+      sb += '{'
+      m.headOption.foreach{p =>
+        sb ++= "\"" ++= p._1.replace("\"", "\\\"") ++= "\""
+        sb += ':'
+        jsonPrint(sb)(p._2)
+      }
+      m.tail.foreach{p =>
+        sb += ','
+        sb ++= "\"" ++= p._1.replace("\"", "\\\"") ++= "\""
+        sb += ':'
+        jsonPrint(sb)(p._2)
+      }
+      sb += '}'
+      ()
+    case v =>
+      sb ++= v.toString
+      ()
+  }
 }
 
 object DObject{
