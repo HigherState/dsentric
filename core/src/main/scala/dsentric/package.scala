@@ -7,4 +7,5 @@ package object dsentric {
   type Path = List[Either[Int, String]]
   type Failures = Vector[(Path, String)]
 
+
 }
