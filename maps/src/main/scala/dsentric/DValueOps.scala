@@ -32,7 +32,7 @@ trait DataOps {
   def nestedContains[T](value:Data, t:T)(implicit D:DCodec[T]):Boolean =
     valueContains(value.value, t, D)
 
-  private[Dsentric] def valueContains[T](target:Any, t:T, D:DCodec[T]):Boolean =
+  private[dsentric] def valueContains[T](target:Any, t:T, D:DCodec[T]):Boolean =
     target match {
       case D(v) =>
         v == t
