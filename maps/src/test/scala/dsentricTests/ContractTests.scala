@@ -21,6 +21,11 @@ class ContractTests extends FunSuite with Matchers {
     }
   }
 
+  object Tuple extends Contract {
+    val value = \[(String, Boolean)]
+    val optionValue = \[(String, Option[Boolean])]
+  }
+
   trait Recursive extends SubContract {
     val name = \[String]
     lazy val child = new \\? with Recursive
@@ -229,6 +234,22 @@ class ContractTests extends FunSuite with Matchers {
       case ContractArray.elements(elements) =>
         elements.size
     }) should be (0)
+  }
+
+  test("tuple codec") {
+    val d = DObject("value" := ("one" -> false))
+
+    (d match {
+      case Tuple.value(("one", false)) => true
+    }) should be (true)
+
+    (DObject("optionValue" := ("one" -> false)) match {
+      case Tuple.optionValue(("one", Some(false))) => true
+    }) should be (true)
+
+    (DObject("optionValue" := ("one" -> dNull)) match {
+      case Tuple.optionValue(("one", None)) => true
+    }) should be (true)
   }
 
 }

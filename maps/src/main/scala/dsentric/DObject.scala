@@ -202,7 +202,15 @@ object Data{
       ()
     case v:Vector[Any]@unchecked =>
       sb += '['
-      v.foreach(jsonPrint(sb).apply)
+      v match {
+        case h +: tail =>
+          jsonPrint(sb)(h)
+          tail.foreach{t =>
+            sb += ','
+            jsonPrint(sb)(t)
+          }
+        case _ =>
+      }
       sb += ']'
       ()
     case m:Map[String, Any]@unchecked =>

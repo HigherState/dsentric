@@ -52,6 +52,19 @@ trait DefaultCodecs {
         t
     }
 
+  implicit val dQueryCodec:DCodec[DQuery] =
+    new DCodec[DQuery] {
+      def unapply(a: Any): Option[DQuery] =
+        a match {
+          case a:Map[String, Any]@unchecked =>
+            DQuery(a).toOption
+          case j =>
+            None
+        }
+      def apply(t: DQuery): Data =
+        new DObject(t.value)
+    }
+
   implicit val dObjectCodec:DObjectCodec[DObject] =
     new DObjectCodec[DObject] {
       def apply(t: DObject): DObject =
@@ -86,6 +99,19 @@ trait DefaultCodecs {
         a.isInstanceOf[DNull]
     }
 
+  implicit def tupleCodec[T1,T2](implicit D1:DCodec[T1], D2:DCodec[T2]):DCodec[(T1, T2)] =
+    new DArrayCodec[(T1, T2)] {
+      override def apply(t: (T1, T2)): DArray =
+        new DArray(Vector(D1(t._1).value, D2(t._2).value))
+
+      def unapply(a: Any): Option[(T1, T2)] =
+        a match {
+          case Vector(D1(t1), D2(t2)) =>
+            Some(t1 -> t2)
+          case _ =>
+            None
+        }
+    }
 }
 
 trait PessimisticCodecs extends DefaultCodecs {
@@ -138,6 +164,19 @@ trait PessimisticCodecs extends DefaultCodecs {
         new DValue(t.toDouble)
       def unapply(a: Any): Option[Float] =
         NumericPartialFunctions.float.lift(a)
+    }
+
+  implicit def optionCodec[T](implicit D:DCodec[T]) =
+    new DCodec[Option[T]] {
+      def apply(t: Option[T]): Data =
+        t.fold[Data](Dsentric.dNull)(t => D(t))
+
+      def unapply(a: Any): Option[Option[T]] =
+        a match {
+          case Dsentric.dNull => Some(None)
+          case D(v) => Some(Some(v))
+          case _ => None
+        }
     }
 
   implicit def listCodec[T](implicit C:DCodec[T]):DArrayCodec[List[T]] =
@@ -274,6 +313,20 @@ trait OptimisticCodecs extends DefaultCodecs {
         NumericPartialFunctions.stringDouble.lift(a)
           .fold(NumericPartialFunctions.float.lift(a))(NumericPartialFunctions.float.lift)
     }
+
+  implicit def optionCodec[T](implicit D:DCodec[T]) =
+    new DCodec[Option[T]] {
+      def apply(t: Option[T]): Data =
+        t.fold[Data](Dsentric.dNull)(t => D(t))
+
+      def unapply(a: Any): Option[Option[T]] =
+        a match {
+          case Dsentric.dNull => Some(None)
+          case D(v) => Some(Some(v))
+          case _ => Some(None)
+        }
+    }
+
   implicit def listCodec[T](implicit C:DCodec[T]):DArrayCodec[List[T]] =
     new DArrayCodec[List[T]] {
       def apply(t: List[T]): DArray =
