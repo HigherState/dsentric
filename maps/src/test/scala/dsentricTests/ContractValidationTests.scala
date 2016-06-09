@@ -182,4 +182,30 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     Multi.$validate(DObject("id" -> DObject("path" := "testId"))) should be (s(DObject("id" -> DObject("path" := "testId"))))
 
   }
+
+  object ContractValidatorsImpl extends ContractValidators
+
+  object Element extends Contract {
+    val id = \[Int]
+    val name = \?[String]
+  }
+
+  object Parent extends Contract {
+    val elements = \[Map[String, DObject]](ContractValidatorsImpl.mapContract(Element))
+  }
+
+  test("map contract validator") {
+
+    val succ = DObject("elements" := Map("first" -> DObject("id" := 4), "second" -> DObject("id" := 2, "name" := "bob")))
+    Parent.$validate(succ) should be (s(succ))
+
+    val failfirst = DObject("elements" := Map("first" -> DObject(), "second" -> DObject("id" := 2, "name" := "bob")))
+    Parent.$validate(failfirst) should be (f(Path("elements", "first", "id") -> "Value was expected."))
+
+    val failSecond = DObject("elements" := Map("first" -> DObject("id" := 4), "second" -> DObject("id" := 2, "name" := false)))
+    Parent.$validate(failSecond) should be (f(Path("elements", "second", "name") -> "Value is not of the expected type."))
+
+    val failBoth = DObject("elements" := Map("first" -> DObject(), "second" -> DObject("id" := 2, "name" := false)))
+    Parent.$validate(failBoth) should be (f(Path("elements", "first", "id") -> "Value was expected.",Path("elements", "second", "name") -> "Value is not of the expected type."))
+  }
 }

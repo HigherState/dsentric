@@ -175,8 +175,9 @@ class DArray(val value:Vector[Any]) extends AnyVal with Data {
   }
 }
 
-trait DNull extends Data {
+class DNull extends Data {
   override def value:DNull = this
+  override def toString() = "null"
 }
 
 object Data{

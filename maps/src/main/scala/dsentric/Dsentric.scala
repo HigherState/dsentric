@@ -4,6 +4,5 @@ object Dsentric extends DataMatchers with AndMatcher with PropertyOps with ToPat
 
   implicit def strictness:Strictness = MaybePessimistic
 
-  val dNull:DNull = new DNull {}
-
+  val dNull:DNull = new DNull
 }

@@ -41,7 +41,7 @@ case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]
 }
 
 //TODO separate definition for internal/reserved etc such that the or operator is not supported
-trait Validators {
+trait Validators extends ValidatorOps{
 
   val empty =
     new Validator[Nothing] {
@@ -279,7 +279,11 @@ trait Validators {
           }
     }
 
-  private def getLength[S >: Optionable[Length]](x:S) =
+}
+
+trait ValidatorOps {
+
+  protected def getLength[S >: Optionable[Length]](x:S) =
     x match {
       case s:Seq[Any] @unchecked =>
         Some(s.size)
@@ -297,20 +301,21 @@ trait Validators {
         None
     }
 
-  private def getString[S >: Optionable[String]](x:S):Option[String] =
+  protected def getString[S >: Optionable[String]](x:S):Option[String] =
     x match {
       case Some(s:String) => Some(s)
       case s:String => Some(s)
       case _ =>  None
     }
 
-  private def getT[T, S >: Optionable[T]](t:S):Option[T] =
+  protected def getT[T, S >: Optionable[T]](t:S):Option[T] =
     t match {
       case Some(s: T@unchecked) => Some(s)
+      case None => None
       case s: T@unchecked => Some(s)
     }
 
-  private def resolve[S >: Numeric](value:S, target:S):Option[Int] =
+  protected def resolve[S >: Numeric](value:S, target:S):Option[Int] =
     value match {
       case i:Int =>
         compare(i, target)
@@ -332,7 +337,7 @@ trait Validators {
         None
     }
 
-  private def compare[S >: Numeric](value:Long, target:S):Option[Int] =
+  protected def compare[S >: Numeric](value:Long, target:S):Option[Int] =
     target match {
       case i:Int =>
         Some(value.compare(i))
@@ -354,7 +359,7 @@ trait Validators {
         None
     }
 
-  private def compare[S >: Numeric](value:Double, target:S):Option[Int] =
+  protected def compare[S >: Numeric](value:Double, target:S):Option[Int] =
     target match {
       case i:Int =>
         Some(value.compare(i))
