@@ -25,6 +25,9 @@ trait Data extends Any {
         None
     }
 
+  def nestedContains[T](t:T)(implicit D:DCodec[T]):Boolean =
+    DataOps.valueContains(value, t, D)
+
 
   override def toString() = {
     val sb = new StringBuilder()

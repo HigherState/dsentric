@@ -59,3 +59,5 @@ trait DataOps {
 //        false
 //    }
 }
+
+object DataOps extends DataOps
