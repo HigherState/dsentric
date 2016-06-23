@@ -28,6 +28,9 @@ trait Data extends Any {
   def nestedContains[T](t:T)(implicit D:DCodec[T]):Boolean =
     DataOps.valueContains(value, t, D)
 
+  def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):Data =
+    new DValue(DataOps.nestedValueMap(value, pf))
+
 
   override def toString() = {
     val sb = new StringBuilder()
@@ -80,11 +83,27 @@ class DObject private[dsentric](val value:Map[String, Any]) extends AnyVal with 
   def diff(compare:DObject):DObject =
     DObjectOps.rightDifference(this, compare)
 
+  def toQuery:NonEmptyList[(String, Path)] Xor DQuery =
+    DQuery(value)
+
+  override def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):DObject =
+    new DObject(DataOps.nestedValueMap(value, pf).asInstanceOf[Map[String, Any]])
 
 }
 
 class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal{
 
+  def render(implicit R:Renderer) =
+    R.print(value)
+
+  def +(v:(String, Data)) =
+    new DQuery(value + (v._1 -> v._2.value))
+
+  def ++(v:TraversableOnce[(String, Data)]) =
+    new DQuery(value ++ v.map(t => t._1 -> t._2.value))
+
+  def ++(m:DQuery) =
+    new DQuery(value ++ m.value)
 
   def isMatch(j:DObject):Boolean =
     Query(Some(j.value), value)
@@ -173,6 +192,9 @@ class DArray(val value:Vector[Any]) extends AnyVal with Data {
     case m:Map[String, Any]@unchecked =>
       new DObject(m)
   }
+
+  override def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):DArray =
+    new DArray(DataOps.nestedValueMap(value, pf).asInstanceOf[Vector[Any]])
 }
 
 class DNull extends Data {
@@ -240,6 +262,9 @@ object DObject{
 
   def apply(values:(String, Data)*):DObject =
     new DObject(values.toIterator.map(p => p._1 -> p._2.value).toMap)
+
+  def apply(map:Map[String, Data]):DObject =
+    new DObject(map.mapValues(_.value))
 }
 
 object DArray{
