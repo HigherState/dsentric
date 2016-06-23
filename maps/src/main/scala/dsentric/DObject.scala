@@ -91,7 +91,7 @@ class DObject private[dsentric](val value:Map[String, Any]) extends AnyVal with 
 
 }
 
-class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal{
+class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal with Data{
 
   def render(implicit R:Renderer) =
     R.print(value)
@@ -153,7 +153,7 @@ class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal{
   }
 }
 
-class DProjection(val value:Map[String, Any]) extends AnyVal {
+class DProjection(val value:Map[String, Any]) extends AnyVal with Data{
 
   def &(d:DProjection):DProjection =
     new DProjection(DObjectOps.concatMap(value, d.value))
