@@ -93,9 +93,6 @@ class DObject private[dsentric](val value:Map[String, Any]) extends AnyVal with 
 
 class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal with Data{
 
-  def render(implicit R:Renderer) =
-    R.print(value)
-
   def +(v:(String, Data)) =
     new DQuery(value + (v._1 -> v._2.value))
 
