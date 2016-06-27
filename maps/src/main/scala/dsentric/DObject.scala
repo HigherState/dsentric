@@ -31,6 +31,8 @@ trait Data extends Any {
   def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):Data =
     new DValue(DataOps.nestedValueMap(value, pf))
 
+  def decode[T](implicit D:DCodec[T]) =
+    D.unapply(value)
 
   override def toString() = {
     val sb = new StringBuilder()
