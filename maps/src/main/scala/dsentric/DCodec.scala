@@ -390,3 +390,13 @@ object DefaultCodecs extends DefaultCodecs
 object PessimisticCodecs extends PessimisticCodecs
 
 object OptimisticCodecs extends OptimisticCodecs
+
+
+object DataMatch {
+  def apply[T](implicit codec:DCodec[T]):DataMatcher[T] =
+    new DataMatcher[T]
+}
+class DataMatcher[T](implicit codec:DCodec[T]) {
+  def unapply(d:Data):Option[T] =
+    codec.unapply(d.value)
+}

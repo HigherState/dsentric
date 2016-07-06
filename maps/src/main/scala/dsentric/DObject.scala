@@ -35,9 +35,7 @@ trait Data extends Any {
     D.unapply(value)
 
   override def toString() = {
-    val sb = new StringBuilder()
-    Data.jsonPrint(sb)(value)
-    sb.result
+    SimpleRenderer.print(value)
   }
 }
 
@@ -144,12 +142,6 @@ class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal with D
 
   def toObject:DObject =
     new DObject(value)
-
-  override def toString() = {
-    val sb = new StringBuilder()
-    Data.jsonPrint(sb)(value)
-    sb.result
-  }
 }
 
 class DProjection(val value:Map[String, Any]) extends AnyVal with Data{
@@ -178,12 +170,6 @@ class DProjection(val value:Map[String, Any]) extends AnyVal with Data{
     if (pairs.length < projection.size) None
     else Some(pairs.reduce(_ ++ _))
   }
-
-  override def toString() = {
-    val sb = new StringBuilder()
-    Data.jsonPrint(sb)(value)
-    sb.result
-  }
 }
 
 class DArray(val value:Vector[Any]) extends AnyVal with Data {
@@ -205,54 +191,7 @@ object Data{
   def apply[T](value:T)(implicit codec:DCodec[T]):Data =
     codec.apply(value)
 
-  private[dsentric] def jsonPrint(sb:StringBuilder):Function[Any, Unit] = {
-    case s:String =>
-      sb ++= "\"" ++= s.replace("\"", "\\\"") ++= "\""
-      ()
-    case n:Number =>
-      sb ++= n.toString
-      ()
-    case true =>
-      sb ++= "true"
-      ()
-    case false =>
-      sb ++= "false"
-      ()
-    case _:DNull =>
-      sb ++= "null"
-      ()
-    case v:Vector[Any]@unchecked =>
-      sb += '['
-      v match {
-        case h +: tail =>
-          jsonPrint(sb)(h)
-          tail.foreach{t =>
-            sb += ','
-            jsonPrint(sb)(t)
-          }
-        case _ =>
-      }
-      sb += ']'
-      ()
-    case m:Map[String, Any]@unchecked =>
-      sb += '{'
-      m.headOption.foreach{p =>
-        sb ++= "\"" ++= p._1.replace("\"", "\\\"") ++= "\""
-        sb += ':'
-        jsonPrint(sb)(p._2)
-      }
-      m.tail.foreach{p =>
-        sb += ','
-        sb ++= "\"" ++= p._1.replace("\"", "\\\"") ++= "\""
-        sb += ':'
-        jsonPrint(sb)(p._2)
-      }
-      sb += '}'
-      ()
-    case v =>
-      sb ++= v.toString
-      ()
-  }
+
 }
 
 object DObject{

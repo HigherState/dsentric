@@ -35,7 +35,7 @@ object QueryJsonb {
       treeToPostgres(field, R)(tree -> false).map(v => "NOT (" +: v :+ ")")
     //TODO empty Path
     case (/(path, regex), _) =>
-      Xor.Right("(" +: field +: " #>> '" +: toPath(path) +: "') ~ '" +: regex.toString +: Vector("'"))
+      Xor.Right("(" +: field +: " #>> '" +: toPath(path) +: "') ~ '" +: escape(regex.toString) +: Vector("'"))
     case (%(path, like, _), _) =>
       Xor.Right("(" +: field +: " #>> '" +: toPath(path) +: "') ILIKE '" +: like +: Vector("'"))
     case (?(path, "$eq", value), _) =>
@@ -70,7 +70,9 @@ object QueryJsonb {
         s")")
 
     case (∃(path, ?(Path.empty, "$eq", value)), _) =>
-      Xor.Right(field +: " @> '" +: toObject(path, Vector(value), R) :+ "'::jsonb")
+      Xor.Right(field +: toElement(path) +: Vector(s" ? '${escape(R.print(value))}'"))
+    case (∃(path, &(Seq(/(Path.empty, regex)))), _) =>
+      Xor.Right("EXISTS (SELECT * FROM jsonb_array_elements_text(" +: field +: toElement(path) +: ") many(elem) WHERE elem ~ '" +: escape(regex.toString) +: Vector("')"))
     case (∃(path, &(Seq(?(subPath, "$eq", value)))), _) =>
       Xor.Right(field +: toElement(path) +: " @> " +: "'["  +: toObject(subPath, value, R) :+ "]'")
     case (∃(path, _), _) =>

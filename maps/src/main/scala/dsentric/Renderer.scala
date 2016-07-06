@@ -7,3 +7,61 @@ trait Renderer {
 
   def print(value:Any):String
 }
+
+object SimpleRenderer extends Renderer {
+
+  def print(value:Any):String = {
+    val sb = new StringBuilder()
+    jsonPrint(sb)(value)
+    sb.result()
+  }
+
+  private[dsentric] def jsonPrint(sb:StringBuilder):Function[Any, Unit] = {
+    case s:String =>
+      sb ++= "\"" ++= s.replace("\"", "\\\"") ++= "\""
+      ()
+    case n:Number =>
+      sb ++= n.toString
+      ()
+    case true =>
+      sb ++= "true"
+      ()
+    case false =>
+      sb ++= "false"
+      ()
+    case _:DNull =>
+      sb ++= "null"
+      ()
+    case v:Vector[Any]@unchecked =>
+      sb += '['
+      v match {
+        case h +: tail =>
+          jsonPrint(sb)(h)
+          tail.foreach{t =>
+            sb += ','
+            jsonPrint(sb)(t)
+          }
+        case _ =>
+      }
+      sb += ']'
+      ()
+    case m:Map[String, Any]@unchecked =>
+      sb += '{'
+      m.headOption.foreach{p =>
+        sb ++= "\"" ++= p._1.replace("\"", "\\\"") ++= "\""
+        sb += ':'
+        jsonPrint(sb)(p._2)
+      }
+      m.tail.foreach{p =>
+        sb += ','
+        sb ++= "\"" ++= p._1.replace("\"", "\\\"") ++= "\""
+        sb += ':'
+        jsonPrint(sb)(p._2)
+      }
+      sb += '}'
+      ()
+    case v =>
+      sb ++= v.toString
+      ()
+  }
+}
