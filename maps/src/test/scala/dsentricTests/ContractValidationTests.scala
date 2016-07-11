@@ -208,4 +208,10 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     val failBoth = DObject("elements" := Map("first" -> DObject(), "second" -> DObject("id" := 2, "name" := false)))
     Parent.$validate(failBoth) should be (f(Path("elements", "first", "id") -> "Value was expected.",Path("elements", "second", "name") -> "Value is not of the expected type."))
   }
+
+  test("delta validation") {
+    val current = Element.$create(e => e.id.$set(1) ~ e.name.$set("Value"))
+    val delta = Element.$create(_.name.$setNull)
+    Element.$validate(delta, current) should be (s(delta))
+  }
 }

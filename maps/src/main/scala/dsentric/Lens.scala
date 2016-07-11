@@ -68,6 +68,9 @@ trait MaybeLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, Option[
         .fold(d)(v => $setOrDrop(v)(d))
     }
 
+  def $setNull: DObject => DObject =
+    d => new DObject(PathLensOps.set(d.value, _path, Dsentric.dNull))
+
   private[dsentric] def _strictGet(data:DObject):Option[Option[T]] =
     PathLensOps
       .traverse(data.value, _path) match {
@@ -106,6 +109,9 @@ trait DefaultLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, T]{
       p._strictGet(d)
         .fold(d)(v => $setOrRestore(v)(d))
     }
+
+  def $setNull: DObject => DObject =
+    d => new DObject(PathLensOps.set(d.value, _path, Dsentric.dNull))
 
   private[dsentric] def _strictGet(data:DObject):Option[Option[T]] =
     PathLensOps
