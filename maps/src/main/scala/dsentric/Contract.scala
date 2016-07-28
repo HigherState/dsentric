@@ -248,6 +248,11 @@ class Expected[T] private[dsentric]
   private[dsentric] def _isValidType(j:Any) =
     _codec.unapply(j).isDefined
 
+  def $isValid(value:T):Boolean =
+    _codec.unapply(value).fold(false){ p =>
+      _pathValidator(Path.empty, Some(p), None).isEmpty
+    }
+
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
     value -> currentState match {
       case (None, None) =>
@@ -279,6 +284,11 @@ class Maybe[T] private[dsentric]
   def unapply(j:DObject):Option[Option[T]] =
     _strictGet(j)
 
+  def $isValid(value:T):Boolean =
+    _strictness(value, _codec).fold(false){ p =>
+      _pathValidator(Path.empty, Some(p), None).isEmpty
+    }
+
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
     value -> currentState match {
       case (Some(_:DNull), Some(_)) =>
@@ -307,6 +317,10 @@ class Default[T] private[dsentric]
   def unapply(j:DObject):Option[T] =
     _strictGet(j).map(_.get)
 
+  def $isValid(value:T):Boolean =
+    _strictness(value, _codec).fold(false){ p =>
+      _pathValidator(Path.empty, Some(p), None).isEmpty
+    }
 
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
     value -> currentState match {
