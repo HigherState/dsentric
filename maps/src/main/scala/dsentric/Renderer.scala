@@ -6,6 +6,8 @@ package dsentric
 trait Renderer {
 
   def print(value:Any):String
+
+  def bytes(value:Any):Array[Byte]
 }
 
 object SimpleRenderer extends Renderer {
@@ -15,6 +17,9 @@ object SimpleRenderer extends Renderer {
     jsonPrint(sb)(value)
     sb.result()
   }
+
+  def bytes(value: Any): Array[Byte] =
+    print(value).getBytes("UTF-8")
 
   private[dsentric] def jsonPrint(sb:StringBuilder):Function[Any, Unit] = {
     case s:String =>
