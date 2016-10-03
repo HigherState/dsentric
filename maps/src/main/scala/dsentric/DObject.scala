@@ -57,10 +57,11 @@ class DObject private[dsentric](val value:Map[String, Any]) extends AnyVal with 
   def --(keys:TraversableOnce[String]) =
     new DObject(value -- keys)
 
-  def \(path:Path):Option[Data] =
+  def \[T](path:Path)(implicit D:DCodec[T]):Option[T] =
     PathLensOps
       .traverse(value, path)
-        .map(new DValue(_))
+      .collect{ case D(t) => t}
+
 
   def size = value.size
 
@@ -91,8 +92,9 @@ class DObject private[dsentric](val value:Map[String, Any]) extends AnyVal with 
 
 }
 
-class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal with Data{
 
+
+class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal with Data{
   def +(v:(String, Data)) =
     new DQuery(value + (v._1 -> v._2.value))
 
