@@ -121,6 +121,10 @@ trait DefaultLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, T]{
     }
 }
 
+object IdentityLens extends (DObject => DObject) {
+  def apply(v1: DObject): DObject = v1
+}
+
 //trait MaybeDeltaDelete[Data, IndexedData, T] extends Any {
 //  def maybeProperty:Maybe[Data, IndexedData, T]
 //  protected def deleteValue:Data
