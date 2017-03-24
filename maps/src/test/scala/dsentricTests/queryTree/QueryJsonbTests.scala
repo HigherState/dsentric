@@ -12,10 +12,11 @@ import dsentric.PessimisticCodecs._
 class QueryJsonbTests extends FunSuite with Matchers {
   implicit def r:Renderer = SimpleRenderer
 
+  val queryParser = QueryJsonb(_.replace("'","''"))
   //not an actual test as of yet
   test("Generate query") {
     val query = DQuery("Owner" -> DObject("$elemMatch" := DObject("$regex" := "^jamie.*"))).toOption.get
-    val psql = QueryJsonb("Indexed", query)
+    val psql = queryParser("Indexed", query)
     println(psql)
   }
 }

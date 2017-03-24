@@ -7,32 +7,32 @@ import dsentric.{Renderer, DNull, DQuery, Path}
 Experimental feature for converting from mongo db style query to a PostGres jsonb query
 Uses the jdbc ?? escape for ?
  */
-object QueryJsonb {
+case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
 
   type JbValid = NonEmptyList[(String, Path)] Xor String
 
-  def apply(field:String, query:DQuery)(implicit R:Renderer): JbValid =
-    treeToPostgres(field, R)(QueryTree(query) -> false).map(_.mkString)
+  def apply(field:String, query:DQuery): JbValid =
+    treeToPostgres(field)(QueryTree(query) -> false).map(_.mkString)
 
-  def apply(field:String, query:Tree)(implicit R:Renderer): JbValid =
-    treeToPostgres(field, R)(query -> false).map(_.mkString)
+  def apply(field:String, query:Tree): JbValid =
+    treeToPostgres(field)(query -> false).map(_.mkString)
 
 
-  private def treeToPostgres(field:String, R:Renderer):Function[(Tree, Boolean), NonEmptyList[(String, Path)] Xor Vector[String]] = {
+  private def treeToPostgres(field:String):Function[(Tree, Boolean), NonEmptyList[(String, Path)] Xor Vector[String]] = {
     case (&(Seq(value)), g) =>
-      treeToPostgres(field, R)(value -> false).map(_ ++ (if (g) Some(")") else None))
+      treeToPostgres(field)(value -> false).map(_ ++ (if (g) Some(")") else None))
     case (|(Seq(value)), g) =>
-      treeToPostgres(field, R)(value -> false).map(_ ++ (if (g) Some(")") else None))
+      treeToPostgres(field)(value -> false).map(_ ++ (if (g) Some(")") else None))
     case (&(head +: tail), g) =>
-      builder(treeToPostgres(field, R)(head -> false), treeToPostgres(field, R)(&(tail) -> true)) { (h, t) =>
+      builder(treeToPostgres(field)(head -> false), treeToPostgres(field)(&(tail) -> true)) { (h, t) =>
         ((if (!g) Some("(") else None) ++: h :+ " AND ") ++ t
       }
     case (|(head +: tail), g) =>
-      builder(treeToPostgres(field, R)(head -> false), treeToPostgres(field, R)(&(tail) -> true)) { (h, t) =>
+      builder(treeToPostgres(field)(head -> false), treeToPostgres(field)(&(tail) -> true)) { (h, t) =>
         ((if (!g) Some("(") else None) ++: h :+ " OR ") ++ t
       }
     case (!!(tree), g) =>
-      treeToPostgres(field, R)(tree -> false).map(v => "NOT (" +: v :+ ")")
+      treeToPostgres(field)(tree -> false).map(v => "NOT (" +: v :+ ")")
     //TODO empty Path
     case (/(path, regex), _) =>
       Xor.Right("(" +: field +: " #>> '" +: toPath(path) +: "') ~ '" +: escape(regex.toString) +: Vector("'"))
@@ -102,7 +102,7 @@ object QueryJsonb {
   private def escape(s:Either[Int, String]):String =
     escape(s.merge.toString)
   private def escape(s:String):String =
-    s.replace("'","''")
+    escapeString(s)
   private def toPath(path:Path) =
     path.map(escape).mkString("{", ",", "}")
   private def toSearch:Function[Path, Vector[String]] = {
