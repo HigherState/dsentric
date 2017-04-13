@@ -19,4 +19,10 @@ class QueryJsonbTests extends FunSuite with Matchers {
     val psql = queryParser("Indexed", query)
     println(psql)
   }
+
+  test("Generate query2") {
+    val query = DQuery(Map("string" -> "value1", "dobject" -> DObject("value" -> Data("key"), "myNull" -> new DNull), "array" -> DArray("value3", "value4"), "boolean" -> true, "integer" -> 1)).toOption.get
+    val psql = queryParser("Indexed", query)
+    println(psql)
+  }
 }

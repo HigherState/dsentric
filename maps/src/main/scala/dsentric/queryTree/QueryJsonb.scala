@@ -1,7 +1,7 @@
 package dsentric.queryTree
 
-import cats.data.{OneAnd, Xor, NonEmptyList}
-import dsentric.{Renderer, DNull, DQuery, Path}
+import cats.data.{NonEmptyList, OneAnd, Xor}
+import dsentric._
 
 /*
 Experimental feature for converting from mongo db style query to a PostGres jsonb query
@@ -39,9 +39,9 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
     case (%(path, like, _), _) =>
       Xor.Right("(" +: field +: " #>> '" +: toPath(path) +: "') ILIKE '" +: like +: Vector("'"))
     case (?(path, "$eq", value), _) =>
-      Xor.Right(field +: " @> '" +: toObject(path, value, R) :+ "'::jsonb")
+      Xor.Right(field +: " @> " +: toPostgresObject(path, value, R))
     case (?(path, "$ne", value), _) =>
-      Xor.Right("NOT " +: field +: " @> '" +: toObject(path, value, R) :+ "'::jsonb")
+      Xor.Right("NOT " +: field +: " @> " +: toPostgresObject(path, value, R))
     case (?(path, "$in", value:Vector[Any]@unchecked), _) =>
       Xor.Right(Vector(field, " #> '", toPath(path), "' <@ '", escape(R.print(value)), "'::jsonb"))
     case (?(path, "$nin", value:Vector[Any]@unchecked), _) =>
@@ -86,6 +86,23 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
       case head +: tail =>
         "{\"" +: escape(head) +: "\":" +: toObject(tail, value, R) :+ "}"
       case _ => Vector(escape(R.print(value)))
+    }
+
+  private def toPostgresObject(path:Path, value:Any, R:Renderer):Vector[String] =
+    path match {
+      case head +: tail =>
+        "jsonb_build_object('" +: escape(head) +: "', " +: toPostgresObject(tail, value, R) :+ ")"
+      case _ =>
+        value match {
+          case dob:DObject =>
+            Vector(dob.value.toList.flatMap{case (key, _value) => toPostgresObject(path, _value, R).headOption.map(v => s"'$key', $v" )}.mkString("jsonb_build_object(", ", " , ")"))
+          case a:DArray =>
+            Vector(a.value.flatMap(elem => toPostgresObject(path, elem, R).headOption).mkString("jsonb_build_array(", ", " , ")"))
+          case s:String =>
+            Vector(s"'$s'")
+          case _ =>
+            Vector(escape(R.print(value)))
+        }
     }
 
   private def serialize:Function[(Any, Path), JbValid] = {
