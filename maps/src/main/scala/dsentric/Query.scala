@@ -147,6 +147,7 @@ object Query extends Query {
   }
 
   private[dsentric] def apply(value:Any, query:Tree):Boolean = {
+    import Dsentric._
     query match {
       case &(trees) =>
         trees.forall(t => this(value, t))
@@ -160,6 +161,10 @@ object Query extends Query {
         !search(value -> path).exists(x => order(x -> v).contains(0))
       case /(path, regex) =>
         search(value -> path).collect{case s:String => s}.exists(s => regex.pattern.matcher(s).matches)
+      case ϵ(path, values) =>
+        values.forall{ kv =>
+          search(value -> (path \ kv._1)).exists(x => order(x -> kv._2).contains(0))
+        }
       case %(path, _, regex) =>
         search(value -> path).collect{case s:String => s}.exists(s => regex.pattern.matcher(s).matches)
       case ?(path, "$lt", v) =>
