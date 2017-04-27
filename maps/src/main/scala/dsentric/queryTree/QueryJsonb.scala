@@ -38,6 +38,8 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
       Xor.Right("(" +: field +: " #>> '" +: toPath(path) +: "') ~ '" +: escape(regex.toString) +: Vector("'"))
     case (%(path, like, _), _) =>
       Xor.Right("(" +: field +: " #>> '" +: toPath(path) +: "') ILIKE '" +: like +: Vector("'"))
+    case (ϵ(path, map), _) =>
+      Xor.Right(field +: " @> " +: toPostgresObject(path, map, R))
     case (?(path, "$eq", value), _) =>
       Xor.Right(field +: " @> " +: toPostgresObject(path, value, R))
     case (?(path, "$ne", value), _) =>
@@ -71,9 +73,9 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
 
     case (∃(path, ?(Path.empty, "$eq", value)), _) =>
       Xor.Right(field +: toElement(path) +: Vector(s" ? '${escape(R.print(value))}'"))
-    case (∃(path, &(Seq(/(Path.empty, regex)))), _) =>
+    case (∃(path, /(Path.empty, regex)), _) =>
       Xor.Right("EXISTS (SELECT * FROM jsonb_array_elements_text(" +: field +: toElement(path) +: ") many(elem) WHERE elem ~ '" +: escape(regex.toString) +: Vector("')"))
-    case (∃(path, &(Seq(?(subPath, "$eq", value)))), _) =>
+    case (∃(path, ?(subPath, "$eq", value)), _) =>
       Xor.Right(field +: toElement(path) +: " @> " +: "'["  +: toObject(subPath, value, R) :+ "]'")
     case (∃(path, _), _) =>
       Xor.Left(NonEmptyList("Currently only equality is supported in element match." -> path))
@@ -94,10 +96,10 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
         "jsonb_build_object('" +: escape(head) +: "', " +: toPostgresObject(tail, value, R) :+ ")"
       case _ =>
         value match {
-          case dob:DObject =>
-            Vector(dob.value.toList.flatMap{case (key, _value) => toPostgresObject(path, _value, R).headOption.map(v => s"'$key', $v" )}.mkString("jsonb_build_object(", ", " , ")"))
-          case a:DArray =>
-            Vector(a.value.flatMap(elem => toPostgresObject(path, elem, R).headOption).mkString("jsonb_build_array(", ", " , ")"))
+          case dob:Map[String, Any]@unchecked =>
+            Vector(dob.flatMap{case (key, _value) => toPostgresObject(path, _value, R).headOption.map(v => s"'$key', $v" )}.mkString("jsonb_build_object(", ", " , ")"))
+          case a:Vector[Any] =>
+            Vector(a.flatMap(elem => toPostgresObject(path, elem, R).headOption).mkString("jsonb_build_array(", ", " , ")"))
           case s:String =>
             Vector(s"'$s'")
           case _ =>

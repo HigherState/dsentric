@@ -184,9 +184,12 @@ class DArray(val value:Vector[Any]) extends AnyVal with Data {
     new DArray(DataOps.nestedValueMap(value, pf).asInstanceOf[Vector[Any]])
 }
 
-class DNull extends Data {
+final class DNull extends Data {
   override def value:DNull = this
   override def toString() = "null"
+
+  override def equals(obj: scala.Any): Boolean =
+    obj.isInstanceOf[DNull]
 }
 
 object Data{
@@ -218,22 +221,26 @@ object DArray{
 object DQuery{
 
   //TODO confirm is valid query structure
-  def apply(map:Map[String, Any]):NonEmptyList[(String, Path)] Xor DQuery =
-    Xor.right(new DQuery(map))
   def apply(values:(String, Data)*):NonEmptyList[(String, Path)] Xor DQuery =
     Xor.right(new DQuery(values.toIterator.map(p => p._1 -> p._2.value).toMap))
+
+  private[dsentric] def apply(value:Map[String, Any]):NonEmptyList[(String, Path)] Xor DQuery =
+    Xor.right(new DQuery(value))
 
   val empty = new DQuery(Map.empty)
 }
 
 object ForceWrapper {
 
-  def dObject(value:Map[String, Any])
-    = new DObject(value)
+  def dObject(value:Map[String, Any]) =
+    new DObject(value)
 
-  def dValue(value:Any)
-    = new DValue(value)
+  def dValue(value:Any) =
+    new DValue(value)
 
-  def dArray(value:Vector[Any])
-    = new DArray(value)
+  def dArray(value:Vector[Any]) =
+    new DArray(value)
+
+  def dQuery(value:Map[String, Any]) =
+    new DQuery(value)
 }
