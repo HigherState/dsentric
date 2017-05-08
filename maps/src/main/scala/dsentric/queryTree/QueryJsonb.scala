@@ -39,11 +39,11 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
     case (%(path, like, _), _) =>
       Xor.Right("(" +: field +: " #>> '" +: toPath(path) +: "') ILIKE '" +: like +: Vector("'"))
     case (ϵ(path, map), _) =>
-      Xor.Right(field +: " @> " +: toPostgresObject(path, map, R))
+      Xor.Right(field +: " @> " +: toObject(path, map, R)  :+ "'::jsonb")
     case (?(path, "$eq", value), _) =>
-      Xor.Right(field +: " @> " +: toPostgresObject(path, value, R))
+      Xor.Right(field +: " @> " +: toObject(path, value, R)  :+ "'::jsonb")
     case (?(path, "$ne", value), _) =>
-      Xor.Right("NOT " +: field +: " @> " +: toPostgresObject(path, value, R))
+      Xor.Right("NOT " +: field +: " @> " +: toObject(path, value, R)  :+ "'::jsonb")
     case (?(path, "$in", value:Vector[Any]@unchecked), _) =>
       Xor.Right(Vector(field, " #> '", toPath(path), "' <@ '", escape(R.print(value)), "'::jsonb"))
     case (?(path, "$nin", value:Vector[Any]@unchecked), _) =>
@@ -87,24 +87,8 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
     path match {
       case head +: tail =>
         "{\"" +: escape(head) +: "\":" +: toObject(tail, value, R) :+ "}"
-      case _ => Vector(escape(R.print(value)))
-    }
-
-  private def toPostgresObject(path:Path, value:Any, R:Renderer):Vector[String] =
-    path match {
-      case head +: tail =>
-        "jsonb_build_object('" +: escape(head) +: "', " +: toPostgresObject(tail, value, R) :+ ")"
       case _ =>
-        value match {
-          case dob:Map[String, Any]@unchecked =>
-            Vector(dob.flatMap{case (key, _value) => toPostgresObject(path, _value, R).headOption.map(v => s"'$key', $v" )}.mkString("jsonb_build_object(", ", " , ")"))
-          case a:Vector[Any] =>
-            Vector(a.flatMap(elem => toPostgresObject(path, elem, R).headOption).mkString("jsonb_build_array(", ", " , ")"))
-          case s:String =>
-            Vector(s"'$s'")
-          case _ =>
-            Vector(escape(R.print(value)))
-        }
+        Vector(escape(R.print(value)))
     }
 
   private def serialize:Function[(Any, Path), JbValid] = {
