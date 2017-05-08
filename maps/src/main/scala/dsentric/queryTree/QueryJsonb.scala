@@ -39,11 +39,11 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
     case (%(path, like, _), _) =>
       Xor.Right("(" +: field +: " #>> '" +: toPath(path) +: "') ILIKE '" +: like +: Vector("'"))
     case (ϵ(path, map), _) =>
-      Xor.Right(field +: " @> " +: toObject(path, map, R)  :+ "'::jsonb")
+      Xor.Right(field +: " @> '" +: toObject(path, map, R)  :+ "'::jsonb")
     case (?(path, "$eq", value), _) =>
-      Xor.Right(field +: " @> " +: toObject(path, value, R)  :+ "'::jsonb")
+      Xor.Right(field +: " @> '" +: toObject(path, value, R)  :+ "'::jsonb")
     case (?(path, "$ne", value), _) =>
-      Xor.Right("NOT " +: field +: " @> " +: toObject(path, value, R)  :+ "'::jsonb")
+      Xor.Right("NOT " +: field +: " @> '" +: toObject(path, value, R)  :+ "'::jsonb")
     case (?(path, "$in", value:Vector[Any]@unchecked), _) =>
       Xor.Right(Vector(field, " #> '", toPath(path), "' <@ '", escape(R.print(value)), "'::jsonb"))
     case (?(path, "$nin", value:Vector[Any]@unchecked), _) =>
