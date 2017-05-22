@@ -72,7 +72,7 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
         s")")
 
     case (∃(path, ?(Path.empty, "$eq", value)), _) =>
-      Xor.Right(field +: toElement(path) +: Vector(s" ?? '${escape(R.print(value))}'"))
+      Xor.Right(field +: toElement(path) +: " @> '" +: R.print(value) +: Vector("'"))
     case (∃(path, /(Path.empty, regex)), _) =>
       Xor.Right("EXISTS (SELECT * FROM jsonb_array_elements_text(" +: field +: toElement(path) +: ") many(elem) WHERE elem ~ '" +: escape(regex.toString) +: Vector("')"))
     case (∃(path, ?(subPath, "$eq", value)), _) =>
