@@ -27,6 +27,8 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
       builder(treeToPostgres(field)(head -> false), treeToPostgres(field)(&(tail) -> true)) { (h, t) =>
         ((if (!g) Some("(") else None) ++: h :+ " AND ") ++ t
       }
+    case (&(_), g) =>
+      Xor.Right(Vector("true") ++ (if (g) Some(")") else None))
     case (|(head +: tail), g) =>
       builder(treeToPostgres(field)(head -> false), treeToPostgres(field)(&(tail) -> true)) { (h, t) =>
         ((if (!g) Some("(") else None) ++: h :+ " OR ") ++ t
@@ -154,9 +156,8 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
       }
   }
 
-  private def builder[T](
-                          left:NonEmptyList[(String, Path)] Xor Vector[String],
-                          right:NonEmptyList[(String, Path)] Xor Vector[String])
+  private def builder[T](left:NonEmptyList[(String, Path)] Xor Vector[String],
+                         right:NonEmptyList[(String, Path)] Xor Vector[String])
                         (f:(Vector[String], Vector[String]) => T):NonEmptyList[(String, Path)] Xor T = {
     (left, right) match {
       case (Xor.Right(l), Xor.Right(r)) =>
