@@ -1,6 +1,6 @@
 package dsentric
 
-import cats.data.{NonEmptyList, Xor}
+import cats.data.NonEmptyList
 
 private[dsentric] sealed trait Struct {
 
@@ -196,18 +196,18 @@ trait SubContract extends BaseContract
 trait Contract extends BaseContract {
   def _path = Path.empty
 
-  def $validate(value:DObject):NonEmptyList[(Path, String)] Xor DObject =
+  def $validate(value:DObject):NonEmptyList[(Path, String)] Either DObject =
     $validate(value, None)
 
-  def $validate(value:DObject, currentState:DObject):NonEmptyList[(Path, String)] Xor DObject =
+  def $validate(value:DObject, currentState:DObject):NonEmptyList[(Path, String)] Either DObject =
     $validate(value, Some(currentState))
 
-  def $validate(value:DObject, currentState:Option[DObject]):NonEmptyList[(Path, String)] Xor DObject =
+  def $validate(value:DObject, currentState:Option[DObject]):NonEmptyList[(Path, String)] Either DObject =
     _validateFields(Path.empty, value.value, currentState.map(_.value)) match {
       case head +: tail =>
-        Xor.left(NonEmptyList(head, tail.toList))
+        Left(NonEmptyList(head, tail.toList))
       case _ =>
-        Xor.right(value)
+        Right(value)
     }
 
 }

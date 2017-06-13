@@ -1,6 +1,6 @@
 package dsentricTests
 
-import cats.data.{NonEmptyList, Xor}
+import cats.data.NonEmptyList
 import dsentric._
 import org.scalatest.{FunSuite, Matchers}
 
@@ -12,9 +12,9 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
 
   object Empty extends Contract
 
-  def s(d:DObject) = Xor.Right(d)
+  def s(d:DObject) = Right(d)
   def f(head:(Path, String), tail:(Path, String)*) =
-    Xor.left(NonEmptyList[(Path, String)](head, tail.toList))
+    Left(NonEmptyList[(Path, String)](head, tail.toList))
 
   def toSet(n:NonEmptyList[(Path, String)]) =
     (n.head :: n.tail).toSet
@@ -110,11 +110,11 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     val json2 = DObject("value1" := "V", "nest1" := DObject("value2" := "V", "value3" := "V"), "nest2" := DObject("nest3" := DObject("value4" := "V"), "value5" := "V"))
     NestValid.$validate(json2) should be (s(json2))
 
-    NestValid.$validate(DObject("value1" := "V", "nest1" := DObject("value3" := 3))).leftMap(toSet) should
-      be (Xor.left(Set("nest1"\"value2" -> "Value was expected.", "nest1"\"value3" -> "Value is not of the expected type.")))
+    NestValid.$validate(DObject("value1" := "V", "nest1" := DObject("value3" := 3))).left.map(toSet) should
+      be (Left(Set("nest1"\"value2" -> "Value was expected.", "nest1"\"value3" -> "Value is not of the expected type.")))
 
-    NestValid.$validate(DObject("value1" := "V", "nest2" := DObject.empty)).leftMap(toSet) should
-      be (Xor.left(Set(Path("nest1") -> "Value was expected." , "nest2"\"nest3" -> "Value was expected.", "nest2"\"value5" -> "Value was expected.")))
+    NestValid.$validate(DObject("value1" := "V", "nest2" := DObject.empty)).left.map(toSet) should
+      be (Left(Set(Path("nest1") -> "Value was expected." , "nest2"\"nest3" -> "Value was expected.", "nest2"\"value5" -> "Value was expected.")))
   }
 
   object ToSanitize extends Contract {

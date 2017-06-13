@@ -1,7 +1,6 @@
 package dsentricTests
 
-import cats.data.Xor
-import dsentric.{DObject$, _}
+import dsentric.{DObject, _}
 import dsentric.queryTree.QueryTree
 import org.scalatest.{FunSuite, Matchers}
 
@@ -115,8 +114,8 @@ class QueryTests extends FunSuite with Matchers {
   }
 
   test("Long double equality") {
-    DQuery("field" := 1L).map(_.isMatch(DObject("field" := 1.00D))) should be (Xor.right(true))
-    DQuery("field" := 1L).map(QueryTree(_).isMatch(DObject("field" := 1.00D))) should be (Xor.right(true))
+    DQuery("field" := 1L).map(_.isMatch(DObject("field" := 1.00D))) should be (Right(true))
+    DQuery("field" := 1L).map(QueryTree(_).isMatch(DObject("field" := 1.00D))) should be (Right(true))
   }
 
   test("element value match") {

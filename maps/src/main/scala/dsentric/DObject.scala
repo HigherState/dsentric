@@ -1,6 +1,6 @@
 package dsentric
 
-import cats.data.{Xor, _}
+import cats.data._
 
 trait Data extends Any {
 
@@ -84,7 +84,7 @@ class DObject private[dsentric](val value:Map[String, Any]) extends AnyVal with 
   def diff(compare:DObject):DObject =
     DObjectOps.rightDifference(this, compare)
 
-  def toQuery:NonEmptyList[(String, Path)] Xor DQuery =
+  def toQuery:NonEmptyList[(String, Path)] Either DQuery =
     DQuery(value)
 
   override def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):DObject =
@@ -221,11 +221,11 @@ object DArray{
 object DQuery{
 
   //TODO confirm is valid query structure
-  def apply(values:(String, Data)*):NonEmptyList[(String, Path)] Xor DQuery =
-    Xor.right(new DQuery(values.toIterator.map(p => p._1 -> p._2.value).toMap))
+  def apply(values:(String, Data)*):NonEmptyList[(String, Path)] Either DQuery =
+    Right(new DQuery(values.toIterator.map(p => p._1 -> p._2.value).toMap))
 
-  private[dsentric] def apply(value:Map[String, Any]):NonEmptyList[(String, Path)] Xor DQuery =
-    Xor.right(new DQuery(value))
+  private[dsentric] def apply(value:Map[String, Any]):NonEmptyList[(String, Path)] Either DQuery =
+    Right(new DQuery(value))
 
   val empty = new DQuery(Map.empty)
 }
