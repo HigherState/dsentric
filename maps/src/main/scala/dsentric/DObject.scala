@@ -75,6 +75,12 @@ class DObject private[dsentric](val value:Map[String, Any]) extends AnyVal with 
 
   def contains(key:String) = value.contains(key)
 
+  def toIterable:Iterable[(String, Data)] =
+    value.mapValues(ForceWrapper.data).toVector
+
+  def values:Iterable[Data] =
+    value.values.map(ForceWrapper.data).toVector
+
   def applyDelta(delta:DObject):DObject =
     DObjectOps.rightReduceConcat(this, delta)
 
@@ -231,6 +237,16 @@ object DQuery{
 }
 
 object ForceWrapper {
+
+  def data(value:Any) =
+    value match {
+      case m:Map[String,Any]@unchecked =>
+        dObject(m)
+      case v:Vector[Any]@unchecked =>
+        dArray(v)
+      case a:Any =>
+        dValue(a)
+    }
 
   def dObject(value:Map[String, Any]) =
     new DObject(value)
