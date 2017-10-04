@@ -62,6 +62,8 @@ class DObject private[dsentric](val value:Map[String, Any]) extends AnyVal with 
       .traverse(value, path)
       .collect{ case D(t) => t}
 
+  def get(key:String):Option[Data] =
+    value.get(key).map(ForceWrapper.data)
 
   def size = value.size
 
