@@ -33,6 +33,13 @@ trait ExpectedLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, T] {
       }
     }
 
+  def $maybeCopy(p:PropertyLens[Option[T]]):DObject => DObject =
+    d => {
+      p._strictGet(d).flatten.fold(d){p =>
+        p.fold(d)($set(_)(d))
+      }
+    }
+
   def $forceDrop:DObject => DObject =
     d => PathLensOps.drop(d.value, _path).fold(d)(new DObject(_))
 
@@ -108,6 +115,13 @@ trait DefaultLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, T]{
     (d) => {
       p._strictGet(d)
         .fold(d)(v => $setOrRestore(v)(d))
+    }
+
+  def $maybeCopy(p:PropertyLens[Option[T]]):DObject => DObject =
+    d => {
+      p._strictGet(d).flatten.fold(d){p =>
+        p.fold(d)($set(_)(d))
+      }
     }
 
   def $setNull: DObject => DObject =
