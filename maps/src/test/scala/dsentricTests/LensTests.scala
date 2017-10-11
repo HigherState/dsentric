@@ -11,6 +11,7 @@ class LensTests extends FunSuite with Matchers with FailureMatchers {
   object ExpectedField extends Contract {
     val field = \[String]
     val copy = \[String]
+    val maybeCopied = \?[String]
   }
 
   test("expected lens") {
@@ -31,6 +32,8 @@ class LensTests extends FunSuite with Matchers with FailureMatchers {
     ExpectedField.copy.$copy(ExpectedField.field)(DObject.empty) should be (DObject.empty)
     ExpectedField.copy.$copy(ExpectedField.field)(DObject("copy" := "leave")) should be (DObject("copy" := "leave"))
     ExpectedField.copy.$copy(ExpectedField.field)(DObject("field" := "test")) should be (DObject("field" := "test", "copy" := "test"))
+    ExpectedField.copy.$maybeCopy(ExpectedField.maybeCopied)(DObject("copy" := "test")) should be (DObject("copy" := "test"))
+    ExpectedField.copy.$maybeCopy(ExpectedField.maybeCopied)(DObject("copy" := "test", "maybeCopied" := "test2")) should be (DObject("copy" := "test2", "maybeCopied" := "test2"))
   }
 
   test("Compositor") {
@@ -90,6 +93,7 @@ class LensTests extends FunSuite with Matchers with FailureMatchers {
   object DefaultField extends Contract {
     val field = \![String]("default1")
     val copy = \![String]("default2")
+    val maybeCopied = \?[String]
   }
 
   test("default lens") {
@@ -113,6 +117,8 @@ class LensTests extends FunSuite with Matchers with FailureMatchers {
     DefaultField.copy.$copy(DefaultField.field)(DObject("field" := "test")) should be (DObject("field" := "test", "copy" := "test"))
 
     DefaultField.field.$restore(DObject("field" := "test")) should be (DObject.empty)
+    DefaultField.copy.$maybeCopy(DefaultField.maybeCopied)(DObject("copy" := "test")) should be (DObject("copy" := "test"))
+    DefaultField.copy.$maybeCopy(DefaultField.maybeCopied)(DObject("copy" := "test", "maybeCopied" := "test2")) should be (DObject("copy" := "test2", "maybeCopied" := "test2"))
 
     //DefaultField.field.$deltaDelete(JObject("field" := "test")))) should be (JObject("field" := JsNull)))
   }

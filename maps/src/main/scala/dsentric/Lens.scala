@@ -33,10 +33,10 @@ trait ExpectedLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, T] {
       }
     }
 
-  def $maybeCopy(p:PropertyLens[Option[T]]):DObject => DObject =
+  def $maybeCopy(p:MaybeLens[T]):DObject => DObject =
     d => {
       p._strictGet(d).flatten.fold(d){p =>
-        p.fold(d)($set(_)(d))
+        $set(p)(d)
       }
     }
 
@@ -117,10 +117,10 @@ trait DefaultLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, T]{
         .fold(d)(v => $setOrRestore(v)(d))
     }
 
-  def $maybeCopy(p:PropertyLens[Option[T]]):DObject => DObject =
+  def $maybeCopy(p:MaybeLens[T]):DObject => DObject =
     d => {
       p._strictGet(d).flatten.fold(d){p =>
-        p.fold(d)($set(_)(d))
+        $set(p)(d)
       }
     }
 
