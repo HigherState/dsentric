@@ -50,6 +50,9 @@ object SimpleRenderer extends Renderer {
       }
       sb += ']'
       ()
+    case m:Map[String, Any]@unchecked if m.isEmpty =>
+      sb ++= "{}"
+      ()
     case m:Map[String, Any]@unchecked =>
       sb += '{'
       m.headOption.foreach{p =>
