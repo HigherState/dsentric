@@ -47,7 +47,7 @@ trait DataOps {
   private[dsentric] def nestedValueMap[T, U](value:Any, pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):Any =
     value match {
       case a@D1(v) =>
-        pf.lift(v).map(D2.apply).getOrElse(a)
+        pf.lift(v).map(D2(_).value).getOrElse(a)
       case m:Map[String, Any]@unchecked =>
         m.mapValues(nestedValueMap(_,pf))
       case v:Vector[Any]@unchecked =>

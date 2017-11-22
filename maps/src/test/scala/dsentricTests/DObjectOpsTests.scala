@@ -45,4 +45,14 @@ class DObjectOpsTests extends FunSuite with Matchers {
     DObjectOps.rightDifference(obj, DObject("obj" := DObject("three" := List(1,2,3,4,5,6)))) should be (DObject("obj" := DObject("three" := List(1,2,3,4,5,6))))
   }
 
+  test("nested value map") {
+    val obj = DObject("one" := 1, "obj" := DObject("two" := "string", "three" := List(1,2,3,4), "four" := DObject("five" := "string2")), "six" := "string3")
+
+    val obj2 = obj.nestedValueMap[String,String]{
+      case value => value + " concat"
+    }
+
+    obj2 shouldBe DObject("one" := 1, "obj" := DObject("two" := "string concat", "three" := List(1,2,3,4), "four" := DObject("five" := "string2 concat")), "six" := "string3 concat")
+  }
+
 }
