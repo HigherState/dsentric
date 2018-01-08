@@ -3,7 +3,7 @@ import sbt.Keys._
 lazy val buildSettings = Seq(
   organization       := "io.higherState",
   scalaVersion       := "2.12.2",
-  version            := "0.2.2",
+  version            := "0.2.3",
   scalacOptions     ++= Seq(
     "-deprecation",
     "-encoding", "UTF-8",
@@ -36,6 +36,7 @@ lazy val jackson = "com.fasterxml.jackson.core" % "jackson-core" % "2.8.8"
 lazy val jackson_databind = "com.fasterxml.jackson.core" % "jackson-databind" % "2.8.8"
 //lazy val "com.fasterxml.jackson.core" % "jackson-annotations" % "2.7.3"
 lazy val jackson_scala = "com.fasterxml.jackson.module" % "jackson-module-scala_2.11" % "2.8.8"
+lazy val commons_math = "org.apache.commons" % "commons-math3" % "3.6.1"
 
 
 lazy val settings = buildSettings
@@ -49,7 +50,7 @@ lazy val settings = buildSettings
 lazy val core = project
   .settings(moduleName := "dsentric-core")
   .settings(settings)
-  .settings(libraryDependencies := Seq(reflect, shapeless, scalatest))
+  .settings(libraryDependencies := Seq(reflect, shapeless, scalatest, commons_math))
 
 //lazy val monocle = project
 //  .settings(moduleName := "dsentric-monocle")

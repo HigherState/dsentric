@@ -165,6 +165,13 @@ trait PessimisticCodecs extends DefaultCodecs {
       def unapply(a: Any): Option[Float] =
         NumericPartialFunctions.float.lift(a)
     }
+  implicit val numberCodec:DValueCodec[Number] =
+    new DValueCodec[Number] {
+      def apply(t: Number): DValue =
+        new DValue(t)
+      def unapply(a: Any): Option[Number] =
+        NumericPartialFunctions.number.lift(a)
+    }
 
   implicit def optionCodec[T](implicit D:DCodec[T]) =
     new DCodec[Option[T]] {
@@ -312,6 +319,14 @@ trait OptimisticCodecs extends DefaultCodecs {
       def unapply(a: Any): Option[Float] =
         NumericPartialFunctions.stringDouble.lift(a)
           .fold(NumericPartialFunctions.float.lift(a))(NumericPartialFunctions.float.lift)
+    }
+  implicit val numberCodec:DValueCodec[Number] =
+    new DValueCodec[Number] {
+      def apply(t: Number): DValue =
+        new DValue(t)
+      def unapply(a: Any): Option[Number] =
+        NumericPartialFunctions.stringDouble.lift(a)
+          .fold(NumericPartialFunctions.number.lift(a))(NumericPartialFunctions.number.lift)
     }
 
   implicit def optionCodec[T](implicit D:DCodec[T]) =

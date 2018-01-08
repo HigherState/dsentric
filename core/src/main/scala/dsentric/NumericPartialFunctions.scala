@@ -63,6 +63,15 @@ object NumericPartialFunctions {
     case n:Byte => n
   }
 
+  def number:PartialFunction[Any, Number] = {
+    case n:Double => n
+    case n:Long => n
+    case n:Float => n
+    case n:Int => n
+    case n:Short => n
+    case n:Byte => n
+  }
+
   def stringDouble:PartialFunction[Any, Double] = {
     case s:String if isNumeric(s) =>
       numberFormat.parse(s).doubleValue()

@@ -44,4 +44,10 @@ class QueryJsonbTests extends FunSuite with Matchers {
     println(psql)
   }
 
+  test("temp") {
+    val query = ForceWrapper.dQuery(Map("Work Country" -> Map("$in" -> Vector("India"))))
+    val psql = queryParser("Indexed", query)
+    println(psql)
+  }
+
 }
