@@ -188,7 +188,6 @@ sealed trait Property[T <: Any] extends Struct {
 
   def $:DProjection =
     new DProjection(PathLensOps.pathToMap(_path, 1))
-
 }
 trait SubContract extends BaseContract
 
@@ -268,6 +267,7 @@ class Expected[T] private[dsentric]
   def unapply(j: DObject): Option[T] =
     _strictGet(j).map(_.get)
 
+  val $delta = new PatternMatcher($deltaGet)
 }
 
 class Maybe[T] private[dsentric]
@@ -288,6 +288,8 @@ class Maybe[T] private[dsentric]
     _strictness(value, _codec).fold(Vector(ValidationText.EXPECTED_VALUE)){ p =>
       _pathValidator(Path.empty, Some(p), None).map(_._2)
     }
+
+  val $delta = new PatternMatcher($deltaGet)
 
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
     value -> currentState match {
@@ -316,6 +318,8 @@ class Default[T] private[dsentric]
 
   def unapply(j:DObject):Option[T] =
     _strictGet(j).map(_.get)
+
+  val $delta = new PatternMatcher($deltaGet _ andThen(t => Some(t)))
 
   def $validateValue(value:T):Vector[String] =
     _strictness(value, _codec).fold(Vector(ValidationText.EXPECTED_VALUE)){ p =>
@@ -507,4 +511,9 @@ class DefaultObjectArray[T <: Contract](override val _default:Vector[DObject],
       case (None, c) =>
         Vector.empty
     }
+}
+
+class PatternMatcher[T](unapplyFunction:Function[DObject, Option[T]]) {
+  def unapply(j:DObject):Option[T] =
+    unapplyFunction(j)
 }
