@@ -266,8 +266,6 @@ class Expected[T] private[dsentric]
 
   def unapply(j: DObject): Option[T] =
     _strictGet(j).map(_.get)
-
-  val $delta = new PatternMatcher($deltaGet)
 }
 
 class Maybe[T] private[dsentric]
@@ -289,7 +287,7 @@ class Maybe[T] private[dsentric]
       _pathValidator(Path.empty, Some(p), None).map(_._2)
     }
 
-  val $delta = new PatternMatcher($deltaGet)
+  val $delta = new PatternMatcher(_strictDeltaGet)
 
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
     value -> currentState match {
@@ -318,8 +316,6 @@ class Default[T] private[dsentric]
 
   def unapply(j:DObject):Option[T] =
     _strictGet(j).map(_.get)
-
-  val $delta = new PatternMatcher($deltaGet _ andThen(t => Some(t)))
 
   def $validateValue(value:T):Vector[String] =
     _strictness(value, _codec).fold(Vector(ValidationText.EXPECTED_VALUE)){ p =>

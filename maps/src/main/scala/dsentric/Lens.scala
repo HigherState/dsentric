@@ -23,16 +23,6 @@ trait ExpectedLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, T] {
       .traverse(data.value, _path)
       .flatMap(_codec.unapply)
 
-  def $deltaGet(data:DObject):Option[DeltaValue[T]] =
-    PathLensOps
-      .traverse(data.value, _path)
-      .flatMap{
-        case _:DNull =>
-          Some(DeltaRemove)
-        case v =>
-          _codec.unapply(v).map(t => DeltaSet(t))
-      }
-
   def $modify(f:T => T):DObject => DObject =
     d => PathLensOps.modify(d.value, _path, _codec, f).fold(d)(new DObject(_))
 
@@ -105,6 +95,16 @@ trait MaybeLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, Option[
         case None => Some(None)
         case Some(v) => _strictness(v, _codec)
     }
+
+  private[dsentric] def _strictDeltaGet(data:DObject):Option[Option[DeltaValue[T]]] =
+    PathLensOps
+      .traverse(data.value, _path) match {
+        case None =>
+          Some(None)
+        case Some(_:DNull) =>
+          Some(Some(DeltaRemove))
+        case Some(v) => _strictness(v, _codec).map(_.map(DeltaSet(_)))
+      }
 }
 
 trait DefaultLens[T] extends PropertyLens[T] with ApplicativeLens[DObject, T]{
