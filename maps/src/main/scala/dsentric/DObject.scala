@@ -31,6 +31,12 @@ trait Data extends Any {
   def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):Data =
     new DValue(DataOps.nestedValueMap(value, pf))
 
+  def nestedKeyValueMap[T, U](pf:PartialFunction[(String, T), Option[(String, U)]])(implicit D1:DCodec[T], D2:DCodec[U]):Data =
+    new DValue(DataOps.nestedKeyValueMap(value, pf).asInstanceOf[Map[String, Any]])
+
+  def nestedKeyMap(pf:PartialFunction[String, Option[String]]):Data =
+    new DValue(DataOps.nestedKeyMap(value, pf).asInstanceOf[Map[String, Any]])
+
   def decode[T](implicit D:DCodec[T]) =
     D.unapply(value)
 
@@ -102,6 +108,11 @@ class DObject private[dsentric](val value:Map[String, Any]) extends AnyVal with 
   override def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):DObject =
     new DObject(DataOps.nestedValueMap(value, pf).asInstanceOf[Map[String, Any]])
 
+  override def nestedKeyValueMap[T, U](pf:PartialFunction[(String, T), Option[(String, U)]])(implicit D1:DCodec[T], D2:DCodec[U]):DObject =
+    new DObject(DataOps.nestedKeyValueMap(value, pf).asInstanceOf[Map[String, Any]])
+
+  override def nestedKeyMap(pf:PartialFunction[String, Option[String]]):DObject =
+    new DObject(DataOps.nestedKeyMap(value, pf).asInstanceOf[Map[String, Any]])
 }
 
 
@@ -156,6 +167,15 @@ class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal with D
 
   def toObject:DObject =
     new DObject(value)
+
+  override def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):DQuery =
+    new DQuery(DataOps.nestedValueMap(value, pf).asInstanceOf[Map[String, Any]])
+
+  override def nestedKeyValueMap[T, U](pf:PartialFunction[(String, T), Option[(String, U)]])(implicit D1:DCodec[T], D2:DCodec[U]):DQuery =
+    new DQuery(DataOps.nestedKeyValueMap(value, pf).asInstanceOf[Map[String, Any]])
+
+  override def nestedKeyMap(pf:PartialFunction[String, Option[String]]):DQuery =
+    new DQuery(DataOps.nestedKeyMap(value, pf).asInstanceOf[Map[String, Any]])
 }
 
 class DProjection(val value:Map[String, Any]) extends AnyVal with Data{

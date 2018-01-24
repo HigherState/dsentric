@@ -37,6 +37,11 @@ trait DirectCodec[T] extends DValueCodec[T] {
 
 trait DefaultCodecs {
 
+  implicit val anyCodec:DCodec[Any] =
+    new DirectCodec[Any] {
+      def unapply(a: Any): Option[Any] = Some(a)
+    }
+
   implicit val dataCodec:DCodec[Data] =
     new DCodec[Data] {
       def unapply(a: Any): Option[Data] =

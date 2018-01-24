@@ -55,6 +55,31 @@ trait DataOps {
       case v =>
         v
     }
+
+  private[dsentric] def nestedKeyValueMap[T, U](value:Any, pf:PartialFunction[(String, T), Option[(String, U)]])(implicit D1:DCodec[T], D2:DCodec[U]):Any =
+    value match {
+      case m:Map[String, Any]@unchecked =>
+        m.flatMap { kv =>
+          val newPair = D1.unapply(kv._2).flatMap(t => pf.lift(kv._1 -> t))
+          newPair.fold[Option[(String, Any)]](Some(kv._1 -> nestedKeyValueMap(kv._2, pf)))(_.map(r => r._1 -> D2(r._2).value))
+        }
+      case v:Vector[Any]@unchecked =>
+        v.map(nestedKeyValueMap(_,pf))
+      case v =>
+        v
+    }
+
+  private[dsentric] def nestedKeyMap(value:Any, pf:PartialFunction[String, Option[String]]):Any =
+    value match {
+      case m:Map[String, Any]@unchecked =>
+        m.flatMap { kv =>
+          pf.lift(kv._1).fold[Option[(String, Any)]](Some(kv._1 -> nestedKeyMap(kv._2, pf)))(v => v.map(nk => nk -> nestedKeyMap(kv._2, pf)))
+        }
+      case v:Vector[Any]@unchecked =>
+        v.map(nestedKeyMap(_,pf))
+      case v =>
+        v
+    }
 }
 
 object DataOps extends DataOps
