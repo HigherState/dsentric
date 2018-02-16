@@ -117,6 +117,19 @@ trait DefaultCodecs {
             None
         }
     }
+
+  def dObjectLikeCodec[T <: DObjectLike[T] with DObject](wrap:Map[String, Any] => T):DCodec[T] =
+    new DCodec[T] {
+      def apply(t: T):T = t
+      def unapply(a: Any) =
+        a match {
+          case m:Map[String, Any]@unchecked =>
+            Some(wrap(m))
+          case _ =>
+            None
+        }
+    }
+
 }
 
 trait PessimisticCodecs extends DefaultCodecs {

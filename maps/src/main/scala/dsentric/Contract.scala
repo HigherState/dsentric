@@ -14,7 +14,9 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct {
   @volatile
   private var _bitmap0:Boolean = false
 
-  protected implicit def selfRef:BaseContract[D] = this
+  //Used for nested new object
+  protected implicit def selfRef:BaseContract[DObject] =
+    this.asInstanceOf[BaseContract[DObject]]
 
   private[dsentric] def _fields =
     if (_bitmap0) __fields
@@ -78,6 +80,7 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct {
   def \![T](name:String, default:T, validator:Validator[Option[T]] = Validators.empty)(implicit codec:DCodec[T], strictness: Strictness):Default[D, T] =
     new Default[D, T](default:T, validator, Some(name), this, codec, strictness)
 
+  //TODO Contract for support
   def \:[T <: Contract](contract:T)(implicit codec:DCodec[Vector[DObject]]):ExpectedObjectArray[DObject, T] =
     new ExpectedObjectArray[DObject, T](contract, Validators.empty, None, this.asInstanceOf[BaseContract[DObject]], codec)
 

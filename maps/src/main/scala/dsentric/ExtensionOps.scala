@@ -16,7 +16,7 @@ final class IntOps(val self:Int) extends AnyVal {
     List(Left(self), Left(part))
 }
 
-final class FunctionOps(val f:DObject => DObject) extends AnyVal with LensCompositor[DObject]
+final class FunctionOps[D <: DObject](val f:D => D) extends AnyVal with LensCompositor[D]
 
 trait ToExtensionOps {
 
@@ -26,6 +26,6 @@ trait ToExtensionOps {
   implicit def toIntOps(i:Int):IntOps =
     new IntOps(i)
 
-  implicit def toFunctionOps(f:DObject => DObject):FunctionOps =
-    new FunctionOps(f)
+  implicit def toFunctionOps[D <: DObject](f:D => D):FunctionOps[D] =
+    new FunctionOps[D](f)
 }
