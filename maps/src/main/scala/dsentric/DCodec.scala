@@ -47,7 +47,7 @@ trait DefaultCodecs {
       def unapply(a: Any): Option[Data] =
         a match {
           case a:Map[String, Any]@unchecked =>
-            Some(new DObject(a))
+            Some(new DObjectInst(a))
           case v:Vector[Any]@unchecked =>
             Some(new DArray(v))
           case j =>
@@ -67,7 +67,7 @@ trait DefaultCodecs {
             None
         }
       def apply(t: DQuery): Data =
-        new DObject(t.value)
+        new DObjectInst(t.value)
     }
 
   implicit val dObjectCodec:DObjectCodec[DObject] =
@@ -78,7 +78,7 @@ trait DefaultCodecs {
       def unapply(a: Any): Option[DObject] =
         a match {
           case m:Map[String, Any]@unchecked =>
-            Some(new DObject(m))
+            Some(new DObjectInst(m))
           case _ =>
             None
         }

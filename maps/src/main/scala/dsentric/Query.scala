@@ -4,8 +4,8 @@ import scala.util.matching.Regex
 import queryTree._
 import queryTree.Tree
 
-trait PropertyExtension extends Any {
-  def prop:Property[_]
+trait PropertyExtension[T] extends Any {
+  def prop:Property[_, T]
   protected def nest(value:Any):DQuery =
     new DQuery(PathLensOps.pathToMap(prop._path, value))
 
@@ -13,39 +13,39 @@ trait PropertyExtension extends Any {
 
 trait Query {
 
-  implicit def valueQuery[T](prop:Property[T]):ValueQuery[T] =
+  implicit def valueQuery[T](prop:Property[_, T]):ValueQuery[T] =
     new ValueQuery(prop)
 
-  implicit def maybeQuery[T](prop:Maybe[T]):MaybeQuery[T] =
+  implicit def maybeQuery[T](prop:Maybe[_, T]):MaybeQuery[T] =
     new MaybeQuery(prop)
 
-  implicit def numericQuery[T >: Numeric](prop:Property[T]):NumericQuery[T] =
+  implicit def numericQuery[T >: Numeric](prop:Property[_, T]):NumericQuery[T] =
     new NumericQuery(prop)
 
-  implicit def stringQuery[T >: Optionable[String]](prop:Property[T]):StringQuery[T] =
+  implicit def stringQuery[T >: Optionable[String]](prop:Property[_, T]):StringQuery[T] =
     new StringQuery(prop)
 
-  implicit class ArrayQuery[T](val prop: Expected[Vector[T]])(implicit codec: DCodec[T]) extends PropertyExtension  {
+  implicit class ArrayQuery[T](val prop: Expected[_, Vector[T]])(implicit codec: DCodec[T]) extends PropertyExtension[Vector[T]]  {
 
-    def $elemMatch(f:Property[T] => DQuery):DQuery =
+    def $elemMatch(f:Property[_, T] => DQuery):DQuery =
       nest(Map("$elemMatch" -> f(new EmptyProperty[T]).value))
 
     def $exists(isTrue:Boolean):DQuery =
       nest(Map("$exists" -> isTrue))
   }
 
-  implicit class MaybeArrayQuery[T](val prop: Maybe[Vector[T]])(implicit codec: DCodec[T]) extends PropertyExtension  {
+  implicit class MaybeArrayQuery[ T](val prop: Maybe[_, Vector[T]])(implicit codec: DCodec[T]) extends PropertyExtension[Vector[T]]  {
 
-    def $elemMatch(f:Property[T] => DQuery):DQuery =
+    def $elemMatch(f:Property[_, T] => DQuery):DQuery =
       nest(Map("$elemMatch" -> f(new EmptyProperty[T]).value))
 
     def $exists(isTrue:Boolean):DQuery =
       nest(Map("$exists" -> isTrue))
   }
 
-  implicit class JArrayQuery(val prop: Expected[DArray]) extends PropertyExtension  {
+  implicit class JArrayQuery(val prop: Expected[_, DArray]) extends PropertyExtension[DArray]  {
 
-    def $elemMatch(f:Property[Data] => DQuery):DQuery =
+    def $elemMatch(f:Property[_, Data] => DQuery):DQuery =
       nest(Map("$elemMatch" -> f(new EmptyProperty[Data]()(DefaultCodecs.dataCodec)).value))
 
     def $exists(isTrue:Boolean):DQuery =
@@ -53,36 +53,42 @@ trait Query {
 
   }
 
-  implicit class MaybeJArrayQuery(val prop: Maybe[DArray]) extends PropertyExtension  {
+  implicit class MaybeJArrayQuery(val prop: Maybe[_, DArray]) extends PropertyExtension[DArray]  {
 
-    def $elemMatch(f:Property[Data] => DQuery):DQuery =
+    def $elemMatch(f:Property[_, Data] => DQuery):DQuery =
       nest(Map("$elemMatch" -> f(new EmptyProperty[Data]()(DefaultCodecs.dataCodec)).value))
 
     def $exists(isTrue:Boolean):DQuery =
       nest(Map("$exists" -> isTrue))
   }
 
-  implicit class ObjectArrayQuery[T <: Contract](val prop: ExpectedObjectArray[T]) extends PropertyExtension  {
+  implicit class ObjectArrayQuery[D <: DObject, T <: ContractFor[D]](val prop: ExpectedObjectArray[D, T]) {
 
     def $elemMatch(f:T => DQuery):DQuery =
       nest(Map("$elemMatch" -> f(prop.contract).value))
 
     def $exists(isTrue:Boolean):DQuery =
       nest(Map("$exists" -> isTrue))
+
+    protected def nest(value:Any):DQuery =
+      new DQuery(PathLensOps.pathToMap(prop._path, value))
 
   }
 
-  implicit class MaybeObjectArrayQuery[T <: Contract](val prop: MaybeObjectArray[T]) extends PropertyExtension  {
+  implicit class MaybeObjectArrayQuery[T <: Contract](val prop: MaybeObjectArray[_, T]) {
 
     def $elemMatch(f:T => DQuery):DQuery =
       nest(Map("$elemMatch" -> f(prop.contract).value))
 
     def $exists(isTrue:Boolean):DQuery =
       nest(Map("$exists" -> isTrue))
+
+    protected def nest(value:Any):DQuery =
+      new DQuery(PathLensOps.pathToMap(prop._path, value))
 
   }
 
-  implicit class DefaultObjectArrayQuery[T <: Contract](val prop: DefaultObjectArray[T]) extends PropertyExtension  {
+  implicit class DefaultObjectArrayQuery[T <: Contract](val prop: DefaultObjectArray[_, T]) {
 
     def $elemMatch(f:T => DQuery):DQuery =
       nest(Map("$elemMatch" -> f(prop.contract).value))
@@ -90,6 +96,8 @@ trait Query {
     def $exists(isTrue:Boolean):DQuery =
       nest(Map("$exists" -> isTrue))
 
+    protected def nest(value:Any):DQuery =
+      new DQuery(PathLensOps.pathToMap(prop._path, value))
   }
 
 }
@@ -201,7 +209,7 @@ object Query extends Query {
 }
 
 //Handle default?
-class ValueQuery[T](val prop: Property[T]) extends AnyVal with PropertyExtension {
+class ValueQuery[T](val prop: Property[_, T]) extends AnyVal with PropertyExtension[T] {
 
   def $eq(value:T) =
     if (prop.isInstanceOf[EmptyProperty[_]])
@@ -215,11 +223,11 @@ class ValueQuery[T](val prop: Property[T]) extends AnyVal with PropertyExtension
 
 }
 
-class MaybeQuery[T](val prop:Maybe[T]) extends AnyVal with PropertyExtension {
+class MaybeQuery[T](val prop:Maybe[_, T]) extends AnyVal with PropertyExtension[T] {
   def $exists(value:Boolean) = nest(Map("$exists" -> value))
 }
 
-class NumericQuery[T >: Numeric](val prop: Property[T]) extends AnyVal with PropertyExtension {
+class NumericQuery[T >: Numeric](val prop: Property[_, T]) extends AnyVal with PropertyExtension[T] {
 
   def $lt(value:Double) = nest(Map("$lt" -> value))
   def $lt(value:Long) = nest(Map("$lt" -> value))
@@ -234,7 +242,7 @@ class NumericQuery[T >: Numeric](val prop: Property[T]) extends AnyVal with Prop
   def $gte(value:Long) = nest(Map("$gt" -> value))
 }
 
-class StringQuery[T >: Optionable[String]](val prop:Property[T]) extends AnyVal with PropertyExtension {
+class StringQuery[T >: Optionable[String]](val prop:Property[_, T]) extends AnyVal with PropertyExtension[T] {
 
   def $regex(value:String) = nest(Map("$regex" -> value))
   def $regex(value:String, options:String) = nest(Map("$regex" -> value, "$options" -> options))

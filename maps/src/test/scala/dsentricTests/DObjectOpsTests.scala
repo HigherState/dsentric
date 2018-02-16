@@ -19,6 +19,15 @@ class DObjectOpsTests extends FunSuite with Matchers {
     DObjectOps.rightReduceConcat(obj, DObject("two" := DObject.empty)) should equal (DObject("one" := 1))
   }
 
+  test("Type structure in collection") {
+    val obj = DObject("one" := 1, "two" := "two")
+    val collection = List(1 -> obj, 2 -> obj)
+    val collection2 = collection.map(p => p._1 -> p._2.applyDelta(obj))
+    collection.flatMap{p =>
+      collection2
+    }
+  }
+
   test("Applying nested delta object") {
     val obj = DObject("one" := 1, "obj" := DObject("two" := false, "three" := List(1,2,3,4), "four" := DObject("five" := 5)))
     DObjectOps.rightReduceConcat(obj, DObject("obj" := DObject.empty)) should equal (DObject("one" := 1))
@@ -75,7 +84,7 @@ class DObjectOpsTests extends FunSuite with Matchers {
     } shouldBe DObject("array" := Vector(DObject("change2" := true, "two" := "test"), DObject("three" := 3)))
   }
 
-  test("nested key  map") {
+  test("nested key map") {
     val obj = DObject("change1" := 1, "array" := Vector(DObject("change2" := true, "two" := "test"), DObject("three" := 3, "change3" := "string")))
     val c1 = obj.nestedKeyMap{
       case "change1" => Some("changed")

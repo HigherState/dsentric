@@ -49,8 +49,6 @@ class ApplicativeLensTests extends FunSuite with Matchers {
         i should equal (1)
         b should equal (false)
     }
-
-    //WithTest.triple.$set(("string", 3, true))(json) should be (DObject("int" := 3, "bool" := true, "string" := "string"))
   }
 
   object MatcherContract extends ContractType("req", "check") {

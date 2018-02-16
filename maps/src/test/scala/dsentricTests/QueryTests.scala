@@ -55,19 +55,6 @@ class QueryTests extends FunSuite with Matchers {
     tree1.isMatch(DObject("nested" -> DObject("field2" := 45))) should be (true)
     tree1.isMatch(DObject("field" := "TEST", "nested" -> DObject("field2" := 45))) should be (true)
 
-//    val query2 = Query2.fieldI.$ne("TEST") || Query2.nested(n => n.field2.$gte(45) && n.field2.$lt(52))
-//    val tree2 = QueryTree(query2)
-//
-//    query2.isMatch(DObject("field" := "TEST")) should be (false)
-//    query2.isMatch(DObject("field" := "TEST", "nested" -> DObject("field2" := 44))) should be (false)
-//    query2.isMatch(DObject("field" := "TEST", "nested" -> DObject("field2" := 52))) should be (false)
-//    query2.isMatch(DObject("field" := "TEST2", "nested" -> DObject("field2" := 45))) should be (true)
-//    query2.isMatch(DObject("nested" -> DObject("field2" := 44))) should be (true)
-//    tree2.isMatch(DObject("field" := "TEST")) should be (false)
-//    tree2.isMatch(DObject("field" := "TEST", "nested" -> DObject("field2" := 44))) should be (false)
-//    tree2.isMatch(DObject("field" := "TEST", "nested" -> DObject("field2" := 52))) should be (false)
-//    tree2.isMatch(DObject("field" := "TEST2", "nested" -> DObject("field2" := 45))) should be (true)
-//    tree2.isMatch(DObject("nested" -> DObject("field2" := 44))) should be (true)
 
     val query3 = Query2(q => q.field.$in("TEST", "TEST2") && q.nested.field2.$nin(4,5,6))
     val tree3 = QueryTree(query3)

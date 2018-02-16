@@ -2,17 +2,19 @@ package dsentric
 
 import cats.data._
 
+import scala.collection.{IterableLike, mutable}
+
 trait Data extends Any {
 
   def value:Any
 
-  def render(implicit R:Renderer) =
+  def render(implicit R:Renderer):String =
     R.print(value)
 
   def asObject:Option[DObject] =
     value match {
       case m:Map[String, Any]@unchecked =>
-        Some(new DObject(m))
+        Some(new DObjectInst(m))
       case _ =>
         None
     }
@@ -37,95 +39,131 @@ trait Data extends Any {
   def nestedKeyMap(pf:PartialFunction[String, Option[String]]):Data =
     new DValue(DataOps.nestedKeyMap(value, pf).asInstanceOf[Map[String, Any]])
 
-  def decode[T](implicit D:DCodec[T]) =
+  def decode[T](implicit D:DCodec[T]):Option[T] =
     D.unapply(value)
 
-  def equals(obj:Data) =
+  def equals(obj:Data):Boolean =
     this.value == obj.value
 
-  override def toString() = {
+  override def toString:String =
     SimpleRenderer.print(value)
-
-  }
 }
-
 class DValue private[dsentric](val value:Any) extends AnyVal with Data
 
-class DObject private[dsentric](val value:Map[String, Any]) extends AnyVal with Data{
-  def +(v:(String, Data)) =
-    new DObject(value + (v._1 -> v._2.value))
+trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data with IterableLike[(String, Data), This] {
+  def value:Map[String, Any]
 
-  def ++(v:TraversableOnce[(String, Data)]) =
-    new DObject(value ++ v.map(t => t._1 -> t._2.value))
+  protected def wrap(value:Map[String, Any]):This
 
-  def ++(m:DObject) =
-    new DObject(value ++ m.value)
+  protected[this] def newBuilder: mutable.Builder[(String, Data), This] =
+    new mutable.Builder[(String, Data), This] {
+      private var elems:List[(String, Any)] = Nil
+      def +=(elem: (String, Data)): this.type = {
+        elems = elem._1 -> elem._2.value :: elems
+        this
+      }
 
-  def -(key:String) =
-    new DObject(value - key)
+      def clear(): Unit = {
+        elems = Nil
+      }
 
-  def --(keys:TraversableOnce[String]) =
-    new DObject(value -- keys)
+      def result(): This =
+        wrap(elems.toMap)
+    }
+
+
+  def iterator =
+    value.iterator.map(p => p._1 -> ForceWrapper.data(p._2))
+
+  def seq =
+    toIterator
+
+  private[dsentric] def lensWrap(value:Map[String, Any]):This =
+    wrap(value)
+
+  def +(v:(String, Data)):This =
+    wrap(value + (v._1 -> v._2.value))
+
+  def ++(v:TraversableOnce[(String, Data)]):This =
+    wrap(value ++ v.map(t => t._1 -> t._2.value))
+
+  def -(key:String):This =
+    wrap(value - key)
+
+  def --(keys:TraversableOnce[String]):This =
+    wrap(value -- keys)
 
   def \[T](path:Path)(implicit D:DCodec[T]):Option[T] =
     PathLensOps
       .traverse(value, path)
       .collect{ case D(t) => t}
 
+  def toObject:DObject =
+    new DObjectInst(value)
+
   def get(key:String):Option[Data] =
     value.get(key).map(ForceWrapper.data)
 
-  def size = value.size
+  override def size:Int =
+    value.size
 
-  def isEmpty = value.isEmpty
+  override def isEmpty:Boolean =
+    value.isEmpty
 
-  def nonEmpty = value.nonEmpty
+  override def nonEmpty:Boolean =
+    value.nonEmpty
 
-  def keys = value.keys
+  def keys:Iterable[String] =
+    value.keys
 
-  def keySet = value.keySet
+  def keySet:Set[String] =
+    value.keySet
 
-  def contains(key:String) = value.contains(key)
+  def contains(key:String):Boolean =
+    value.contains(key)
 
-  def toIterable:Iterable[(String, Data)] =
-    value.mapValues(ForceWrapper.data).toVector
+  override def toIterable:Iterable[(String, Data)] =
+    value.mapValues(ForceWrapper.data)
 
   def values:Iterable[Data] =
-    value.values.map(ForceWrapper.data).toVector
+    value.values.map(ForceWrapper.data)
 
-  def applyDelta(delta:DObject):DObject =
-    DObjectOps.rightReduceConcat(this, delta)
+  def applyDelta(delta:DObject):This =
+    wrap(DObjectOps.rightReduceConcatMap(this.value, delta.value))
 
-  def reduce:Option[DObject] =
-    DObjectOps.reduce(this)
+  def reduce:Option[This] =
+    DObjectOps.reduceMap(this.value).map(wrap)
 
   def diff(compare:DObject):DObject =
-    DObjectOps.rightDifference(this, compare)
+    DObjectOps.rightDifferenceMap(value -> compare.value).fold(DObject.empty)(new DObjectInst(_))
 
   def toQuery:NonEmptyList[(String, Path)] Either DQuery =
     DQuery(value)
 
-  override def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):DObject =
-    new DObject(DataOps.nestedValueMap(value, pf).asInstanceOf[Map[String, Any]])
+  def select(projection:DProjection):This =
+    wrap(DObjectOps.selectMap(value, projection.value))
 
-  override def nestedKeyValueMap[T, U](pf:PartialFunction[(String, T), Option[(String, U)]])(implicit D1:DCodec[T], D2:DCodec[U]):DObject =
-    new DObject(DataOps.nestedKeyValueMap(value, pf).asInstanceOf[Map[String, Any]])
+  override def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):This =
+    wrap(DataOps.nestedValueMap(value, pf).asInstanceOf[Map[String, Any]])
 
-  override def nestedKeyMap(pf:PartialFunction[String, Option[String]]):DObject =
-    new DObject(DataOps.nestedKeyMap(value, pf).asInstanceOf[Map[String, Any]])
+  override def nestedKeyValueMap[T, U](pf:PartialFunction[(String, T), Option[(String, U)]])(implicit D1:DCodec[T], D2:DCodec[U]):This =
+    wrap(DataOps.nestedKeyValueMap(value, pf).asInstanceOf[Map[String, Any]])
+
+  override def nestedKeyMap(pf:PartialFunction[String, Option[String]]):This =
+    wrap(DataOps.nestedKeyMap(value, pf).asInstanceOf[Map[String, Any]])
 }
 
+trait DObject extends Any with DObjectLike[DObject]
 
+final class DObjectInst private[dsentric](val value:Map[String, Any]) extends AnyVal with DObject {
+  @inline
+  protected def wrap(value: Map[String, Any]):DObject =
+    new DObjectInst(value)
+}
 
-class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal with Data{
-  def +(v:(String, Data)) =
-    new DQuery(value + (v._1 -> v._2.value))
+final class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal with DObject with DObjectLike[DQuery]{
 
-  def ++(v:TraversableOnce[(String, Data)]) =
-    new DQuery(value ++ v.map(t => t._1 -> t._2.value))
-
-  def ++(m:DQuery) =
-    new DQuery(value ++ m.value)
+  protected def wrap(value: Map[String, Any]) = new DQuery(value)
 
   def isMatch(j:DObject):Boolean =
     Query(Some(j.value), value)
@@ -164,30 +202,17 @@ class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal with D
     new DQuery(Map("$not" -> value))
 
   def not:DQuery = this.!
-
-  def toObject:DObject =
-    new DObject(value)
-
-  override def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):DQuery =
-    new DQuery(DataOps.nestedValueMap(value, pf).asInstanceOf[Map[String, Any]])
-
-  override def nestedKeyValueMap[T, U](pf:PartialFunction[(String, T), Option[(String, U)]])(implicit D1:DCodec[T], D2:DCodec[U]):DQuery =
-    new DQuery(DataOps.nestedKeyValueMap(value, pf).asInstanceOf[Map[String, Any]])
-
-  override def nestedKeyMap(pf:PartialFunction[String, Option[String]]):DQuery =
-    new DQuery(DataOps.nestedKeyMap(value, pf).asInstanceOf[Map[String, Any]])
 }
 
-class DProjection(val value:Map[String, Any]) extends AnyVal with Data{
+final class DProjection(val value:Map[String, Any]) extends AnyVal with DObject with DObjectLike[DProjection] {
+
+  protected def wrap(value: Map[String, Any]) = new DProjection(value)
 
   def &(d:DProjection):DProjection =
     new DProjection(DObjectOps.concatMap(value, d.value))
 
-  def toObject:DObject =
-    new DObject(value)
-
   def select(obj:DObject):DObject =
-    new DObject(DObjectOps.selectMap(obj.value, value))
+    new DObjectInst(DObjectOps.selectMap(obj.value, value))
 
   def toPaths:Option[Set[Path]] =
     getPaths(value, List.empty)
@@ -207,10 +232,11 @@ class DProjection(val value:Map[String, Any]) extends AnyVal with Data{
 }
 
 class DArray(val value:Vector[Any]) extends AnyVal with Data {
-  def toObjects = value.collect {
-    case m:Map[String, Any]@unchecked =>
-      new DObject(m)
-  }
+  def toObjects:Vector[DObject] =
+    value.collect {
+      case m:Map[String, Any]@unchecked =>
+        new DObjectInst(m)
+    }
 
   override def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):DArray =
     new DArray(DataOps.nestedValueMap(value, pf).asInstanceOf[Vector[Any]])
@@ -218,7 +244,7 @@ class DArray(val value:Vector[Any]) extends AnyVal with Data {
 
 final class DNull extends Data {
   override def value:DNull = this
-  override def toString() = "null"
+  override def toString:String = "null"
 
   override def equals(obj: scala.Any): Boolean =
     obj.isInstanceOf[DNull]
@@ -243,13 +269,14 @@ final class DFalse(implicit val codec:DCodec[Boolean]) extends Data {
 
 object DObject{
 
-  val empty = new DObject(Map.empty[String, Any])
+  val empty:DObject =
+    new DObjectInst(Map.empty[String, Any])
 
   def apply(values:(String, Data)*):DObject =
-    new DObject(values.toIterator.map(p => p._1 -> p._2.value).toMap)
+    new DObjectInst(values.toIterator.map(p => p._1 -> p._2.value).toMap)
 
   def apply(map:Map[String, Data]):DObject =
-    new DObject(map.mapValues(_.value))
+    new DObjectInst(map.mapValues(_.value))
 }
 
 object DArray{
@@ -274,7 +301,7 @@ object DQuery{
 
 object ForceWrapper {
 
-  def data(value:Any) =
+  def data(value:Any):Data =
     value match {
       case m:Map[String,Any]@unchecked =>
         dObject(m)
@@ -284,8 +311,8 @@ object ForceWrapper {
         dValue(a)
     }
 
-  def dObject(value:Map[String, Any]) =
-    new DObject(value)
+  def dObject(value:Map[String, Any]):DObject =
+    new DObjectInst(value)
 
   def dValue(value:Any) =
     new DValue(value)

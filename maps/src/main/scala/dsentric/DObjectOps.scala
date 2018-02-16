@@ -3,7 +3,7 @@ package dsentric
 trait DObjectOps {
 
   def concat(x :DObject, y:DObject):DObject =
-    new DObject(concatMap(x.value, y.value))
+    new DObjectInst(concatMap(x.value, y.value))
 
   private[dsentric] def concatMap(x: Map[String, Any], y: Map[String, Any]): Map[String, Any] =
     y.foldLeft(x){
@@ -20,23 +20,25 @@ trait DObjectOps {
 
   //Nulls and Empty object will reduce out when applied from the right
   def rightReduceConcat(x: DObject, y: DObject): DObject =
-    new DObject(rightReduceConcatMap(x.value, y.value))
+    new DObjectInst(rightReduceConcatMap(x.value, y.value))
 
+  private val EMPTY_MAP = Map.empty[String, Any]
   private[dsentric] def rightReduceConcatMap(x: Map[String, Any], y: Map[String, Any]): Map[String, Any] =
     y.foldLeft(x){
       case (acc, (k, _:DNull)) =>
         acc - k
-      case (acc, (k, v:Map[String, Any]@unchecked)) if v.isEmpty =>
+      case (acc, (k, EMPTY_MAP)) =>
         acc - k
       case (acc, (k, v:Map[String, Any]@unchecked)) =>
         acc.get(k).fold(acc + (k -> v)) {
           case c: Map[String, Any]@unchecked =>
-            val d = rightReduceConcatMap(c, v)
-            if (d.isEmpty)
-              acc - k
-            else
-              acc + (k -> d)
-          case c =>
+            rightReduceConcatMap(c, v) match {
+              case EMPTY_MAP =>
+                acc - k
+              case d =>
+                acc + (k -> d)
+            }
+          case _ =>
             acc + (k -> v)
         }
       case (acc, (k, v)) =>
@@ -44,7 +46,7 @@ trait DObjectOps {
     }
 
   def rightDifference(x: DObject, y: DObject): DObject =
-    rightDifferenceMap(x.value -> y.value).fold(DObject.empty)(new DObject(_))
+    rightDifferenceMap(x.value -> y.value).fold(DObject.empty)(new DObjectInst(_))
 
   private[dsentric] def rightDifferenceMap:Function[(Map[String, Any],Map[String, Any]),Option[Map[String, Any]]] = {
     case (s, d) if d == s =>
@@ -70,7 +72,7 @@ trait DObjectOps {
     }
 
   def select(target:DObject, projection:DProjection):DObject =
-    new DObject(selectMap(target.value, projection.value))
+    new DObjectInst(selectMap(target.value, projection.value))
 
   private[dsentric] def selectMap(target:Map[String, Any], projection:Map[String, Any]):Map[String, Any] =
     projection.foldLeft(Map.empty[String, Any]) {
@@ -96,7 +98,7 @@ trait DObjectOps {
     Removes nulls and empty objects, return None if empty
    */
   def reduce(target:DObject):Option[DObject] =
-    reduceMap(target.value).map(new DObject(_))
+    reduceMap(target.value).map(new DObjectInst(_))
 
   private[dsentric] def reduceMap(target:Map[String, Any]):Option[Map[String, Any]] = {
     val reducedMap = target.flatMap {
