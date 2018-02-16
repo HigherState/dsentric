@@ -102,6 +102,14 @@ dsentric works by describing a singleton contract which represents data we might
   //Produce a mongo style projection which extracts only those fields
   val nameProjection = Order.firstName.$ & Order.lastName.$
   nameProjection.select(pending)
+  
+  //Create your own domain specific DObject
+  case class Custom(value:Map[String, Any]) extends AnyVal with DObject with DObjectLike[Custom] {
+    protected def wrap(value: Map[String, Any]): Custom =
+      Custom(value)
+  }
+  //With its own contract type
+  object CustomContract extends ContractFor[Custom]
 
 ```
 
