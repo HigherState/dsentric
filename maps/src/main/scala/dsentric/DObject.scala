@@ -261,7 +261,7 @@ final class DTrue(implicit val codec:DCodec[Boolean]) extends Data {
     codec.unapply(value.value).getOrElse(false)
 }
 final class DFalse(implicit val codec:DCodec[Boolean]) extends Data {
-  def value = true
+  def value = false
   def unapply(value:Data):Boolean =
     codec.unapply(value.value).getOrElse(false)
 }
