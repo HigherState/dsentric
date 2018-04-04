@@ -240,6 +240,18 @@ class DArray(val value:Vector[Any]) extends AnyVal with Data {
 
   override def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):DArray =
     new DArray(DataOps.nestedValueMap(value, pf).asInstanceOf[Vector[Any]])
+
+  def intersect(dArray: DArray): DArray =
+    new DArray(value.intersect(dArray.value))
+
+  def nonEmpty: Boolean =
+    value.nonEmpty
+
+  def intersects(dArray: DArray): Boolean =
+    intersect(dArray).nonEmpty
+
+  def contains(data: Data): Boolean =
+    value.contains(data.value)
 }
 
 final class DNull extends Data {
