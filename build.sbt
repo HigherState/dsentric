@@ -2,8 +2,8 @@ import sbt.Keys._
 
 lazy val buildSettings = Seq(
   organization       := "io.higherState",
-  scalaVersion       := "2.12.2",
-  version            := "0.3.0",
+  scalaVersion       := "2.12.5",
+  version            := "0.4.0",
   scalacOptions     ++= Seq(
     "-deprecation",
     "-encoding", "UTF-8",
@@ -23,19 +23,19 @@ lazy val buildSettings = Seq(
   )
 )
 
-lazy val reflect = "org.scala-lang" % "scala-reflect" % "2.12.2"
+lazy val reflect = "org.scala-lang" % "scala-reflect" % "2.12.5"
 lazy val scalaz = "org.scalaz" %% "scalaz-core" % "7.2.0"
 lazy val scalaz_old = "org.scalaz" %% "scalaz-core" % "7.1.7"
-lazy val shapeless = "com.chuusai" %% "shapeless" % "2.3.2"
+lazy val shapeless = "com.chuusai" %% "shapeless" % "2.3.3"
 lazy val monoclecore = "com.github.julien-truffaut" %%  "monocle-core" % "1.4.0"
 lazy val scodec = "org.scodec" %% "scodec-bits" % "1.0.12"
 lazy val argo = "io.argonaut" %% "argonaut" % "6.1"
-lazy val scalatest = "org.scalatest" %% "scalatest" % "3.0.1"  % "test"
+lazy val scalatest = "org.scalatest" %% "scalatest" % "3.0.5"  % "test"
 lazy val cats = "org.typelevel" %% "cats" % "0.9.0"
-lazy val jackson = "com.fasterxml.jackson.core" % "jackson-core" % "2.8.8"
-lazy val jackson_databind = "com.fasterxml.jackson.core" % "jackson-databind" % "2.8.8"
+lazy val jackson = "com.fasterxml.jackson.core" % "jackson-core" % "2.9.4"
+lazy val jackson_databind = "com.fasterxml.jackson.core" % "jackson-databind" % "2.9.4"
 //lazy val "com.fasterxml.jackson.core" % "jackson-annotations" % "2.7.3"
-lazy val jackson_scala = "com.fasterxml.jackson.module" % "jackson-module-scala_2.11" % "2.8.8"
+lazy val jackson_scala = "com.fasterxml.jackson.module" % "jackson-module-scala_2.11" % "2.9.4"
 lazy val commons_math = "org.apache.commons" % "commons-math3" % "3.6.1"
 
 
