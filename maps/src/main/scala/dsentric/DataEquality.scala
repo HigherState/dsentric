@@ -12,8 +12,8 @@ sealed trait DataEquality {
 case class Compare2Equality[T](f:Int => Boolean)(implicit D:DCodec[T], O:Ordering[T]) extends DataEquality {
   def apply(x: Data, y: Data) =
     for {
-      xs <- D.unapply(x)
-      ys <- D.unapply(y)
+      xs <- D.unapply(x.value)
+      ys <- D.unapply(y.value)
     } yield f(O.compare(xs, ys))
 }
 
