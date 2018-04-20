@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import dsentric._
 import org.scalatest.{FunSuite, Matchers}
 
-case class Custom(value:Map[String, Any]) extends AnyVal with DObject with DObjectLike[Custom] {
+case class Custom(value:Map[String, Any]) extends DObject with DObjectLike[Custom] {
   protected def wrap(value: Map[String, Any]): Custom =
     Custom(value)
 }
@@ -31,9 +31,14 @@ class DObjectLikeTests extends FunSuite with Matchers {
       case _ =>
         assert(false)
     }
-    val newCustom =
+    val newCustom:Custom =
       CustomContract.nested.value.$set(4)(Custom(Map.empty))
+
     newCustom shouldBe custom
+
+    val dropCustom =
+      CustomContract.string.$set("Value") ~
+      CustomContract.nested.$forceDrop
   }
   implicit val customCodec =
     DefaultCodecs.dObjectLikeCodec[Custom](Custom)

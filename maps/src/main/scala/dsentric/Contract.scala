@@ -9,7 +9,7 @@ private[dsentric] sealed trait Struct {
 
 }
 
-private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct {
+private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct { self =>
   private var __fields:Vector[(String, Property[D, Any])] = _
   @volatile
   private var _bitmap0:Boolean = false
@@ -131,6 +131,79 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct {
     val prop = new Maybe[D, T](Validators.empty, Some(field), this, codec, strictness)
     prop
   }
+
+  class \\ private(override private[dsentric] val _pathValidator:Validator[DObject],
+                   override private[dsentric] val _nameOverride:Option[String],
+                   override private[dsentric] val _codec:DCodec[DObject]
+                  ) extends Expected[D, DObject](_pathValidator, _nameOverride, self, _codec) with SubContractFor[D] {
+
+    def this()(implicit codec:DCodec[DObject]) =
+      this(Validators.empty, None, codec)
+    def this(validator:Validator[DObject])(implicit codec:DCodec[DObject]) =
+      this(validator, None, codec)
+    def this(name:String, validator:Validator[DObject] = Validators.empty)(implicit codec:DCodec[DObject]) =
+      this(Validators.empty, Some(name), codec)
+
+    override private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
+      super._validate(path, value, currentState) match {
+        case Failures.empty =>
+          value.collect{ case m:Map[String, Any]@unchecked => m }.fold(Failures.empty){v =>
+            _validateFields(path, v, currentState.collect{ case m:Map[String, Any]@unchecked => m })
+          }
+        case failures =>
+          failures
+      }
+  }
+
+  class \\? private(override private[dsentric] val _pathValidator:Validator[Option[DObject]],
+                    override private[dsentric] val _nameOverride:Option[String],
+                    override private[dsentric] val _strictness:Strictness,
+                    override private[dsentric] val _codec:DCodec[DObject]
+                   ) extends Maybe[D, DObject](_pathValidator, _nameOverride, self, _codec, _strictness) with SubContractFor[D] {
+
+    def this()(implicit strictness:Strictness, codec:DCodec[DObject]) =
+      this(Validators.empty, None, strictness, codec)
+    def this(validator:Validator[Option[DObject]])(implicit strictness:Strictness, codec:DCodec[DObject]) =
+      this(validator, None, strictness, codec)
+    def this(name:String, validator:Validator[DObject] = Validators.empty)(implicit strictness:Strictness, codec:DCodec[DObject]) =
+      this(Validators.empty, Some(name), strictness, codec)
+
+    override private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
+      super._validate(path, value, currentState) match {
+        case Failures.empty =>
+          value.collect{ case m:Map[String, Any]@unchecked => m }.fold(Failures.empty){v =>
+            _validateFields(path, v, currentState.collect{ case m:Map[String, Any]@unchecked => m })
+          }
+        case failures =>
+          failures
+      }
+  }
+
+  class \\! private(override val _default:DObject,
+                    override private[dsentric] val _pathValidator:Validator[Option[DObject]],
+                    override private[dsentric] val _nameOverride:Option[String],
+                    override private[dsentric] val _strictness:Strictness,
+                    override private[dsentric] val _codec:DCodec[DObject]
+                   ) extends Default[D, DObject](_default, _pathValidator, _nameOverride, self, _codec, _strictness) with SubContractFor[D] {
+
+    def this(default:DObject)(implicit strictness:Strictness, codec:DCodec[DObject]) =
+      this(default, Validators.empty, None, strictness, codec)
+    def this(default:DObject, validator:Validator[Option[DObject]])(implicit strictness:Strictness, codec:DCodec[DObject]) =
+      this(default, validator, None, strictness, codec)
+    def this(default:DObject, name:String, validator:Validator[Option[DObject]] = Validators.empty)(implicit strictness:Strictness, codec:DCodec[DObject]) =
+      this(default, Validators.empty, Some(name), strictness, codec)
+
+    override private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
+      super._validate(path, value, currentState) match {
+        case Failures.empty =>
+          value.collect{ case m:Map[String, Any]@unchecked => m }.fold(Failures.empty){v =>
+            _validateFields(path, v, currentState.collect{ case m:Map[String, Any]@unchecked => m })
+          }
+        case failures =>
+          failures
+      }
+  }
+
 }
 
 
@@ -187,9 +260,11 @@ sealed trait Property[D <: DObject, T <: Any] extends Struct {
   def $:DProjection =
     new DProjection(PathLensOps.pathToMap(_path, 1))
 }
+
 trait SubContractFor[D <: DObject] extends BaseContract[D]
 
-trait ContractFor[D <: DObject] extends BaseContract[D] {
+trait ContractFor[D <: DObject] extends BaseContract[D] { self =>
+
   def _path = Path.empty
 
   def $validate(value:DObject):NonEmptyList[(Path, String)] Either DObject =
@@ -205,6 +280,8 @@ trait ContractFor[D <: DObject] extends BaseContract[D] {
       case _ =>
         Right(value)
     }
+
+
 }
 
 trait SubContract extends SubContractFor[DObject]
@@ -353,87 +430,12 @@ class EmptyProperty[T](implicit private[dsentric] val _codec:DCodec[T]) extends 
   def _parent: BaseContract[Nothing] = ???
 }
 
-class \\ private(override private[dsentric] val _pathValidator:Validator[DObject],
-                 override private[dsentric] val _nameOverride:Option[String],
-                 override private[dsentric] val _parent:BaseContract[DObject],
-                 override private[dsentric] val _codec:DCodec[DObject]
-               ) extends Expected[DObject, DObject](_pathValidator, _nameOverride, _parent, _codec) with SubContractFor[DObject] {
-
-  def this()(implicit parent:BaseContract[DObject], codec:DCodec[DObject]) =
-    this(Validators.empty, None, parent, codec)
-  def this(validator:Validator[DObject])(implicit parent:BaseContract[DObject], codec:DCodec[DObject]) =
-    this(validator, None, parent, codec)
-  def this(name:String, validator:Validator[DObject] = Validators.empty)(implicit parent:BaseContract[DObject], codec:DCodec[DObject]) =
-    this(Validators.empty, Some(name), parent, codec)
-
-  override private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
-    super._validate(path, value, currentState) match {
-      case Failures.empty =>
-        value.collect{ case m:Map[String, Any]@unchecked => m }.fold(Failures.empty){v =>
-          _validateFields(path, v, currentState.collect{ case m:Map[String, Any]@unchecked => m })
-        }
-      case failures =>
-        failures
-    }
-}
-
-class \\? private(override private[dsentric] val _pathValidator:Validator[Option[DObject]],
-                  override private[dsentric] val _nameOverride:Option[String],
-                  override private[dsentric] val _parent:BaseContract[DObject],
-                  override private[dsentric] val _strictness:Strictness,
-                  override private[dsentric] val _codec:DCodec[DObject]
-                 ) extends Maybe[DObject, DObject](_pathValidator, _nameOverride, _parent, _codec, _strictness) with SubContractFor[DObject] {
-
-  def this()(implicit parent:BaseContract[DObject], strictness:Strictness, codec:DCodec[DObject]) =
-    this(Validators.empty, None, parent, strictness, codec)
-  def this(validator:Validator[Option[DObject]])(implicit parent:BaseContract[DObject], strictness:Strictness, codec:DCodec[DObject]) =
-    this(validator, None, parent, strictness, codec)
-  def this(name:String, validator:Validator[DObject] = Validators.empty)(implicit parent:BaseContract[DObject], strictness:Strictness, codec:DCodec[DObject]) =
-    this(Validators.empty, Some(name), parent, strictness, codec)
-
-  override private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
-    super._validate(path, value, currentState) match {
-      case Failures.empty =>
-        value.collect{ case m:Map[String, Any]@unchecked => m }.fold(Failures.empty){v =>
-          _validateFields(path, v, currentState.collect{ case m:Map[String, Any]@unchecked => m })
-        }
-      case failures =>
-        failures
-    }
-}
-
-class \\! private(override val _default:DObject,
-                  override private[dsentric] val _pathValidator:Validator[Option[DObject]],
-                  override private[dsentric] val _nameOverride:Option[String],
-                  override private[dsentric] val _parent:BaseContract[DObject],
-                  override private[dsentric] val _strictness:Strictness,
-                  override private[dsentric] val _codec:DCodec[DObject]
-                 ) extends Default[DObject, DObject](_default, _pathValidator, _nameOverride, _parent, _codec, _strictness) with SubContractFor[DObject] {
-
-  def this(default:DObject)(implicit parent:BaseContract[DObject], strictness:Strictness, codec:DCodec[DObject]) =
-    this(default, Validators.empty, None, parent, strictness, codec)
-  def this(default:DObject, validator:Validator[Option[DObject]])(implicit parent:BaseContract[DObject], strictness:Strictness, codec:DCodec[DObject]) =
-    this(default, validator, None, parent, strictness, codec)
-  def this(default:DObject, name:String, validator:Validator[Option[DObject]] = Validators.empty)(implicit parent:BaseContract[DObject], strictness:Strictness, codec:DCodec[DObject]) =
-    this(default, Validators.empty, Some(name), parent, strictness, codec)
-
-  override private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
-    super._validate(path, value, currentState) match {
-      case Failures.empty =>
-        value.collect{ case m:Map[String, Any]@unchecked => m }.fold(Failures.empty){v =>
-          _validateFields(path, v, currentState.collect{ case m:Map[String, Any]@unchecked => m })
-        }
-      case failures =>
-        failures
-    }
-}
-
 class ExpectedObjectArray[D <: DObject, T <: ContractFor[D]](private[dsentric] val contract:T,
-                                         private[dsentric] val _pathValidator:Validator[Vector[D]],
-                                         private[dsentric] val _nameOverride:Option[String],
-                                         private[dsentric] val _parent:BaseContract[DObject],
-                                         private[dsentric] val _codec:DCodec[Vector[D]]
-                         ) extends Property[DObject, Vector[D]] with ExpectedLens[DObject, Vector[D]] {
+                                                             private[dsentric] val _pathValidator:Validator[Vector[D]],
+                                                             private[dsentric] val _nameOverride:Option[String],
+                                                             private[dsentric] val _parent:BaseContract[DObject],
+                                                             private[dsentric] val _codec:DCodec[Vector[D]]
+                                                            ) extends Property[DObject, Vector[D]] with ExpectedLens[DObject, Vector[D]] {
   import Dsentric._
 
   private[dsentric] def _isValidType(j:Any) =
@@ -446,7 +448,7 @@ class ExpectedObjectArray[D <: DObject, T <: ContractFor[D]](private[dsentric] v
       case (Some(v), c) =>
         _codec.unapply(v).fold(Failures(path -> ValidationText.UNEXPECTED_TYPE)){ p =>
           _pathValidator(path, Some(p), c.flatMap(_codec.unapply)) ++
-          p.zipWithIndex.flatMap{case (obj, ind) => contract._validateFields(path \ ind, obj.value, None)}
+            p.zipWithIndex.flatMap{case (obj, ind) => contract._validateFields(path \ ind, obj.value, None)}
         }
       case (None, c) =>
         _pathValidator(path, None, c.flatMap(_codec.unapply))
@@ -457,12 +459,12 @@ class ExpectedObjectArray[D <: DObject, T <: ContractFor[D]](private[dsentric] v
 }
 
 class MaybeObjectArray[D <: DObject, T <: ContractFor[D]](private[dsentric] val contract:T,
-                                      private[dsentric] val _pathValidator:Validator[Option[Vector[D]]],
-                                      private[dsentric] val _nameOverride:Option[String],
-                                      private[dsentric] val _parent:BaseContract[DObject],
-                                      private[dsentric] val _strictness:Strictness,
-                                      private[dsentric] val _codec:DCodec[Vector[D]]
-                                      ) extends Property[DObject, Vector[D]] with MaybeLens[DObject, Vector[D]] {
+                                                          private[dsentric] val _pathValidator:Validator[Option[Vector[D]]],
+                                                          private[dsentric] val _nameOverride:Option[String],
+                                                          private[dsentric] val _parent:BaseContract[DObject],
+                                                          private[dsentric] val _strictness:Strictness,
+                                                          private[dsentric] val _codec:DCodec[Vector[D]]
+                                                         ) extends Property[DObject, Vector[D]] with MaybeLens[DObject, Vector[D]] {
 
   import Dsentric._
 
@@ -487,13 +489,13 @@ class MaybeObjectArray[D <: DObject, T <: ContractFor[D]](private[dsentric] val 
 }
 
 class DefaultObjectArray[D <: DObject, T <: ContractFor[D]](override val _default:Vector[D],
-                                      private[dsentric] val contract:T,
-                                      private[dsentric] val _pathValidator:Validator[Option[Vector[D]]],
-                                      private[dsentric] val _nameOverride:Option[String],
-                                      private[dsentric] val _parent:BaseContract[DObject],
-                                      private[dsentric] val _strictness:Strictness,
-                                      private[dsentric] val _codec:DCodec[Vector[D]]
-                                     ) extends Property[DObject, Vector[D]] with DefaultLens[DObject, Vector[D]] {
+                                                            private[dsentric] val contract:T,
+                                                            private[dsentric] val _pathValidator:Validator[Option[Vector[D]]],
+                                                            private[dsentric] val _nameOverride:Option[String],
+                                                            private[dsentric] val _parent:BaseContract[DObject],
+                                                            private[dsentric] val _strictness:Strictness,
+                                                            private[dsentric] val _codec:DCodec[Vector[D]]
+                                                           ) extends Property[DObject, Vector[D]] with DefaultLens[DObject, Vector[D]] {
 
   import Dsentric._
 
