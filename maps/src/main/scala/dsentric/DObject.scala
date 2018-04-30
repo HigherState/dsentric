@@ -261,7 +261,10 @@ class DArray(val value:Vector[Any]) extends AnyVal with Data {
       else
         _intersect(i + 1, j)
     }
-    _intersect(0, 0)
+    if (iMax < 0 || jMax < 0)
+      false
+    else
+      _intersect(0, 0)
   }
 
   def contains(data: Data): Boolean =
