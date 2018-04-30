@@ -2,6 +2,7 @@ package dsentric
 
 import cats.data._
 
+import scala.annotation.tailrec
 import scala.collection.{IterableLike, mutable}
 
 trait Data extends Any {
@@ -247,8 +248,17 @@ class DArray(val value:Vector[Any]) extends AnyVal with Data {
   def nonEmpty: Boolean =
     value.nonEmpty
 
-  def intersects(dArray: DArray): Boolean =
-    intersect(dArray).nonEmpty
+  def intersects(dArray: DArray): Boolean = {
+    if (this.value.isEmpty) false else {
+      var i = 0
+      val max = dArray.value.size
+      while(i < max) {
+        if (this.value.contains(dArray.value(i))) return true
+        i = i + 1
+      }
+      false
+    }
+  }
 
   def contains(data: Data): Boolean =
     value.contains(data.value)
