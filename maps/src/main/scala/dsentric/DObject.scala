@@ -249,22 +249,15 @@ class DArray(val value:Vector[Any]) extends AnyVal with Data {
     value.nonEmpty
 
   def intersects(dArray: DArray): Boolean = {
-    val iMax = this.value.size - 1
-    val jMax = dArray.value.size - 1
-    @tailrec def _intersect(i: Int, j: Int): Boolean = {
-      if(this.value(i) == dArray.value(j))
-        true
-      else if (i == iMax && j == jMax)
-        false
-      else if (i == iMax)
-        _intersect(0, j + 1)
-      else
-        _intersect(i + 1, j)
-    }
-    if (iMax < 0 || jMax < 0)
+    if (this.value.isEmpty) false else {
+      var i = 0
+      val max = dArray.value.size
+      while(i < max) {
+        if (this.value.contains(dArray.value(i))) return true
+        i = i + 1
+      }
       false
-    else
-      _intersect(0, 0)
+    }
   }
 
   def contains(data: Data): Boolean =
