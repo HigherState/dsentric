@@ -246,6 +246,12 @@ class DArray(val value:Vector[Any]) extends AnyVal with Data {
         new DObjectInst(m)
     }
 
+  def toValues[T](implicit D:DCodec[T]):Vector[T] =
+    value.flatMap(D.unapply)
+
+  def toDataValues:Vector[Data] =
+    toValues(DefaultCodecs.dataCodec)
+
   override def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):DArray =
     new DArray(DataOps.nestedValueMap(value, pf).asInstanceOf[Vector[Any]])
 
