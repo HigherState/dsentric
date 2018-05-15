@@ -3,7 +3,7 @@ import sbt.Keys._
 lazy val buildSettings = Seq(
   organization       := "io.higherState",
   scalaVersion       := "2.12.5",
-  version            := "0.4.0",
+  version            := "0.4.1",
   scalacOptions     ++= Seq(
     "-deprecation",
     "-encoding", "UTF-8",
@@ -62,7 +62,7 @@ lazy val maps = project
   .settings(moduleName := "dsentric-maps")
   .settings(settings)
   .settings(libraryDependencies := Seq(reflect, shapeless, scalatest, cats))
-  .dependsOn(core)
+  .dependsOn(core, core % "test -> test")
 
 //lazy val argonaut = project
 //  .settings(moduleName := "dsentric-argonaut")

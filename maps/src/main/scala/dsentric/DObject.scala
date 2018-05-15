@@ -8,6 +8,12 @@ trait Data extends Any {
 
   def value:Any
 
+  def isNull: Boolean = value match {
+    case null => true
+    case x: Data => x.isNull
+    case _ => false
+  }
+
   def render(implicit R:Renderer):String =
     R.print(value)
 
@@ -48,6 +54,7 @@ trait Data extends Any {
   override def toString:String =
     SimpleRenderer.print(value)
 }
+
 class DValue private[dsentric](val value:Any) extends AnyVal with Data
 
 trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data with IterableLike[(String, Data), This] {
@@ -232,6 +239,7 @@ final class DProjection(val value:Map[String, Any]) extends AnyVal with DObject 
 }
 
 class DArray(val value:Vector[Any]) extends AnyVal with Data {
+
   def toObjects:Vector[DObject] =
     value.collect {
       case m:Map[String, Any]@unchecked =>
@@ -257,6 +265,7 @@ class DArray(val value:Vector[Any]) extends AnyVal with Data {
 final class DNull extends Data {
   override def value:DNull = this
   override def toString:String = "null"
+  override def isNull: Boolean = true
 
   override def equals(obj: scala.Any): Boolean =
     obj.isInstanceOf[DNull]
@@ -268,11 +277,13 @@ object Data{
 }
 
 final class DTrue(implicit val codec:DCodec[Boolean]) extends Data {
+  override def isNull: Boolean = false
   def value = true
   def unapply(value:Data):Boolean =
     codec.unapply(value.value).getOrElse(false)
 }
 final class DFalse(implicit val codec:DCodec[Boolean]) extends Data {
+  override def isNull: Boolean = false
   def value = false
   def unapply(value:Data):Boolean =
     codec.unapply(value.value).getOrElse(false)
