@@ -30,7 +30,7 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
     case (&(_), g) =>
       Right(Vector("true") ++ (if (g) Some(")") else None))
     case (|(head +: tail), g) =>
-      builder(treeToPostgres(field)(head -> false), treeToPostgres(field)(&(tail) -> true)) { (h, t) =>
+      builder(treeToPostgres(field)(head -> false), treeToPostgres(field)(|(tail) -> true)) { (h, t) =>
         ((if (!g) Some("(") else None) ++: h :+ " OR ") ++ t
       }
     case (!!(tree), g) =>
@@ -171,5 +171,3 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
     }
   }
 }
-
-
