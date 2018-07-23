@@ -13,8 +13,6 @@ class IsNullTests extends FunSuite with Matchers {
     DObject(Map("data" -> Data(5))).isNull should be (false)
     DArray.empty.isNull should be (false)
     new DArray(Vector(null)).isNull should be (false)
-    new DFalse().isNull should be (false)
-    new DTrue().isNull should be (false)
   }
 
   test("Data.isNull on null data") {

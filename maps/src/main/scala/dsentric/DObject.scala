@@ -48,9 +48,6 @@ trait Data extends Any {
   def decode[T](implicit D:DCodec[T]):Option[T] =
     D.unapply(value)
 
-  def equals(obj:Data):Boolean =
-    this.value == obj.value
-
   override def toString:String =
     SimpleRenderer.print(value)
 }
@@ -281,20 +278,6 @@ object Data{
   def apply[T](value:T)(implicit codec:DCodec[T]):Data =
     codec.apply(value)
 }
-
-final class DTrue(implicit val codec:DCodec[Boolean]) extends Data {
-  override def isNull: Boolean = false
-  def value = true
-  def unapply(value:Data):Boolean =
-    codec.unapply(value.value).getOrElse(false)
-}
-final class DFalse(implicit val codec:DCodec[Boolean]) extends Data {
-  override def isNull: Boolean = false
-  def value = false
-  def unapply(value:Data):Boolean =
-    codec.unapply(value.value).getOrElse(false)
-}
-
 
 object DObject{
 
