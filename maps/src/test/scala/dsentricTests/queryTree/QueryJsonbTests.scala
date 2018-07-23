@@ -50,4 +50,15 @@ class QueryJsonbTests extends FunSuite with Matchers {
     println(psql)
   }
 
+  test("sequence of 'or' serializes correctly") {
+    val query = ForceWrapper.dQuery(Map("$or" -> Vector(
+      Map("a" -> 1),
+      Map("c" -> 1),
+      Map("e" -> 1),
+      Map("g" -> 1)
+    )))
+    val psql = queryParser("Indexed", query)
+    psql shouldBe Right("""(Indexed @> '{"a":1}'::jsonb OR Indexed @> '{"c":1}'::jsonb OR Indexed @> '{"e":1}'::jsonb OR Indexed @> '{"g":1}'::jsonb)""")
+  }
+
 }
