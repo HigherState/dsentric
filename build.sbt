@@ -53,7 +53,7 @@ lazy val settings = buildSettings
 lazy val core = project
   .settings(moduleName := "dsentric-core")
   .settings(settings)
-  .settings(libraryDependencies := Seq(reflect, shapeless, scalatest, commons_math))
+  .settings(libraryDependencies ++= Seq(reflect, shapeless, scalatest, commons_math))
 
 //lazy val monocle = project
 //  .settings(moduleName := "dsentric-monocle")
@@ -64,7 +64,7 @@ lazy val core = project
 lazy val maps = project
   .settings(moduleName := "dsentric-maps")
   .settings(settings)
-  .settings(libraryDependencies := Seq(reflect, shapeless, scalatest, cats))
+  .settings(libraryDependencies ++= Seq(reflect, shapeless, scalatest, cats))
   .dependsOn(core, core % "test -> test")
 
 //lazy val argonaut = project
