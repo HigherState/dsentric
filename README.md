@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/HigherState/dsentric.svg?branch=master)](https://travis-ci.org/HigherState/dsentric)
+
 # dsentric
 Data contract patterns, validation, lenses and query
 
