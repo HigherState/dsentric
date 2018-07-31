@@ -17,7 +17,10 @@ lazy val buildSettings = Seq(
     "-Xfuture"
   ),
   resolvers ++= Seq(
-    "Maven Central Server" at "http://repo1.maven.org/maven2",
+    DefaultMavenRepository,
+    Resolver.typesafeIvyRepo("releases"),
+    Resolver.sbtPluginRepo("releases"), 
+    Resolver.jcenterRepo,
     "Sonatype releases" at "http://oss.sonatype.org/content/repositories/releases/",
     "Sonatype snapshots" at "http://oss.sonatype.org/content/repositories/snapshots/"
   )
