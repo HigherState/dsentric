@@ -1,3 +1,7 @@
+[![Build Status](https://travis-ci.org/HigherState/dsentric.svg?branch=master)](https://travis-ci.org/HigherState/dsentric)
+[![Coverage Status](https://coveralls.io/repos/github/HigherState/dsentric/badge.svg?branch=master)](https://coveralls.io/github/HigherState/dsentric?branch=master)
+[![License](http://img.shields.io/:license-Apache%202-red.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
+
 # dsentric
 Data contract patterns, validation, lenses and query
 
