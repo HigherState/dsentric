@@ -1,5 +1,7 @@
 package dsentricTests
 
+import java.util.UUID
+
 import cats.data.NonEmptyList
 import dsentric._
 import org.scalatest.{FunSuite, Matchers}
@@ -7,6 +9,11 @@ import org.scalatest.{FunSuite, Matchers}
 case class Custom(value:Map[String, Any]) extends DObject with DObjectLike[Custom] {
   protected def wrap(value: Map[String, Any]): Custom =
     Custom(value)
+}
+
+case class CustomParams(id:UUID)(val value:Map[String, Any]) extends DObject with DObjectLike[CustomParams] {
+  protected def wrap(value: Map[String, Any]): CustomParams =
+    CustomParams(id)(value)
 }
 
 class DObjectLikeTests extends FunSuite with Matchers {
@@ -21,6 +28,10 @@ class DObjectLikeTests extends FunSuite with Matchers {
     val nested = new \\ {
       val value = \[Int]
     }
+  }
+
+  object CustomParamsContract extends ContractFor[CustomParams] {
+    val string = \[String]
   }
 
   test("Custom crud return custom") {
@@ -63,6 +74,18 @@ class DObjectLikeTests extends FunSuite with Matchers {
     val dObject = (WithCustomContract.custom.$set(custom) ~ WithCustomContract.mapOfCustom.$set(Map("first" -> custom)))(DObject.empty)
 
     WithCustomContract.$validate(dObject) shouldBe Left(NonEmptyList((List(Right("mapOfCustom"), Right("first"), Right("nested")),"Value was expected."), Nil))
+  }
+
+  test("Extracting with Custom Params") {
+    val customParams = CustomParams(new UUID(123,456))(Map("string" -> "String"))
+
+    customParams match {
+      case CustomParams(id) && CustomParamsContract.string(s) =>
+        id shouldBe new UUID(123,456)
+        s shouldBe "String"
+      case _ =>
+        assert(false)
+    }
   }
 
 }
