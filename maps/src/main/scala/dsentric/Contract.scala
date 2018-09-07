@@ -334,6 +334,9 @@ class Expected[D <: DObject, T] private[dsentric]
       _pathValidator(Path.empty, Some(p), None).map(_._2)
     }
 
+  val $delta:PatternMatcher[D, Option[T]] =
+    new PatternMatcher(_strictDeltaGet)
+
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
     value -> currentState match {
       case (None, None) =>
@@ -369,7 +372,8 @@ class Maybe[D <: DObject, T] private[dsentric]
       _pathValidator(Path.empty, Some(p), None).map(_._2)
     }
 
-  val $delta = new PatternMatcher(_strictDeltaGet)
+  val $delta:PatternMatcher[D, Option[Option[T]]] =
+    new PatternMatcher(_strictDeltaGet(_).map(_.map(_.toOption)))
 
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
     value -> currentState match {
@@ -403,6 +407,12 @@ class Default[D <: DObject, T] private[dsentric]
     _strictness(value, _codec).fold(Vector(ValidationText.EXPECTED_VALUE)){ p =>
       _pathValidator(Path.empty, Some(p), None).map(_._2)
     }
+
+  val $delta:PatternMatcher[D, Option[Option[T]]] =
+    new PatternMatcher(_strictDeltaGet(_).map(_.map(_.toOption)))
+
+  val $deltaDefault:PatternMatcher[D, Option[T]] =
+    new PatternMatcher(_strictDeltaGet(_).map(_.map(_.getValue)))
 
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
     value -> currentState match {

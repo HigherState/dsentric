@@ -279,4 +279,56 @@ class ContractTests extends FunSuite with Matchers {
     }
   }
 
+  test("Delta default matching") {
+    object Element extends Contract {
+      val value = \![Int](34)
+    }
+    DObject.empty match {
+      case Element.value.$delta(d) =>
+        d shouldBe None
+      case _ =>
+        assert(true)
+    }
+
+    DObject("value" -> Dsentric.dNull) match {
+      case Element.value.$delta(d) =>
+        d shouldBe Some(DeltaRemove)
+      case _ =>
+        assert(false)
+    }
+
+    DObject("value" := 4) match {
+      case Element.value.$delta(d) =>
+        d shouldBe Some(DeltaSet(4))
+      case _ =>
+        assert(false)
+    }
+  }
+
+  test("Delta expected matching") {
+    object Element extends Contract {
+      val value = \[Int]
+    }
+    DObject.empty match {
+      case Element.value.$delta(d) =>
+        d shouldBe None
+      case _ =>
+        assert(true)
+    }
+
+    DObject("value" -> Dsentric.dNull) match {
+      case Element.value.$delta(d) =>
+        assert(false)
+      case _ =>
+        assert(true)
+    }
+
+    DObject("value" := 4) match {
+      case Element.value.$delta(d) =>
+        d shouldBe Some(4)
+      case _ =>
+        assert(false)
+    }
+  }
+
 }

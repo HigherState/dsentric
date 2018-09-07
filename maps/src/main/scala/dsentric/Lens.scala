@@ -40,6 +40,17 @@ trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeL
       }
     }
 
+  private[dsentric] def _strictDeltaGet(data:D):Option[Option[T]] =
+    PathLensOps
+      .traverse(data.value, _path) match {
+      case None =>
+        Some(None)
+      case Some(_:DNull) =>
+        None // Not allowed
+      case Some(v) =>
+        _codec.unapply(v).map(Some(_))
+    }
+
   def $forceDrop:D => D =
     d => PathLensOps.drop(d.value, _path).fold(d)(d.lensWrap(_).asInstanceOf[D])
 
@@ -124,14 +135,14 @@ trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLe
       }
 
 
-  def $deltaGet(data:D):DeltaValue[T] =
+  def $deltaGet(data:D):DeltaDefaultValue[T] =
     PathLensOps
       .traverse(data.value, _path)
-      .fold[DeltaValue[T]](DeltaSet(_default)) {
+      .fold[DeltaDefaultValue[T]](DeltaDefaultReset(_default)) {
         case _:DNull =>
-          DeltaRemove
+          DeltaDefaultReset(_default)
         case v =>
-          _codec.unapply(v).fold(DeltaSet(_default))(t => DeltaSet(t))
+          _codec.unapply(v).fold[DeltaDefaultValue[T]](DeltaDefaultReset(_default))(t => DeltaDefaultSet(t))
       }
 
   def $modify(f:T => T):D => D =
@@ -164,6 +175,16 @@ trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLe
       .traverse(data.value, _path) match {
       case None => Some(Some(_default))
       case Some(v) => _strictness(v, _codec).map(v2 => Some(v2.getOrElse(_default)))
+    }
+
+  private[dsentric] def _strictDeltaGet(data:D):Option[Option[DeltaDefaultValue[T]]] =
+    PathLensOps
+      .traverse(data.value, _path) match {
+      case None =>
+        Some(None)
+      case Some(_:DNull) =>
+        Some(Some(DeltaDefaultReset(_default)))
+      case Some(v) => _strictness(v, _codec).map(_.map(DeltaDefaultSet(_)))
     }
 }
 
