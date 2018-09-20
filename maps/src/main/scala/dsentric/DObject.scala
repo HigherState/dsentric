@@ -147,6 +147,9 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
   def select(projection:DProjection):This =
     wrap(DObjectOps.selectMap(value, projection.value))
 
+  def filterKeys(p:String => Boolean):This =
+    wrap(value.filterKeys(p))
+
   override def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):This =
     wrap(DataOps.nestedValueMap(value, pf).asInstanceOf[Map[String, Any]])
 
