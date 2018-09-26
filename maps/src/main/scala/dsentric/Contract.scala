@@ -283,6 +283,14 @@ trait ContractFor[D <: DObject] extends BaseContract[D] { self =>
         Right(value)
     }
 
+  def $validate(value:D, maybeState:Option[D]):NonEmptyList[(Path, String)] Either D =
+    _validateFields(Path.empty, value.value, maybeState.map(_.value)) match {
+      case head +: tail =>
+        Left(NonEmptyList(head, tail.toList))
+      case _ =>
+        Right(value)
+    }
+
 }
 
 trait SubContract extends SubContractFor[DObject]
