@@ -265,22 +265,23 @@ trait SubContractFor[D <: DObject] extends BaseContract[D]
 
 trait ContractFor[D <: DObject] extends BaseContract[D] { self =>
 
-  def _path = Path.empty
+  def _path: List[Either[Int, String]] = Path.empty
 
-  def $validate(value:DObject):NonEmptyList[(Path, String)] Either DObject =
-    $validate(value, None)
-
-  def $validate(value:DObject, currentState:DObject):NonEmptyList[(Path, String)] Either DObject =
-    $validate(value, Some(currentState))
-
-  def $validate(value:DObject, currentState:Option[DObject]):NonEmptyList[(Path, String)] Either DObject =
-    _validateFields(Path.empty, value.value, currentState.map(_.value)) match {
+  def $validate(value:D):NonEmptyList[(Path, String)] Either D =
+    _validateFields(Path.empty, value.value, None) match {
       case head +: tail =>
         Left(NonEmptyList(head, tail.toList))
       case _ =>
         Right(value)
     }
 
+  def $validate(value:DObject, currentState:D):NonEmptyList[(Path, String)] Either DObject =
+    _validateFields(Path.empty, value.value, Some(currentState.value)) match {
+      case head +: tail =>
+        Left(NonEmptyList(head, tail.toList))
+      case _ =>
+        Right(value)
+    }
 
 }
 
