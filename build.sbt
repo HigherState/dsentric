@@ -58,21 +58,14 @@ lazy val maps = project
   .settings(libraryDependencies ++= Seq(reflect, shapeless, scalatest, cats))
   .dependsOn(core, core % "test -> test")
 
+lazy val graphql = project
+  .settings(moduleName := "dsentric-graphql")
+  .settings(settings)
+  .settings(libraryDependencies ++= Seq(reflect, shapeless, scalatest, commons_math))
+  .dependsOn(core, maps, core % "test -> test")
+
 //lazy val argonaut = project
 //  .settings(moduleName := "dsentric-argonaut")
 //  .settings(settings)
 //  .settings(libraryDependencies := Seq(scalatest, argo))
 //  .dependsOn(monocle)
-
-//lazy val amf = project
-//  .settings(moduleName := "dsentric-amf")
-//  .settings(settings)
-//  .settings(libraryDependencies := Seq(monocle, scalatest, scodec))
-//  .dependsOn(core)
-//
-//lazy val performance = project
-//  .settings(moduleName := "dsentric-performance")
-//  .settings(settings)
-//  .settings(libraryDependencies := Seq(scalatest, scalaz_old, argo, jackson, jackson_scala, jackson_databind))
-//  .dependsOn(core, maps)
-
