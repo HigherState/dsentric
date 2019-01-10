@@ -217,6 +217,16 @@ final class DProjection(val value:Map[String, Any]) extends AnyVal with DObject 
 
   protected def wrap(value: Map[String, Any]) = new DProjection(value)
 
+  def &(key:String): DProjection =
+    wrap(value + (key -> 1))
+
+  def &(path:Path): DProjection =
+    wrap(value ++ PathLensOps.pathToMap(path, 1))
+
+  //Nest projection into a new object under the given key
+  def nest(key:String):DProjection =
+    wrap(Map(key -> value))
+
   def &(d:DProjection):DProjection =
     new DProjection(DObjectOps.concatMap(value, d.value))
 
