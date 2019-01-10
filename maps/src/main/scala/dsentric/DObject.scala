@@ -75,6 +75,8 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
         wrap(elems.toMap)
     }
 
+  private[dsentric] def internalWrap(value:Map[String, Any]):This =
+    wrap(value)
 
   def iterator =
     value.iterator.map(p => p._1 -> ForceWrapper.data(p._2))
@@ -218,8 +220,8 @@ final class DProjection(val value:Map[String, Any]) extends AnyVal with DObject 
   def &(d:DProjection):DProjection =
     new DProjection(DObjectOps.concatMap(value, d.value))
 
-  def select(obj:DObject):DObject =
-    new DObjectInst(DObjectOps.selectMap(obj.value, value))
+  def select[D <: DObjectLike[D] with DObject](obj:D):D =
+    obj.internalWrap(DObjectOps.selectMap(obj.value, value))
 
   def toPaths:Option[Set[Path]] =
     getPaths(value, List.empty)
