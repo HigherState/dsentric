@@ -363,4 +363,7 @@ object ForceWrapper {
 
   def dQuery(value:Map[String, Any]) =
     new DQuery(value)
+
+  def dProjection(value:Map[String, Any]) =
+    new DProjection(value)
 }
