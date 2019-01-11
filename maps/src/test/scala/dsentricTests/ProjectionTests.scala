@@ -35,7 +35,7 @@ class ProjectionTests extends FunSuite with Matchers {
 
   test("Nested dynamic projections") {
 
-    val p = Query1.nested.$$("dynamic1", "dynamic2", Path("dynamic3", "dynamic4"))
+    val p = Query1.nested.$$("dynamic1".p, "dynamic2".p, "dynamic3" \ "dynamic4")
     p.toDObject shouldBe DObject("nested" -> DObject("dynamic1" := 1, "dynamic2" := 1, "dynamic3" -> DObject("dynamic4" := 1)))
   }
 }

@@ -7,6 +7,7 @@ final class StringOps(val self:String) extends AnyVal {
     List(Right(self), Left(part))
   def :=[T](t:T)(implicit jCodec: DCodec[T]):(String, Data) =
     self -> Data(t)(jCodec)
+  def p:Path = List(Right(self))
 }
 
 final class IntOps(val self:Int) extends AnyVal {
@@ -20,15 +21,12 @@ final class FunctionOps[D <: DObject](val f:D => D) extends AnyVal with LensComp
 
 trait ToExtensionOps {
 
-  implicit def toStringOps(s:String):StringOps =
+  implicit def toStringOps(s: String): StringOps =
     new StringOps(s)
 
-  implicit def toIntOps(i:Int):IntOps =
+  implicit def toIntOps(i: Int): IntOps =
     new IntOps(i)
 
-  implicit def toFunctionOps[D <: DObject](f:D => D):FunctionOps[D] =
+  implicit def toFunctionOps[D <: DObject](f: D => D): FunctionOps[D] =
     new FunctionOps[D](f)
-
-  implicit def string2Path(s:String):Path =
-    List(Right(s))
 }

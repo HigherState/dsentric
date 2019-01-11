@@ -24,7 +24,7 @@ object Path {
 object Failures {
   val empty = Vector.empty[(Path, String)]
 
-  def apply(elems:(Path, String)*) =
+  def apply(elems:(Path, String)*): Vector[(Path, String)] =
     Vector.apply(elems:_*)
 }
 
