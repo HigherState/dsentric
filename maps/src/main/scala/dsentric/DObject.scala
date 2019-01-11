@@ -213,7 +213,7 @@ final class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal 
   def not:DQuery = this.!
 }
 
-final class DProjection(val value:Map[String, Any]) extends AnyVal with DObject with DObjectLike[DProjection] {
+final class DProjection private[dsentric](val value:Map[String, Any]) extends AnyVal with DObject with DObjectLike[DProjection] {
 
   protected def wrap(value: Map[String, Any]) = new DProjection(value)
 
@@ -227,6 +227,9 @@ final class DProjection(val value:Map[String, Any]) extends AnyVal with DObject 
   def nest(key:String):DProjection =
     wrap(Map(key -> value))
 
+  def nest(path:Path):DProjection =
+    wrap(PathLensOps.pathToMap(path, value))
+
   def &(d:DProjection):DProjection =
     new DProjection(DObjectOps.concatMap(value, d.value))
 
@@ -235,6 +238,9 @@ final class DProjection(val value:Map[String, Any]) extends AnyVal with DObject 
 
   def toPaths:Option[Set[Path]] =
     getPaths(value, List.empty)
+
+  def toDObject:DObject =
+    new DObjectInst(value)
 
   private def getPaths(projection:Map[String, Any], segments:Path):Option[Set[Path]] = {
     val pairs = projection.flatMap {
@@ -324,6 +330,13 @@ object DQuery{
     Right(new DQuery(value))
 
   val empty = new DQuery(Map.empty)
+}
+
+object DProjection {
+
+  def apply(paths:Path*):DProjection =
+    new DProjection(paths.map(p => PathLensOps.pathToMap(p, 1))
+      .foldLeft(Map.empty[String, Any])(DObjectOps.concatMap))
 }
 
 object ForceWrapper {

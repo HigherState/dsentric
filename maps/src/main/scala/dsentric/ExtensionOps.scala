@@ -28,4 +28,7 @@ trait ToExtensionOps {
 
   implicit def toFunctionOps[D <: DObject](f:D => D):FunctionOps[D] =
     new FunctionOps[D](f)
+
+  implicit def string2Path(s:String):Path =
+    List(Right(s))
 }

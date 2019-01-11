@@ -132,6 +132,13 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct { self 
     prop
   }
 
+  def $$(projection:DProjection):DProjection =
+    projection.nest(this._path)
+
+  def $$(paths:Path*):DProjection =
+    DProjection(paths:_*).nest(this._path)
+
+
   class \\ private(override private[dsentric] val _pathValidator:Validator[DObject],
                    override private[dsentric] val _nameOverride:Option[String],
                    override private[dsentric] val _codec:DCodec[DObject]
