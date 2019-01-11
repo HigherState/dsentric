@@ -211,6 +211,7 @@ final class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal 
     new DQuery(Map("$not" -> value))
 
   def not:DQuery = this.!
+
 }
 
 final class DProjection private[dsentric](val value:Map[String, Any]) extends AnyVal with DObject with DObjectLike[DProjection] {
@@ -236,8 +237,8 @@ final class DProjection private[dsentric](val value:Map[String, Any]) extends An
   def select[D <: DObjectLike[D] with DObject](obj:D):D =
     obj.internalWrap(DObjectOps.selectMap(obj.value, value))
 
-  def toPaths:Option[Set[Path]] =
-    getPaths(value, List.empty)
+  def toPaths:Set[Path] =
+    getPaths(value, List.empty).getOrElse(Set.empty)
 
   def toDObject:DObject =
     new DObjectInst(value)
