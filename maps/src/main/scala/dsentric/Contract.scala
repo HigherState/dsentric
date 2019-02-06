@@ -38,6 +38,7 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct { self 
       __fields
     }
 
+
   def \[T](implicit codec:DCodec[T]):Expected[D, T] =
     new Expected[D, T](Validators.empty, None, this, codec)
 
@@ -274,6 +275,9 @@ trait ContractFor[D <: DObject] extends BaseContract[D] { self =>
 
   def _path: List[Either[Int, String]] = Path.empty
 
+  def $schema(newLine:String, indent:String):String =
+    graphQl.GraphQlSchema.renderContract(this, newLine, indent)
+
   def $validate(value:D):NonEmptyList[(Path, String)] Either D =
     _validateFields(Path.empty, value.value, None) match {
       case head +: tail =>
@@ -366,7 +370,7 @@ class Expected[D <: DObject, T] private[dsentric]
     }
 
   def unapply(j: D): Option[T] =
-    _strictGet(j).map(_.get)
+    _strictGet(j).flatten
 }
 
 class Maybe[D <: DObject, T] private[dsentric]
@@ -417,7 +421,7 @@ class Default[D <: DObject, T] private[dsentric]
     _strictness(j, _codec).isDefined
 
   def unapply(j:D):Option[T] =
-    _strictGet(j).map(_.get)
+    _strictGet(j).flatten
 
   def $validateValue(value:T):Vector[String] =
     _strictness(value, _codec).fold(Vector(ValidationText.EXPECTED_VALUE)){ p =>
@@ -529,7 +533,7 @@ class DefaultObjectArray[D <: DObject, T <: ContractFor[D]](override val _defaul
     _strictness(j, _codec).isDefined
 
   def unapply(j:DObject):Option[Vector[D]] =
-    _strictGet(j).map(_.get)
+    _strictGet(j).flatten
 
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
     value -> currentState match {

@@ -75,16 +75,13 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
         wrap(elems.toMap)
     }
 
-  private[dsentric] def internalWrap(value:Map[String, Any]):This =
-    wrap(value)
-
   def iterator =
     value.iterator.map(p => p._1 -> ForceWrapper.data(p._2))
 
   def seq =
     toIterator
 
-  private[dsentric] def lensWrap(value:Map[String, Any]):This =
+  private[dsentric] def internalWrap(value:Map[String, Any]):This =
     wrap(value)
 
   def +(v:(String, Data)):This =
