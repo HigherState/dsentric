@@ -197,9 +197,9 @@ object Query extends Query {
   }
 
   private def search:Function[(Any, Path), Option[Any]] = {
-    case (v, Nil) =>
+    case (v, PathEnd) =>
       Some(v)
-    case (v:Map[String, Any]@unchecked, p@(_ :: _)) =>
+    case (v:Map[String, Any]@unchecked, p) =>
       PathLensOps.traverse(v, p)
     case _ => None
   }
@@ -211,15 +211,18 @@ object Query extends Query {
 //Handle default?
 class ValueQuery[T](val prop: Property[_, T]) extends AnyVal with PropertyExtension[T] {
 
-  def $eq(value:T) =
+  def $eq(value:T): DQuery =
     if (prop.isInstanceOf[EmptyProperty[_]])
       new DQuery(Map("$eq" -> prop._codec(value).value))
     else
       nest(prop._codec(value).value)
   //Currently not supporting chaining of $ne in an && for the same field
-  def $ne(value:T) = nest(Map("$ne" -> prop._codec(value).value))
-  def $in(values:T*) = nest(Map("$in" -> values.map(prop._codec(_).value).toVector))
-  def $nin(values:T*) = nest(Map("$nin" -> values.map(prop._codec(_).value).toVector))
+  def $ne(value:T): DQuery =
+    nest(Map("$ne" -> prop._codec(value).value))
+  def $in(values:T*): DQuery =
+    nest(Map("$in" -> values.map(prop._codec(_).value).toVector))
+  def $nin(values:T*): DQuery =
+    nest(Map("$nin" -> values.map(prop._codec(_).value).toVector))
 
 }
 

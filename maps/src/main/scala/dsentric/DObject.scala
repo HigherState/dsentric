@@ -235,7 +235,7 @@ final class DProjection private[dsentric](val value:Map[String, Any]) extends An
     obj.internalWrap(DObjectOps.selectMap(obj.value, value))
 
   def toPaths:Set[Path] =
-    getPaths(value, List.empty).getOrElse(Set.empty)
+    getPaths(value, Path.empty).getOrElse(Set.empty)
 
   def toDObject:DObject =
     new DObjectInst(value)
@@ -243,9 +243,9 @@ final class DProjection private[dsentric](val value:Map[String, Any]) extends An
   private def getPaths(projection:Map[String, Any], segments:Path):Option[Set[Path]] = {
     val pairs = projection.flatMap {
       case (key, 1) =>
-        Some(Set(segments :+ Right(key)))
+        Some(Set(segments \ key))
       case (key, j:Map[String, Any]@unchecked) =>
-        getPaths(j, segments :+ Right(key))
+        getPaths(j, segments \ key)
       case _ =>
         None
     }.toList

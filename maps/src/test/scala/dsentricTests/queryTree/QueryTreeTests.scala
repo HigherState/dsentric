@@ -16,7 +16,7 @@ class QueryTreeTests extends FunSuite with Matchers {
   //not an actual test as of yet
   test("Generate element match query tree") {
     val query = DQuery("Owner" -> DObject("$elemMatch" -> DObject("$regex" := "^jamie.*"))).toOption.get
-    QueryTree(query).toString should be (∃(List(Right("Owner")),/(Path.empty,"^jamie.*".r)).toString)
+    QueryTree(query).toString should be (∃(Path("Owner"),/(Path.empty,"^jamie.*".r)).toString)
   }
 
   test("Generate nested query tree") {
@@ -31,8 +31,8 @@ class QueryTreeTests extends FunSuite with Matchers {
 
   test("simple partition") {
     val query = QueryTree(ForceWrapper.dQuery(Map("value" -> true)))
-    query.partition(Set(Path("value"))) should be (Some(?(List(Right("value")),"$eq",true)) -> None)
-    query.partition(Set(Path("value2"))) should be (None -> Some(?(List(Right("value")),"$eq",true)))
+    query.partition(Set(Path("value"))) should be (Some(?(Path("value"),"$eq",true)) -> None)
+    query.partition(Set(Path("value2"))) should be (None -> Some(?(Path("value"),"$eq",true)))
 
     val query2 = QueryTree(ForceWrapper.dQuery(Map("value" -> true, "value2" -> 123, "value3" -> "text", "value4" -> Map("value5" -> Vector(1,2,3)))))
     query2.partition(Set(Path("value"))) should be (Some(ϵ(Path.empty,Map("value" -> true))) -> Some(&(List(ϵ(Path.empty,Map("value2" -> 123, "value3" -> "text")), ?(Path("value4","value5"),"$eq",Vector(1, 2, 3))))))

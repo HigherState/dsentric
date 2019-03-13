@@ -273,7 +273,7 @@ trait SubContractFor[D <: DObject] extends BaseContract[D]
 
 trait ContractFor[D <: DObject] extends BaseContract[D] { self =>
 
-  def _path: List[Either[Int, String]] = Path.empty
+  def _path:Path = Path.empty
 
   def $schema(newLine:String, indent:String):String =
     graphQl.GraphQlSchema.renderContract(this, newLine, indent)

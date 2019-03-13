@@ -4,7 +4,6 @@ package object dsentric {
   type Length = String with Iterable[Nothing] with Vector[Nothing]
   type Optionable[T] = T with Option[T]
 
-  type Path = List[Either[Int, String]]
   type Failures = Vector[(Path, String)]
 
 

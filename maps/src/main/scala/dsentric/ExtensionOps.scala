@@ -2,19 +2,19 @@ package dsentric
 
 final class StringOps(val self:String) extends AnyVal {
   def \(part:String):Path =
-    List(Right(self), Right(part))
+    Path(self, part)
   def \(part:Int):Path =
-    List(Right(self), Left(part))
+    Path(self, part)
   def :=[T](t:T)(implicit jCodec: DCodec[T]):(String, Data) =
     self -> Data(t)(jCodec)
-  def p:Path = List(Right(self))
+  def p:Path = Path(self)
 }
 
 final class IntOps(val self:Int) extends AnyVal {
   def \(part:String):Path =
-    List(Left(self), Right(part))
+    Path(self, part)
   def \(part:Int):Path =
-    List(Left(self), Left(part))
+    Path(self, part)
 }
 
 final class FunctionOps[D <: DObject](val f:D => D) extends AnyVal with LensCompositor[D]
