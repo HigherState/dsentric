@@ -72,8 +72,7 @@ class DObjectLikeTests extends FunSuite with Matchers {
   test("Validation of custom contract") {
     val custom = Custom(Map("string" -> "STRING"))
     val dObject = (WithCustomContract.custom.$set(custom) ~ WithCustomContract.mapOfCustom.$set(Map("first" -> custom)))(DObject.empty)
-
-    WithCustomContract.$validate(dObject) shouldBe Left(NonEmptyList((List(Right("mapOfCustom"), Right("first"), Right("nested")),"Value was expected."), Nil))
+    WithCustomContract.$validate(dObject) shouldBe Left(NonEmptyList((Path("mapOfCustom", "first", "nested"),"Value was expected."), Nil))
   }
 
   test("Extracting with Custom Params") {

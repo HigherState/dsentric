@@ -146,6 +146,9 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
   def select(projection:DProjection):This =
     wrap(DObjectOps.selectMap(value, projection.value))
 
+  def omit(projection:DProjection):This =
+    wrap(DObjectOps.omitMap(value, projection.value))
+
   def filterKeys(p:String => Boolean):This =
     wrap(value.filterKeys(p))
 

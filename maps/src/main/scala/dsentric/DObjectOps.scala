@@ -89,6 +89,28 @@ trait DObjectOps {
               acc + (k -> result)
             else
               acc
+          case _ =>
+            acc
+        }
+      case (acc, _) =>
+        acc
+    }
+
+  private[dsentric] def omitMap(target:Map[String, Any], projection:Map[String, Any]):Map[String, Any] =
+    projection.foldLeft(target) {
+      case (acc, (k, 1)) =>
+        acc - k
+
+      case (acc, (k, j:Map[String, Any]@unchecked)) =>
+        target.get(k).fold(acc){
+          case m:Map[String, Any]@unchecked =>
+            val result = omitMap(m, j)
+            if (result.nonEmpty)
+              acc + (k -> result)
+            else
+              acc - k
+          case _ =>
+            acc
         }
       case (acc, _) =>
         acc
