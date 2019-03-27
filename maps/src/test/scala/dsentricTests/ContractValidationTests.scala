@@ -183,7 +183,6 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
 
   }
 
-  object ContractValidatorsImpl extends ContractValidators
 
   object Element extends Contract {
     val id = \[Int]
@@ -191,7 +190,7 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
   }
 
   object Parent extends Contract {
-    val elements = \[Map[String, DObject]](ContractValidatorsImpl.mapContract(Element))
+    val elements = \[Map[String, DObject]](Validators.mapContract(Element))
   }
 
   test("map contract validator") {
@@ -214,4 +213,10 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     val delta = Element.$create(_.name.$setNull)
     Element.$validate(delta, current) should be (s(delta))
   }
+
+  object Keys extends Contract {
+
+    val nested = new \\(Validators.keyValidator("[a-z]*".r, "Invalid key"))
+  }
+
 }

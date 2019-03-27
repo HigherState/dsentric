@@ -1,7 +1,7 @@
 package dsentricTests
 
 import dsentric._
-import org.scalatest.{Matchers, FunSuite}
+import org.scalatest.{FunSuite, Matchers}
 
 class ValidationTests extends FunSuite with Matchers {
 
@@ -60,5 +60,15 @@ class ValidationTests extends FunSuite with Matchers {
     Validators.immutable(Path.empty, Some("value"), None) should be (Vector.empty)
     Validators.immutable(Path.empty, None, Some("value")) should be (Vector.empty)
     Validators.immutable(Path.empty, Some("newValue"), Some("value")) should not be Vector.empty
+  }
+
+  test("keyMatcher") {
+    import PessimisticCodecs._
+    import dsentric.Dsentric._
+    val r = "[a-z]*".r
+    val validator = Validators.keyValidator(r, "Invalid Key")
+
+    validator(Path.empty, Some(DObject("key" := 1)), None) should be (Vector.empty)
+    validator(Path.empty, Some(DObject("key2" := 1)), None) should not be Vector.empty
   }
 }

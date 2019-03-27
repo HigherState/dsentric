@@ -281,6 +281,27 @@ trait PessimisticCodecs extends DefaultCodecs {
         override def schemaName: String = "Object"
       }
 
+  implicit def fullMapCodec[K, T](implicit D:DCodec[T], K:DCodec[K]):DCodec[Map[K, T]] =
+    new DCodec[Map[K, T]] {
+      def unapply(a: Any): Option[Map[K, T]] =
+        a match {
+          case a:Map[String, Any]@unchecked =>
+            a.toIterator.foldLeft(Option(Map.newBuilder[K, T])){
+              case (Some(m), (K(k), D(v))) =>
+                Some(m += (k -> v))
+              case _ =>
+                None
+            }.map(_.result())
+          case _ =>
+            None
+        }
+
+      def apply(t: Map[K, T]): Data =
+        new DValue(t.map(p => K(p._1).value.toString -> D(p._2).value))
+
+      override def schemaName: String = "Object"
+    }
+
   private def toMapT[T](a:Any)(implicit D:DCodec[T]) =
     a match {
       case a:Map[String, Any]@unchecked =>

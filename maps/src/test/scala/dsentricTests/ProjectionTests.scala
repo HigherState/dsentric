@@ -44,7 +44,7 @@ class ProjectionTests extends FunSuite with Matchers {
   }
 
   test("Omit") {
-    val p = Query1.field5.$ & Query1.nested.field3.$ & Query1.field5.$
+    val p = Query1.field5.$ & Query1.nested.field3.$
     val result = Query1.$create { c =>
       c.field.$set("one") ~
       c.nested.field2.$set("two") ~
@@ -54,5 +54,70 @@ class ProjectionTests extends FunSuite with Matchers {
     }
     result.omit(p) shouldBe DObject("field" := "one", "nested" -> DObject("field2" :="two"), "nested2" -> DObject("field4" := 5))
     result.omit(p & Query1.nested2.field4.$) shouldBe DObject("field" := "one", "nested" -> DObject("field2" :="two"))
+  }
+
+  test("Contains") {
+    val p = Query1.field5.$ & Query1.nested.field3.$
+    val result = Query1.$create { c =>
+      c.field.$set("one") ~
+        c.nested.field2.$set("two") ~
+        c.nested.field3.$set(4) ~
+        c.nested2.field4.$set(5) ~
+        c.field5.$set("three")
+    }
+    result.contains(p) shouldBe true
+
+    val result2 = DObject.empty
+    result2.contains(p) shouldBe false
+
+    val result3 =
+      Query1.$create { c =>
+        c.field.$set("one") ~
+          c.nested.field2.$set("two") ~
+          c.nested.field3.$set(4) ~
+          c.nested2.field4.$set(5)
+      }
+
+    result3.contains(p) shouldBe false
+
+    val result4 =
+      Query1.$create { c =>
+        c.field.$set("one") ~
+        c.nested.field2.$set("two") ~
+        c.nested2.field4.$set(5) ~
+        c.field5.$set("three")
+      }
+
+    result4.contains(p) shouldBe false
+  }
+
+  test("Intersects") {
+    val p = Query1.field5.$ & Query1.nested.field3.$ & Query1.field5.$
+    val result = Query1.$create { c =>
+      c.field.$set("one") ~
+        c.nested.field2.$set("two") ~
+        c.nested.field3.$set(4) ~
+        c.nested2.field4.$set(5) ~
+        c.field5.$set("three")
+    }
+    result.contains(p) shouldBe true
+
+    val result2 = DObject.empty
+    result2.contains(p) shouldBe false
+
+    val result3 =
+      Query1.$create { c =>
+        c.field.$set("one") ~
+          c.nested.field3.$set(4) ~
+          c.nested2.field4.$set(5)
+      }
+    val p2 = Query1.nested.field3.$
+    result3.intersects(p2) shouldBe true
+    val p3 = Query1.nested.field2.$
+
+    result3.intersects(p3) shouldBe false
+
+    val p4 = Query1.field5.$
+    result3.intersects(p4) shouldBe false
   }
 }

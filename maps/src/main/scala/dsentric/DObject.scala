@@ -125,6 +125,28 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
   def contains(key:String):Boolean =
     value.contains(key)
 
+  def contains(path:Path):Boolean =
+    PathLensOps
+      .traverse(value, path).nonEmpty
+  //All projected paths must be found
+  def contains(projection:DProjection):Boolean =
+    DObjectOps.contains(value, projection.value, false)
+
+  def contains(obj:DObject):Boolean =
+    DObjectOps.contains(value, obj.value, true)
+
+  def intersects(projection:DProjection):Boolean =
+    DObjectOps.intersects(value, projection.value, false)
+
+  def intersects(obj:DObject):Boolean =
+    DObjectOps.intersects(value, obj.value, false)
+
+  /*
+  Value on the left hand side is the selection by the projection, the value on the right has the values exluded
+   */
+  def partition(projection:DProjection):(DObject, DObject) =
+    this.select(projection) -> this.omit(projection)
+
   override def toIterable:Iterable[(String, Data)] =
     value.mapValues(ForceWrapper.data)
 
@@ -334,6 +356,8 @@ object DQuery{
 }
 
 object DProjection {
+
+  val empty = new DProjection(Map.empty)
 
   def apply(paths:Path*):DProjection =
     new DProjection(paths.map(p => PathLensOps.pathToMap(p, 1))

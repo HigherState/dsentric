@@ -279,6 +279,50 @@ trait Validators extends ValidatorOps{
           }
     }
 
+  def mapContract[D <: DObject](contract:ContractFor[D]): Validator[Optionable[Map[String, D]]] =
+    mapContractK[String, D](contract)
+
+  def mapContractK[K, D <: DObject](contract:ContractFor[D]): Validator[Optionable[Map[K, D]]] =
+    new Validator[Optionable[Map[K,D]]] {
+      def apply[S >: Optionable[Map[K, D]]](path: Path, value: Option[S], currentState: => Option[S]): Failures = {
+        val c =
+          for {
+            co <- value
+            ct <- getT[Map[K, D], S](co)
+          } yield ct
+
+        val failures =
+          for {
+            o <- value.toIterator
+            t <- getT[Map[K, D], S](o).toIterator
+            kv <- t.toIterator
+            f <- contract._validateFields(path \ kv._1.toString, kv._2.value, c.flatMap(_.get(kv._1).map(_.value)))
+          } yield f
+
+        failures.toVector
+      }
+
+    }
+
+  def keyValidator(r:Regex, message:String):Validator[Optionable[DObject]] =
+    new Validator[Optionable[DObject]] {
+      def apply[S >: Optionable[DObject]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
+        for {
+          co <- value.toVector
+          ct <- getT[DObject, S](co).toVector
+          key <- ct.keys.toVector if !r.pattern.matcher(key).matches()
+        } yield path \ key -> message
+    }
+
+  def keyValidator[T](message:String)(implicit D:DCodec[T]):Validator[Optionable[DObject]] =
+    new Validator[Optionable[DObject]] {
+      def apply[S >: Optionable[DObject]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
+        for {
+          co <- value.toVector
+          ct <- getT[DObject, S](co).toVector
+          key <- ct.keys.toVector if D.unapply(key).isEmpty
+        } yield path \ key -> message
+    }
 }
 
 trait ValidatorOps {

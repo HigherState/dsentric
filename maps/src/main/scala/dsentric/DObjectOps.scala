@@ -74,6 +74,37 @@ trait DObjectOps {
   def select(target:DObject, projection:DProjection):DObject =
     new DObjectInst(selectMap(target.value, projection.value))
 
+
+  private[dsentric] def contains(target:Map[String, Any], projectionOrMap:Map[String, Any], leafValuesMustMatch:Boolean):Boolean =
+    projectionOrMap.forall {
+      case (k, j:Map[String, Any]@unchecked) =>
+        target.get(k).exists{
+          case m:Map[String, Any]@unchecked =>
+            contains(m, j, leafValuesMustMatch)
+          case _ =>
+            false
+        }
+      case (k, value) =>
+        target.get(k).exists{v =>
+          !leafValuesMustMatch || v == value
+        }
+    }
+
+  private[dsentric] def intersects(target:Map[String, Any], projectionOrMap:Map[String, Any], leafValuesMustMatch:Boolean):Boolean =
+    projectionOrMap.exists {
+      case (k, j:Map[String, Any]@unchecked) =>
+        target.get(k).exists{
+          case m:Map[String, Any]@unchecked =>
+            contains(m, j, leafValuesMustMatch)
+          case _ =>
+            false
+        }
+      case (k, value) =>
+        target.get(k).exists{v =>
+          !leafValuesMustMatch || v == value
+        }
+    }
+
   private[dsentric] def selectMap(target:Map[String, Any], projection:Map[String, Any]):Map[String, Any] =
     projection.foldLeft(Map.empty[String, Any]) {
       case (acc, (k, 1)) =>

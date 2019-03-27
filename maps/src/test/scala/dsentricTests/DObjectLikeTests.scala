@@ -20,8 +20,8 @@ class DObjectLikeTests extends FunSuite with Matchers {
 
   import Dsentric._
   import PessimisticCodecs._
-  object ContractValidatorsImpl extends ContractValidators
-  import ContractValidatorsImpl._
+
+  import Validators._
 
   object CustomContract extends ContractFor[Custom] {
     val string = \[String]
