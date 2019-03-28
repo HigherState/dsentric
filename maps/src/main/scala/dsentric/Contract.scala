@@ -227,6 +227,20 @@ sealed trait Property[D <: DObject, T <: Any] extends Struct {
 
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures
 
+  @inline
+  protected def _validateCheck[T](path:Path, value:Option[Any], currentState:Option[Any], validator:Validator[T], failures: => Failures):Failures =
+    if (validator.removalDenied)
+      value.toVector.flatMap {
+        case m:Map[String, Any]@unchecked =>
+          m.collect {
+            case (key, _:DNull) =>
+              (path \ key, "Removing element is not allowed")
+          }.toVector
+        case _ =>
+          None
+      } ++ failures
+    else failures
+
   private[dsentric] def _forcePath(path:Path) = {
     __path = path
     __localPath = path
@@ -360,16 +374,18 @@ class Expected[D <: DObject, T] private[dsentric]
     new PatternMatcher(_strictDeltaGet)
 
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
-    value -> currentState match {
-      case (None, None) =>
-        Failures(path -> ValidationText.EXPECTED_VALUE)
-      case (Some(v), c) =>
-        _codec.unapply(v).fold(Failures(path -> ValidationText.UNEXPECTED_TYPE)){ p =>
-          _pathValidator(path, Some(p), c.flatMap(_codec.unapply))
-        }
-      case (None, c) =>
-        _pathValidator(path, None, c.flatMap(_codec.unapply))
-    }
+    _validateCheck(path, value, currentState, _pathValidator,
+      value -> currentState match {
+        case (None, None) =>
+          Failures(path -> ValidationText.EXPECTED_VALUE)
+        case (Some(v), c) =>
+          _codec.unapply(v).fold(Failures(path -> ValidationText.UNEXPECTED_TYPE)){ p =>
+            _pathValidator(path, Some(p), c.flatMap(_codec.unapply))
+          }
+        case (None, c) =>
+          _pathValidator(path, None, c.flatMap(_codec.unapply))
+      }
+    )
 
   def unapply(j: D): Option[T] =
     _strictGet(j).flatten
@@ -398,16 +414,18 @@ class Maybe[D <: DObject, T] private[dsentric]
     new PatternMatcher(_strictDeltaGet(_).map(_.map(_.toOption)))
 
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
-    value -> currentState match {
-      case (Some(_:DNull), Some(_)) =>
-        Vector.empty
-      case (Some(v), c)  =>
-        _strictness(v, _codec).fold(Failures(path -> ValidationText.UNEXPECTED_TYPE)){ p =>
-          _pathValidator(path, Some(p), c.flatMap(_strictness(_, _codec)))
-        }
-      case (None, c) =>
-        _pathValidator(path, None, c.flatMap(_strictness(_, _codec)))
-    }
+    _validateCheck(path, value, currentState, _pathValidator,
+      value -> currentState match {
+        case (Some(_:DNull), Some(_)) =>
+          Vector.empty
+        case (Some(v), c)  =>
+          _strictness(v, _codec).fold(Failures(path -> ValidationText.UNEXPECTED_TYPE)){ p =>
+            _pathValidator(path, Some(p), c.flatMap(_strictness(_, _codec)))
+          }
+        case (None, c) =>
+          _pathValidator(path, None, c.flatMap(_strictness(_, _codec)))
+      }
+    )
 }
 
 class Default[D <: DObject, T] private[dsentric]
@@ -437,18 +455,20 @@ class Default[D <: DObject, T] private[dsentric]
     new PatternMatcher(_strictDeltaGet(_).map(_.map(_.getValue)))
 
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
-    value -> currentState match {
-      //Supports null for delta
-      case (Some(_:DNull), Some(_)) =>
-        Vector.empty
-      case (Some(v), c) =>
-        _strictness(v, _codec).fold(Failures(path -> ValidationText.UNEXPECTED_TYPE)){ p =>
-          _pathValidator(path, Some(p), c.flatMap(_strictness(_, _codec)))
-        }
-      //We assume default is a guaranteed validation success.
-      case (None, c) =>
-        Vector.empty
-    }
+    _validateCheck(path, value, currentState, _pathValidator,
+      value -> currentState match {
+        //Supports null for delta
+        case (Some(_:DNull), Some(_)) =>
+          Vector.empty
+        case (Some(v), c) =>
+          _strictness(v, _codec).fold(Failures(path -> ValidationText.UNEXPECTED_TYPE)){ p =>
+            _pathValidator(path, Some(p), c.flatMap(_strictness(_, _codec)))
+          }
+        //We assume default is a guaranteed validation success.
+        case (None, c) =>
+          Vector.empty
+      }
+    )
 }
 
 class EmptyProperty[T](implicit private[dsentric] val _codec:DCodec[T]) extends Property[Nothing, T] {

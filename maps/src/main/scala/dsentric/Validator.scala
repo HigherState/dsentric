@@ -11,6 +11,10 @@ trait Validator[+T] {
   def ||[S >: T] (v:Validator[S]):Validator[S] = OrValidator(this, v)
 
   private[dsentric] def isInternal:Boolean = false
+
+  private[dsentric] def removalDenied:Boolean = false
+
+  private[dsentric] def isEmpty:Boolean = false
 }
 
 case class AndValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]) extends Validator[T] {
@@ -18,6 +22,8 @@ case class AndValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B
     left(path, value, currentState) ++ right(path, value, currentState)
 
   private[dsentric] override def isInternal:Boolean = left.isInternal || right.isInternal
+
+  private[dsentric] override def removalDenied:Boolean = left.removalDenied || right.removalDenied
 }
 
 case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]) extends Validator[T] {
@@ -36,6 +42,7 @@ case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]
         }
     }
 
+  private[dsentric] override def removalDenied:Boolean = left.removalDenied || right.removalDenied
 
   private[dsentric] override def isInternal:Boolean = left.isInternal || right.isInternal
 }
@@ -47,6 +54,9 @@ trait Validators extends ValidatorOps{
     new Validator[Nothing] {
       def apply[S >: Nothing](path:Path, value: Option[S], currentState: => Option[S]):Failures =
         Failures.empty
+
+
+      override def isEmpty:Boolean = true
     }
 
   val internal =
@@ -278,6 +288,18 @@ trait Validators extends ValidatorOps{
             else Vector(path -> message)
           }
     }
+
+
+
+  def noKeyRemoval:Validator[Optionable[Map[String,Nothing]]] =
+    new Validator[Optionable[Map[String, Nothing]]] {
+      def apply[S >: Optionable[Map[String, Nothing]]](path: Path, value: Option[S], currentState: => Option[S]): Failures = {
+        Vector.empty
+      }
+
+      private[dsentric] override def removalDenied:Boolean = true
+    }
+
 
   def mapContract[D <: DObject](contract:ContractFor[D]): Validator[Optionable[Map[String, D]]] =
     mapContractK[String, D](contract)

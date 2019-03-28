@@ -70,5 +70,6 @@ class ValidationTests extends FunSuite with Matchers {
 
     validator(Path.empty, Some(DObject("key" := 1)), None) should be (Vector.empty)
     validator(Path.empty, Some(DObject("key2" := 1)), None) should not be Vector.empty
+
   }
 }

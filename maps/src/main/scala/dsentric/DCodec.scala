@@ -289,6 +289,8 @@ trait PessimisticCodecs extends DefaultCodecs {
             a.toIterator.foldLeft(Option(Map.newBuilder[K, T])){
               case (Some(m), (K(k), D(v))) =>
                 Some(m += (k -> v))
+              case (Some(m), (_, v)) if v.isInstanceOf[DNull] => //dont want deltas to break conversion
+                Some(m)
               case _ =>
                 None
             }.map(_.result())
@@ -308,6 +310,8 @@ trait PessimisticCodecs extends DefaultCodecs {
         a.toIterator.foldLeft(Option(Map.newBuilder[String, T])){
           case (Some(m), (k, D(v))) =>
             Some(m += (k -> v))
+          case (Some(m), (_, v)) if v.isInstanceOf[DNull] => //dont want deltas to break conversion
+            Some(m)
           case _ =>
             None
         }.map(_.result())

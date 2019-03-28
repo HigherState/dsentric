@@ -216,7 +216,29 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
 
   object Keys extends Contract {
 
-    val nested = new \\(Validators.keyValidator("[a-z]*".r, "Invalid key"))
+    val int = \?[Int](Validators.>(5))
+    val nested = new \\?(Validators.keyValidator("[a-z]*".r, "Invalid key"))
+    val map = \[Map[String, String]]
+  }
+  val DNULL = new DNull
+
+  test("Null validation") {
+    val all = DObject("int" := 10, "nested" -> DObject("values" := 1), "map" := Map("key" := "value") )
+    Keys.$validate(DObject("int" := DNULL), all) shouldBe Right(DObject("int" := DNULL))
+    Keys.$validate(DObject("nested" := DNULL), all) shouldBe Right(DObject("nested" := DNULL))
+    Keys.$validate(DObject("nested" -> DObject("values" := DNULL)), Some(all)) shouldBe Right(DObject("nested" -> DObject("values" := DNULL)))
+    Keys.$validate(DObject("map" -> DObject("key" := DNULL)), Some(all)) shouldBe Right(DObject("map" -> DObject("key" := DNULL)))
   }
 
+  object Appending extends Contract {
+
+    val map = \?[Map[String, String]](Validators.noKeyRemoval)
+  }
+
+  test("No key removal only") {
+    val obj = DObject("map" := Map("key" := "value") )
+    Appending.$validate(DObject("map" := Map("Key" := "Value2")), Some(obj)) shouldBe Right(DObject("map" := Map("Key" := "Value2")))
+    Appending.$validate(DObject("map" := Map("Key2" := "Value2")), Some(obj)) shouldBe Right(DObject("map" := Map("Key2" := "Value2")))
+    Appending.$validate(DObject("map" := Map("Key2" := DNULL)), Some(obj)) should not be Right(DObject("map" := Map("Key2" := DNULL)))
+  }
 }
