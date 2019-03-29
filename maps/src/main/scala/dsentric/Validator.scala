@@ -12,6 +12,8 @@ trait Validator[+T] {
 
   private[dsentric] def isInternal:Boolean = false
 
+  private[dsentric] def mask:Option[String] = None
+
   private[dsentric] def removalDenied:Boolean = false
 
   private[dsentric] def isEmpty:Boolean = false
@@ -24,6 +26,8 @@ case class AndValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B
   private[dsentric] override def isInternal:Boolean = left.isInternal || right.isInternal
 
   private[dsentric] override def removalDenied:Boolean = left.removalDenied || right.removalDenied
+
+  private[dsentric] override def mask:Option[String] = left.mask.orElse(right.mask)
 }
 
 case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]) extends Validator[T] {
@@ -41,6 +45,8 @@ case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]
             list
         }
     }
+
+  private[dsentric] override def mask:Option[String] = left.mask.orElse(right.mask)
 
   private[dsentric] override def removalDenied:Boolean = left.removalDenied || right.removalDenied
 
@@ -67,6 +73,15 @@ trait Validators extends ValidatorOps{
       private[dsentric] override def isInternal:Boolean = true
     }
 
+  def mask(masking:String): Validator[Nothing] =
+    new Validator[Nothing] {
+
+      def apply[S >: Nothing](path:Path, value: Option[S], currentState: => Option[S]):Failures =
+        Failures.empty
+
+      override def mask:Option[String] = Some(masking)
+    }
+
   val reserved =
     new Validator[Option[Nothing]] {
       def apply[S >: Option[Nothing]](path: Path, value: Option[S], currentState: => Option[S]): Failures =
@@ -84,6 +99,9 @@ trait Validators extends ValidatorOps{
           path -> "Immutable value cannot be changed."
           ).toVector
     }
+
+
+
 
   val increment =
     new Validator[Numeric] {

@@ -120,6 +120,16 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct { self 
 
   lazy val $sanitize:D => D =
     _fields.foldLeft[D => D](Predef.identity[D]) {
+      case (f, (_, prop:Maybe[D, _]@unchecked)) if prop._pathValidator.mask.nonEmpty =>
+        d:D =>
+          if (d.contains(prop._path))
+            d.+\(prop._path -> ForceWrapper.data(prop._pathValidator.mask.get)).asInstanceOf[D]
+          else
+            d
+      case (f, (_, prop:Expected[D, _]@unchecked)) if prop._pathValidator.mask.nonEmpty =>
+        d:D => d.+\(prop._path -> ForceWrapper.data(prop._pathValidator.mask.get)).asInstanceOf[D]
+      case (f, (_, prop:Default[D, _]@unchecked)) if prop._pathValidator.mask.nonEmpty =>
+        d:D => d.+\(prop._path -> ForceWrapper.data(prop._pathValidator.mask.get)).asInstanceOf[D]
       case (f, (_, prop:Maybe[D, _]@unchecked)) if prop._pathValidator.isInternal =>
         prop.$drop.compose(f)
       case (f, (_, prop:BaseContract[D]@unchecked)) =>

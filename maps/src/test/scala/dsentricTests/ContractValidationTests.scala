@@ -241,4 +241,17 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     Appending.$validate(DObject("map" := Map("Key2" := "Value2")), Some(obj)) shouldBe Right(DObject("map" := Map("Key2" := "Value2")))
     Appending.$validate(DObject("map" := Map("Key2" := DNULL)), Some(obj)) should not be Right(DObject("map" := Map("Key2" := DNULL)))
   }
+
+  object Masking extends Contract {
+
+    val value = \?[Int](Validators.mask("******"))
+  }
+
+  test("Application of mask") {
+    val obj = DObject("value" := 3)
+    Masking.$sanitize(obj) shouldBe DObject("value" := "******")
+    val obj2 = DObject("value2" := 3)
+    Masking.$sanitize(obj2) shouldBe DObject("value2" := 3)
+  }
+
 }

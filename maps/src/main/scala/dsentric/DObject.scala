@@ -101,6 +101,14 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
       .traverse(value, path)
       .collect{ case D(t) => t}
 
+  def +\(v:(Path, Data)):This =
+    wrap(PathLensOps.set(value, v._1, v._2.value))
+
+  def ++\(v:TraversableOnce[(Path, Data)]):This =
+    wrap(v.foldLeft(value){(v, e) =>
+      PathLensOps.set(value, e._1, e._2.value)
+    })
+
   def toObject:DObject =
     new DObjectInst(value)
 
