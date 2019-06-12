@@ -18,7 +18,7 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct { self 
   protected implicit def selfRef:BaseContract[DObject] =
     this.asInstanceOf[BaseContract[DObject]]
 
-  private[dsentric] def _fields =
+  def _fields: Vector[(String, Property[D, Any])] =
     if (_bitmap0) __fields
     else {
       this.synchronized{
@@ -38,6 +38,7 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct { self 
       __fields
     }
 
+  def _keys:Set[String] = _fields.map(_._1).toSet
 
   def \[T](implicit codec:DCodec[T]):Expected[D, T] =
     new Expected[D, T](Validators.empty, None, this, codec)

@@ -167,6 +167,7 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
   def reduce:Option[This] =
     DObjectOps.reduceMap(this.value).map(wrap)
 
+  //Returns the differences in the compare object
   def diff(compare:DObject):DObject =
     DObjectOps.rightDifferenceMap(value -> compare.value).fold(DObject.empty)(new DObjectInst(_))
 
