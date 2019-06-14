@@ -1,4 +1,4 @@
-package dsentricTests
+package dsentric
 
 import dsentric.{ExpectedSubContract, LensCompositor, MaybeSubContract, Strictness}
 import monocle._

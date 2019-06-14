@@ -1,4 +1,4 @@
-package dsentricTests
+package dsentric
 
 import cats.data.NonEmptyList
 import dsentric._

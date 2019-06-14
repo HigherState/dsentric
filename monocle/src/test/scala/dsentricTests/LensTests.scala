@@ -1,4 +1,4 @@
-package dsentricTests
+package dsentric
 
 import dsentric.MaybeOptimistic
 import org.scalatest.{FunSuite, Matchers}

@@ -1,7 +1,5 @@
 package dsentric
 
-import cats.data.NonEmptyList
-
 sealed trait PropertyLens[D <: DObject, T] {
 
   def _path:Path

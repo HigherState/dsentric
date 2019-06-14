@@ -10,6 +10,8 @@ trait Validator[+T] {
 
   def ||[S >: T] (v:Validator[S]):Validator[S] = OrValidator(this, v)
 
+  def schemaInfo:DObject = DObject.empty
+
   private[dsentric] def isInternal:Boolean = false
 
   private[dsentric] def mask:Option[String] = None

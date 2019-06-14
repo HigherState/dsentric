@@ -1,4 +1,4 @@
-package dsentricTests.queryTree
+package dsentric.queryTree
 
 import dsentric.Dsentric._
 import dsentric.PessimisticCodecs._

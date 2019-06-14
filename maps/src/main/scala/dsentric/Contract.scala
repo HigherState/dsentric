@@ -251,6 +251,7 @@ sealed trait Property[D <: DObject, T <: Any] extends Struct {
   private var _bitmap1:Boolean = false
   private[dsentric] def _nameOverride:Option[String]
   private[dsentric] def _parent: BaseContract[D]
+  private[dsentric] def _pathValidator:Validator[_]
 
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures
 
@@ -318,8 +319,8 @@ trait ContractFor[D <: DObject] extends BaseContract[D] { self =>
 
   def _path:Path = Path.empty
 
-  def $schema(newLine:String, indent:String):String =
-    graphQl.GraphQlSchema.renderContract(this, newLine, indent)
+  def $schema:DObject =
+    avro.AvroSchema.processContract(this)
 
   def $validate(value:D):NonEmptyList[(Path, String)] Either D =
     _validateFields(Path.empty, value.value, None) match {
@@ -501,6 +502,9 @@ class Default[D <: DObject, T] private[dsentric]
 class EmptyProperty[T](implicit private[dsentric] val _codec:DCodec[T]) extends Property[Nothing, T] {
 
   _forcePath(Path.empty)
+
+
+  private[dsentric] def _pathValidator = Validators.empty
 
   def _nameOverride: Option[String] = None
 

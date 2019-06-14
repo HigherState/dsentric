@@ -1,4 +1,4 @@
-package dsentricTests
+package dsentric
 
 import dsentric.AndMatcher._
 import dsentric._

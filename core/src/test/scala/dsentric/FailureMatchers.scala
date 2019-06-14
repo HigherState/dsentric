@@ -1,4 +1,4 @@
-package dsentricTests
+package dsentric
 
 import org.scalatest.matchers.{MatchResult, Matcher}
 
