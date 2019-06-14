@@ -38,6 +38,22 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct { self 
       __fields
     }
 
+  def injectDefaults(d: D): DObject = {
+    val dataToInject: Map[String, Data] =
+      _fields.collect[Option[(String, Data)], Vector[Option[(String, Data)]]]{
+        case (n, p:Default[D, _]@unchecked) =>
+          val trueName = p._nameOverride.getOrElse(n)
+          Some(trueName -> ForceWrapper.data(d.get(trueName).flatMap{_.decode(p._codec)}.getOrElse(p._default)))
+        case (n, p:SubContractFor[_]@unchecked) =>
+          val trueName = p._nameOverride.getOrElse(n)
+          p.injectDefaults(d.get(trueName).getOrElse(DObject.empty).asInstanceOf[p.Out]) match {
+            case DObject.empty => None
+            case x => Some(trueName -> x)
+          }
+      }.flatten.toMap
+    d ++ dataToInject
+  }
+
   def _keys:Set[String] = _fields.map(_._1).toSet
 
   def \[T](implicit codec:DCodec[T]):Expected[D, T] =
@@ -296,7 +312,7 @@ sealed trait Property[D <: DObject, T <: Any] extends Struct {
     new DProjection(PathLensOps.pathToMap(_path, 1))
 }
 
-trait SubContractFor[D <: DObject] extends BaseContract[D]
+trait SubContractFor[D <: DObject] extends BaseContract[D] { type Out = D }
 
 trait ContractFor[D <: DObject] extends BaseContract[D] { self =>
 

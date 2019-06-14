@@ -352,4 +352,5 @@ class ContractTests extends FunSuite with Matchers {
     }
   }
 
+
 }

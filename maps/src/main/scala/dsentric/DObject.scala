@@ -115,6 +115,9 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
   def get(key:String):Option[Data] =
     value.get(key).map(ForceWrapper.data)
 
+  def get(path: Path):Option[Data] =
+    PathLensOps.traverse(value, path).map(ForceWrapper.data)
+
   override def size:Int =
     value.size
 
