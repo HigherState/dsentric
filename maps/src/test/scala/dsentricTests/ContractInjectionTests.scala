@@ -35,8 +35,8 @@ class ContractInjectionTests extends FlatSpec with Matchers {
   "injectDefaults" should "add a missing value to a dobject only if it has a default" in {
     val dObject = DObject.empty
     val res = Flat.injectDefaults(dObject)
-    res.get("one").flatMap(_.decode[String]) shouldBe None
-    res.get("two").flatMap(_.decode[Int]) shouldBe Some(123)
+    Flat.one.$get(res) shouldBe None
+    Flat.two.$get(res) shouldBe 123
   }
   "injectDefaults" should "does nothing if no defaults in flat structure" in {
     val dObject = DObject.empty
@@ -46,31 +46,31 @@ class ContractInjectionTests extends FlatSpec with Matchers {
   "injectDefaults" should "not override an existing property in a dobject with a default" in {
     val dObject = DObject("two" -> Data(321))
     val res = Flat.injectDefaults(dObject)
-    res.get("two").flatMap(_.decode[Int]) shouldBe Some(321)
+    Flat.two.$get(res) shouldBe 321
   }
   "injectDefaults" should "work when there is a name override" in {
     val dObject1 = DObject.empty
     val res1 = Flat.injectDefaults(dObject1)
-    res1.get("three").flatMap(_.decode[String]) shouldBe Some("bob")
+    Flat._three.$get(res1) shouldBe "bob"
 
     val dObject2 = DObject("three" -> Data("sally"))
     val res2 = Flat.injectDefaults(dObject2)
-    res2.get("three").flatMap(_.decode[String]) shouldBe Some("sally")
+    Flat._three.$get(res2) shouldBe "sally"
   }
 
   "injectDefaults" should "add a missing value in a nested structure" in {
     val dObject = DObject.empty
     val res = Nested.injectDefaults(dObject)
-    res.get(Path("nest", "two")).flatMap(_.decode[Int]) shouldBe Some(123)
+    Nested.nest.two.$get(res) shouldBe 123
   }
   "injectDefaults" should "work when there is a name override in a nested structure" in {
     val dObject1 = DObject.empty
     val res1 = Nested.injectDefaults(dObject1)
-    res1.get(Path("nest", "three")).flatMap(_.decode[String]) shouldBe Some("bob")
+    Nested.nest._three.$get(res1) shouldBe "bob"
 
     val dObject2 = DObject("nest" -> DObject("three" -> Data("sally")))
     val res2 = Nested.injectDefaults(dObject2)
-    res2.get(Path("nest", "three")).flatMap(_.decode[String]) shouldBe Some("sally")
+    Nested.nest._three.$get(res2) shouldBe "sally"
   }
   "injectDefaults" should "does nothing if no defaults in nested structure" in {
     val dObject = DObject("non" -> Data("bob"))
