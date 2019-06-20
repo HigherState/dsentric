@@ -33,7 +33,7 @@ case class AndValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B
 
   private[dsentric] override def mask:Option[String] = left.mask.orElse(right.mask)
 
-  override def schemaInfo: DObject = DObject("validationAnd" := DArray(left.schemaInfo, right.schemaInfo))
+  override val schemaInfo: DObject = DObject("validationAnd" := DArray(left.schemaInfo, right.schemaInfo))
 }
 
 case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]) extends Validator[T] {
@@ -58,7 +58,7 @@ case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]
 
   private[dsentric] override def isInternal:Boolean = left.isInternal || right.isInternal
 
-  override def schemaInfo: DObject = DObject("validationOr" := DArray(left.schemaInfo, right.schemaInfo))
+  override val schemaInfo: DObject = DObject("validationOr" := DArray(left.schemaInfo, right.schemaInfo))
 
 }
 
@@ -80,7 +80,7 @@ trait Validators extends ValidatorOps{
 
       private[dsentric] override def isInternal:Boolean = true
 
-      override def schemaInfo: DObject = DObject("internal" := true)
+      override val schemaInfo: DObject = DObject("internal" := true)
 
     }
 
@@ -92,14 +92,14 @@ trait Validators extends ValidatorOps{
 
       override def mask:Option[String] = Some(masking)
 
-      override def schemaInfo: DObject = DObject("masked" := masking)
+      override val schemaInfo: DObject = DObject("masked" := masking)
     }
 
   val reserved =
     new Validator[Option[Nothing]] {
       def apply[S >: Option[Nothing]](path: Path, value: Option[S], currentState: => Option[S]): Failures =
         value.fold(Failures.empty)(_ => Failures(path -> "Value is reserved and cannot be provided."))
-      override def schemaInfo: DObject = DObject("reserved" := true)
+      override val schemaInfo: DObject = DObject("reserved" := true)
     }
 
   val immutable =
@@ -113,7 +113,7 @@ trait Validators extends ValidatorOps{
           path -> "Immutable value cannot be changed."
           ).toVector
 
-      override def schemaInfo: DObject = DObject("immutable" := true)
+      override val schemaInfo: DObject = DObject("immutable" := true)
     }
 
 
@@ -129,7 +129,7 @@ trait Validators extends ValidatorOps{
           a <- if (r >= 0) Some(path -> "Value must increase.") else None
         } yield a).toVector
 
-      override def schemaInfo: DObject = DObject("valueMustIncrease" := true)
+      override val schemaInfo: DObject = DObject("valueMustIncrease" := true)
     }
 
   val decrement =
@@ -142,7 +142,7 @@ trait Validators extends ValidatorOps{
           a <- if (r <= 0) Some(path -> "Value must decrease.") else None
         } yield a).toVector
 
-      override def schemaInfo: DObject = DObject("valueMustDecrease" := true)
+      override val schemaInfo: DObject = DObject("valueMustDecrease" := true)
     }
 
   def >(x:Long) = new Validator[Numeric] {
@@ -154,7 +154,7 @@ trait Validators extends ValidatorOps{
       } yield path -> s"Value $v is not greater than $x.")
       .toVector
 
-    override def schemaInfo: DObject = DObject("greaterThan" := x)
+    override val schemaInfo: DObject = DObject("greaterThan" := x)
   }
 
   def >(x:Double) = new Validator[Numeric] {
@@ -166,7 +166,7 @@ trait Validators extends ValidatorOps{
       } yield path -> s"Value $v is not greater than $x.")
         .toVector
 
-    override def schemaInfo: DObject = DObject("greaterThan" := x)
+    override val schemaInfo: DObject = DObject("greaterThan" := x)
   }
 
   def >=(x:Long) = new Validator[Numeric] {
@@ -178,7 +178,7 @@ trait Validators extends ValidatorOps{
       } yield path -> s"Value $v is not greater or equal to $x.")
         .toVector
 
-    override def schemaInfo: DObject = DObject("greaterThanEqual" := x)
+    override val schemaInfo: DObject = DObject("greaterThanEqual" := x)
 
   }
 
@@ -191,7 +191,7 @@ trait Validators extends ValidatorOps{
       } yield path -> s"Value $v is not greater or equal to $x.")
         .toVector
 
-    override def schemaInfo: DObject = DObject("greaterThanEqual" := x)
+    override val schemaInfo: DObject = DObject("greaterThanEqual" := x)
 
   }
 
@@ -204,7 +204,7 @@ trait Validators extends ValidatorOps{
       } yield path -> s"Value $v is not less than $x.")
         .toVector
 
-    override def schemaInfo: DObject = DObject("lessThan" := x)
+    override val schemaInfo: DObject = DObject("lessThan" := x)
 
   }
 
@@ -217,7 +217,7 @@ trait Validators extends ValidatorOps{
       } yield path -> s"Value $v is not less than $x.")
         .toVector
 
-    override def schemaInfo: DObject = DObject("lessThan" := x)
+    override val schemaInfo: DObject = DObject("lessThan" := x)
   }
 
   def <=(x:Long) = new Validator[Numeric] {
@@ -229,7 +229,7 @@ trait Validators extends ValidatorOps{
       } yield path -> s"Value $v is not less than or equal to $x.")
         .toVector
 
-    override def schemaInfo: DObject = DObject("lessThanEqual" := x)
+    override val schemaInfo: DObject = DObject("lessThanEqual" := x)
   }
 
   def <=(x:Double) = new Validator[Numeric] {
@@ -241,7 +241,7 @@ trait Validators extends ValidatorOps{
       } yield path -> s"Value $v is not less than or equal to $x.")
         .toVector
 
-    override def schemaInfo: DObject = DObject("lessThanEqual" := x)
+    override val schemaInfo: DObject = DObject("lessThanEqual" := x)
   }
 
   def minLength(x: Int) = new Validator[Optionable[Length]] {
@@ -251,7 +251,7 @@ trait Validators extends ValidatorOps{
         .map(v => path -> s"Value must have a length of at least $x.")
         .toVector
 
-    override def schemaInfo: DObject = DObject("minLength" := x)
+    override val schemaInfo: DObject = DObject("minLength" := x)
 
   }
 
@@ -262,7 +262,7 @@ trait Validators extends ValidatorOps{
         .map(v => path -> s"Value must have a length of at most $x.")
         .toVector
 
-    override def schemaInfo: DObject = DObject("maxLength" := x)
+    override val schemaInfo: DObject = DObject("maxLength" := x)
 
   }
 
