@@ -21,15 +21,12 @@ object AvroSchema {
   def readContract[D <: DObject](contract:BaseContract[D], typeOverride:Option[String]):AvroRecord = {
     val annotatedChildren = getAnnotationOverrides(contract)
     val fieldList =
-      contract._fields.foldLeft(Vector.empty[AvroField]){
-        case (fields,(name, b:BaseContract[D]@unchecked with Property[D,_]@unchecked)) =>
-          val typeName = annotatedChildren.getOrElse(name, getContractName(b))
-          val newFields = fields :+ AvroField(name, Right(readContract(b, None)), b.isInstanceOf[Expected[_, _]], getAdditional(b))
-          newFields
+      contract._fields.map {
+        case (name, b:BaseContract[D]@unchecked with Property[D,_]@unchecked) =>
+          AvroField(name, Right(readContract(b, None)), b.isInstanceOf[Expected[_, _]], getAdditional(b))
 
-        case (fields, (name, p)) =>
-          val field = AvroField(name, Left(p._codec.schemaName), p.isInstanceOf[Expected[_, _]], p._codec.schemaAdditional ++ getAdditional(p))
-          fields :+ field
+        case (name, p) =>
+          AvroField(name, Left(p._codec.schemaName), p.isInstanceOf[Expected[_, _]], p._codec.schemaAdditional ++ getAdditional(p))
       }
     AvroRecord(typeOverride.getOrElse(getContractName(contract)), fieldList)
   }
