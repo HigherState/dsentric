@@ -335,7 +335,7 @@ trait Validators extends ValidatorOps{
     new Validator[Optionable[String]] {
 
       val message = "String must not be empty or whitespace."
-      override val schemaInfo: DObject = DObject("nonBlank" := true, "noWhitespace" := true)
+      override val schemaInfo: DObject = DObject("nonBlank" := true)
 
       def apply[S >: Optionable[String]](path: Path, value: Option[S], currentState: => Option[S]): Failures =
         value
