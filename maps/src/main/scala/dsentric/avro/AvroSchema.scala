@@ -19,7 +19,6 @@ object AvroSchema {
 
   //TODO Support type extraction like GraphQL, necessary for recursive types as well
   def readContract[D <: DObject](contract:BaseContract[D], typeOverride:Option[String]):AvroRecord = {
-    val annotatedChildren = getAnnotationOverrides(contract)
     val fieldList =
       contract._fields.map {
         case (name, b:BaseContract[D]@unchecked with Property[D,_]@unchecked) =>
