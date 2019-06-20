@@ -169,7 +169,7 @@ object Query extends Query {
         !search(value -> path).exists(x => order(x -> v).contains(0))
       case /(path, regex) =>
         search(value -> path).collect{case s:String => s}.exists(s => regex.pattern.matcher(s).matches)
-      case ϵ(path, values) =>
+      case In(path, values) =>
         values.forall{ kv =>
           search(value -> (path \ kv._1)).exists(x => order(x -> kv._2).contains(0))
         }
@@ -189,7 +189,7 @@ object Query extends Query {
         !search(value -> path).exists(j => values.contains(j))
       case ?(path, "$exists", v:Boolean) =>
         search(value -> path).nonEmpty == v
-      case ∃(path, subQuery) =>
+      case Exists(path, subQuery) =>
         search(value -> path).collect { case v:Vector[Any] => v.exists(s => apply(s, subQuery)) }.getOrElse(false)
       case _ =>
         false

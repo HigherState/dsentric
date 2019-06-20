@@ -30,8 +30,8 @@ sealed trait TreeLogical extends Tree {
 }
 
 final case class ?(path:Path, op:String, value:Any) extends TreeComparison
-final case class ∃(path:Path, tree:Tree) extends TreeComparison
-final case class ϵ(subPath:Path, values:Map[String, Any]) extends Tree {
+final case class Exists(path:Path, tree:Tree) extends TreeComparison
+final case class In(subPath:Path, values:Map[String, Any]) extends Tree {
   import dsentric.Dsentric._
   def queriedPaths:Set[Path] =
     values.map(subPath \ _._1).toSet
