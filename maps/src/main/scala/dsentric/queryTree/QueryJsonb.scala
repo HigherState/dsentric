@@ -40,7 +40,7 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
       Right("(" +: field +: " #>> '" +: toPath(path) +: "') ~ '" +: escape(regex.toString) +: Vector("'"))
     case (%(path, like, _), _) =>
       Right("(" +: field +: " #>> '" +: toPath(path) +: "') ILIKE '" +: like +: Vector("'"))
-    case (ϵ(path, map), _) =>
+    case (In(path, map), _) =>
       Right(field +: " @> '" +: toObject(path, map, R)  :+ "'::jsonb")
     case (?(path, "$eq", value), _) =>
       Right(field +: " @> '" +: toObject(path, value, R)  :+ "'::jsonb")
@@ -73,13 +73,13 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
         s"($field #>> '$p') :: $c $op $v",
         s")")
 
-    case (∃(path, ?(Path.empty, "$eq", value)), _) =>
+    case (Exists(path, ?(Path.empty, "$eq", value)), _) =>
       Right(field +: toElement(path) +: " @> '" +: R.print(value) +: Vector("'"))
-    case (∃(path, /(Path.empty, regex)), _) =>
+    case (Exists(path, /(Path.empty, regex)), _) =>
       Right("EXISTS (SELECT * FROM jsonb_array_elements_text(" +: field +: toElement(path) +: ") many(elem) WHERE elem ~ '" +: escape(regex.toString) +: Vector("')"))
-    case (∃(path, ?(subPath, "$eq", value)), _) =>
+    case (Exists(path, ?(subPath, "$eq", value)), _) =>
       Right(field +: toElement(path) +: " @> " +: "'["  +: toObject(subPath, value, R) :+ "]'")
-    case (∃(path, _), _) =>
+    case (Exists(path, _), _) =>
       Left(NonEmptyList("Currently only equality is supported in element match." -> path, Nil))
     case (?(path, op, _), _) =>
       Left(NonEmptyList(s"Unable to parse query operation $op." -> path, Nil))

@@ -21,9 +21,9 @@ object QueryTree {
 
     if (r.size > 1)
       if (l.isEmpty)
-        ϵ(path, r)
+        In(path, r)
       else
-        &(ϵ(path, r) +: treeNodes(l, path))
+        &(In(path, r) +: treeNodes(l, path))
     else
       treeNodes(query, path) match {
         case Seq(s) => s
@@ -42,9 +42,9 @@ object QueryTree {
       case ("$not", value:Map[String,Any]@unchecked) =>
         Some(!!(buildTree(value, path)))
       case ("$elemMatch", value:Map[String,Any]@unchecked ) =>
-        Some(∃(path, buildTree(value, Path.empty)))
+        Some(Exists(path, buildTree(value, Path.empty)))
       case ("$elemMatch", j) =>
-        Some(∃(path, ?(Path.empty, "$eq", j)))
+        Some(Exists(path, ?(Path.empty, "$eq", j)))
       case (o@("$eq" | "$ne" | "$lt" | "$gt" | "$lte" | "$gte" | "$in" | "$nin" | "$exists"), v) =>
         Some(?(path, o, v))
       case ("$regex", s:String) =>
@@ -94,12 +94,12 @@ object QueryTree {
         }
         lv -> rv
 
-      case ϵ(path, values) =>
+      case In(path, values) =>
         val (l,r) = values.partition{
           case (k,_) => paths.exists((path \ k).hasSubPath)
         }
-        val lp = if (l.nonEmpty) Some(ϵ(path, l)) else None
-        val rp = if (r.nonEmpty) Some(ϵ(path, r)) else None
+        val lp = if (l.nonEmpty) Some(In(path, l)) else None
+        val rp = if (r.nonEmpty) Some(In(path, r)) else None
         lp -> rp
 
       case ?(path, _, _) =>
@@ -114,7 +114,7 @@ object QueryTree {
         if (paths.exists(path.hasSubPath)) Some(tree) -> None
         else None -> Some(tree)
 
-      case ∃(path, _) =>
+      case Exists(path, _) =>
         if (paths.exists(path.hasSubPath)) Some(tree) -> None
         else None -> Some(tree)
 
@@ -149,7 +149,7 @@ object QueryTree {
           else
             lm -> Some(tree)
         }
-      case t@ϵ(path, values) =>
+      case t@In(path, values) =>
         if (values.forall(kv => paths.exists((path \ kv._1).hasSubPath)))
           Some(t) -> None
         else
@@ -167,7 +167,7 @@ object QueryTree {
         if (paths.exists(path.hasSubPath)) Some(tree) -> None
         else None -> Some(tree)
 
-      case ∃(path, _) =>
+      case Exists(path, _) =>
         if (paths.exists(path.hasSubPath)) Some(tree) -> None
         else None -> Some(tree)
 
