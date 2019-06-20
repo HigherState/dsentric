@@ -33,7 +33,7 @@ case class AndValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B
 
   private[dsentric] override def mask:Option[String] = left.mask.orElse(right.mask)
 
-  override val schemaInfo: DObject = DObject("validationAnd" := DArray(left.schemaInfo, right.schemaInfo))
+  override val schemaInfo: DObject = left.schemaInfo ++ right.schemaInfo
 }
 
 case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]) extends Validator[T] {
@@ -58,7 +58,7 @@ case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]
 
   private[dsentric] override def isInternal:Boolean = left.isInternal || right.isInternal
 
-  override val schemaInfo: DObject = DObject("validationOr" := DArray(left.schemaInfo, right.schemaInfo))
+  override val schemaInfo: DObject = DObject("atLeastOneOf" := DArray(left.schemaInfo, right.schemaInfo))
 
 }
 
@@ -320,7 +320,7 @@ trait Validators extends ValidatorOps{
     new Validator[Optionable[Length]] {
 
       val message = "Value must not be empty."
-      override val schemaInfo: DObject = DObject("nonEmpty" := true, "message" := message)
+      override val schemaInfo: DObject = DObject("nonEmpty" := true)
 
       def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         value
@@ -335,7 +335,7 @@ trait Validators extends ValidatorOps{
     new Validator[Optionable[String]] {
 
       val message = "String must not be empty or whitespace."
-      override val schemaInfo: DObject = DObject("nonBlank" := true, "message" := message)
+      override val schemaInfo: DObject = DObject("nonBlank" := true, "noWhitespace" := true)
 
       def apply[S >: Optionable[String]](path: Path, value: Option[S], currentState: => Option[S]): Failures =
         value
@@ -368,7 +368,7 @@ trait Validators extends ValidatorOps{
   def regex(r:Regex, message:String):Validator[Optionable[String]] =
     new Validator[Optionable[String]] {
 
-      override val schemaInfo: DObject = DObject("regex" := r.pattern.pattern(), "message" := message)
+      override val schemaInfo: DObject = DObject("regex" := r.pattern.pattern())
 
       def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         value
@@ -421,7 +421,7 @@ trait Validators extends ValidatorOps{
   def keyValidator(r:Regex, message:String):Validator[Optionable[DObject]] =
     new Validator[Optionable[DObject]] {
 
-      override val schemaInfo: DObject = DObject("message" := message, "keys" := DObject("regex" := r.pattern.pattern()))
+      override val schemaInfo: DObject = DObject("keys" := DObject("regex" := r.pattern.pattern()))
 
       def apply[S >: Optionable[DObject]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         for {
@@ -434,7 +434,7 @@ trait Validators extends ValidatorOps{
   def keyValidator[T](message:String)(implicit D:DCodec[T]):Validator[Optionable[DObject]] =
     new Validator[Optionable[DObject]] {
 
-      override val schemaInfo: DObject = DObject("message" := message, "keys" := DObject("type" := D.schemaName))
+      override val schemaInfo: DObject = DObject("keys" := DObject("type" := D.schemaName))
 
       def apply[S >: Optionable[DObject]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         for {
