@@ -40,7 +40,7 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
       Right("(" +: field +: " #>> '" +: toPath(path) +: "') ~ '" +: escape(regex.toString) +: Vector("'"))
     case (%(path, like, _), _) =>
       Right("(" +: field +: " #>> '" +: toPath(path) +: "') ILIKE '" +: like +: Vector("'"))
-    case (ϵ(path, map), _) =>
+    case (In(path, map), _) =>
       Right(field +: " @> '" +: toObject(path, map, R)  :+ "'::jsonb")
     case (?(path, "$eq", value), _) =>
       Right(field +: " @> '" +: toObject(path, value, R)  :+ "'::jsonb")
@@ -73,13 +73,13 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
         s"($field #>> '$p') :: $c $op $v",
         s")")
 
-    case (∃(path, ?(Path.empty, "$eq", value)), _) =>
+    case (Exists(path, ?(Path.empty, "$eq", value)), _) =>
       Right(field +: toElement(path) +: " @> '" +: R.print(value) +: Vector("'"))
-    case (∃(path, /(Path.empty, regex)), _) =>
+    case (Exists(path, /(Path.empty, regex)), _) =>
       Right("EXISTS (SELECT * FROM jsonb_array_elements_text(" +: field +: toElement(path) +: ") many(elem) WHERE elem ~ '" +: escape(regex.toString) +: Vector("')"))
-    case (∃(path, ?(subPath, "$eq", value)), _) =>
+    case (Exists(path, ?(subPath, "$eq", value)), _) =>
       Right(field +: toElement(path) +: " @> " +: "'["  +: toObject(subPath, value, R) :+ "]'")
-    case (∃(path, _), _) =>
+    case (Exists(path, _), _) =>
       Left(NonEmptyList("Currently only equality is supported in element match." -> path, Nil))
     case (?(path, op, _), _) =>
       Left(NonEmptyList(s"Unable to parse query operation $op." -> path, Nil))
@@ -87,8 +87,10 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
 
   private def toObject(path:Path, value:Any, R:Renderer):Vector[String] =
     path match {
-      case head +: tail =>
-        "{\"" +: escape(head) +: "\":" +: toObject(tail, value, R) :+ "}"
+      case PathKey(key, tail) =>
+        "{\"" +: escape(key) +: "\":" +: toObject(tail, value, R) :+ "}"
+      case PathIndex(index, tail) =>
+        "{\"" +: index.toString +: "\":" +: toObject(tail, value, R) :+ "}"
       case _ =>
         Vector(escape(R.print(value)))
     }
@@ -109,18 +111,22 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
   private def escape(s:String):String =
     escapeString(s)
   private def toPath(path:Path) =
-    path.map(escape).mkString("{", ",", "}")
+    path.toList.map(escape).mkString("{", ",", "}")
   private def toSearch:Function[Path, Vector[String]] = {
-    case tail :: Nil =>
-      Vector(" ?? '", escape(tail), "'")
-    case head :: tail =>
-      " -> '" +: escape(head) +: "'" +: toSearch(tail)
-    case Nil =>
+    case PathKey(key, PathEnd) =>
+      Vector(" ?? '", escape(key), "'")
+    case PathKey(key, tail) =>
+      " -> '" +: escape(key) +: "'" +: toSearch(tail)
+    case PathIndex(index, PathEnd) =>
+      Vector(" ?? '", index.toString, "'")
+    case PathIndex(index, tail) =>
+      " -> '" +: index.toString +: "'" +: toSearch(tail)
+    case PathEnd =>
       Vector.empty
   }
 
   private def toElement(path:Path):String =
-    path.map(escape).map(s => s" -> '$s'").mkString("")
+    path.toList.map(escape).map(s => s" -> '$s'").mkString("")
 
   private def getType:Function[(Any, Path), JbValid] = {
     case (_:Long,_) => Right("number")
