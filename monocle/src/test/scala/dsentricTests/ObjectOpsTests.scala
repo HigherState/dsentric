@@ -1,7 +1,7 @@
-package dsentricTests
+package dsentric
 
 import dsentric.ObjectOps
-import dsentricTests.J._
+import dsentric.J._
 import org.scalatest.{FunSuite, Matchers}
 
 class ObjectOpsTests  extends FunSuite with Matchers with ObjectOps {

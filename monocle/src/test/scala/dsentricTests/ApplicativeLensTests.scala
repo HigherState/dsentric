@@ -1,4 +1,4 @@
-package dsentricTests
+package dsentric
 
 import org.scalatest.{FunSuite, Matchers}
 import shapeless.ops.hlist.Tupler

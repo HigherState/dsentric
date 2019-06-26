@@ -1,6 +1,5 @@
-package dsentricTests
+package dsentric
 
-import dsentric.{DObject, _}
 import dsentric.queryTree.QueryTree
 import org.scalatest.{FunSuite, Matchers}
 

@@ -1,7 +1,8 @@
-package dsentricTests
+package dsentric
 
 import dsentric._
 import org.scalatest.{FunSuite, Matchers}
+import PessimisticCodecs._
 
 class ValidationTests extends FunSuite with Matchers {
 
@@ -41,12 +42,12 @@ class ValidationTests extends FunSuite with Matchers {
   }
 
   test("in/nin validators") {
-    Validators.in("one", "two", "three")(Path.empty, Some("one"), None) should be (Vector.empty)
-    Validators.in("one", "two", "three")(Path.empty, Some(Some("two")), None) should be (Vector.empty)
-    Validators.in("one", "two", "three")(Path.empty, Some("four"), None) should not be Vector.empty
+    Validators.in("one", "two", "three").apply(Path.empty, Some("one"), None) should be (Vector.empty)
+    Validators.in("one", "two", "three").apply(Path.empty, Some(Some("two")), None) should be (Vector.empty)
+    Validators.in("one", "two", "three").apply(Path.empty, Some("four"), None) should not be Vector.empty
 
-    Validators.nin(1,2,3)(Path.empty, Some(4), None) should be (Vector.empty)
-    Validators.nin(1,2,3)(Path.empty, Some(2), None) should not be Vector.empty
+    Validators.nin(1,2,3).apply(Path.empty, Some(4), None) should be (Vector.empty)
+    Validators.nin(1,2,3).apply(Path.empty, Some(2), None) should not be Vector.empty
   }
 
   test("regex validator") {

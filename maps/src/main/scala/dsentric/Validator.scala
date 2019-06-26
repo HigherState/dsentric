@@ -1,6 +1,8 @@
 package dsentric
 
 import scala.util.matching.Regex
+import Dsentric._
+import PessimisticCodecs._
 
 trait Validator[+T] {
 
@@ -9,6 +11,8 @@ trait Validator[+T] {
   def &&[S >: T] (v:Validator[S]):Validator[S] = AndValidator(this, v)
 
   def ||[S >: T] (v:Validator[S]):Validator[S] = OrValidator(this, v)
+
+  def schemaInfo:DObject = DObject.empty
 
   private[dsentric] def isInternal:Boolean = false
 
@@ -28,6 +32,8 @@ case class AndValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B
   private[dsentric] override def removalDenied:Boolean = left.removalDenied || right.removalDenied
 
   private[dsentric] override def mask:Option[String] = left.mask.orElse(right.mask)
+
+  override val schemaInfo: DObject = left.schemaInfo ++ right.schemaInfo
 }
 
 case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]) extends Validator[T] {
@@ -51,6 +57,9 @@ case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]
   private[dsentric] override def removalDenied:Boolean = left.removalDenied || right.removalDenied
 
   private[dsentric] override def isInternal:Boolean = left.isInternal || right.isInternal
+
+  override val schemaInfo: DObject = DObject("atLeastOneOf" := DArray(left.schemaInfo, right.schemaInfo))
+
 }
 
 //TODO separate definition for internal/reserved etc such that the or operator is not supported
@@ -61,7 +70,6 @@ trait Validators extends ValidatorOps{
       def apply[S >: Nothing](path:Path, value: Option[S], currentState: => Option[S]):Failures =
         Failures.empty
 
-
       override def isEmpty:Boolean = true
     }
 
@@ -71,6 +79,9 @@ trait Validators extends ValidatorOps{
         value.fold(Failures.empty)(_ => Failures(path -> "Value is reserved and cannot be provided."))
 
       private[dsentric] override def isInternal:Boolean = true
+
+      override val schemaInfo: DObject = DObject("internal" := true)
+
     }
 
   def mask(masking:String): Validator[Nothing] =
@@ -80,12 +91,15 @@ trait Validators extends ValidatorOps{
         Failures.empty
 
       override def mask:Option[String] = Some(masking)
+
+      override val schemaInfo: DObject = DObject("masked" := masking)
     }
 
   val reserved =
     new Validator[Option[Nothing]] {
       def apply[S >: Option[Nothing]](path: Path, value: Option[S], currentState: => Option[S]): Failures =
         value.fold(Failures.empty)(_ => Failures(path -> "Value is reserved and cannot be provided."))
+      override val schemaInfo: DObject = DObject("reserved" := true)
     }
 
   val immutable =
@@ -98,6 +112,8 @@ trait Validators extends ValidatorOps{
         } yield
           path -> "Immutable value cannot be changed."
           ).toVector
+
+      override val schemaInfo: DObject = DObject("immutable" := true)
     }
 
 
@@ -112,6 +128,8 @@ trait Validators extends ValidatorOps{
           r <- resolve(c,v)
           a <- if (r >= 0) Some(path -> "Value must increase.") else None
         } yield a).toVector
+
+      override val schemaInfo: DObject = DObject("valueMustIncrease" := true)
     }
 
   val decrement =
@@ -123,6 +141,8 @@ trait Validators extends ValidatorOps{
           r <- resolve(c,v)
           a <- if (r <= 0) Some(path -> "Value must decrease.") else None
         } yield a).toVector
+
+      override val schemaInfo: DObject = DObject("valueMustDecrease" := true)
     }
 
   def >(x:Long) = new Validator[Numeric] {
@@ -133,6 +153,8 @@ trait Validators extends ValidatorOps{
         if c >= 0
       } yield path -> s"Value $v is not greater than $x.")
       .toVector
+
+    override val schemaInfo: DObject = DObject("greaterThan" := x)
   }
 
   def >(x:Double) = new Validator[Numeric] {
@@ -143,6 +165,8 @@ trait Validators extends ValidatorOps{
         if c >= 0
       } yield path -> s"Value $v is not greater than $x.")
         .toVector
+
+    override val schemaInfo: DObject = DObject("greaterThan" := x)
   }
 
   def >=(x:Long) = new Validator[Numeric] {
@@ -153,6 +177,9 @@ trait Validators extends ValidatorOps{
         if c > 0
       } yield path -> s"Value $v is not greater or equal to $x.")
         .toVector
+
+    override val schemaInfo: DObject = DObject("greaterThanEqual" := x)
+
   }
 
   def >=(x:Double) = new Validator[Numeric] {
@@ -163,6 +190,9 @@ trait Validators extends ValidatorOps{
         if c > 0
       } yield path -> s"Value $v is not greater or equal to $x.")
         .toVector
+
+    override val schemaInfo: DObject = DObject("greaterThanEqual" := x)
+
   }
 
   def <(x:Long) = new Validator[Numeric] {
@@ -173,6 +203,9 @@ trait Validators extends ValidatorOps{
         if c <= 0
       } yield path -> s"Value $v is not less than $x.")
         .toVector
+
+    override val schemaInfo: DObject = DObject("lessThan" := x)
+
   }
 
   def <(x:Double) = new Validator[Numeric] {
@@ -183,6 +216,8 @@ trait Validators extends ValidatorOps{
         if c <= 0
       } yield path -> s"Value $v is not less than $x.")
         .toVector
+
+    override val schemaInfo: DObject = DObject("lessThan" := x)
   }
 
   def <=(x:Long) = new Validator[Numeric] {
@@ -193,6 +228,8 @@ trait Validators extends ValidatorOps{
         if c < 0
       } yield path -> s"Value $v is not less than or equal to $x.")
         .toVector
+
+    override val schemaInfo: DObject = DObject("lessThanEqual" := x)
   }
 
   def <=(x:Double) = new Validator[Numeric] {
@@ -203,6 +240,8 @@ trait Validators extends ValidatorOps{
         if c < 0
       } yield path -> s"Value $v is not less than or equal to $x.")
         .toVector
+
+    override val schemaInfo: DObject = DObject("lessThanEqual" := x)
   }
 
   def minLength(x: Int) = new Validator[Optionable[Length]] {
@@ -211,6 +250,9 @@ trait Validators extends ValidatorOps{
         .filter(_ < x)
         .map(v => path -> s"Value must have a length of at least $x.")
         .toVector
+
+    override val schemaInfo: DObject = DObject("minLength" := x)
+
   }
 
   def maxLength(x: Int) = new Validator[Optionable[Length]] {
@@ -219,9 +261,15 @@ trait Validators extends ValidatorOps{
         .filter(_ > x)
         .map(v => path -> s"Value must have a length of at most $x.")
         .toVector
+
+    override val schemaInfo: DObject = DObject("maxLength" := x)
+
   }
 
-  def in[T](values:T*) = new Validator[Optionable[T]] {
+  def in[T](values:T*)(implicit codec:DCodec[T]) = new Validator[Optionable[T]] {
+
+    override val schemaInfo: DObject = DObject("symbols" := DArray(values:_*), "caseSensitive" := true)
+
     def apply[S >: Optionable[T]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value
         .flatMap(getT[T, S])
@@ -230,7 +278,10 @@ trait Validators extends ValidatorOps{
         .toVector
   }
 
-  def nin[T](values:T*) = new Validator[Optionable[T]] {
+  def nin[T](values:T*)(implicit codec:DCodec[T]) = new Validator[Optionable[T]] {
+
+    override val schemaInfo: DObject = DObject("forbidden" := DArray(values:_*), "caseSensitive" := true)
+
     def apply[S >: Optionable[T]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value
         .flatMap(getT[T, S])
@@ -241,6 +292,9 @@ trait Validators extends ValidatorOps{
 
   //maybe change to generic equality
   def inCaseInsensitive(values:String*) = new Validator[Optionable[String]] {
+
+    override val schemaInfo: DObject = DObject("symbols" := DArray(values:_*), "caseSensitive" := false)
+
     def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value
         .flatMap(getString)
@@ -250,6 +304,9 @@ trait Validators extends ValidatorOps{
   }
 
   def ninCaseInsensitive(values:String*) = new Validator[Optionable[String]] {
+
+    override val schemaInfo: DObject = DObject("forbidden" := DArray(values:_*), "caseSensitive" := false)
+
     def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value
         .flatMap(getString)
@@ -258,18 +315,28 @@ trait Validators extends ValidatorOps{
         .toVector
   }
 
+  // TODO: Rewrite as regex?
   val nonEmpty =
     new Validator[Optionable[Length]] {
+
+      val message = "Value must not be empty."
+      override val schemaInfo: DObject = DObject("nonEmpty" := true)
+
       def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         value
           .flatMap(getLength)
           .filter(_ == 0)
-          .map(v => path -> "Value must not be empty.")
+          .map(v => path -> message)
           .toVector
     }
 
+  // TODO: Rewrite as regex?
   val nonEmptyOrWhiteSpace =
     new Validator[Optionable[String]] {
+
+      val message = "String must not be empty or whitespace."
+      override val schemaInfo: DObject = DObject("nonBlank" := true)
+
       def apply[S >: Optionable[String]](path: Path, value: Option[S], currentState: => Option[S]): Failures =
         value
           .collect {
@@ -277,19 +344,22 @@ trait Validators extends ValidatorOps{
             case Some(s: String) => s
           }
           .filter(_.trim().isEmpty)
-          .map(v => path -> "String must not empty or whitespace.")
+          .map(v => path -> message)
           .toVector
     }
 
   def custom[T](f: T => Boolean, message:String) =
     new Validator[Optionable[T]] {
+
+      override val schemaInfo: DObject = DObject("message" := message)
+
       def apply[S >: Optionable[T]](path: Path, value: Option[S], currentState: => Option[S]): Failures =
         value
           .flatMap(getT[T, S])
           .toVector.flatMap{ s =>
-            if (f(s)) Vector.empty
-            else Vector(path -> message)
-          }
+          if (f(s)) Vector.empty
+          else Vector(path -> message)
+        }
     }
 
   def regex(r:Regex):Validator[Optionable[String]] =
@@ -297,6 +367,9 @@ trait Validators extends ValidatorOps{
 
   def regex(r:Regex, message:String):Validator[Optionable[String]] =
     new Validator[Optionable[String]] {
+
+      override val schemaInfo: DObject = DObject("regex" := r.pattern.pattern())
+
       def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         value
           .flatMap(getString)
@@ -324,6 +397,7 @@ trait Validators extends ValidatorOps{
 
   def mapContractK[K, D <: DObject](contract:ContractFor[D]): Validator[Optionable[Map[K, D]]] =
     new Validator[Optionable[Map[K,D]]] {
+
       def apply[S >: Optionable[Map[K, D]]](path: Path, value: Option[S], currentState: => Option[S]): Failures = {
         val c =
           for {
@@ -346,6 +420,9 @@ trait Validators extends ValidatorOps{
 
   def keyValidator(r:Regex, message:String):Validator[Optionable[DObject]] =
     new Validator[Optionable[DObject]] {
+
+      override val schemaInfo: DObject = DObject("keys" := DObject("regex" := r.pattern.pattern()))
+
       def apply[S >: Optionable[DObject]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         for {
           co <- value.toVector
@@ -356,6 +433,9 @@ trait Validators extends ValidatorOps{
 
   def keyValidator[T](message:String)(implicit D:DCodec[T]):Validator[Optionable[DObject]] =
     new Validator[Optionable[DObject]] {
+
+      override val schemaInfo: DObject = DObject("keys" := DObject("type" := D.schemaName))
+
       def apply[S >: Optionable[DObject]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         for {
           co <- value.toVector

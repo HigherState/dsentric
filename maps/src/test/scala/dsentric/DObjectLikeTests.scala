@@ -1,4 +1,4 @@
-package dsentricTests
+package dsentric
 
 import java.util.UUID
 

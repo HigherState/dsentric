@@ -1,25 +1,26 @@
-package dsentricTests
+package dsentric.avro
+
+import java.util.UUID
 
 import dsentric.{DObject, _}
 import org.scalatest.{FunSuite, Matchers}
-
 import Dsentric._
 import PessimisticCodecs._
-import Query._
-import dsentric.graphQl._
 
-//@GraphQl(typeName = "MyNested")
+
 trait AnotherNested extends SubContract {
   val prop = \[Boolean]
 }
 
-//@GraphQl(typeName = "MyQuery")
 object Query1 extends Contract {
   val field = \?[String]
   val field2 = \[Long]
   val fieldX = \[Float]("actualName")
 
-  @GraphQl(typeName = "Anonymous")
+
+  val fieldDef = \![Vector[Int]](Vector(1,2,3))
+
+  @Avro(typeName = "Anonymous")
   val nested = new \\? {
     val field2 = \?[String]
   }
@@ -28,11 +29,12 @@ object Query1 extends Contract {
   val nested3 = new \\? with AnotherNested
 }
 
-class GraphQLTests extends FunSuite with Matchers {
+class AvroSchemaTests extends FunSuite with Matchers {
+  implicit def renderer =  SimpleRenderer
 
   test("Existance/nonexistance of field") {
 
-    println(Query1.$schema("\n", "  "))
+    println(Query1.$schema.render)
 
   }
 }

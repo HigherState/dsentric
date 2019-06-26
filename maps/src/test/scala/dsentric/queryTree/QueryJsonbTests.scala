@@ -1,8 +1,7 @@
-package dsentricTests.queryTree
+package dsentric.queryTree
 
 import dsentric._
 import Dsentric._
-import dsentric.queryTree.QueryJsonb
 import org.scalatest.{FunSuite, Matchers}
 import dsentric.PessimisticCodecs._
 

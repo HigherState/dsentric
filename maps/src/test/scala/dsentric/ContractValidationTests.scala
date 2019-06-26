@@ -1,4 +1,4 @@
-package dsentricTests
+package dsentric
 
 import cats.data.NonEmptyList
 import dsentric._
@@ -49,7 +49,7 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     MaybeField.$validate(DObject.empty) should be (s(DObject.empty))
     MaybeField.$validate(DObject("mayNonEmpty" := false)) should be (f(Path("mayNonEmpty") -> ValidationText.UNEXPECTED_TYPE))
     MaybeField.$validate(DObject("mayNonEmpty" := "TEST")) should be (s(DObject("mayNonEmpty" := "TEST")))
-    MaybeField.$validate(DObject("mayNonEmpty" := "")) should be (f(Path("mayNonEmpty") -> "String must not empty or whitespace."))
+    MaybeField.$validate(DObject("mayNonEmpty" := "")) should be (f(Path("mayNonEmpty") -> "String must not be empty or whitespace."))
   }
 
   object DefaultField extends Contract {

@@ -7,6 +7,7 @@ trait DCodec[T] {
   def apply(t:T):Data
   def unapply(a:Any):Option[T]
   def schemaName:String = "Unknown"
+  def schemaAdditional:DObject = DObject.empty
 }
 
 trait DValueCodec[T] extends DCodec[T] {
@@ -84,7 +85,7 @@ trait DefaultCodecs {
             None
         }
 
-      override def schemaName: String = "Object"
+      override def schemaName: String = "record"
     }
 
   implicit val dArrayCodec:DArrayCodec[DArray] =
@@ -99,6 +100,7 @@ trait DefaultCodecs {
           case _ =>
             None
         }
+      override def schemaName: String = "array"
     }
 
   implicit val dNullCodec:DCodec[DNull] =
@@ -106,7 +108,7 @@ trait DefaultCodecs {
       protected def isMatch(a: Any): Boolean =
         a.isInstanceOf[DNull]
 
-      override def schemaName: String = "Null"
+      override def schemaName: String = "null"
     }
 
   implicit def tupleCodec[T1,T2](implicit D1:DCodec[T1], D2:DCodec[T2]):DCodec[(T1, T2)] =
@@ -143,26 +145,26 @@ trait PessimisticCodecs extends DefaultCodecs {
     new DirectCodec[String] with MatchCodec[String] {
       protected def isMatch(a: Any): Boolean =
         a.isInstanceOf[String]
-      override def schemaName: String = "String"
+      override def schemaName: String = "string"
     }
   implicit val booleanCodec:DValueCodec[Boolean] =
     new DirectCodec[Boolean] with MatchCodec[Boolean] {
       protected def isMatch(a: Any): Boolean =
         a.isInstanceOf[Boolean]
-      override def schemaName: String = "Boolean"
+      override def schemaName: String = "boolean"
     }
   implicit val longCodec:DValueCodec[Long] =
     new DirectCodec[Long] {
       def unapply(a: Any): Option[Long] =
         NumericPartialFunctions.long.lift(a)
 
-      override def schemaName: String = "Int"
+      override def schemaName: String = "long"
     }
   implicit val doubleCodec:DValueCodec[Double] =
     new DirectCodec[Double] {
       def unapply(a: Any): Option[Double] =
         NumericPartialFunctions.double.lift(a)
-      override def schemaName: String = "Float"
+      override def schemaName: String = "double"
     }
 
   implicit val intCodec:DValueCodec[Int] =
@@ -171,7 +173,7 @@ trait PessimisticCodecs extends DefaultCodecs {
         new DValue(t.toLong)
       def unapply(a: Any): Option[Int] =
         NumericPartialFunctions.int.lift(a)
-      override def schemaName: String = "Int"
+      override def schemaName: String = "int"
     }
   implicit val shortCodec:DValueCodec[Short] =
     new DValueCodec[Short] {
@@ -179,7 +181,7 @@ trait PessimisticCodecs extends DefaultCodecs {
         new DValue(t.toLong)
       def unapply(a: Any): Option[Short] =
         NumericPartialFunctions.short.lift(a)
-      override def schemaName: String = "Int"
+      override def schemaName: String = "int"
     }
   implicit val byteCodec:DValueCodec[Byte] =
     new DValueCodec[Byte] {
@@ -195,7 +197,7 @@ trait PessimisticCodecs extends DefaultCodecs {
         new DValue(t.toDouble)
       def unapply(a: Any): Option[Float] =
         NumericPartialFunctions.float.lift(a)
-      override def schemaName: String = "Float"
+      override def schemaName: String = "float"
     }
   implicit val numberCodec:DValueCodec[Number] =
     new DValueCodec[Number] {
@@ -204,7 +206,7 @@ trait PessimisticCodecs extends DefaultCodecs {
       def unapply(a: Any): Option[Number] =
         NumericPartialFunctions.number.lift(a)
 
-      override def schemaName: String = "Float"
+      override def schemaName: String = "double"
     }
 
   implicit def optionCodec[T](implicit D:DCodec[T]) =
@@ -238,7 +240,10 @@ trait PessimisticCodecs extends DefaultCodecs {
           case _ =>
             None
         }
-      override def schemaName: String = "[" + C.schemaName + "]"
+      override def schemaName: String = "array"
+
+      override def schemaAdditional: DObject =
+        DObject("items" -> stringCodec(C.schemaName))
     }
 
   implicit def vectorCodec[T](implicit C:DCodec[T]):DArrayCodec[Vector[T]] =
@@ -260,7 +265,10 @@ trait PessimisticCodecs extends DefaultCodecs {
             None
         }
 
-      override def schemaName: String = "[" + C.schemaName + "]"
+      override def schemaName: String = "array"
+
+      override def schemaAdditional: DObject =
+        DObject("items" -> stringCodec(C.schemaName))
     }
 
   implicit def fixedMapCodec[T](implicit D:DCodec[T]):DCodec[Map[String, T]] =
@@ -339,6 +347,9 @@ trait OptimisticCodecs extends DefaultCodecs {
           case false | i"false" | 0 => Some(false)
           case _ => None
         }
+
+
+      override def schemaName: String = "boolean"
     }
   implicit val longCodec:DValueCodec[Long] =
     new DirectCodec[Long] {
@@ -346,7 +357,7 @@ trait OptimisticCodecs extends DefaultCodecs {
         NumericPartialFunctions.stringDouble.lift(a)
           .fold(NumericPartialFunctions.long.lift(a))(NumericPartialFunctions.long.lift)
 
-      override def schemaName: String = "Int"
+      override def schemaName: String = "long"
 
     }
   implicit val doubleCodec:DValueCodec[Double] =
@@ -355,7 +366,7 @@ trait OptimisticCodecs extends DefaultCodecs {
         NumericPartialFunctions.stringDouble.lift(a)
           .orElse(NumericPartialFunctions.double.lift(a))
 
-      override def schemaName: String = "Float"
+      override def schemaName: String = "double"
     }
 
   implicit val intCodec:DValueCodec[Int] =
@@ -366,7 +377,7 @@ trait OptimisticCodecs extends DefaultCodecs {
         NumericPartialFunctions.stringDouble.lift(a)
           .fold(NumericPartialFunctions.int.lift(a))(NumericPartialFunctions.int.lift)
 
-      override def schemaName: String = "Int"
+      override def schemaName: String = "int"
     }
   implicit val shortCodec:DValueCodec[Short] =
     new DValueCodec[Short] {
@@ -376,7 +387,7 @@ trait OptimisticCodecs extends DefaultCodecs {
         NumericPartialFunctions.stringDouble.lift(a)
           .fold(NumericPartialFunctions.short.lift(a))(NumericPartialFunctions.short.lift)
 
-      override def schemaName: String = "Int"
+      override def schemaName: String = "int"
     }
   implicit val byteCodec:DValueCodec[Byte] =
     new DValueCodec[Byte] {
@@ -386,7 +397,7 @@ trait OptimisticCodecs extends DefaultCodecs {
         NumericPartialFunctions.stringDouble.lift(a)
           .fold(NumericPartialFunctions.byte.lift(a))(NumericPartialFunctions.byte.lift)
 
-      override def schemaName: String = "Int"
+      override def schemaName: String = "int"
     }
   implicit val floatCodec:DValueCodec[Float] =
     new DValueCodec[Float] {
@@ -396,7 +407,7 @@ trait OptimisticCodecs extends DefaultCodecs {
         NumericPartialFunctions.stringDouble.lift(a)
           .fold(NumericPartialFunctions.float.lift(a))(NumericPartialFunctions.float.lift)
 
-      override def schemaName: String = "Float"
+      override def schemaName: String = "float"
     }
   implicit val numberCodec:DValueCodec[Number] =
     new DValueCodec[Number] {
@@ -406,7 +417,7 @@ trait OptimisticCodecs extends DefaultCodecs {
         NumericPartialFunctions.stringDouble.lift(a)
           .fold(NumericPartialFunctions.number.lift(a))(NumericPartialFunctions.number.lift)
 
-      override def schemaName: String = "Float"
+      override def schemaName: String = "double"
     }
 
   implicit def optionCodec[T](implicit D:DCodec[T]) =
@@ -438,7 +449,10 @@ trait OptimisticCodecs extends DefaultCodecs {
             None
         }
 
-      override def schemaName: String = "[" + C.schemaName + "]"
+      override def schemaName: String = "array"
+
+      override def schemaAdditional: DObject =
+        DObject("items" -> stringCodec(C.schemaName))
     }
 
   implicit def vectorCodec[T](implicit C:DCodec[T]):DArrayCodec[Vector[T]] =
@@ -457,7 +471,10 @@ trait OptimisticCodecs extends DefaultCodecs {
             None
         }
 
-      override def schemaName: String = "[" + C.schemaName + "]"
+      override def schemaName: String = "array"
+
+      override def schemaAdditional: DObject =
+        DObject("items" -> stringCodec(C.schemaName))
     }
 
   implicit def fixedMapCodec[T](implicit D:DCodec[T]):DCodec[Map[String, T]] =
