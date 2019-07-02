@@ -405,12 +405,18 @@ trait Validators extends ValidatorOps{
             ct <- getT[Map[K, D], S](co)
           } yield ct
 
+        val cs =
+          for {
+            cso <- currentState
+            cst <- getT[Map[K, D], S](cso)
+          } yield cst
+
         val failures =
           for {
             o <- value.toIterator
             t <- getT[Map[K, D], S](o).toIterator
             kv <- t.toIterator
-            f <- contract._validateFields(path \ kv._1.toString, kv._2.value, c.flatMap(_.get(kv._1).map(_.value)))
+            f <- contract._validateFields(path \ kv._1.toString, kv._2.value, cs.flatMap(_.get(kv._1).map(_.value)))
           } yield f
 
         failures.toVector
