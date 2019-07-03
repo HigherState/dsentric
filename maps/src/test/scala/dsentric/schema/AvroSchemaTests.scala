@@ -1,18 +1,16 @@
-package dsentric.avro
+package dsentric.schema
 
-import java.util.UUID
-
-import dsentric.{DObject, _}
+import dsentric.Dsentric._
+import dsentric.PessimisticCodecs._
+import dsentric._
 import org.scalatest.{FunSuite, Matchers}
-import Dsentric._
-import PessimisticCodecs._
 
 
-trait AnotherNested extends SubContract {
+trait AvroAnotherNested extends SubContract {
   val prop = \[Boolean]
 }
 
-object Query1 extends Contract {
+object AvroQuery1 extends Contract {
   val field = \?[String]
   val field2 = \[Long]
   val fieldX = \[Float]("actualName")
@@ -20,13 +18,13 @@ object Query1 extends Contract {
 
   val fieldDef = \![Vector[Int]](Vector(1,2,3))
 
-  @Avro(typeName = "Anonymous")
+  @Schema(typeName = "Anonymous")
   val nested = new \\? {
     val field2 = \?[String]
   }
-  val nested2 = new \\ with AnotherNested
+  val nested2 = new \\ with AvroAnotherNested
 
-  val nested3 = new \\? with AnotherNested
+  val nested3 = new \\? with AvroAnotherNested
 }
 
 class AvroSchemaTests extends FunSuite with Matchers {
@@ -34,7 +32,7 @@ class AvroSchemaTests extends FunSuite with Matchers {
 
   test("Existance/nonexistance of field") {
 
-    println(Query1.$schema.render)
+    println(AvroSchema.processContract(Query1))
 
   }
 }

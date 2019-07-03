@@ -319,9 +319,6 @@ trait ContractFor[D <: DObject] extends BaseContract[D] { self =>
 
   def _path:Path = Path.empty
 
-  def $schema:DObject =
-    avro.AvroSchema.processContract(this)
-
   def $validate(value:D):NonEmptyList[(Path, String)] Either D =
     _validateFields(Path.empty, value.value, None) match {
       case head +: tail =>

@@ -1,13 +1,12 @@
-package dsentric.avro
+package dsentric.schema
 
-import reflect.runtime.universe._
 import dsentric._
+
+import scala.reflect.runtime.universe._
 
 case class AvroField(name:String, _type:Either[String, AvroRecord], notNullable:Boolean, additional:DObject)
 
 case class AvroRecord(name:String, fields:Vector[AvroField])
-
-case class Avro(typeName:String = "", fieldName:String = "") extends scala.annotation.StaticAnnotation
 
 
 object AvroSchema {
@@ -15,7 +14,7 @@ object AvroSchema {
   import dsentric.PessimisticCodecs._
 
   def processContract[D <: DObject](contract:BaseContract[D]):DObject =
-    generateRecord(readContract(contract, None))
+    generateRecord(readContract(contract, None)) + ("$schema" := "https://avro.apache.org/docs/1.8.1/spec.html#Schema")
 
   //TODO Support type extraction like GraphQL, necessary for recursive types as well
   def readContract[D <: DObject](contract:BaseContract[D], typeOverride:Option[String]):AvroRecord = {
@@ -82,11 +81,11 @@ object AvroSchema {
     val mirror = scala.reflect.runtime.universe.runtimeMirror(contract.getClass.getClassLoader)
     val t = mirror.classSymbol(contract.getClass)
     val members = t.toType.members
-    val fMembers = members.filter{m => m.annotations.exists(_.tree.tpe == typeOf[Avro])}
+    val fMembers = members.filter{m => m.annotations.exists(_.tree.tpe == typeOf[Schema])}
     members.flatMap(m => getAnnotatedName(m.annotations).map(m.name.toString.trim -> _)).toMap
   }
 
   def getAnnotatedName(annotations:List[Annotation]):Option[String] =
-    annotations.find(_.tree.tpe == typeOf[Avro])
+    annotations.find(_.tree.tpe == typeOf[Schema])
       .flatMap(_.tree.children.tail.collectFirst { case Literal(Constant(c: String)) if c != "" => c })
 }
