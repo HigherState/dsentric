@@ -440,7 +440,7 @@ trait Validators extends ValidatorOps{
   def keyValidator[T](message:String)(implicit D:DCodec[T]):Validator[Optionable[DObject]] =
     new Validator[Optionable[DObject]] {
 
-      override val schemaInfo: DObject = DObject("keys" := DObject("type" := D.schemaName))
+      override val schemaInfo: DObject = DObject("keys" := DObject("type" := "D.schemaName"))
 
       def apply[S >: Optionable[DObject]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         for {

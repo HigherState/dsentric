@@ -1,48 +1,65 @@
 package dsentric.schema
 
-import dsentric.{BaseContract, ContractFor, DObject}
-import scala.reflect.runtime.universe._
-
-case class Schema(typeName:String = "", fieldName:String = "", example:String = "") extends scala.annotation.StaticAnnotation
+import dsentric.{BaseContract, DObject, Default, Expected, Property}
 
 object Schema {
 
-
-  def getContractName[D <: DObject](contract:BaseContract[D]):String = {
-    val mirror = scala.reflect.runtime.universe.runtimeMirror(contract.getClass.getClassLoader)
-    val t = mirror.classSymbol(contract.getClass)
-    getSchema(t.annotations)
-      .orElse(getSchema(t.baseClasses.flatMap(_.annotations)))
-      .map(_.typeName)
-      .getOrElse(getClassName(contract, t))
-  }
-
-  def getClassName[D <: DObject](contract:BaseContract[D], t:ClassSymbol):String = {
-    if (contract.isInstanceOf[ContractFor[_]])
-      t.name.encodedName.toString
-    else {
-      val baseclass = t.baseClasses.find(c => c != t && !c.fullName.startsWith("dsentric."))
-      baseclass.map(_.name.encodedName.toString)
-        .getOrElse("UnknownType")
+  def contractObjectDefinitions[D <: DObject](contract:BaseContract[D], current:Vector[ObjectDefinition]):Vector[ObjectDefinition] = {
+    val schema = SchemaAnnotations.getContractSchemaAnnotations(contract)
+    schema.typeName.flatMap(tn => current.find(_.name.contains(tn))) match {
+      case Some(r) =>
+        current
+      case None =>
+        val (properties, newObjects) = contractPropertyDefinitions(contract, current)
+        val objectDefinition = ObjectDefinition(schema.typeName, schema.examples.map(_.toString).headOption, schema.description, Vector.empty, properties)
+        newObjects :+ objectDefinition
     }
   }
 
-  def getAnnotationOverrides[D <: DObject](contract:BaseContract[D]):Map[String, Schema] = {
-    val mirror = scala.reflect.runtime.universe.runtimeMirror(contract.getClass.getClassLoader)
-    val t = mirror.classSymbol(contract.getClass)
-    val members = t.toType.members
-    val fMembers = members.filter{m => m.annotations.exists(_.tree.tpe == typeOf[Schema])}
-    members.flatMap(m => getSchema(m.annotations).map(m.name.toString.trim -> _)).toMap
+  private def contractPropertyDefinitions[D <: DObject](contract:BaseContract[D], current:Vector[ObjectDefinition]):(Vector[PropertyDefinition], Vector[ObjectDefinition]) = {
+    val annotatedChildren = SchemaAnnotations.getFieldsSchemaAnnotations(contract)
+
+    contract._fields.foldLeft(Vector.empty[PropertyDefinition] -> current) {
+      case ((properties, objects), (name, b:BaseContract[D]@unchecked with Property[D,_]@unchecked)) =>
+        val schema = annotatedChildren.getOrElse(name, SchemaAnnotations.empty)
+        val default = b match {
+          case d:Default[D, D]@unchecked => Some(d._default.value)
+          case _ => None
+        }
+        val required = b.isInstanceOf[Expected[_, _]]
+
+        //TODO: multiinheritance and internal properties
+        if (schema.nested || schema.typeName.isEmpty) {
+          val (subProperties, newObjects) = contractPropertyDefinitions(b, objects)
+          val typeDefinition =
+            ObjectDefinition(
+              schema.typeName,
+              schema.title,
+              schema.description,
+              Vector.empty,
+              subProperties
+            )
+          val property = PropertyDefinition(name, typeDefinition, schema.examples, default, required, schema.description)
+          (properties :+ property) -> newObjects
+        }
+        else {
+          val typeName = schema.typeName.get
+          val newObjects = contractObjectDefinitions(contract, objects)
+          val property = PropertyDefinition(name, ByRefDefinition(typeName), schema.examples, default, required, schema.description)
+          (properties :+ property) -> newObjects
+        }
+
+      case ((fields, records), (name, p)) =>
+        val default = p match {
+          case d:Default[D, D]@unchecked => Some(d._default.value)
+          case _ => None
+        }
+        val required = p.isInstanceOf[Expected[_, _]]
+
+        val schema = annotatedChildren.getOrElse(name, SchemaAnnotations.empty)
+        val field = PropertyDefinition(name, p._codec.typeDefinition, schema.examples, default, required, schema.description)
+        (fields :+ field) -> records
+    }
   }
 
-  def getSchema(annotations:List[Annotation]):Option[Schema] =
-    annotations.find(_.tree.tpe == typeOf[Schema])
-      .flatMap{ a =>
-        a.tree.children.tail match {
-          case Literal(Constant(typeName: String)) :: Literal(Constant(fieldName: String)) :: Literal(Constant(example: String)) :: _ =>
-            Some(Schema(typeName, fieldName, example))
-          case _ =>
-            None
-        }
-      }
 }
