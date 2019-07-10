@@ -4,9 +4,10 @@ import scala.util.matching.Regex
 
 trait TypeDefinition {
   def name:String
+  def enum:List[Any]
 }
 
-case class IntegerDefinition(enum:List[Long] = Nil,
+case class IntegerDefinition(enum:List[Any] = Nil,
                             minimum:Option[Long] = None,
                             exclusiveMinimum:Option[Long] = None,
                             maximum:Option[Long] = None,
@@ -16,7 +17,7 @@ case class IntegerDefinition(enum:List[Long] = Nil,
   def name:String = "integer"
 }
 
-case class NumberDefinition(enum:List[Double] = Nil,
+case class NumberDefinition(enum:List[Any] = Nil,
                             minimum:Option[Double] = None,
                             exclusiveMinimum:Option[Double] = None,
                             maximum:Option[Double] = None,
@@ -30,11 +31,11 @@ object NumberDefinition {
   val empty = NumberDefinition()
 }
 
-case class StringDefinition(format:Option[String] = None,
+case class StringDefinition(enum:List[Any] = Nil,
+                            format:Option[String] = None,
                             pattern:Option[String] = None,
                             minLength:Option[Int] = None,
-                            maxLength:Option[Int] = None,
-                            enum:List[String] = Nil) extends TypeDefinition {
+                            maxLength:Option[Int] = None) extends TypeDefinition {
   def name:String = "string"
 }
 
@@ -44,6 +45,8 @@ object StringDefinition {
 
 case object BooleanDefinition extends TypeDefinition {
   def name:String = "boolean"
+
+  def enum: List[Any] = Nil
 }
 
 case class ArrayDefinition(
@@ -53,16 +56,23 @@ case class ArrayDefinition(
                           uniqueness:Boolean = false
                           ) extends TypeDefinition {
   def name:String = "array"
+
+  def enum: List[Any] = Nil
 }
 object ArrayDefinition {
   val empty = ArrayDefinition()
+
 }
 
 case object NullDefinition extends TypeDefinition {
   def name:String = "null"
+
+  def enum: List[Any] = Nil
 }
 
-case class ByRefDefinition(name:String) extends TypeDefinition
+case class ByRefDefinition(name:String) extends TypeDefinition {
+  def enum: List[Any] = Nil
+}
 
 case class PropertyDefinition(key:String,
                               typeDefinition:TypeDefinition,
@@ -84,7 +94,8 @@ case class ObjectDefinition(
                              patternProperties:Map[Regex, TypeDefinition] = Map.empty
                            ) extends TypeDefinition {
 
-def name:String = "object"
+  def name:String = "object"
+  def enum: List[Any] = Nil
 }
 
 object ObjectDefinition {
@@ -93,10 +104,28 @@ object ObjectDefinition {
 
 case class MultipleTypeDefinition(typeDefinitions:TypeDefinition*) extends TypeDefinition {
   def name:String = typeDefinitions.map(_.name).mkString(",")
+  def enum: List[Any] = Nil
+
+  def remap(f:PartialFunction[TypeDefinition,TypeDefinition]):MultipleTypeDefinition =
+    MultipleTypeDefinition(typeDefinitions.map(d => f.lift(d).getOrElse(d)):_*)
+
+  def withRemap(
+                 objs:Vector[ObjectDefinition]
+               )
+               (
+                 f:PartialFunction[(TypeDefinition, Vector[ObjectDefinition]), (TypeDefinition, Vector[ObjectDefinition])]
+               ):(MultipleTypeDefinition, Vector[ObjectDefinition]) = {
+    val (ts, newObjs) = typeDefinitions.foldLeft(Vector.empty[TypeDefinition] -> objs) {
+      case ((v, o), t) =>
+        f.lift(t -> o).fold((v :+ t) -> o)(p => (v :+ p._1) -> p._2)
+    }
+    MultipleTypeDefinition(ts:_*) -> objs
+  }
 }
 
 case object AnyDefinition extends TypeDefinition {
   val name:String = "string,integer,number,boolean,object,array"
+  def enum: List[Any] = Nil
 }
 
 object TypeDefinition {

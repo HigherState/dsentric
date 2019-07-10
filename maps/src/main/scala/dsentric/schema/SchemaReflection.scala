@@ -37,6 +37,14 @@ object SchemaReflection {
   private val ExampleTpe = typeOf[Examples]
   private val DescriptionTpe = typeOf[Description]
 
+
+  def getDisplayName(contract:BaseContract[_]):String = {
+    val mirror = scala.reflect.runtime.universe.runtimeMirror(contract.getClass.getClassLoader)
+    val t = mirror.classSymbol(contract.getClass)
+    val schema = getSchemaAnnotation(t.annotations)
+    schema.typeName.getOrElse(t.name.toString)
+  }
+
   def getContractInfo(contract:BaseContract[_], current:Vector[ContractInfo] = Vector.empty):(ContractInfo, Vector[ContractInfo]) = {
     val mirror = scala.reflect.runtime.universe.runtimeMirror(contract.getClass.getClassLoader)
     val t = mirror.classSymbol(contract.getClass)

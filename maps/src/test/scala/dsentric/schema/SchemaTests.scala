@@ -82,7 +82,7 @@ class SchemaTests extends FunSuite with Matchers {
   )
 
   test("Multiinheritance no nesting") {
-    val schema1 = Schema.contractsObjectDefinitions(Schema1).find(_.definition.contains("Schema1")).head
+    val schema1 = Schema.contractObjectDefinitions(Schema1).find(_.definition.contains("Schema1")).head
     val schema1Def = ObjectDefinition(
       Some("Schema1"),
       Some("Schema1 Contract"),
@@ -94,7 +94,7 @@ class SchemaTests extends FunSuite with Matchers {
   }
 
   test("Multi-inheritance full nesting") {
-    val schema2 = Schema.contractsObjectDefinitions(Schema2).head
+    val schema2 = Schema.contractObjectDefinitions(Schema2).head
     val schema2Def = ObjectDefinition(
       Some("Schema2"),
       None,
@@ -105,7 +105,7 @@ class SchemaTests extends FunSuite with Matchers {
   }
 
   test("Multi-inheritance partial nesting") {
-    val Vector(inherited, schema3) = Schema.contractsObjectDefinitions(Schema3)
+    val Vector(inherited, schema3) = Schema.contractObjectDefinitions(Schema3)
     val schema3Def = ObjectDefinition(
       Some("Schema3"),
       None,
@@ -119,7 +119,7 @@ class SchemaTests extends FunSuite with Matchers {
   }
 
   test("Renamed inherited") {
-    val Vector(anotherNested2, anotherNested, toRename, schema4) = Schema.contractsObjectDefinitions(Schema4)
+    val Vector(anotherNested2, anotherNested, toRename, schema4) = Schema.contractObjectDefinitions(Schema4)
     val schema4Def = ObjectDefinition(
       Some("Schema4"),
       None,
@@ -134,7 +134,7 @@ class SchemaTests extends FunSuite with Matchers {
   }
 
   test("Direct inheritance reference") {
-    val Vector(anotherNested, schema5) = Schema.contractsObjectDefinitions(Schema5)
+    val Vector(anotherNested, schema5) = Schema.contractObjectDefinitions(Schema5)
     val directRef = PropertyDefinition("directRef", ByRefDefinition("AnotherNested"), Nil, None, true, None)
     val schema5Def = ObjectDefinition(
       Some("Schema5"),
@@ -147,7 +147,7 @@ class SchemaTests extends FunSuite with Matchers {
     schema5 shouldBe schema5Def
   }
   test("Object with Ref") {
-    val Vector(anotherNested, schema6) = Schema.contractsObjectDefinitions(Schema6)
+    val Vector(anotherNested, schema6) = Schema.contractObjectDefinitions(Schema6)
     val schema6Def = ObjectDefinition(
       Some("Schema6"),
       None,
@@ -164,7 +164,7 @@ class SchemaTests extends FunSuite with Matchers {
   }
 
   test("Object with Refs") {
-    val Vector(_, _, schema7) = Schema.contractsObjectDefinitions(Schema7)
+    val Vector(_, _, schema7) = Schema.contractObjectDefinitions(Schema7)
     val schema7Def = ObjectDefinition(
       Some("Schema7"),
       None,
@@ -179,7 +179,7 @@ class SchemaTests extends FunSuite with Matchers {
   }
 
   test("Direct inheritance reference renamed") {
-    val Vector(_, _, _, schema8) = Schema.contractsObjectDefinitions(Schema8)
+    val Vector(_, _, _, schema8) = Schema.contractObjectDefinitions(Schema8)
     val directRef = PropertyDefinition("directRename", ByRefDefinition("Renamed"), Nil, Some(Map("Value" -> 3)), false, None)
     val schema8Def = ObjectDefinition(
       Some("Schema8"),

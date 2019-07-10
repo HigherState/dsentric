@@ -1,19 +1,39 @@
 package dsentric.schema
 
-import dsentric.{BaseContract, DObject, Default, Expected, Property}
+import dsentric._
 
 object Schema {
 
-  def contractsObjectDefinitions[D <: DObject](contracts:BaseContract[D]*):Vector[ObjectDefinition] = {
+  def contractName[D <: DObject](contract:ContractFor[D]):String = {
+    SchemaReflection.getDisplayName(contract)
+  }
+
+  def contractObjectDefinitionRef[D <: DObject](contract:ContractFor[D], defs:Vector[ObjectDefinition]):(String, Vector[ObjectDefinition]) = {
+    val name = contractName(contract)
+    defs.find(_.definition.contains(name))
+      .map{d => name -> defs}
+      .getOrElse{
+        val newDefs = contractSeqObjectDefinitions(Seq(contract), defs)
+        val d = newDefs.find(_.definition.contains(name)).getOrElse(throw SchemaGenerationException(s"Unable to find definition '$name'"))
+        name -> newDefs
+      }
+  }
+
+  def contractObjectDefinitions(contracts:BaseContract[_]*):Vector[ObjectDefinition] = {
+    contractSeqObjectDefinitions(contracts.map(_.asInstanceOf[BaseContract[DObject]]), Vector.empty)
+  }
+
+
+  private def contractSeqObjectDefinitions[D <: DObject](contracts:Seq[BaseContract[D]], defs:Vector[ObjectDefinition]):Vector[ObjectDefinition] = {
     val (_, definitions) =
-      contracts.foldLeft(Vector.empty[ContractInfo] -> Vector.empty[ObjectDefinition]){ case ((infos, defs), contract) =>
+      contracts.foldLeft(Vector.empty[ContractInfo] -> defs){ case ((infos, newDefs), contract) =>
         val (contractInfo, newInfos) = SchemaReflection.getContractInfo(contract, infos)
-        contractInfo.displayName.flatMap(tn => defs.find(_.name.contains(tn))) match {
+        contractInfo.displayName.flatMap(tn => newDefs.find(_.name.contains(tn))) match {
           case Some(r) =>
-            newInfos -> defs
+            newInfos -> newDefs
           case None =>
             val schema = contractInfo.schemaAnnotations
-            val (_, i, d) = baseContractObjectDefinition(contract._fields, contractInfo, newInfos, defs)
+            val (_, i, d) = baseContractObjectDefinition(contract._fields,contractInfo, newInfos, newDefs)
             i -> d
         }
      }
@@ -47,21 +67,22 @@ object Schema {
           val (bInfo, newInfos) = SchemaReflection.getContractInfo(b, i)
           val subProperties = findPropertyAnnotations(b._fields, bInfo, true)
           val (subPropertyDefs, newInfos2, newDefs) = contractPropertyDefinitions(subProperties, newInfos, d)
-          val typeDefinition =
-            ObjectDefinition(
-              schema.typeName,
-              schema.title,
-              schema.description,
-              Vector.empty,
-              subPropertyDefs
-            )
+          val (typeDefinition, newDefs2) =
+            b._pathValidator(
+              ObjectDefinition(
+                schema.typeName,
+                schema.title,
+                schema.description,
+                Vector.empty,
+                subPropertyDefs
+              ), newDefs)
           val property = PropertyDefinition(name, typeDefinition, schema.examples, getDefault(b), isRequired(b), schema.description)
-          (p :+ property, newInfos2, newDefs)
+          (p :+ property, newInfos2, newDefs2)
 
         case ((p, i, d), (name, b:BaseContract[D]@unchecked with Property[D ,_], schema)) =>
           val (bInfo, newInfos) = SchemaReflection.getContractInfo(b, i)
           //Internal object is a single type inheritance
-          if (bInfo.inherits.size == 1 && bInfo.fields.isEmpty) {
+          if (bInfo.inherits.size == 1 && bInfo.fields.isEmpty && b._pathValidator.isEmpty) {
             val (ref, newInfos2, newDefs) = baseContractObjectDefinition(b._fields, bInfo.inherits.head, newInfos, d)
             val refName = ref.definition.getOrElse(throw SchemaGenerationException("Referenced trait cannot be unnamed")) //should never happen
             val property = PropertyDefinition(name, ByRefDefinition(refName), schema.examples, getDefault(b), isRequired(b), schema.description)
@@ -71,21 +92,24 @@ object Schema {
             val subProperties = findPropertyAnnotations(b._fields, bInfo, false)
             val (subPropertyDefs, newInfos2, newDefs) = contractPropertyDefinitions(subProperties, newInfos, d)
             val (inheritedRef, newInfos3, newDefs3) = inheritFold(b._fields, bInfo.inherits, newInfos2, newDefs)
-            val objectDefinition =
-              ObjectDefinition(
-                None,
-                bInfo.schemaAnnotations.title,
-                bInfo.schemaAnnotations.description,
-                inheritedRef,
-                subPropertyDefs
+            val (objectDefinition, newDefs4) =
+              b._pathValidator(
+                ObjectDefinition(
+                  None,
+                  bInfo.schemaAnnotations.title,
+                  bInfo.schemaAnnotations.description,
+                  inheritedRef,
+                  subPropertyDefs
+                ), newDefs3
               )
             val property = PropertyDefinition(name, objectDefinition, schema.examples, getDefault(b), isRequired(b), schema.description)
-            (p :+ property, newInfos3, newDefs3)
+            (p :+ property, newInfos3, newDefs4)
           }
 
         case ((p, i, d), (name, prop, schema)) =>
-          val property = PropertyDefinition(name, prop._codec.typeDefinition, schema.examples, getDefault(prop), isRequired(prop), schema.description)
-          (p :+ property, i, d)
+          val (typeDef, newDefs) = prop._pathValidator(prop._codec.typeDefinition, d)
+          val property = PropertyDefinition(name, typeDef, schema.examples, getDefault(prop), isRequired(prop), schema.description)
+          (p :+ property, i, newDefs)
     }
   }
 
