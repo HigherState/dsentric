@@ -8,7 +8,7 @@ lazy val buildSettings = Seq(
     "-deprecation",
     "-encoding", "UTF-8",
     "-feature",
-    "-language:implicitConversions", "-language:higherKinds", "-language:postfixOps", "-language:reflectiveCalls",
+    "-language:implicitConversions", "-language:higherKinds", "-language:postfixOps", "-language:reflectiveCalls", "-language:existentials",
     "-unchecked",
     "-Xfatal-warnings",
     "-Yno-adapted-args",
