@@ -3,6 +3,7 @@ package dsentric
 import scala.util.matching.Regex
 import Dsentric._
 import PessimisticCodecs._
+import dsentric.schema.{ArrayDefinition, ByRefDefinition, IntegerDefinition, MultipleTypeDefinition, NumberDefinition, ObjectDefinition, Schema, StringDefinition, TypeDefinition}
 
 trait Validator[+T] {
 
@@ -12,7 +13,16 @@ trait Validator[+T] {
 
   def ||[S >: T] (v:Validator[S]):Validator[S] = OrValidator(this, v)
 
-  def schemaInfo:DObject = DObject.empty
+  def apply[A <: TypeDefinition](t:A, objDefs:Vector[ObjectDefinition], forceNested:Boolean):(A, Vector[ObjectDefinition]) =
+    withObjsDefinition(forceNested).lift(t -> objDefs).getOrElse(t -> objDefs).asInstanceOf[(A, Vector[ObjectDefinition])]
+
+  def withObjsDefinition(forceNested:Boolean):PartialFunction[(TypeDefinition, Vector[ObjectDefinition]), (TypeDefinition, Vector[ObjectDefinition])] = {
+    case (t, o) if definition.isDefinedAt(t) => definition(t) -> o
+  }
+
+  def definition:PartialFunction[TypeDefinition, TypeDefinition] = {
+    case t => t
+  }
 
   private[dsentric] def isInternal:Boolean = false
 
@@ -33,7 +43,8 @@ case class AndValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B
 
   private[dsentric] override def mask:Option[String] = left.mask.orElse(right.mask)
 
-  override val schemaInfo: DObject = left.schemaInfo ++ right.schemaInfo
+  override def definition:PartialFunction[TypeDefinition, TypeDefinition] =
+    left.definition.andThen(right.definition)
 }
 
 case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]) extends Validator[T] {
@@ -58,8 +69,6 @@ case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]
 
   private[dsentric] override def isInternal:Boolean = left.isInternal || right.isInternal
 
-  override val schemaInfo: DObject = DObject("atLeastOneOf" := DArray(left.schemaInfo, right.schemaInfo))
-
 }
 
 //TODO separate definition for internal/reserved etc such that the or operator is not supported
@@ -80,8 +89,6 @@ trait Validators extends ValidatorOps{
 
       private[dsentric] override def isInternal:Boolean = true
 
-      override val schemaInfo: DObject = DObject("internal" := true)
-
     }
 
   def mask(masking:String): Validator[Nothing] =
@@ -92,14 +99,12 @@ trait Validators extends ValidatorOps{
 
       override def mask:Option[String] = Some(masking)
 
-      override val schemaInfo: DObject = DObject("masked" := masking)
     }
 
   val reserved =
     new Validator[Option[Nothing]] {
       def apply[S >: Option[Nothing]](path: Path, value: Option[S], currentState: => Option[S]): Failures =
         value.fold(Failures.empty)(_ => Failures(path -> "Value is reserved and cannot be provided."))
-      override val schemaInfo: DObject = DObject("reserved" := true)
     }
 
   val immutable =
@@ -113,7 +118,6 @@ trait Validators extends ValidatorOps{
           path -> "Immutable value cannot be changed."
           ).toVector
 
-      override val schemaInfo: DObject = DObject("immutable" := true)
     }
 
 
@@ -128,8 +132,6 @@ trait Validators extends ValidatorOps{
           r <- resolve(c,v)
           a <- if (r >= 0) Some(path -> "Value must increase.") else None
         } yield a).toVector
-
-      override val schemaInfo: DObject = DObject("valueMustIncrease" := true)
     }
 
   val decrement =
@@ -142,7 +144,6 @@ trait Validators extends ValidatorOps{
           a <- if (r <= 0) Some(path -> "Value must decrease.") else None
         } yield a).toVector
 
-      override val schemaInfo: DObject = DObject("valueMustDecrease" := true)
     }
 
   def >(x:Long) = new Validator[Numeric] {
@@ -154,7 +155,11 @@ trait Validators extends ValidatorOps{
       } yield path -> s"Value $v is not greater than $x.")
       .toVector
 
-    override val schemaInfo: DObject = DObject("greaterThan" := x)
+    override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+      case n:IntegerDefinition => n.copy(exclusiveMaximum = Some(x))
+      case n:NumberDefinition => n.copy(exclusiveMaximum = Some(x))
+      case m:MultipleTypeDefinition => m.remap(definition)
+    }
   }
 
   def >(x:Double) = new Validator[Numeric] {
@@ -166,7 +171,10 @@ trait Validators extends ValidatorOps{
       } yield path -> s"Value $v is not greater than $x.")
         .toVector
 
-    override val schemaInfo: DObject = DObject("greaterThan" := x)
+    override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+      case n:NumberDefinition => n.copy(exclusiveMaximum = Some(x))
+      case m:MultipleTypeDefinition => m.remap(definition)
+    }
   }
 
   def >=(x:Long) = new Validator[Numeric] {
@@ -178,7 +186,11 @@ trait Validators extends ValidatorOps{
       } yield path -> s"Value $v is not greater or equal to $x.")
         .toVector
 
-    override val schemaInfo: DObject = DObject("greaterThanEqual" := x)
+    override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+      case n:IntegerDefinition => n.copy(maximum = Some(x))
+      case n:NumberDefinition => n.copy(maximum = Some(x))
+      case m:MultipleTypeDefinition => m.remap(definition)
+    }
 
   }
 
@@ -191,7 +203,10 @@ trait Validators extends ValidatorOps{
       } yield path -> s"Value $v is not greater or equal to $x.")
         .toVector
 
-    override val schemaInfo: DObject = DObject("greaterThanEqual" := x)
+    override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+      case n:NumberDefinition => n.copy(maximum = Some(x))
+      case m:MultipleTypeDefinition => m.remap(definition)
+    }
 
   }
 
@@ -204,7 +219,11 @@ trait Validators extends ValidatorOps{
       } yield path -> s"Value $v is not less than $x.")
         .toVector
 
-    override val schemaInfo: DObject = DObject("lessThan" := x)
+    override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+      case n:IntegerDefinition => n.copy(exclusiveMinimum = Some(x))
+      case n:NumberDefinition => n.copy(exclusiveMinimum = Some(x))
+      case m:MultipleTypeDefinition => m.remap(definition)
+    }
 
   }
 
@@ -217,7 +236,10 @@ trait Validators extends ValidatorOps{
       } yield path -> s"Value $v is not less than $x.")
         .toVector
 
-    override val schemaInfo: DObject = DObject("lessThan" := x)
+    override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+      case n:NumberDefinition => n.copy(exclusiveMinimum = Some(x))
+      case m:MultipleTypeDefinition => m.remap(definition)
+    }
   }
 
   def <=(x:Long) = new Validator[Numeric] {
@@ -229,7 +251,11 @@ trait Validators extends ValidatorOps{
       } yield path -> s"Value $v is not less than or equal to $x.")
         .toVector
 
-    override val schemaInfo: DObject = DObject("lessThanEqual" := x)
+    override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+      case n:IntegerDefinition => n.copy(minimum = Some(x))
+      case n:NumberDefinition => n.copy(minimum = Some(x))
+      case m:MultipleTypeDefinition => m.remap(definition)
+    }
   }
 
   def <=(x:Double) = new Validator[Numeric] {
@@ -241,7 +267,10 @@ trait Validators extends ValidatorOps{
       } yield path -> s"Value $v is not less than or equal to $x.")
         .toVector
 
-    override val schemaInfo: DObject = DObject("lessThanEqual" := x)
+    override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+      case n:NumberDefinition => n.copy(minimum = Some(x))
+      case m:MultipleTypeDefinition => m.remap(definition)
+    }
   }
 
   def minLength(x: Int) = new Validator[Optionable[Length]] {
@@ -251,7 +280,12 @@ trait Validators extends ValidatorOps{
         .map(v => path -> s"Value must have a length of at least $x.")
         .toVector
 
-    override val schemaInfo: DObject = DObject("minLength" := x)
+    override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+      case n:StringDefinition => n.copy(minLength = Some(x))
+      case n:ArrayDefinition => n.copy(minLength = Some(x))
+      case o:ObjectDefinition => o.copy(minProperties = Some(x))
+      case m:MultipleTypeDefinition => m.remap(definition)
+    }
 
   }
 
@@ -262,13 +296,26 @@ trait Validators extends ValidatorOps{
         .map(v => path -> s"Value must have a length of at most $x.")
         .toVector
 
-    override val schemaInfo: DObject = DObject("maxLength" := x)
-
+    override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+      case n:StringDefinition => n.copy(maxLength = Some(x))
+      case n:ArrayDefinition => n.copy(maxLength = Some(x))
+      case o:ObjectDefinition => o.copy(maxProperties = Some(x))
+      case m:MultipleTypeDefinition => m.remap(definition)
+    }
   }
 
   def in[T](values:T*)(implicit codec:DCodec[T]) = new Validator[Optionable[T]] {
 
-    override val schemaInfo: DObject = DObject("symbols" := DArray(values:_*), "caseSensitive" := true)
+    override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+      case n:StringDefinition =>
+        n.copy(values.map(codec.apply).map(_.value).toList)
+      case n:IntegerDefinition =>
+        n.copy(values.map(codec.apply).map(_.value).toList)
+      case n:NumberDefinition =>
+        n.copy(values.map(codec.apply).map(_.value).toList)
+      case m:MultipleTypeDefinition =>
+        m.remap(definition)
+    }
 
     def apply[S >: Optionable[T]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value
@@ -279,8 +326,6 @@ trait Validators extends ValidatorOps{
   }
 
   def nin[T](values:T*)(implicit codec:DCodec[T]) = new Validator[Optionable[T]] {
-
-    override val schemaInfo: DObject = DObject("forbidden" := DArray(values:_*), "caseSensitive" := true)
 
     def apply[S >: Optionable[T]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value
@@ -293,7 +338,10 @@ trait Validators extends ValidatorOps{
   //maybe change to generic equality
   def inCaseInsensitive(values:String*) = new Validator[Optionable[String]] {
 
-    override val schemaInfo: DObject = DObject("symbols" := DArray(values:_*), "caseSensitive" := false)
+    override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+      case n:StringDefinition => n.copy(values.toList)
+      case m:MultipleTypeDefinition => m.remap(definition)
+    }
 
     def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value
@@ -304,8 +352,6 @@ trait Validators extends ValidatorOps{
   }
 
   def ninCaseInsensitive(values:String*) = new Validator[Optionable[String]] {
-
-    override val schemaInfo: DObject = DObject("forbidden" := DArray(values:_*), "caseSensitive" := false)
 
     def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value
@@ -320,7 +366,11 @@ trait Validators extends ValidatorOps{
     new Validator[Optionable[Length]] {
 
       val message = "Value must not be empty."
-      override val schemaInfo: DObject = DObject("nonEmpty" := true)
+      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+        case o:ObjectDefinition if o.minProperties.isEmpty => o.copy(minProperties = Some(1))
+        case a:ArrayDefinition if a.minLength.isEmpty => a.copy(minLength = Some(1))
+        case m:MultipleTypeDefinition => m.remap(definition)
+      }
 
       def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         value
@@ -335,7 +385,11 @@ trait Validators extends ValidatorOps{
     new Validator[Optionable[String]] {
 
       val message = "String must not be empty or whitespace."
-      override val schemaInfo: DObject = DObject("nonBlank" := true)
+      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+        case s:StringDefinition =>
+          s.copy(minLength = s.minLength.orElse(Some(1)), pattern = s.pattern.orElse(Some("[^\\s]")))
+        case m:MultipleTypeDefinition => m.remap(definition)
+      }
 
       def apply[S >: Optionable[String]](path: Path, value: Option[S], currentState: => Option[S]): Failures =
         value
@@ -350,8 +404,6 @@ trait Validators extends ValidatorOps{
 
   def custom[T](f: T => Boolean, message:String) =
     new Validator[Optionable[T]] {
-
-      override val schemaInfo: DObject = DObject("message" := message)
 
       def apply[S >: Optionable[T]](path: Path, value: Option[S], currentState: => Option[S]): Failures =
         value
@@ -368,7 +420,11 @@ trait Validators extends ValidatorOps{
   def regex(r:Regex, message:String):Validator[Optionable[String]] =
     new Validator[Optionable[String]] {
 
-      override val schemaInfo: DObject = DObject("regex" := r.pattern.pattern())
+      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+        case s:StringDefinition =>
+          s.copy(pattern = Some(r.pattern.pattern()))
+        case m:MultipleTypeDefinition => m.remap(definition)
+      }
 
       def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         value
@@ -397,6 +453,19 @@ trait Validators extends ValidatorOps{
 
   def mapContractK[K, D <: DObject](contract:ContractFor[D]): Validator[Optionable[Map[K, D]]] =
     new Validator[Optionable[Map[K,D]]] {
+
+      override def withObjsDefinition(forceNested:Boolean): PartialFunction[(TypeDefinition, Vector[ObjectDefinition]), (TypeDefinition, Vector[ObjectDefinition])] = {
+        case (s:ObjectDefinition, objs) if !forceNested =>
+          val (ref, newObjs) = Schema.contractObjectDefinitionRef(contract, objs)
+          s.copy(patternProperties = Map(".*".r -> ByRefDefinition(ref))) -> objs
+
+        case (s:ObjectDefinition, objs) =>
+          val obj = Schema.nestedContractObjectDefinition(contract)
+          s.copy(patternProperties = Map(".*".r -> obj)) -> objs
+
+        case (m:MultipleTypeDefinition, objs) =>
+          m.withRemap(objs)(withObjsDefinition(forceNested))
+      }
 
       def apply[S >: Optionable[Map[K, D]]](path: Path, value: Option[S], currentState: => Option[S]): Failures = {
         val c =
@@ -427,7 +496,11 @@ trait Validators extends ValidatorOps{
   def keyValidator(r:Regex, message:String):Validator[Optionable[DObject]] =
     new Validator[Optionable[DObject]] {
 
-      override val schemaInfo: DObject = DObject("keys" := DObject("regex" := r.pattern.pattern()))
+      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+        case s:ObjectDefinition =>
+          s.copy(propertyNames = Some(StringDefinition(pattern = Some(r.pattern.pattern()))))
+        case m:MultipleTypeDefinition => m.remap(definition)
+      }
 
       def apply[S >: Optionable[DObject]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         for {
@@ -440,7 +513,11 @@ trait Validators extends ValidatorOps{
   def keyValidator[T](message:String)(implicit D:DCodec[T]):Validator[Optionable[DObject]] =
     new Validator[Optionable[DObject]] {
 
-      override val schemaInfo: DObject = DObject("keys" := DObject("type" := D.schemaName))
+      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+        case s:ObjectDefinition if D.typeDefinition.isInstanceOf[StringDefinition] =>
+          s.copy(propertyNames = Some(D.typeDefinition.asInstanceOf[StringDefinition]))
+        case m:MultipleTypeDefinition => m.remap(definition)
+      }
 
       def apply[S >: Optionable[DObject]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         for {

@@ -3,36 +3,30 @@ package dsentric.schema
 import dsentric.Dsentric._
 import dsentric.PessimisticCodecs._
 import dsentric._
+import namespaced.{AnotherNested, AnotherNested2}
 import org.scalatest.{FunSuite, Matchers}
 
 
-trait AvroAnotherNested extends SubContract {
-  val prop = \[Boolean]
-}
-
-object AvroQuery1 extends Contract {
+object MsonQuery1 extends Contract {
   val field = \?[String]
   val field2 = \[Long]
   val fieldX = \[Float]("actualName")
 
-
+  @Description("a field")
   val fieldDef = \![Vector[Int]](Vector(1,2,3))
 
-  @Schema(typeName = "Anonymous")
   val nested = new \\? {
     val field2 = \?[String]
   }
-  val nested2 = new \\ with AvroAnotherNested
+  val nested2 = new \\ with AnotherNested
 
-  val nested3 = new \\? with AvroAnotherNested
+  val nested3 = new \\? with AnotherNested2
 }
 
-class AvroSchemaTests extends FunSuite with Matchers {
-  implicit def renderer =  SimpleRenderer
-
+class MsonSchemaAnnotationsTests extends FunSuite with Matchers {
   test("Existance/nonexistance of field") {
 
-    println(AvroSchema.processContract(Query1))
+    //println(MsonSchema.contractRecords(MsonQuery1, Vector.empty).mkString("\n"))
 
   }
 }

@@ -3,12 +3,12 @@ import sbt.Keys._
 lazy val buildSettings = Seq(
   organization       := "io.higherState",
   scalaVersion       := "2.12.7",
-  version            := "0.7.2",
+  version            := "0.7.3",
   scalacOptions     ++= Seq(
     "-deprecation",
     "-encoding", "UTF-8",
     "-feature",
-    "-language:implicitConversions", "-language:higherKinds", "-language:postfixOps", "-language:reflectiveCalls",
+    "-language:implicitConversions", "-language:higherKinds", "-language:postfixOps", "-language:reflectiveCalls", "-language:existentials",
     "-unchecked",
     "-Xfatal-warnings",
     "-Yno-adapted-args",
