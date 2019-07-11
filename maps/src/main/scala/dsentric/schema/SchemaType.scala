@@ -35,7 +35,10 @@ case class StringDefinition(enum:List[Any] = Nil,
                             format:Option[String] = None,
                             pattern:Option[String] = None,
                             minLength:Option[Int] = None,
-                            maxLength:Option[Int] = None) extends TypeDefinition {
+                            maxLength:Option[Int] = None,
+                            contentEncoding:Option[String] = None,
+                            contentMediaType:Option[String] = None
+                           ) extends TypeDefinition {
   def name:String = "string"
 }
 
@@ -87,7 +90,7 @@ case class ObjectDefinition(
                              description:Option[String] = None,
                              referencedDefinitions:Vector[String] = Vector.empty,
                              properties:Vector[PropertyDefinition] = Vector.empty,
-                             additionalProperties:Boolean = true,
+                             additionalProperties:Boolean = true, // can be object
                              propertyNames:Option[StringDefinition] = None,
                              minProperties:Option[Int] = None,
                              maxProperties:Option[Int] = None,

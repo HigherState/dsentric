@@ -1,16 +1,25 @@
 package dsentric.schema
 
-import dsentric.{DArray, DObject, ForceWrapper}
+import dsentric.{DObject, ForceWrapper}
 
 import scala.collection.mutable
 
 object JsonSchema {
 
-  def convertObjectDefinition(objectDefinition:ObjectDefinition):DObject =
-    ForceWrapper.dObject(convertTypeDefinition(objectDefinition).toMap)
+  private val $SCHEMA = "$schema" -> "http://json-schema.org/schema#"
 
-  def convertObjectDefinitions(objectDefinitions:Vector[ObjectDefinition]):DArray =
-    ForceWrapper.dArray(objectDefinitions.map(convertTypeDefinition(_).toMap))
+  def convertObjectDefinition(objectDefinition:ObjectDefinition):DObject =
+    ForceWrapper.dObject(convertTypeDefinition(objectDefinition).toMap + $SCHEMA)
+
+  def convertObjectDefinitions(objectDefinitions:(ObjectDefinition, Schema.Definitions)):DObject =
+    if (objectDefinitions._2.isEmpty)
+      convertObjectDefinition(objectDefinitions._1)
+    else
+    ForceWrapper.dObject(
+      convertTypeDefinition(objectDefinitions._1).toMap +
+      ("definitions" -> objectDefinitions._2.map(d => d.definition.getOrElse(throw SchemaGenerationException("Definition name expected")) -> convertTypeDefinition(d).toMap).toMap) +
+      $SCHEMA
+    )
 
 
   private def convertPropertyDefinition(propertyDefinition: PropertyDefinition):(String, Map[String, Any]) = {
@@ -33,6 +42,8 @@ object JsonSchema {
         s.format.foreach(p => m += "format" -> p)
         s.maxLength.foreach(p => m += "maxLength" -> p)
         s.minLength.foreach(p => m += "minLength" -> p)
+        s.contentEncoding.foreach(p => m += "contentEncoding" -> p)
+        s.contentMediaType.foreach(p => m += "contentMediaType" -> p)
       case n:NumberDefinition =>
         n.exclusiveMaximum.foreach(p => m + "exclusiveMaximum" -> p)
         n.maximum.foreach(p => m + "maximum" -> p)
@@ -69,6 +80,9 @@ object JsonSchema {
         val allOf =
           o.referencedDefinitions.map(s => Map("$ref" -> s"#/definitions/$s")) ++ obj
         m += "allOf" -> allOf
+      case BooleanDefinition =>
+      case NullDefinition =>
+      case AnyDefinition =>
     }
     m
   }

@@ -13,10 +13,10 @@ trait Validator[+T] {
 
   def ||[S >: T] (v:Validator[S]):Validator[S] = OrValidator(this, v)
 
-  def apply[A <: TypeDefinition](t:A, objDefs:Vector[ObjectDefinition]):(A, Vector[ObjectDefinition]) =
-    withObjsDefinition.lift(t -> objDefs).getOrElse(t -> objDefs).asInstanceOf[(A, Vector[ObjectDefinition])]
+  def apply[A <: TypeDefinition](t:A, objDefs:Vector[ObjectDefinition], forceNested:Boolean):(A, Vector[ObjectDefinition]) =
+    withObjsDefinition(forceNested).lift(t -> objDefs).getOrElse(t -> objDefs).asInstanceOf[(A, Vector[ObjectDefinition])]
 
-  def withObjsDefinition:PartialFunction[(TypeDefinition, Vector[ObjectDefinition]), (TypeDefinition, Vector[ObjectDefinition])] = {
+  def withObjsDefinition(forceNested:Boolean):PartialFunction[(TypeDefinition, Vector[ObjectDefinition]), (TypeDefinition, Vector[ObjectDefinition])] = {
     case (t, o) if definition.isDefinedAt(t) => definition(t) -> o
   }
 
@@ -454,12 +454,17 @@ trait Validators extends ValidatorOps{
   def mapContractK[K, D <: DObject](contract:ContractFor[D]): Validator[Optionable[Map[K, D]]] =
     new Validator[Optionable[Map[K,D]]] {
 
-      override def withObjsDefinition: PartialFunction[(TypeDefinition, Vector[ObjectDefinition]), (TypeDefinition, Vector[ObjectDefinition])] = {
-        case (s:ObjectDefinition, objs) =>
+      override def withObjsDefinition(forceNested:Boolean): PartialFunction[(TypeDefinition, Vector[ObjectDefinition]), (TypeDefinition, Vector[ObjectDefinition])] = {
+        case (s:ObjectDefinition, objs) if !forceNested =>
           val (ref, newObjs) = Schema.contractObjectDefinitionRef(contract, objs)
           s.copy(patternProperties = Map(".*".r -> ByRefDefinition(ref))) -> objs
+
+        case (s:ObjectDefinition, objs) =>
+          val obj = Schema.nestedContractObjectDefinition(contract)
+          s.copy(patternProperties = Map(".*".r -> obj)) -> objs
+
         case (m:MultipleTypeDefinition, objs) =>
-          m.withRemap(objs)(withObjsDefinition)
+          m.withRemap(objs)(withObjsDefinition(forceNested))
       }
 
       def apply[S >: Optionable[Map[K, D]]](path: Path, value: Option[S], currentState: => Option[S]): Failures = {
