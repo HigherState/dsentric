@@ -29,7 +29,32 @@ object JsonSchema {
     propertyDefinition.key -> m.toMap
   }
 
-  private def convertTypeDefinition(typeDefinition: TypeDefinition):mutable.HashMap[String, Any] = {
+
+  private def convertTypeDefinition:Function[TypeDefinition, mutable.HashMap[String, Any]] = {
+    case s:SingleTypeDefinition =>
+      convertSingleTypeDefinition(s)
+
+    case m:MultipleTypeDefinition =>
+      if (m.typeDefinitions.size == 2 && m.typeDefinitions.contains(NullDefinition)) {
+        m.typeDefinitions.find(_ != NullDefinition)
+          .fold(convertSingleTypeDefinition(NullDefinition)){t =>
+            val hm = convertTypeDefinition(t)
+            hm += "type" -> Vector(t.name, NullDefinition.name)
+            hm
+          }
+      }
+      else {
+        val hm = new mutable.HashMap[String, Any]()
+        val hms = m.typeDefinitions.map(convertSingleTypeDefinition)
+        if (hms.forall(_.keySet == Set("type")))
+          hm += "type" -> hms.map(_("type"))
+        else
+          hm += "oneOf" -> hms.map(_.toMap)
+        hm
+      }
+  }
+
+  private def convertSingleTypeDefinition(typeDefinition: SingleTypeDefinition):mutable.HashMap[String, Any] = {
     val m = new mutable.HashMap[String, Any]()
     m += "type" -> typeDefinition.name
     if (typeDefinition.enum.nonEmpty) m += "enum" -> typeDefinition.enum.toVector
@@ -37,6 +62,7 @@ object JsonSchema {
       case r:ByRefDefinition =>
         m.clear()
         m += "$ref" -> s"#/definitions/${r.name}"
+
       case s:StringDefinition =>
         s.pattern.foreach(p => m += "pattern" -> p)
         s.format.foreach(p => m += "format" -> p)
@@ -44,23 +70,30 @@ object JsonSchema {
         s.minLength.foreach(p => m += "minLength" -> p)
         s.contentEncoding.foreach(p => m += "contentEncoding" -> p)
         s.contentMediaType.foreach(p => m += "contentMediaType" -> p)
+
+      case BooleanDefinition =>
+
       case n:NumberDefinition =>
         n.exclusiveMaximum.foreach(p => m + "exclusiveMaximum" -> p)
         n.maximum.foreach(p => m + "maximum" -> p)
         n.exclusiveMinimum.foreach(p => m + "exclusiveMinimum" -> p)
         n.minimum.foreach(p => m + "minimum" -> p)
         n.multipleOf.foreach(p => m + "multipleOf" -> p)
+
       case n:IntegerDefinition =>
         n.exclusiveMaximum.foreach(p => m + "exclusiveMaximum" -> p)
         n.maximum.foreach(p => m + "maximum" -> p)
         n.exclusiveMinimum.foreach(p => m + "exclusiveMinimum" -> p)
         n.minimum.foreach(p => m + "minimum" -> p)
         n.multipleOf.foreach(p => m + "multipleOf" -> p)
+
       case a:ArrayDefinition =>
         a.minLength.foreach(p => m + "minLength" -> p)
         a.maxLength.foreach(p => m += "maxLength" -> p)
         if (a.uniqueness) m += "uniqueness" -> true
-        a.items.foreach(p => m += "items" -> convertTypeDefinition(p).toMap)
+        if (a.items.nonEmpty) m += "items" -> a.items.map(convertTypeDefinition(_).toMap)
+
+
       case o:ObjectDefinition if o.referencedDefinitions.isEmpty =>
         if (o.properties.nonEmpty) m += "properties" -> o.properties.map(convertPropertyDefinition).toMap
         val required = o.properties.collect{ case p if p.required => p.key}
@@ -72,6 +105,7 @@ object JsonSchema {
         m += "additionalProperties" -> o.additionalProperties
         o.propertyNames.foreach(p => m += "propertyNames" -> p)
         if (o.patternProperties.nonEmpty) m += "patternProperties" -> o.patternProperties.mapValues(convertTypeDefinition(_).toMap)
+
       case o:ObjectDefinition =>
         val removedObj = o.copy(referencedDefinitions = Vector.empty)
         val obj =
@@ -80,9 +114,10 @@ object JsonSchema {
         val allOf =
           o.referencedDefinitions.map(s => Map("$ref" -> s"#/definitions/$s")) ++ obj
         m += "allOf" -> allOf
-      case BooleanDefinition =>
+
       case NullDefinition =>
-      case AnyDefinition =>
+
+
     }
     m
   }

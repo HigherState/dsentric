@@ -1,6 +1,6 @@
 package dsentric
 
-import dsentric.schema.{AnyDefinition, ArrayDefinition, BooleanDefinition, IntegerDefinition, MultipleTypeDefinition, NullDefinition, NumberDefinition, ObjectDefinition, StringDefinition, TypeDefinition}
+import dsentric.schema._
 
 import scala.collection.immutable.VectorBuilder
 import scala.collection.mutable.ListBuffer
@@ -45,7 +45,7 @@ trait DefaultCodecs {
       def unapply(a: Any): Option[Any] = Some(a)
 
       def typeDefinition:TypeDefinition =
-        AnyDefinition
+        TypeDefinition.anyDefinition
     }
 
   implicit val dataCodec:DCodec[Data] =
@@ -63,7 +63,7 @@ trait DefaultCodecs {
         t
 
       def typeDefinition:TypeDefinition =
-        AnyDefinition
+        TypeDefinition.anyDefinition
     }
 
   implicit val dQueryCodec:DCodec[DQuery] =
@@ -79,7 +79,7 @@ trait DefaultCodecs {
         new DObjectInst(t.value)
 
       def typeDefinition:TypeDefinition =
-        ObjectDefinition()
+        ObjectDefinition.empty
     }
 
   implicit val dObjectCodec:DObjectCodec[DObject] =
@@ -138,7 +138,23 @@ trait DefaultCodecs {
         }
 
       def typeDefinition:TypeDefinition =
-        ArrayDefinition(Some(MultipleTypeDefinition(D1.typeDefinition, D2.typeDefinition)))
+        ArrayDefinition(Vector(D1.typeDefinition, D2.typeDefinition))
+    }
+
+  implicit val pathCodec:DCodec[Path] =
+    new DCodec[Path] {
+      def unapply(a: Any): Option[Path] =
+        a match {
+          case s:String =>
+            Some(Path.fromString(s))
+          case j =>
+            None
+        }
+      def apply(t: Path): Data =
+        new DValue(t.toString)
+
+      def typeDefinition:TypeDefinition =
+        TypeDefinition.anyDefinition
     }
 
   def dObjectLikeCodec[T <: DObjectLike[T] with DObject](wrap:Map[String, Any] => T):DCodec[T] =
@@ -155,6 +171,9 @@ trait DefaultCodecs {
       def typeDefinition:TypeDefinition =
         ObjectDefinition.empty
     }
+
+
+
 
 }
 
@@ -234,10 +253,10 @@ trait PessimisticCodecs extends DefaultCodecs {
         NumericPartialFunctions.number.lift(a)
 
       val typeDefinition:TypeDefinition =
-        NumberDefinition()
+        NumberDefinition.empty
     }
 
-  implicit def optionCodec[T](implicit D:DCodec[T]) =
+  implicit def optionCodec[T](implicit D:DCodec[T]): DCodec[Option[T]] =
     new DCodec[Option[T]] {
       def apply(t: Option[T]): Data =
         t.fold[Data](Dsentric.dNull)(t => D(t))
@@ -272,7 +291,7 @@ trait PessimisticCodecs extends DefaultCodecs {
             None
         }
       def typeDefinition:TypeDefinition =
-        ArrayDefinition(Some(C.typeDefinition))
+        ArrayDefinition(Vector(C.typeDefinition))
     }
 
   implicit def vectorCodec[T](implicit C:DCodec[T]):DArrayCodec[Vector[T]] =
@@ -295,7 +314,7 @@ trait PessimisticCodecs extends DefaultCodecs {
         }
 
       def typeDefinition:TypeDefinition =
-        ArrayDefinition(Some(C.typeDefinition))
+        ArrayDefinition(Vector(C.typeDefinition))
     }
 
   implicit def fixedMapCodec[T](implicit D:DCodec[T]):DCodec[Map[String, T]] =
@@ -374,7 +393,7 @@ trait OptimisticCodecs extends DefaultCodecs {
       def unapply(a: Any): Option[String] =
         Some(a.toString)
       def typeDefinition:TypeDefinition =
-        StringDefinition()
+        StringDefinition.empty
     }
 
   implicit val booleanCodec:DValueCodec[Boolean] =
@@ -462,7 +481,7 @@ trait OptimisticCodecs extends DefaultCodecs {
           .fold(NumericPartialFunctions.number.lift(a))(NumericPartialFunctions.number.lift)
 
       val typeDefinition:TypeDefinition =
-        NumberDefinition()
+        NumberDefinition.empty
     }
 
   implicit def optionCodec[T](implicit D:DCodec[T]) =
@@ -497,7 +516,7 @@ trait OptimisticCodecs extends DefaultCodecs {
         }
 
       def typeDefinition:TypeDefinition =
-        ArrayDefinition(Some(C.typeDefinition))
+        ArrayDefinition(Vector(C.typeDefinition))
     }
 
   implicit def vectorCodec[T](implicit C:DCodec[T]):DArrayCodec[Vector[T]] =
@@ -517,7 +536,7 @@ trait OptimisticCodecs extends DefaultCodecs {
         }
 
       def typeDefinition:TypeDefinition =
-        ArrayDefinition(Some(C.typeDefinition))
+        ArrayDefinition(Vector(C.typeDefinition))
     }
 
   implicit def fixedMapCodec[T](implicit D:DCodec[T]):DCodec[Map[String, T]] =
