@@ -19,10 +19,10 @@ final class IntOps(val self:Int) extends AnyVal {
 
 final class FunctionOps[D <: DObjectLike[D] with DObject](val f:D => D) extends AnyVal with LensCompositor[D] {
   def ~+(kv:(String, Data)):D => D =
-    _ + kv
+    f andThen (_ + kv)
 
   def ~++(kv:Seq[(String, Data)]):D => D =
-    _ ++ kv
+    f andThen (_ ++ kv)
 
 }
 
