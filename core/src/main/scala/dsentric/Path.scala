@@ -40,6 +40,20 @@ sealed trait Path {
     _hasSubPath(this -> path)
 
 
+  override def toString: String =
+    this match {
+      case PathEnd =>
+        ""
+      case PathKey(key, PathEnd) =>
+        key
+      case PathIndex(index, PathEnd) =>
+        index.toString
+      case PathKey(key, tail) =>
+        key + "\\" + tail.toString
+      case PathIndex(index, tail) =>
+        index + "\\" + tail.toString
+    }
+
   private def _hasSubPath:Function[(Path, Path), Boolean] = {
     case (_, PathEnd) =>
       true
