@@ -110,7 +110,7 @@ object JsonSchema {
         val removedObj = o.copy(referencedDefinitions = Vector.empty)
         val obj =
           if (removedObj == ObjectDefinition.empty) Vector.empty
-          else Vector(convertTypeDefinition(o).toMap)
+          else Vector(convertTypeDefinition(removedObj).toMap)
         val allOf =
           o.referencedDefinitions.map(s => Map("$ref" -> s"#/definitions/$s")) ++ obj
         m += "allOf" -> allOf

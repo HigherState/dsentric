@@ -453,11 +453,11 @@ trait Validators extends ValidatorOps{
 
   def mapContractK[K, D <: DObject](contract:ContractFor[D]): Validator[Optionable[Map[K, D]]] =
     new Validator[Optionable[Map[K,D]]] {
-
+      //TODO change to additional Properties
       override def withObjsDefinition(forceNested:Boolean): PartialFunction[(TypeDefinition, Vector[ObjectDefinition]), (TypeDefinition, Vector[ObjectDefinition])] = {
         case (s:ObjectDefinition, objs) if !forceNested =>
           val (ref, newObjs) = Schema.contractObjectDefinitionRef(contract, objs)
-          s.copy(patternProperties = Map(".*".r -> ByRefDefinition(ref))) -> objs
+          s.copy(patternProperties = Map(".*".r -> ByRefDefinition(ref))) -> newObjs
 
         case (s:ObjectDefinition, objs) =>
           val obj = Schema.nestedContractObjectDefinition(contract)
