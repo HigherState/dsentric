@@ -2,6 +2,7 @@ package dsentric
 
 import scala.util.Try
 
+//TODO Path escaping
 sealed trait Path {
   def isEmpty:Boolean
   def ::(key:String):Path =
@@ -44,14 +45,10 @@ sealed trait Path {
     this match {
       case PathEnd =>
         ""
-      case PathKey(key, PathEnd) =>
-        key
-      case PathIndex(index, PathEnd) =>
-        index.toString
       case PathKey(key, tail) =>
-        key + "\\" + tail.toString
+        "\\" + key + tail
       case PathIndex(index, tail) =>
-        index + "\\" + tail.toString
+        "\\" + index + tail
     }
 
   private def _hasSubPath:Function[(Path, Path), Boolean] = {
