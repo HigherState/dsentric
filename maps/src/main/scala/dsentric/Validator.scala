@@ -457,11 +457,11 @@ trait Validators extends ValidatorOps{
       override def withObjsDefinition(forceNested:Boolean): PartialFunction[(TypeDefinition, Vector[ObjectDefinition]), (TypeDefinition, Vector[ObjectDefinition])] = {
         case (s:ObjectDefinition, objs) if !forceNested =>
           val (ref, newObjs) = Schema.contractObjectDefinitionRef(contract, objs)
-          s.copy(patternProperties = Map(".*".r -> ByRefDefinition(ref))) -> newObjs
+          s.copy(additionalProperties = Right(ByRefDefinition(ref))) -> newObjs
 
         case (s:ObjectDefinition, objs) =>
           val obj = Schema.nestedContractObjectDefinition(contract)
-          s.copy(patternProperties = Map(".*".r -> obj)) -> objs
+          s.copy(additionalProperties = Right(obj)) -> objs
 
         case (m:MultipleTypeDefinition, objs) =>
           m.withRemap(objs)(withObjsDefinition(forceNested))

@@ -102,7 +102,14 @@ object JsonSchema {
         o.description.foreach(p => m += "description" -> p)
         o.minProperties.foreach(p => m += "minProperties" -> p)
         o.maxProperties.foreach(p => m += "maxProperties" -> p)
-        m += "additionalProperties" -> o.additionalProperties
+        o.additionalProperties match {
+          case Left(bool) =>
+            m += "additionalProperties" -> bool
+          case Right(typeDef) =>
+            m += "additionalProperties" -> convertTypeDefinition(typeDef).toMap
+
+        }
+
         o.propertyNames.foreach(p => m += "propertyNames" -> p)
         if (o.patternProperties.nonEmpty) m += "patternProperties" -> o.patternProperties.mapValues(convertTypeDefinition(_).toMap)
 

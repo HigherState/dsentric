@@ -334,7 +334,7 @@ trait PessimisticCodecs extends DefaultCodecs {
           new DValue(t.mapValues(D(_).value))
 
         def typeDefinition:TypeDefinition =
-          ObjectDefinition(patternProperties = Map(".*".r -> D.typeDefinition))
+          ObjectDefinition(additionalProperties = Right(D.typeDefinition))
       }
 
   implicit def fullMapCodec[K, T](implicit D:DCodec[T], K:DCodec[K]):DCodec[Map[K, T]] =
@@ -360,9 +360,9 @@ trait PessimisticCodecs extends DefaultCodecs {
       def typeDefinition:TypeDefinition =
         K.typeDefinition match {
           case s:StringDefinition =>
-            ObjectDefinition(propertyNames = Some(s), patternProperties = Map(".*".r -> D.typeDefinition))
+            ObjectDefinition(propertyNames = Some(s), additionalProperties = Right(D.typeDefinition))
           case _ =>
-            ObjectDefinition(patternProperties = Map(".*".r -> D.typeDefinition))
+            ObjectDefinition(additionalProperties = Right(D.typeDefinition))
         }
 
     }
@@ -546,7 +546,7 @@ trait OptimisticCodecs extends DefaultCodecs {
           toMapT(a)
 
         def typeDefinition:TypeDefinition =
-          ObjectDefinition(patternProperties = Map(".*".r -> D.typeDefinition))
+          ObjectDefinition(additionalProperties = Right(D.typeDefinition))
       }
     else
       new DCodec[Map[String, T]] {
@@ -557,7 +557,7 @@ trait OptimisticCodecs extends DefaultCodecs {
           new DValue(t.mapValues(D(_).value))
 
         def typeDefinition:TypeDefinition =
-          ObjectDefinition(patternProperties = Map(".*".r -> D.typeDefinition))
+          ObjectDefinition(additionalProperties = Right(D.typeDefinition))
       }
 
   private def toMapT[T](a:Any)(implicit D:DCodec[T]) =

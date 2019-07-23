@@ -2,7 +2,6 @@ package dsentric
 
 import scala.util.Try
 
-//TODO Path escaping
 sealed trait Path {
   def isEmpty:Boolean
   def ::(key:String):Path =
@@ -101,7 +100,7 @@ object Path {
 
   //TODO handle chars \ " etc
   def fromString(s:String):Path =
-    s.split('\\').foldRight(Path.empty){ (s, a) =>
+    s.split('\\').filter(_.isEmpty).foldRight(Path.empty){ (s, a) =>
       Try(s.toInt).map(PathIndex(_, a)).getOrElse(PathKey(s, a))
     }
 }

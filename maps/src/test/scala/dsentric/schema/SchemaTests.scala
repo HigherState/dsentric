@@ -158,7 +158,7 @@ class SchemaTests extends FunSuite with Matchers {
         PropertyDefinition("objectWithRef",
           ObjectDefinition(None,None,None,Vector("AnotherNested"),
             Vector(PropertyDefinition("field",IntegerDefinition(List(),Some(Long.MinValue),None,Some(Long.MaxValue),None,None),Nil,None, true,None)),
-            true,None),
+            Left(true) ,None),
           List(),None,false,None)),
       )
     schema6 shouldBe schema6Def
@@ -173,9 +173,9 @@ class SchemaTests extends FunSuite with Matchers {
       Vector(),
       Vector(
         PropertyDefinition("objectWithRefs",
-          ObjectDefinition(None,None,None,Vector("AnotherNested2", "AnotherNested"),Vector(),true,None),
+          ObjectDefinition(None,None,None,Vector("AnotherNested2", "AnotherNested"),Vector(),Left(true), None),
           List(),None,true,None)),
-      true,None)
+      Left(true),None)
     schema7 shouldBe schema7Def
   }
 
