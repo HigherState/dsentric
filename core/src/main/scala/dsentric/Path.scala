@@ -100,7 +100,7 @@ object Path {
 
   //TODO handle chars \ " etc
   def fromString(s:String):Path =
-    s.split('\\').filter(_.isEmpty).foldRight(Path.empty){ (s, a) =>
+    s.split('\\').filterNot(_.isEmpty).foldRight(Path.empty){ (s, a) =>
       Try(s.toInt).map(PathIndex(_, a)).getOrElse(PathKey(s, a))
     }
 }
