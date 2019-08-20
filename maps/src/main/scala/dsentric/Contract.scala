@@ -182,9 +182,13 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct { self 
     override private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
       super._validate(path, value, currentState) match {
         case Failures.empty =>
-          value.collect{ case m:Map[String, Any]@unchecked => m }.fold(Failures.empty){v =>
-            _validateFields(path, v, currentState.collect{ case m:Map[String, Any]@unchecked => m })
-          }
+          val valueMap = value.collect{ case m:Map[String, Any]@unchecked => m }
+          val stateMap =
+            currentState.collect{ case m:Map[String, Any]@unchecked => m }
+          if (stateMap.isEmpty && valueMap.isEmpty)
+            Failures.empty
+          else
+            _validateFields(path, valueMap.getOrElse(Map.empty), stateMap)
         case failures =>
           failures
       }
@@ -206,9 +210,14 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct { self 
     override private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
       super._validate(path, value, currentState) match {
         case Failures.empty =>
-          value.collect{ case m:Map[String, Any]@unchecked => m }.fold(Failures.empty){v =>
-            _validateFields(path, v, currentState.collect{ case m:Map[String, Any]@unchecked => m })
-          }
+          //TODO code duplicate tidy
+          val valueMap = value.collect{ case m:Map[String, Any]@unchecked => m }
+          val stateMap =
+            currentState.collect{ case m:Map[String, Any]@unchecked => m }
+          if (stateMap.isEmpty && valueMap.isEmpty)
+            Failures.empty
+          else
+            _validateFields(path, valueMap.getOrElse(Map.empty), stateMap)
         case failures =>
           failures
       }
@@ -231,9 +240,13 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct { self 
     override private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
       super._validate(path, value, currentState) match {
         case Failures.empty =>
-          value.collect{ case m:Map[String, Any]@unchecked => m }.fold(Failures.empty){v =>
-            _validateFields(path, v, currentState.collect{ case m:Map[String, Any]@unchecked => m })
-          }
+          val valueMap = value.collect{ case m:Map[String, Any]@unchecked => m }
+          val stateMap =
+            currentState.collect{ case m:Map[String, Any]@unchecked => m }
+          if (stateMap.isEmpty && valueMap.isEmpty)
+            Failures.empty
+          else
+            _validateFields(path, valueMap.getOrElse(Map.empty), stateMap)
         case failures =>
           failures
       }
