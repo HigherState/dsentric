@@ -1,0 +1,5 @@
+package dsentric
+
+object RawObject {
+
+}

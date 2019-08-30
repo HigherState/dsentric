@@ -1,75 +1,10 @@
-package dsentric
+package dsentric.operators
+
+import dsentric.schema._
+import dsentric.{ContractFor, DCodec, DObject, Failures, Length, Numeric, Optionable, Path}
 
 import scala.util.matching.Regex
-import Dsentric._
-import PessimisticCodecs._
-import dsentric.schema.{ArrayDefinition, ByRefDefinition, IntegerDefinition, MultipleTypeDefinition, NumberDefinition, ObjectDefinition, Schema, StringDefinition, TypeDefinition}
 
-trait Validator[+T] {
-
-  def apply[S >: T](path:Path, value:Option[S], currentState: => Option[S]): Failures
-
-  def &&[S >: T] (v:Validator[S]):Validator[S] = AndValidator(this, v)
-
-  def ||[S >: T] (v:Validator[S]):Validator[S] = OrValidator(this, v)
-
-  def apply[A <: TypeDefinition](t:A, objDefs:Vector[ObjectDefinition], forceNested:Boolean):(A, Vector[ObjectDefinition]) =
-    withObjsDefinition(forceNested).lift(t -> objDefs).getOrElse(t -> objDefs).asInstanceOf[(A, Vector[ObjectDefinition])]
-
-  def withObjsDefinition(forceNested:Boolean):PartialFunction[(TypeDefinition, Vector[ObjectDefinition]), (TypeDefinition, Vector[ObjectDefinition])] = {
-    case (t, o) if definition.isDefinedAt(t) => definition(t) -> o
-  }
-
-  def definition:PartialFunction[TypeDefinition, TypeDefinition] = {
-    case t => t
-  }
-
-  private[dsentric] def isInternal:Boolean = false
-
-  private[dsentric] def mask:Option[String] = None
-
-  private[dsentric] def removalDenied:Boolean = false
-
-  private[dsentric] def isEmpty:Boolean = false
-}
-
-case class AndValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]) extends Validator[T] {
-  def apply[S >: T](path:Path, value:Option[S], currentState: => Option[S]):Failures =
-    left(path, value, currentState) ++ right(path, value, currentState)
-
-  private[dsentric] override def isInternal:Boolean = left.isInternal || right.isInternal
-
-  private[dsentric] override def removalDenied:Boolean = left.removalDenied || right.removalDenied
-
-  private[dsentric] override def mask:Option[String] = left.mask.orElse(right.mask)
-
-  override def definition:PartialFunction[TypeDefinition, TypeDefinition] =
-    left.definition.andThen(right.definition)
-}
-
-case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]) extends Validator[T] {
-  def apply[S >: T](path:Path, value:Option[S], currentState: => Option[S]):Failures =
-    left(path, value, currentState) match {
-      case Failures.empty =>
-        Failures.empty
-      case list =>
-        right(path, value, currentState) match {
-          case Failures.empty =>
-            Failures.empty
-          case list2 if list2.size < list.size =>
-            list2
-          case _ =>
-            list
-        }
-    }
-
-  private[dsentric] override def mask:Option[String] = left.mask.orElse(right.mask)
-
-  private[dsentric] override def removalDenied:Boolean = left.removalDenied || right.removalDenied
-
-  private[dsentric] override def isInternal:Boolean = left.isInternal || right.isInternal
-
-}
 
 //TODO separate definition for internal/reserved etc such that the or operator is not supported
 trait Validators extends ValidatorOps{
@@ -402,7 +337,7 @@ trait Validators extends ValidatorOps{
           .toVector
     }
 
-  def custom[T](f: T => Boolean, message:String) =
+  def custom[T](f: T => Boolean, message:String): Validator[Optionable[T]] =
     new Validator[Optionable[T]] {
 
       def apply[S >: Optionable[T]](path: Path, value: Option[S], currentState: => Option[S]): Failures =
@@ -530,7 +465,7 @@ trait Validators extends ValidatorOps{
 
 trait ValidatorOps {
 
-  protected def getLength[S >: Optionable[Length]](x:S) =
+  protected def getLength[S >: Optionable[Length]](x:S): Option[Int] =
     x match {
       case s:Seq[Any] @unchecked =>
         Some(s.size)
