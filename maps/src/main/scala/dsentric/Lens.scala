@@ -1,5 +1,7 @@
 package dsentric
 
+import dsentric.operators.ValidationText
+
 sealed trait PropertyLens[D <: DObject, T] {
 
   def _path:Path

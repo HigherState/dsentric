@@ -5,13 +5,13 @@ trait DObjectOps {
   def concat(x :DObject, y:DObject):DObject =
     new DObjectInst(concatMap(x.value, y.value))
 
-  private[dsentric] def concatMap(x: Map[String, Any], y: Map[String, Any]): Map[String, Any] =
+  private[dsentric] def concatMap(x: RawObject, y: RawObject): RawObject =
     y.foldLeft(x){
-      case (acc, (k, v:Map[String, Any]@unchecked)) =>
+      case (acc, (k, v:RawObject@unchecked)) =>
         acc.get(k).fold(acc + (k -> v)) {
-          case c: Map[String, Any]@unchecked =>
+          case c: RawObject@unchecked =>
             acc + (k -> concatMap(c, v))
-          case c =>
+          case _ =>
             acc + (k -> v)
         }
       case (acc, (k, v)) =>
@@ -22,18 +22,17 @@ trait DObjectOps {
   def rightReduceConcat(x: DObject, y: DObject): DObject =
     new DObjectInst(rightReduceConcatMap(x.value, y.value))
 
-  private val EMPTY_MAP = Map.empty[String, Any]
-  private[dsentric] def rightReduceConcatMap(x: Map[String, Any], y: Map[String, Any]): Map[String, Any] =
+  private[dsentric] def rightReduceConcatMap(x: RawObject, y: RawObject): RawObject =
     y.foldLeft(x){
       case (acc, (k, _:DNull)) =>
         acc - k
-      case (acc, (k, EMPTY_MAP)) =>
+      case (acc, (k, RawObject.empty)) =>
         acc - k
-      case (acc, (k, v:Map[String, Any]@unchecked)) =>
+      case (acc, (k, v:RawObject@unchecked)) =>
         acc.get(k).fold(acc + (k -> v)) {
-          case c: Map[String, Any]@unchecked =>
+          case c: RawObject@unchecked =>
             rightReduceConcatMap(c, v) match {
-              case EMPTY_MAP =>
+              case RawObject.empty =>
                 acc - k
               case d =>
                 acc + (k -> d)
@@ -48,15 +47,15 @@ trait DObjectOps {
   def rightDifference(x: DObject, y: DObject): DObject =
     rightDifferenceMap(x.value -> y.value).fold(DObject.empty)(new DObjectInst(_))
 
-  private[dsentric] def rightDifferenceMap:Function[(Map[String, Any],Map[String, Any]),Option[Map[String, Any]]] = {
+  private[dsentric] def rightDifferenceMap:Function[(RawObject,RawObject),Option[RawObject]] = {
     case (s, d) if d == s =>
       None
     case (s, d) =>
       val r = d.flatMap { kvp =>
         s.get(kvp._1).fold(Option(kvp)){
-          case m:Map[String, Any]@unchecked =>
+          case m:RawObject@unchecked =>
             kvp._2 match {
-              case m2:Map[String, Any]@unchecked =>
+              case m2:RawObject@unchecked =>
                 rightDifferenceMap(m -> m2).map(kvp._1 -> _)
               case _ =>
                 Some(kvp)
@@ -75,11 +74,11 @@ trait DObjectOps {
     new DObjectInst(selectMap(target.value, projection.value))
 
 
-  private[dsentric] def contains(target:Map[String, Any], projectionOrMap:Map[String, Any], leafValuesMustMatch:Boolean):Boolean =
+  private[dsentric] def contains(target:RawObject, projectionOrMap:RawObject, leafValuesMustMatch:Boolean):Boolean =
     projectionOrMap.forall {
-      case (k, j:Map[String, Any]@unchecked) =>
+      case (k, j:RawObject@unchecked) =>
         target.get(k).exists{
-          case m:Map[String, Any]@unchecked =>
+          case m:RawObject@unchecked =>
             contains(m, j, leafValuesMustMatch)
           case _ =>
             false
@@ -90,11 +89,11 @@ trait DObjectOps {
         }
     }
 
-  private[dsentric] def intersects(target:Map[String, Any], projectionOrMap:Map[String, Any], leafValuesMustMatch:Boolean):Boolean =
+  private[dsentric] def intersects(target:RawObject, projectionOrMap:RawObject, leafValuesMustMatch:Boolean):Boolean =
     projectionOrMap.exists {
-      case (k, j:Map[String, Any]@unchecked) =>
+      case (k, j:RawObject@unchecked) =>
         target.get(k).exists{
-          case m:Map[String, Any]@unchecked =>
+          case m:RawObject@unchecked =>
             contains(m, j, leafValuesMustMatch)
           case _ =>
             false
@@ -105,16 +104,16 @@ trait DObjectOps {
         }
     }
 
-  private[dsentric] def selectMap(target:Map[String, Any], projection:Map[String, Any]):Map[String, Any] =
-    projection.foldLeft(Map.empty[String, Any]) {
+  private[dsentric] def selectMap(target:RawObject, projection:RawObject):RawObject =
+    projection.foldLeft(RawObject.empty) {
       case (acc, (k, 1)) =>
         target.get(k).fold(acc){v =>
           acc + (k -> v)
         }
 
-      case (acc, (k, j:Map[String, Any]@unchecked)) =>
+      case (acc, (k, j:RawObject@unchecked)) =>
         target.get(k).fold(acc){
-          case m:Map[String, Any]@unchecked =>
+          case m:RawObject@unchecked =>
             val result = selectMap(m, j)
             if (result.nonEmpty)
               acc + (k -> result)
@@ -127,14 +126,14 @@ trait DObjectOps {
         acc
     }
 
-  private[dsentric] def omitMap(target:Map[String, Any], projection:Map[String, Any]):Map[String, Any] =
+  private[dsentric] def omitMap(target:RawObject, projection:RawObject):RawObject =
     projection.foldLeft(target) {
       case (acc, (k, 1)) =>
         acc - k
 
-      case (acc, (k, j:Map[String, Any]@unchecked)) =>
+      case (acc, (k, j:RawObject@unchecked)) =>
         target.get(k).fold(acc){
-          case m:Map[String, Any]@unchecked =>
+          case m:RawObject@unchecked =>
             val result = omitMap(m, j)
             if (result.nonEmpty)
               acc + (k -> result)
@@ -153,11 +152,11 @@ trait DObjectOps {
   def reduce(target:DObject):Option[DObject] =
     reduceMap(target.value).map(new DObjectInst(_))
 
-  private[dsentric] def reduceMap(target:Map[String, Any]):Option[Map[String, Any]] = {
+  private[dsentric] def reduceMap(target:RawObject):Option[RawObject] = {
     val reducedMap = target.flatMap {
-      case (k, _: DNull) =>
+      case (_ , _: DNull) =>
         None
-      case (k, m: Map[String, Any]@unchecked) =>
+      case (k, m: RawObject@unchecked) =>
         reduceMap(m).map(k -> _)
       case kvp =>
         Some(kvp)

@@ -21,7 +21,7 @@ class DObjectLikeTests extends FunSuite with Matchers {
   import Dsentric._
   import PessimisticCodecs._
 
-  import Validators._
+  import dsentric.operators.Validators._
 
   object CustomContract extends ContractFor[Custom] {
     val string = \[String]

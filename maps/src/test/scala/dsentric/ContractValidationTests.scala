@@ -2,6 +2,7 @@ package dsentric
 
 import cats.data.NonEmptyList
 import dsentric._
+import dsentric.operators.{ValidationText, Validators}
 import org.scalatest.{FunSuite, Matchers}
 
 class ContractValidationTests extends FunSuite with Matchers with FailureMatchers {

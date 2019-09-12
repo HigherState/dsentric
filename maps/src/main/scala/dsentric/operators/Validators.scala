@@ -5,11 +5,9 @@ import dsentric.{ContractFor, DCodec, DObject, Failures, Length, Numeric, Option
 
 import scala.util.matching.Regex
 
-
-//TODO separate definition for internal/reserved etc such that the or operator is not supported
 trait Validators extends ValidatorOps{
 
-  val empty =
+  val empty: Validator[Nothing] =
     new Validator[Nothing] {
       def apply[S >: Nothing](path:Path, value: Option[S], currentState: => Option[S]):Failures =
         Failures.empty
@@ -17,32 +15,13 @@ trait Validators extends ValidatorOps{
       override def isEmpty:Boolean = true
     }
 
-  val internal =
-    new Validator[Option[Nothing]] {
-      def apply[S >: Option[Nothing]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
-        value.fold(Failures.empty)(_ => Failures(path -> "Value is reserved and cannot be provided."))
-
-      private[dsentric] override def isInternal:Boolean = true
-
-    }
-
-  def mask(masking:String): Validator[Nothing] =
-    new Validator[Nothing] {
-
-      def apply[S >: Nothing](path:Path, value: Option[S], currentState: => Option[S]):Failures =
-        Failures.empty
-
-      override def mask:Option[String] = Some(masking)
-
-    }
-
-  val reserved =
+  val reserved: Validator[Option[Nothing]] =
     new Validator[Option[Nothing]] {
       def apply[S >: Option[Nothing]](path: Path, value: Option[S], currentState: => Option[S]): Failures =
         value.fold(Failures.empty)(_ => Failures(path -> "Value is reserved and cannot be provided."))
     }
 
-  val immutable =
+  val immutable: Validator[Nothing] =
     new Validator[Nothing] {
       def apply[S >: Nothing](path:Path, value: Option[S], currentState: => Option[S]):Failures =
         (for {
@@ -55,10 +34,7 @@ trait Validators extends ValidatorOps{
 
     }
 
-
-
-
-  val increment =
+  val increment: Validator[Numeric] =
     new Validator[Numeric] {
       def apply[S >: Numeric](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         (for {
@@ -69,7 +45,7 @@ trait Validators extends ValidatorOps{
         } yield a).toVector
     }
 
-  val decrement =
+  val decrement: Validator[Numeric] =
     new Validator[Numeric] {
       def apply[S >: Numeric](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         (for {
@@ -81,7 +57,7 @@ trait Validators extends ValidatorOps{
 
     }
 
-  def >(x:Long) = new Validator[Numeric] {
+  def >(x:Long): Validator[Numeric] = new Validator[Numeric] {
     def apply[S >: Numeric](path: Path, value: Option[S], currentState: => Option[S]): Failures =
       (for {
         v <- value
@@ -97,7 +73,7 @@ trait Validators extends ValidatorOps{
     }
   }
 
-  def >(x:Double) = new Validator[Numeric] {
+  def >(x:Double): Validator[Numeric] = new Validator[Numeric] {
     def apply[S >: Numeric](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       (for {
         v <- value
@@ -112,7 +88,7 @@ trait Validators extends ValidatorOps{
     }
   }
 
-  def >=(x:Long) = new Validator[Numeric] {
+  def >=(x:Long): Validator[Numeric] = new Validator[Numeric] {
     def apply[S >: Numeric](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       (for {
         v <- value
@@ -145,7 +121,7 @@ trait Validators extends ValidatorOps{
 
   }
 
-  def <(x:Long) = new Validator[Numeric] {
+  def <(x:Long): Validator[Numeric] = new Validator[Numeric] {
     def apply[S >: Numeric](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       (for {
         v <- value
@@ -162,7 +138,7 @@ trait Validators extends ValidatorOps{
 
   }
 
-  def <(x:Double) = new Validator[Numeric] {
+  def <(x:Double): Validator[Numeric] = new Validator[Numeric] {
     def apply[S >: Numeric](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       (for {
         v <- value
@@ -177,7 +153,7 @@ trait Validators extends ValidatorOps{
     }
   }
 
-  def <=(x:Long) = new Validator[Numeric] {
+  def <=(x:Long): Validator[Numeric] = new Validator[Numeric] {
     def apply[S >: Numeric](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       (for {
         v <- value
@@ -193,7 +169,7 @@ trait Validators extends ValidatorOps{
     }
   }
 
-  def <=(x:Double) = new Validator[Numeric] {
+  def <=(x:Double): Validator[Numeric] = new Validator[Numeric] {
     def apply[S >: Numeric](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       (for {
         v <- value
@@ -208,49 +184,52 @@ trait Validators extends ValidatorOps{
     }
   }
 
-  def minLength(x: Int) = new Validator[Optionable[Length]] {
-    def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
-      value.flatMap(getLength)
-        .filter(_ < x)
-        .map(v => path -> s"Value must have a length of at least $x.")
-        .toVector
+  def minLength(x: Int): Validator[Optionable[Length]] =
+    new Validator[Optionable[Length]] {
+      def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
+        value.flatMap(getLength)
+          .filter(_ < x)
+          .map(v => path -> s"Value must have a length of at least $x.")
+          .toVector
 
-    override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-      case n:StringDefinition => n.copy(minLength = Some(x))
-      case n:ArrayDefinition => n.copy(minLength = Some(x))
-      case o:ObjectDefinition => o.copy(minProperties = Some(x))
-      case m:MultipleTypeDefinition => m.remap(definition)
+      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+        case n:StringDefinition => n.copy(minLength = Some(x))
+        case n:ArrayDefinition => n.copy(minLength = Some(x))
+        case o:ObjectDefinition => o.copy(minProperties = Some(x))
+        case m:MultipleTypeDefinition => m.remap(definition)
+      }
+
     }
 
-  }
+  def maxLength(x: Int) =
+    new Validator[Optionable[Length]] {
+      def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
+        value.flatMap(getLength)
+          .filter(_ > x)
+          .map(v => path -> s"Value must have a length of at most $x.")
+          .toVector
 
-  def maxLength(x: Int) = new Validator[Optionable[Length]] {
-    def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
-      value.flatMap(getLength)
-        .filter(_ > x)
-        .map(v => path -> s"Value must have a length of at most $x.")
-        .toVector
-
-    override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-      case n:StringDefinition => n.copy(maxLength = Some(x))
-      case n:ArrayDefinition => n.copy(maxLength = Some(x))
-      case o:ObjectDefinition => o.copy(maxProperties = Some(x))
-      case m:MultipleTypeDefinition => m.remap(definition)
+      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+        case n:StringDefinition => n.copy(maxLength = Some(x))
+        case n:ArrayDefinition => n.copy(maxLength = Some(x))
+        case o:ObjectDefinition => o.copy(maxProperties = Some(x))
+        case m:MultipleTypeDefinition => m.remap(definition)
+      }
     }
-  }
 
-  def in[T](values:T*)(implicit codec:DCodec[T]) = new Validator[Optionable[T]] {
+  def in[T](values:T*)(implicit codec:DCodec[T]): Validator[Optionable[T]] =
+    new Validator[Optionable[T]] {
 
-    override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-      case n:StringDefinition =>
-        n.copy(values.map(codec.apply).map(_.value).toList)
-      case n:IntegerDefinition =>
-        n.copy(values.map(codec.apply).map(_.value).toList)
-      case n:NumberDefinition =>
-        n.copy(values.map(codec.apply).map(_.value).toList)
-      case m:MultipleTypeDefinition =>
-        m.remap(definition)
-    }
+      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+        case n:StringDefinition =>
+          n.copy(values.map(codec.apply).map(_.value).toList)
+        case n:IntegerDefinition =>
+          n.copy(values.map(codec.apply).map(_.value).toList)
+        case n:NumberDefinition =>
+          n.copy(values.map(codec.apply).map(_.value).toList)
+        case m:MultipleTypeDefinition =>
+          m.remap(definition)
+      }
 
     def apply[S >: Optionable[T]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value
@@ -260,44 +239,47 @@ trait Validators extends ValidatorOps{
         .toVector
   }
 
-  def nin[T](values:T*)(implicit codec:DCodec[T]) = new Validator[Optionable[T]] {
+  def nin[T](values:T*)(implicit codec:DCodec[T]): Validator[Optionable[T]] =
+    new Validator[Optionable[T]] {
 
-    def apply[S >: Optionable[T]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
-      value
-        .flatMap(getT[T, S])
-        .filter(values.contains)
-        .map(v => path -> s"'$v' is not an allowed value.")
-        .toVector
-  }
-
-  //maybe change to generic equality
-  def inCaseInsensitive(values:String*) = new Validator[Optionable[String]] {
-
-    override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-      case n:StringDefinition => n.copy(values.toList)
-      case m:MultipleTypeDefinition => m.remap(definition)
+      def apply[S >: Optionable[T]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
+        value
+          .flatMap(getT[T, S])
+          .filter(values.contains)
+          .map(v => path -> s"'$v' is not an allowed value.")
+          .toVector
     }
 
-    def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
-      value
-        .flatMap(getString)
-        .filterNot(v => values.exists(_.equalsIgnoreCase(v.toString)))
-        .map(v => path -> s"'$v' is not an allowed value.")
-        .toVector
+  //maybe change to generic equality
+  def inCaseInsensitive(values:String*): Validator[Optionable[String]] =
+    new Validator[Optionable[String]] {
+
+      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+        case n:StringDefinition => n.copy(values.toList)
+        case m:MultipleTypeDefinition => m.remap(definition)
+      }
+
+      def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
+        value
+          .flatMap(getString)
+          .filterNot(v => values.exists(_.equalsIgnoreCase(v.toString)))
+          .map(v => path -> s"'$v' is not an allowed value.")
+          .toVector
   }
 
-  def ninCaseInsensitive(values:String*) = new Validator[Optionable[String]] {
+  def ninCaseInsensitive(values:String*): Validator[Optionable[String]] =
+    new Validator[Optionable[String]] {
 
-    def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
-      value
-        .flatMap(getString)
-        .filter(v => values.exists(_.equalsIgnoreCase(v.toString)))
-        .map(v => path -> s"'$v' is not an allowed value.")
-        .toVector
-  }
+      def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
+        value
+          .flatMap(getString)
+          .filter(v => values.exists(_.equalsIgnoreCase(v.toString)))
+          .map(v => path -> s"'$v' is not an allowed value.")
+          .toVector
+    }
 
   // TODO: Rewrite as regex?
-  val nonEmpty =
+  val nonEmpty: Validator[Optionable[Length]] =
     new Validator[Optionable[Length]] {
 
       val message = "Value must not be empty."
@@ -316,7 +298,7 @@ trait Validators extends ValidatorOps{
     }
 
   // TODO: Rewrite as regex?
-  val nonEmptyOrWhiteSpace =
+  val nonEmptyOrWhiteSpace: Validator[Optionable[String]] =
     new Validator[Optionable[String]] {
 
       val message = "String must not be empty or whitespace."

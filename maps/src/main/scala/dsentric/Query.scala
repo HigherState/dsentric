@@ -6,7 +6,7 @@ import queryTree.Tree
 
 trait PropertyExtension[T] extends Any {
   def prop:Property[_, T]
-  protected def nest(value:Any):DQuery =
+  protected def nest(value:Raw):DQuery =
     new DQuery(PathLensOps.pathToMap(prop._path, value))
 
 }
@@ -103,12 +103,12 @@ trait Query {
 }
 
 object Query extends Query {
-  private[dsentric] def apply(value:Option[Any], query:Map[String, Any]):Boolean = {
+  private[dsentric] def apply(value:Option[Any], query:RawObject):Boolean = {
     query.forall {
-      case ("$and", values:Vector[Any]@unchecked) =>
-        values.collect{ case m:Map[String, Any]@unchecked => m}.forall(apply(value, _))
-      case ("$or", values:Vector[Any]@unchecked) =>
-        values.collect{ case m:Map[String, Any]@unchecked => m}.exists(apply(value, _))
+      case ("$and", values:RawArray@unchecked) =>
+        values.collect{ case m:RawObject@unchecked => m}.forall(apply(value, _))
+      case ("$or", values:RawArray@unchecked) =>
+        values.collect{ case m:RawObject@unchecked => m}.exists(apply(value, _))
       case ("$eq", v) =>
         value.contains(v)
       case ("$ne", v) =>
@@ -133,22 +133,22 @@ object Query extends Query {
         value.exists(x => order(x -> v).exists(r => r <= 0))
       case ("$gte", v) =>
         value.exists(x => order(x -> v).exists(r => r >= 0))
-      case ("$in", values:Vector[Any]@unchecked) =>
+      case ("$in", values:RawArray@unchecked) =>
         value.exists(j => values.contains(j))
-      case ("$nin", values:Vector[Any]@unchecked) =>
+      case ("$nin", values:RawArray@unchecked) =>
         !value.exists(j => values.contains(j)) //nin doesnt require existence, as per mongodb
       case ("$exists", v:Boolean) =>
         value.isDefined == v
-      case ("$not", v:Map[String, Any]@unchecked) =>
+      case ("$not", v:RawObject@unchecked) =>
         !apply(value, v)
-      case ("$elemMatch", v:Map[String, Any]@unchecked) =>
-        value.collect { case seq:Vector[Any]@unchecked => seq.exists(s => apply(Some(s), v)) }.getOrElse(false)
+      case ("$elemMatch", v:RawObject@unchecked) =>
+        value.collect { case seq:RawArray@unchecked => seq.exists(s => apply(Some(s), v)) }.getOrElse(false)
       case ("$elemMatch", v) =>
-        value.collect { case seq:Vector[Any]@unchecked => seq.contains(v) }.getOrElse(false)
-      case (key, v:Map[String, Any]@unchecked) =>
-        apply(value.collect{ case m:Map[String, Any]@unchecked => m}.flatMap(_.get(key)), v)
+        value.collect { case seq:RawArray@unchecked => seq.contains(v) }.getOrElse(false)
+      case (key, v:RawObject@unchecked) =>
+        apply(value.collect{ case m:RawObject@unchecked => m}.flatMap(_.get(key)), v)
       case (key, v) =>
-        value.collect{ case m:Map[String, Any]@unchecked => m}.fold(false) { l =>
+        value.collect{ case m:RawObject@unchecked => m}.fold(false) { l =>
           l.get(key).contains(v)
         }
     }
@@ -183,14 +183,14 @@ object Query extends Query {
         search(value -> path).exists(x => order(x -> v).exists(r => r <= 0))
       case ?(path, "$gte", v) =>
         search(value -> path).exists(x => order(x -> v).exists(r => r >= 0))
-      case ?(path, "$in", values:Vector[Any]@unchecked) =>
+      case ?(path, "$in", values:RawArray@unchecked) =>
         search(value -> path).exists(j => values.contains(j))
-      case ?(path, "$nin", values:Vector[Any]@unchecked) =>
+      case ?(path, "$nin", values:RawArray@unchecked) =>
         !search(value -> path).exists(j => values.contains(j))
       case ?(path, "$exists", v:Boolean) =>
         search(value -> path).nonEmpty == v
       case Exists(path, subQuery) =>
-        search(value -> path).collect { case v:Vector[Any] => v.exists(s => apply(s, subQuery)) }.getOrElse(false)
+        search(value -> path).collect { case v:RawArray => v.exists(s => apply(s, subQuery)) }.getOrElse(false)
       case _ =>
         false
     }
@@ -199,7 +199,7 @@ object Query extends Query {
   private def search:Function[(Any, Path), Option[Any]] = {
     case (v, PathEnd) =>
       Some(v)
-    case (v:Map[String, Any]@unchecked, p) =>
+    case (v:RawObject@unchecked, p) =>
       PathLensOps.traverse(v, p)
     case _ => None
   }
@@ -227,29 +227,29 @@ class ValueQuery[T](val prop: Property[_, T]) extends AnyVal with PropertyExtens
 }
 
 class MaybeQuery[T](val prop:Maybe[_, T]) extends AnyVal with PropertyExtension[T] {
-  def $exists(value:Boolean) = nest(Map("$exists" -> value))
+  def $exists(value:Boolean): DQuery = nest(Map("$exists" -> value))
 }
 
 class NumericQuery[T >: Numeric](val prop: Property[_, T]) extends AnyVal with PropertyExtension[T] {
 
-  def $lt(value:Double) = nest(Map("$lt" -> value))
-  def $lt(value:Long) = nest(Map("$lt" -> value))
+  def $lt(value:Double): DQuery = nest(Map("$lt" -> value))
+  def $lt(value:Long): DQuery = nest(Map("$lt" -> value))
 
-  def $gt(value:Double) = nest(Map("$gt" -> value))
-  def $gt(value:Long) = nest(Map("$gt" -> value))
+  def $gt(value:Double): DQuery = nest(Map("$gt" -> value))
+  def $gt(value:Long): DQuery = nest(Map("$gt" -> value))
 
-  def $lte(value:Double) = nest(Map("$lt" -> value))
-  def $lte(value:Long) = nest(Map("$lt" -> value))
+  def $lte(value:Double): DQuery = nest(Map("$lt" -> value))
+  def $lte(value:Long): DQuery = nest(Map("$lt" -> value))
 
-  def $gte(value:Double) = nest(Map("$gt" -> value))
-  def $gte(value:Long) = nest(Map("$gt" -> value))
+  def $gte(value:Double): DQuery = nest(Map("$gt" -> value))
+  def $gte(value:Long): DQuery = nest(Map("$gt" -> value))
 }
 
 class StringQuery[T >: Optionable[String]](val prop:Property[_, T]) extends AnyVal with PropertyExtension[T] {
 
-  def $regex(value:String) = nest(Map("$regex" -> value))
-  def $regex(value:String, options:String) = nest(Map("$regex" -> value, "$options" -> options))
-  def $regex(r:Regex) = nest(Map("$regex" -> r.regex))
-  def $like(value:String) = nest(Map("$like" -> value))
+  def $regex(value:String): DQuery = nest(Map("$regex" -> value))
+  def $regex(value:String, options:String): DQuery = nest(Map("$regex" -> value, "$options" -> options))
+  def $regex(r:Regex): DQuery = nest(Map("$regex" -> r.regex))
+  def $like(value:String): DQuery = nest(Map("$like" -> value))
 
 }

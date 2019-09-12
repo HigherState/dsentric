@@ -1,5 +1,7 @@
 package dsentric
 
+import dsentric.operators.Validators
+
 trait PropertyOps {
 
   private val emptyContract = new Contract {}
@@ -7,7 +9,7 @@ trait PropertyOps {
   def \[T](name:String)(implicit codec:DCodec[T]) =
     new Expected[DObject, T](Validators.empty, Some(name), emptyContract, codec)
 
-  def \[T](path:Path)(implicit codec:DCodec[T]) = {
+  def \[T](path:Path)(implicit codec:DCodec[T]): Expected[DObject, T] = {
     val e = new Expected[DObject, T](Validators.empty, None, emptyContract, codec)
     e._forcePath(path)
     e

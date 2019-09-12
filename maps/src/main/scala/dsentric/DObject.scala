@@ -6,7 +6,7 @@ import scala.collection.{IterableLike, mutable}
 
 trait Data extends Any {
 
-  def value:Any
+  def value:Raw
 
   def isNull: Boolean = value match {
     case null => true
@@ -19,7 +19,7 @@ trait Data extends Any {
 
   def asObject:Option[DObject] =
     value match {
-      case m:Map[String, Any]@unchecked =>
+      case m:RawObject@unchecked =>
         Some(new DObjectInst(m))
       case _ =>
         None
@@ -27,7 +27,7 @@ trait Data extends Any {
 
   def asArray:Option[DArray] =
     value match {
-      case m:Vector[Any]@unchecked =>
+      case m:RawArray@unchecked =>
         Some(new DArray(m))
       case _ =>
         None
@@ -40,10 +40,10 @@ trait Data extends Any {
     new DValue(DataOps.nestedValueMap(value, pf))
 
   def nestedKeyValueMap[T, U](pf:PartialFunction[(String, T), Option[(String, U)]])(implicit D1:DCodec[T], D2:DCodec[U]):Data =
-    new DValue(DataOps.nestedKeyValueMap(value, pf).asInstanceOf[Map[String, Any]])
+    new DValue(DataOps.nestedKeyValueMap(value, pf).asInstanceOf[RawObject])
 
   def nestedKeyMap(pf:PartialFunction[String, Option[String]]):Data =
-    new DValue(DataOps.nestedKeyMap(value, pf).asInstanceOf[Map[String, Any]])
+    new DValue(DataOps.nestedKeyMap(value, pf).asInstanceOf[RawObject])
 
   def decode[T](implicit D:DCodec[T]):Option[T] =
     D.unapply(value)
@@ -52,12 +52,12 @@ trait Data extends Any {
     SimpleRenderer.print(value)
 }
 
-class DValue private[dsentric](val value:Any) extends AnyVal with Data
+class DValue private[dsentric](val value:Raw) extends AnyVal with Data
 
 trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data with IterableLike[(String, Data), This] {
-  def value:Map[String, Any]
+  def value:RawObject
 
-  protected def wrap(value:Map[String, Any]):This
+  protected def wrap(value:RawObject):This
 
   protected[this] def newBuilder: mutable.Builder[(String, Data), This] =
     new mutable.Builder[(String, Data), This] {
@@ -75,13 +75,13 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
         wrap(elems.toMap)
     }
 
-  def iterator =
+  def iterator: Iterator[(String, Data)] =
     value.iterator.map(p => p._1 -> ForceWrapper.data(p._2))
 
-  def seq =
+  def seq: Iterator[(String, Data)] =
     toIterator
 
-  private[dsentric] def internalWrap(value:Map[String, Any]):This =
+  private[dsentric] def internalWrap(value:RawObject):This =
     wrap(value)
 
   def +(v:(String, Data)):This =
@@ -187,26 +187,26 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
     wrap(value.filterKeys(p))
 
   override def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):This =
-    wrap(DataOps.nestedValueMap(value, pf).asInstanceOf[Map[String, Any]])
+    wrap(DataOps.nestedValueMap(value, pf).asInstanceOf[RawObject])
 
   override def nestedKeyValueMap[T, U](pf:PartialFunction[(String, T), Option[(String, U)]])(implicit D1:DCodec[T], D2:DCodec[U]):This =
-    wrap(DataOps.nestedKeyValueMap(value, pf).asInstanceOf[Map[String, Any]])
+    wrap(DataOps.nestedKeyValueMap(value, pf).asInstanceOf[RawObject])
 
   override def nestedKeyMap(pf:PartialFunction[String, Option[String]]):This =
-    wrap(DataOps.nestedKeyMap(value, pf).asInstanceOf[Map[String, Any]])
+    wrap(DataOps.nestedKeyMap(value, pf).asInstanceOf[RawObject])
 }
 
 trait DObject extends Any with DObjectLike[DObject]
 
-final class DObjectInst private[dsentric](val value:Map[String, Any]) extends AnyVal with DObject {
+final class DObjectInst private[dsentric](val value:RawObject) extends AnyVal with DObject {
   @inline
-  protected def wrap(value: Map[String, Any]):DObject =
+  protected def wrap(value: RawObject):DObject =
     new DObjectInst(value)
 }
 
-final class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal with DObject with DObjectLike[DQuery]{
+final class DQuery private[dsentric](val value:RawObject) extends AnyVal with DObject with DObjectLike[DQuery]{
 
-  protected def wrap(value: Map[String, Any]) = new DQuery(value)
+  protected def wrap(value: RawObject) = new DQuery(value)
 
   def isMatch(j:DObject):Boolean =
     Query(Some(j.value), value)
@@ -218,11 +218,11 @@ final class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal 
           new DQuery(Map("$and" -> Vector(value, d.value)))
         else
           new DQuery(DObjectOps.concatMap(value, d.value))
-      case (None, Some(vr:Vector[Any]@unchecked)) =>
+      case (None, Some(vr:RawArray@unchecked)) =>
         new DQuery(Map("$and" -> (value +: vr)))
-      case (Some(vl:Vector[Any]@unchecked), None) =>
+      case (Some(vl:RawArray@unchecked), None) =>
         new DQuery(Map("$and" -> (vl :+ d.value)))
-      case (Some(vl:Vector[Any]@unchecked), Some(vr:Vector[Any]@unchecked)) =>
+      case (Some(vl:RawArray@unchecked), Some(vr:RawArray@unchecked)) =>
         new DQuery(Map("$and" -> (vl ++ vr)))
       case _ =>
         new DQuery(Map("$and" -> Vector(value, d.value)))
@@ -231,11 +231,11 @@ final class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal 
 
   def ||(d:DQuery):DQuery =
     (value.get("$or"), d.value.get("$or")) match {
-      case (None, Some(vr:Vector[Any]@unchecked)) =>
+      case (None, Some(vr:RawArray@unchecked)) =>
         new DQuery(Map("$or" -> (value +: vr)))
-      case (Some(vl:Vector[Any]@unchecked), None) =>
+      case (Some(vl:RawArray@unchecked), None) =>
         new DQuery(Map("$or" -> (vl :+ d.value)))
-      case (Some(vl:Vector[Any]@unchecked), Some(vr:Vector[Any]@unchecked)) =>
+      case (Some(vl:RawArray@unchecked), Some(vr:RawArray@unchecked)) =>
         new DQuery(Map("$or" -> (vl ++ vr)))
       case _ =>
         new DQuery(Map("$or" -> Vector(value, d.value)))
@@ -248,9 +248,9 @@ final class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal 
 
 }
 
-final class DProjection private[dsentric](val value:Map[String, Any]) extends AnyVal with DObject with DObjectLike[DProjection] {
+final class DProjection private[dsentric](val value:RawObject) extends AnyVal with DObject with DObjectLike[DProjection] {
 
-  protected def wrap(value: Map[String, Any]) = new DProjection(value)
+  protected def wrap(value: RawObject) = new DProjection(value)
 
   def &(key:String): DProjection =
     wrap(value + (key -> 1))
@@ -277,11 +277,11 @@ final class DProjection private[dsentric](val value:Map[String, Any]) extends An
   def toDObject:DObject =
     new DObjectInst(value)
 
-  private def getPaths(projection:Map[String, Any], segments:Path):Option[Set[Path]] = {
+  private def getPaths(projection:RawObject, segments:Path):Option[Set[Path]] = {
     val pairs = projection.flatMap {
       case (key, 1) =>
         Some(Set(segments \ key))
-      case (key, j:Map[String, Any]@unchecked) =>
+      case (key, j:RawObject@unchecked) =>
         getPaths(j, segments \ key)
       case _ =>
         None
@@ -291,11 +291,11 @@ final class DProjection private[dsentric](val value:Map[String, Any]) extends An
   }
 }
 
-class DArray(val value:Vector[Any]) extends AnyVal with Data {
+class DArray(val value:RawArray) extends AnyVal with Data {
 
   def toObjects:Vector[DObject] =
     value.collect {
-      case m:Map[String, Any]@unchecked =>
+      case m:RawObject@unchecked =>
         new DObjectInst(m)
     }
 
@@ -361,7 +361,7 @@ object DQuery{
   def apply(values:(String, Data)*):NonEmptyList[(String, Path)] Either DQuery =
     Right(new DQuery(values.toIterator.map(p => p._1 -> p._2.value).toMap))
 
-  private[dsentric] def apply(value:Map[String, Any]):NonEmptyList[(String, Path)] Either DQuery =
+  private[dsentric] def apply(value:RawObject):NonEmptyList[(String, Path)] Either DQuery =
     Right(new DQuery(value))
 
   val empty = new DQuery(Map.empty)
@@ -380,26 +380,26 @@ object ForceWrapper {
 
   def data(value:Any):Data =
     value match {
-      case m:Map[String,Any]@unchecked =>
+      case m:RawObject@unchecked =>
         dObject(m)
-      case v:Vector[Any]@unchecked =>
+      case v:RawArray@unchecked =>
         dArray(v)
       case a:Any =>
         dValue(a)
     }
 
-  def dObject(value:Map[String, Any]):DObject =
+  def dObject(value:RawObject):DObject =
     new DObjectInst(value)
 
-  def dValue(value:Any) =
+  def dValue(value:Raw) =
     new DValue(value)
 
-  def dArray(value:Vector[Any]) =
+  def dArray(value:RawArray) =
     new DArray(value)
 
-  def dQuery(value:Map[String, Any]) =
+  def dQuery(value:RawObject) =
     new DQuery(value)
 
-  def dProjection(value:Map[String, Any]) =
+  def dProjection(value:RawObject) =
     new DProjection(value)
 }
