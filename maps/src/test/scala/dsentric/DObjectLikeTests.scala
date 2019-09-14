@@ -87,4 +87,10 @@ class DObjectLikeTests extends FunSuite with Matchers {
     }
   }
 
+  test("Iterator functionality") {
+    val data = DObject("one" := 1, "two" := "string")
+    val v = data.toVector
+    v shouldBe Vector("one" := 1, "two" := "string")
+  }
+
 }

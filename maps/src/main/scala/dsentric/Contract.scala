@@ -21,7 +21,7 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct { self 
 
   def _fields: Vector[(String, Property[D, Any])] =
     if (_bitmap0) __fields
-    else {
+    else { //fields should use name overrides
       this.synchronized{
         __fields = this.getClass.getMethods.flatMap { m =>
           if (classOf[Property[D, _]].isAssignableFrom(m.getReturnType) && m.getTypeParameters.isEmpty && m.getParameterTypes.isEmpty) {
@@ -625,7 +625,3 @@ class DefaultObjectArray[D <: DObject, T <: ContractFor[D]](override val _defaul
     }
 }
 
-class PatternMatcher[D <: DObject, T](unapplyFunction:Function[D, Option[T]]) {
-  def unapply(j:D):Option[T] =
-    unapplyFunction(j)
-}

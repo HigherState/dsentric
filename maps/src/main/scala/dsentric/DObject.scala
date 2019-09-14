@@ -2,7 +2,7 @@ package dsentric
 
 import cats.data._
 
-import scala.collection.{IterableLike, mutable}
+import scala.collection.{Iterable, IterableLike, mutable}
 
 trait Data extends Any {
 
@@ -57,7 +57,13 @@ class DValue private[dsentric](val value:Raw) extends AnyVal with Data
 trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data with IterableLike[(String, Data), This] {
   def value:RawObject
 
+  override protected[this] def thisCollection: Iterable[(String, Data)] =
+    value.map(p => p._1 -> ForceWrapper.data(p._2))
+  override protected[this] def toCollection(repr: This): Iterable[(String, Data)] =
+    repr.value.map(p => p._1 -> ForceWrapper.data(p._2))
+
   protected def wrap(value:RawObject):This
+
 
   protected[this] def newBuilder: mutable.Builder[(String, Data), This] =
     new mutable.Builder[(String, Data), This] {

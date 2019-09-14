@@ -1,5 +1,6 @@
-package dsentric
+package dsentric.contracts
 
+import dsentric.{ApplicativeLens, DCodec, DNull, DObject, DeltaDefaultReset, DeltaDefaultSet, DeltaDefaultValue, DeltaRemove, DeltaSet, DeltaValue, Dsentric, Path, PathLensOps, Strictness}
 import dsentric.operators.ValidationText
 
 sealed trait PropertyLens[D <: DObject, T] {
@@ -118,19 +119,19 @@ trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens
   private[dsentric] def _strictGet(data:D):Option[Option[T]] =
     PathLensOps
       .traverse(data.value, _path) match {
-        case None => Some(None)
-        case Some(v) => _strictness(v, _codec)
+      case None => Some(None)
+      case Some(v) => _strictness(v, _codec)
     }
 
   private[dsentric] def _strictDeltaGet(data:D):Option[Option[DeltaValue[T]]] =
     PathLensOps
       .traverse(data.value, _path) match {
-        case None =>
-          Some(None)
-        case Some(_:DNull) =>
-          Some(Some(DeltaRemove))
-        case Some(v) => _strictness(v, _codec).map(_.map(DeltaSet(_)))
-      }
+      case None =>
+        Some(None)
+      case Some(_:DNull) =>
+        Some(Some(DeltaRemove))
+      case Some(v) => _strictness(v, _codec).map(_.map(DeltaSet(_)))
+    }
 
 }
 

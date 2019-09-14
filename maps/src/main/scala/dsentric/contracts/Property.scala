@@ -1,0 +1,147 @@
+package dsentric.contracts
+
+import dsentric.{DCodec, DObject, DProjection, Path, PathLensOps, PatternMatcher,Strictness}
+import dsentric.operators.DataOperator
+
+sealed trait Property[D <: DObject, T <: Any] {
+
+  private var __path: Path = _
+  private var __localPath: Path = _
+  @volatile
+  private var _bitmap1:Boolean = false
+
+  private[contracts] def __nameOverride:Option[String]
+  def _dataOperators:Seq[DataOperator[_]]
+
+  def _codec: DCodec[T]
+  def _parent: BaseContract[D]
+  def _path:Path =
+    if (_bitmap1) __path
+    else {
+      sync()
+      __path
+    }
+
+
+  def _localPath:Path =
+    if (_bitmap1) __localPath
+    else {
+      sync()
+      __localPath
+    }
+
+
+  def $:DProjection =
+    new DProjection(PathLensOps.pathToMap(_path, 1))
+
+
+  private def sync(): Unit =
+    this.synchronized{
+      __localPath =
+        Path(__nameOverride.getOrElse {
+          _parent._fields.find(p => p._2 == this).getOrElse{
+            throw UninitializedFieldError(s"Unable to initialize property field from fields: ${_parent._fields.keys.mkString(",")}")
+          }._1
+        })
+      __path = _parent._path ++ __localPath
+      _bitmap1 = true
+    }
+}
+
+class ExpectedProperty[D <: DObject, T] private[contract]
+  (private[contract] val __nameOverride:Option[String],
+   val _parent:BaseContract[D],
+   val _codec:DCodec[T],
+   val _dataOperators:Seq[DataOperator[T]])
+  extends Property[D, T] with ExpectedLens[D, T] {
+
+  val $delta:PatternMatcher[D, Option[T]] =
+    new PatternMatcher(_strictDeltaGet)
+
+  def unapply(j: D): Option[T] =
+    _strictGet(j).flatten
+}
+
+class MaybeProperty[D <: DObject, T] private[contract]
+  (private[contracts] val __nameOverride:Option[String],
+  val _parent:BaseContract[D],
+  val _codec:DCodec[T],
+  val _strictness:Strictness,
+  val _dataOperators:Seq[DataOperator[Option[T]]])
+  extends Property[D, T] with MaybeLens[D, T] {
+
+  def unapply(j:D):Option[Option[T]] =
+    _strictGet(j)
+
+  val $delta:PatternMatcher[D, Option[Option[T]]] =
+    new PatternMatcher(_strictDeltaGet(_).map(_.map(_.toOption)))
+}
+
+class DefaultProperty[D <: DObject, T] private[dsentric]
+  (private[contracts] val __nameOverride:Option[String],
+   val _default:T,
+   val _parent:BaseContract[D],
+   val _codec:DCodec[T],
+   val _strictness:Strictness,
+   val _dataOperators:Seq[DataOperator[Option[T]]])
+  extends Property[D, T] with DefaultLens[D, T] {
+
+  def unapply(j:D):Option[T] =
+    _strictGet(j).flatten
+
+  val $delta:PatternMatcher[D, Option[Option[T]]] =
+    new PatternMatcher(_strictDeltaGet(_).map(_.map(_.toOption)))
+
+  val $deltaDefault:PatternMatcher[D, Option[T]] =
+    new PatternMatcher(_strictDeltaGet(_).map(_.map(_.getValue)))
+
+}
+
+class EmptyProperty[T](implicit val _codec:DCodec[T]) extends Property[Nothing, T] {
+
+  private[contracts] def __nameOverride: Option[String] =
+    None
+
+  def _dataOperators: Seq[DataOperator[_]] =
+    Seq.empty
+
+  def _parent: BaseContract[Nothing] =
+    EmptyBaseContract
+}
+
+class ExpectedObjectsProperty[D <: DObject, T <: DObject, C <: ContractFor[T]](private[contracts] val __nameOverride:Option[String],
+                                                             val _contract:C,
+                                                             val _parent:BaseContract[D],
+                                                             val _codec:DCodec[Vector[T]],
+                                                             val _dataOperators:Seq[DataOperator[Vector[T]]]
+                                                            ) extends Property[D, Vector[T]] with ExpectedLens[D, Vector[T]] {
+
+  def unapply(j: D): Option[Vector[T]] =
+    _strictGet(j).flatten
+}
+
+class MaybeObjectsProperty[D <: DObject, T <: DObject, C <: ContractFor[T]](private[contracts] val __nameOverride:Option[String],
+                                                          val _contract:C,
+                                                          val _parent:BaseContract[D],
+                                                          val _codec:DCodec[Vector[T]],
+                                                          val _strictness:Strictness,
+                                                          val _dataOperators:Seq[DataOperator[Option[Vector[T]]]]
+                                                         ) extends Property[D, Vector[T]] with MaybeLens[D, Vector[T]] {
+
+  def unapply(j:D):Option[Option[Vector[T]]] =
+    _strictGet(j)
+}
+
+class DefaultObjectsProperty[D <: DObject, T <: DObject, C <: ContractFor[T]](private[contracts] val __nameOverride:Option[String],
+                                                                val _contract:C,
+                                                                val _default:Vector[T],
+                                                                val _parent:BaseContract[D],
+                                                                val _codec:DCodec[Vector[T]],
+                                                                val _strictness:Strictness,
+                                                                val _dataOperators:Seq[DataOperator[Option[Vector[T]]]]
+                                                           ) extends Property[D, Vector[T]] with DefaultLens[D, Vector[T]] {
+
+  def unapply(j:D):Option[Vector[T]] =
+    _strictGet(j).flatten
+
+}
