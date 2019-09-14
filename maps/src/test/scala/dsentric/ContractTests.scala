@@ -165,11 +165,11 @@ class ContractTests extends FunSuite with Matchers {
       val value = \[Boolean]
     }
     (DObject("req" := "test") match {
-      case Existence.isType() => true
+      case Existence.$isType() => true
     }) should be (true)
 
     (DObject("value" := "test") match {
-      case Existence.isType() => true
+      case Existence.$isType() => true
       case _ => false
     }) should be (false)
   }
@@ -180,17 +180,17 @@ class ContractTests extends FunSuite with Matchers {
       val value = \[Boolean]
     }
     (DObject("req" := "test") match {
-      case Existence.isType() => true
+      case Existence.$isType() => true
       case _ => false
     }) should be (true)
 
     (DObject("req" := "test2") match {
-      case Existence.isType() => true
+      case Existence.$isType() => true
       case _ => false
     }) should be (false)
 
     (DObject("value" := "test") match {
-      case Existence.isType() => true
+      case Existence.$isType() => true
       case _ => false
     }) should be (false)
   }
@@ -214,24 +214,22 @@ class ContractTests extends FunSuite with Matchers {
       case property(t) => t
     }) should be (true)
   }
-  test("Expected Property path") {
-    val property = \[String]("first" \ "second" \ "third")
 
-    (DObject("first" := DObject("second" := DObject("third" := "value"))) match {
-      case property(t) => t == "value"
-    }) should be (true)
-  }
-
-  test("Default contract array") {
+  test("Contract array") {
     object Element extends Contract {
       val value = \[Int]
     }
     object ContractArray extends Contract {
-      val elements = \:!(Element, Vector.empty)
+
+      val elements = \:(Element)
+
+      val maybeElements = \:?(Element)
+
+      val defaultElements = \:!(Element, Vector.empty)
     }
 
     (DObject.empty match {
-      case ContractArray.elements(elements) =>
+      case ContractArray.defaultElements(elements) =>
         elements.size
     }) should be (0)
   }

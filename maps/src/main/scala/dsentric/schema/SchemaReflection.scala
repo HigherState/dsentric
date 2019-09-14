@@ -1,6 +1,6 @@
 package dsentric.schema
 
-import dsentric.{BaseContract, Property}
+import dsentric.contracts.{BaseContract, Property}
 
 import scala.reflect.runtime.universe._
 

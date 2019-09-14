@@ -19,3 +19,11 @@ trait DataMatchers {
   implicit def valueMatcher[T](value:T)(implicit _codec:DCodec[T]): ValueMatcher[T] =
     ValueMatcher(value)
 }
+
+class MatcherUnapply private[dsentric](key: String, matcher:Matcher) extends ApplicativeMatcher[DObject] {
+  def unapply(j:DObject):Boolean = {
+    j.value
+      .get(key)
+      .fold(false) { v => matcher(v) }
+  }
+}

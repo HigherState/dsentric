@@ -2,16 +2,13 @@ package dsentric.contracts
 
 import dsentric.{DCodec, DObject, DProjection, Path, Strictness}
 
-private[contracts] trait BaseContract[D <: DObject] { self =>
+private[dsentric] trait BaseContract[D <: DObject] {
+
   private var __fields:Map[String, Property[D, Any]] = _
   @volatile
   private var _bitmap0:Boolean = false
 
   def apply[R](f:this.type => R):R = f(this)
-
-  //Used for nested new object
-  protected implicit def selfRef:BaseContract[DObject] =
-    this.asInstanceOf[BaseContract[DObject]]
 
   def _path:Path
 
@@ -47,7 +44,11 @@ private[contracts] trait BaseContract[D <: DObject] { self =>
     DProjection(paths:_*).nest(this._path)
 }
 
-object EmptyBaseContract extends BaseContract[Nothing] {
+private[dsentric] object EmptyBaseContract extends BaseContract[DObject] {
+  def _path: Path = Path.empty
+}
+
+private[dsentric] object NothingBaseContract extends BaseContract[Nothing] {
   def _path: Path = Path.empty
 }
 

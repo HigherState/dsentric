@@ -1,7 +1,6 @@
 package namespaced
 
 import dsentric.Dsentric._
-import dsentric.SubContract
 import dsentric.PessimisticCodecs._
 import dsentric.schema.{Description, Examples, Nested, Type}
 

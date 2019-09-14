@@ -48,8 +48,8 @@ sealed trait Property[D <: DObject, T <: Any] {
     }
 }
 
-class ExpectedProperty[D <: DObject, T] private[contract]
-  (private[contract] val __nameOverride:Option[String],
+class ExpectedProperty[D <: DObject, T] private[contracts]
+  (private[contracts] val __nameOverride:Option[String],
    val _parent:BaseContract[D],
    val _codec:DCodec[T],
    val _dataOperators:Seq[DataOperator[T]])
@@ -62,7 +62,7 @@ class ExpectedProperty[D <: DObject, T] private[contract]
     _strictGet(j).flatten
 }
 
-class MaybeProperty[D <: DObject, T] private[contract]
+class MaybeProperty[D <: DObject, T] private[contracts]
   (private[contracts] val __nameOverride:Option[String],
   val _parent:BaseContract[D],
   val _codec:DCodec[T],
@@ -77,7 +77,7 @@ class MaybeProperty[D <: DObject, T] private[contract]
     new PatternMatcher(_strictDeltaGet(_).map(_.map(_.toOption)))
 }
 
-class DefaultProperty[D <: DObject, T] private[dsentric]
+class DefaultProperty[D <: DObject, T] private[contracts]
   (private[contracts] val __nameOverride:Option[String],
    val _default:T,
    val _parent:BaseContract[D],
@@ -97,20 +97,8 @@ class DefaultProperty[D <: DObject, T] private[dsentric]
 
 }
 
-class EmptyProperty[T](implicit val _codec:DCodec[T]) extends Property[Nothing, T] {
-
-  private[contracts] def __nameOverride: Option[String] =
-    None
-
-  def _dataOperators: Seq[DataOperator[_]] =
-    Seq.empty
-
-  def _parent: BaseContract[Nothing] =
-    EmptyBaseContract
-}
-
-class ExpectedObjectsProperty[D <: DObject, T <: DObject, C <: ContractFor[T]](private[contracts] val __nameOverride:Option[String],
-                                                             val _contract:C,
+class ExpectedObjectsProperty[D <: DObject, T <: DObject](private[contracts] val __nameOverride:Option[String],
+                                                             val _contract:ContractFor[T],
                                                              val _parent:BaseContract[D],
                                                              val _codec:DCodec[Vector[T]],
                                                              val _dataOperators:Seq[DataOperator[Vector[T]]]
@@ -120,8 +108,8 @@ class ExpectedObjectsProperty[D <: DObject, T <: DObject, C <: ContractFor[T]](p
     _strictGet(j).flatten
 }
 
-class MaybeObjectsProperty[D <: DObject, T <: DObject, C <: ContractFor[T]](private[contracts] val __nameOverride:Option[String],
-                                                          val _contract:C,
+class MaybeObjectsProperty[D <: DObject, T <: DObject](private[contracts] val __nameOverride:Option[String],
+                                                          val _contract:ContractFor[T],
                                                           val _parent:BaseContract[D],
                                                           val _codec:DCodec[Vector[T]],
                                                           val _strictness:Strictness,
@@ -132,8 +120,8 @@ class MaybeObjectsProperty[D <: DObject, T <: DObject, C <: ContractFor[T]](priv
     _strictGet(j)
 }
 
-class DefaultObjectsProperty[D <: DObject, T <: DObject, C <: ContractFor[T]](private[contracts] val __nameOverride:Option[String],
-                                                                val _contract:C,
+class DefaultObjectsProperty[D <: DObject, T <: DObject](private[contracts] val __nameOverride:Option[String],
+                                                                val _contract:ContractFor[T],
                                                                 val _default:Vector[T],
                                                                 val _parent:BaseContract[D],
                                                                 val _codec:DCodec[Vector[T]],
@@ -144,4 +132,18 @@ class DefaultObjectsProperty[D <: DObject, T <: DObject, C <: ContractFor[T]](pr
   def unapply(j:D):Option[Vector[T]] =
     _strictGet(j).flatten
 
+}
+
+
+
+private[dsentric] class NothingProperty[T](implicit val _codec:DCodec[T]) extends Property[Nothing, T] {
+
+  private[contracts] def __nameOverride: Option[String] =
+    None
+
+  def _dataOperators: Seq[DataOperator[_]] =
+    Seq.empty
+
+  def _parent: BaseContract[Nothing] =
+    NothingBaseContract
 }

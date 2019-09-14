@@ -56,8 +56,8 @@ class ApplicativeLensTests extends FunSuite with Matchers {
     val int = \[Int]
     val string = \[String]
 
-    lazy val one = this.isType @: string
-    lazy val two = this.isType @: int @: string
+    lazy val one = this.$isType @: string
+    lazy val two = this.$isType @: int @: string
   }
 
   test("Matcher one applicative") {

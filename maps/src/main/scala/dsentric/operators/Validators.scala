@@ -1,7 +1,8 @@
 package dsentric.operators
 
+import dsentric.contracts.ContractFor
 import dsentric.schema._
-import dsentric.{ContractFor, DCodec, DObject, Failures, Length, Numeric, Optionable, Path}
+import dsentric.{DCodec, DObject, Failures, Length, Numeric, Optionable, Path}
 
 import scala.util.matching.Regex
 
@@ -385,27 +386,28 @@ trait Validators extends ValidatorOps{
       }
 
       def apply[S >: Optionable[Map[K, D]]](path: Path, value: Option[S], currentState: => Option[S]): Failures = {
-        val c =
-          for {
-            co <- value
-            ct <- getT[Map[K, D], S](co)
-          } yield ct
-
-        val cs =
-          for {
-            cso <- currentState
-            cst <- getT[Map[K, D], S](cso)
-          } yield cst
-
-        val failures =
-          for {
-            o <- value.toIterator
-            t <- getT[Map[K, D], S](o).toIterator
-            kv <- t.toIterator
-            f <- contract._validateFields(path \ kv._1.toString, kv._2.value, cs.flatMap(_.get(kv._1).map(_.value)))
-          } yield f
-
-        failures.toVector
+//        val c =
+//          for {
+//            co <- value
+//            ct <- getT[Map[K, D], S](co)
+//          } yield ct
+//
+//        val cs =
+//          for {
+//            cso <- currentState
+//            cst <- getT[Map[K, D], S](cso)
+//          } yield cst
+//
+//        val failures =
+//          for {
+//            o <- value.toIterator
+//            t <- getT[Map[K, D], S](o).toIterator
+//            kv <- t.toIterator
+//            f <- contract._validateFields(path \ kv._1.toString, kv._2.value, cs.flatMap(_.get(kv._1).map(_.value)))
+//          } yield f
+//
+//        failures.toVector
+          ???
       }
 
     }
