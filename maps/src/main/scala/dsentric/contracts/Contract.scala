@@ -1,5 +1,6 @@
 package dsentric.contracts
 
+import dsentric.operators.DataOperationOps
 import dsentric.{DObject, DObjectInst, ExistenceMatcher, Matcher, MatcherUnapply, Path, ValueMatcher}
 
 trait SubContractFor[D <: DObject]
@@ -17,6 +18,9 @@ trait ContractFor[D <: DObject]
   with PropertyObjectOps[D] {
 
   def _path:Path = Path.empty
+
+  val $ops:DataOperationOps[D] =
+    new DataOperationOps[D](this)
 
   override protected def __self: BaseContract[D] = this
 }

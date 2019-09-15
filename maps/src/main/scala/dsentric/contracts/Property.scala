@@ -140,6 +140,52 @@ class DefaultObjectsProperty[D <: DObject, T <: DObject](private[contracts] val 
 }
 
 
+sealed trait MapObjectsProperty[K, D <: DObject, T <: DObject] extends Property[D, Map[K, T]] {
+  def _contract:ContractFor[T]
+  def _keyCodec:DCodec[K]
+}
+
+class ExpectedMapObjectsProperty[K, D <: DObject, T <: DObject](private[contracts] val __nameOverride:Option[String],
+                                                          val _contract:ContractFor[T],
+                                                          val _parent:BaseContract[D],
+                                                          val _codec:DCodec[Map[K, T]],
+                                                          val _keyCodec:DCodec[K],
+                                                          val _dataOperators:Seq[DataOperator[Map[K, T]]]
+                                                         ) extends MapObjectsProperty[K, D, T] with ExpectedLens[D, Map[K, T]] {
+
+  def unapply(j: D): Option[Map[K, T]] =
+    _strictGet(j).flatten
+}
+
+class MaybeMapObjectsProperty[K, D <: DObject, T <: DObject](private[contracts] val __nameOverride:Option[String],
+                                                       val _contract:ContractFor[T],
+                                                       val _parent:BaseContract[D],
+                                                       val _codec:DCodec[Map[K, T]],
+                                                       val _keyCodec:DCodec[K],
+                                                       val _strictness:Strictness,
+                                                       val _dataOperators:Seq[DataOperator[Option[Map[K, T]]]]
+                                                      ) extends MapObjectsProperty[K, D, T] with MaybeLens[D, Map[K, T]] {
+
+  def unapply(j:D):Option[Option[Map[K, T]]] =
+    _strictGet(j)
+}
+
+class DefaultMapObjectsProperty[K, D <: DObject, T <: DObject](private[contracts] val __nameOverride:Option[String],
+                                                         val _contract:ContractFor[T],
+                                                         val _default:Map[K, T],
+                                                         val _parent:BaseContract[D],
+                                                         val _codec:DCodec[Map[K, T]],
+                                                         val _keyCodec:DCodec[K],
+                                                         val _strictness:Strictness,
+                                                         val _dataOperators:Seq[DataOperator[Option[Map[K, T]]]]
+                                                        ) extends MapObjectsProperty[K, D, T] with DefaultLens[D, Map[K, T]] {
+
+  def unapply(j:D):Option[Map[K, T]] =
+    _strictGet(j).flatten
+
+}
+
+
 
 private[dsentric] class NothingProperty[T](implicit val _codec:DCodec[T]) extends Property[Nothing, T] {
 

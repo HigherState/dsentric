@@ -1,6 +1,6 @@
 package dsentric.operators
 
-import dsentric.{PathFailures, Path, Raw}
+import dsentric.{Data, Path, PathFailures, Raw}
 
 trait ValidatorSanitizers {
 
@@ -11,7 +11,7 @@ trait ValidatorSanitizers {
       def apply(path:Path, value:Option[Raw], currentState:Option[Raw]): PathFailures =
         value.fold(PathFailures.empty)(_ => PathFailures(path -> "Value is reserved and cannot be provided."))
 
-      def sanitize[S >: Nothing](value: Option[S]):Option[Raw] =
+      def sanitize[S >: Nothing](value: Option[S]):Option[Data] =
         None
 
     }

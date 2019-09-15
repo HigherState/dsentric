@@ -1,6 +1,5 @@
 package dsentric.operators
 
-import dsentric.contracts.ContractFor
 import dsentric.schema._
 import dsentric.{DCodec, DNull, DObject, Path, PathFailures, Raw, RawObject}
 
@@ -379,45 +378,6 @@ trait Validators extends ValidatorOps{
       }
     }
 
-  def mapContract[D <: DObject](contract:ContractFor[D]): ValueValidator[Optionable[Map[String, D]]] =
-    mapContractK[String, D](contract)
-
-  def mapContractK[K, D <: DObject](contract:ContractFor[D]): ValueValidator[Optionable[Map[K, D]]] =
-    new ValueValidator[Optionable[Map[K,D]]] {
-      //TODO change to additional Properties
-      override def withObjsDefinition(forceNested:Boolean): PartialFunction[(TypeDefinition, Vector[ObjectDefinition]), (TypeDefinition, Vector[ObjectDefinition])] = {
-        case (s:ObjectDefinition, objs) if !forceNested =>
-          val (ref, newObjs) = Schema.contractObjectDefinitionRef(contract, objs)
-          s.copy(additionalProperties = Right(ByRefDefinition(ref))) -> newObjs
-
-        case (s:ObjectDefinition, objs) =>
-          val obj = Schema.nestedContractObjectDefinition(contract)
-          s.copy(additionalProperties = Right(obj)) -> objs
-
-        case (m:MultipleTypeDefinition, objs) =>
-          m.withRemap(objs)(withObjsDefinition(forceNested))
-      }
-
-      def apply[S >: Optionable[Map[K, D]]](path: Path, value: Option[S], currentState: => Option[S]): PathFailures = {
-        val cs =
-          for {
-            cso <- currentState
-            cst <- getT[Map[K, D], S](cso)
-          } yield cst
-
-        val failures =
-          for {
-            o <- value.toIterator
-            t <- getT[Map[K, D], S](o).toIterator
-            kv <- t.toIterator
-            f <- Validation.validateContract(contract, kv._2.value, cs.flatMap(_.get(kv._1)).map(_.value))
-          } yield path \ kv._1.toString ++ f._1 -> f._2 //TODO to string on key is not ideal, really need dcodec.
-
-        failures.toVector
-      }
-
-    }
-
   def keyValidator(r:Regex, message:String):ValueValidator[Optionable[DObject]] =
     new ValueValidator[Optionable[DObject]] {
 
@@ -554,5 +514,5 @@ trait ValidatorOps {
     }
 }
 
-object Validators extends Validators
+object Validators extends Validators with ValidatorSanitizers with Sanitizers
 

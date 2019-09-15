@@ -1,6 +1,6 @@
 package dsentric.operators
 
-import dsentric.{Path, PathFailures, Raw}
+import dsentric.{Data, Path, PathFailures, Raw}
 import dsentric.schema.{ObjectDefinition, TypeDefinition}
 
 sealed trait DataOperator[+T]
@@ -49,7 +49,7 @@ trait ContextTransform[C, +T] extends DataOperator[T] {
 }
 
 trait Sanitizer[+T] extends DataOperator[T] {
-  def sanitize[S >: T](value: Option[S]):Option[Raw]
+  def sanitize[S >: T](value: Option[S]):Option[Data]
 }
 
 
