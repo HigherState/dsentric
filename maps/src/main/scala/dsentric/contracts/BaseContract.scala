@@ -12,7 +12,7 @@ private[dsentric] trait BaseContract[D <: DObject] {
 
   def _path:Path
 
-  def _fields: Map[String, Property[D, Any]] =
+  def _fields: Map[String, Property[D, _]] =
     if (_bitmap0) __fields
     else {
       this.synchronized{

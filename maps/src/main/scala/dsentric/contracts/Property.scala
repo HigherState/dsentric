@@ -119,7 +119,7 @@ class MaybeObjectsProperty[D <: DObject, T <: DObject](private[contracts] val __
                                                           val _codec:DCodec[Vector[T]],
                                                           val _strictness:Strictness,
                                                           val _dataOperators:Seq[DataOperator[Option[Vector[T]]]]
-                                                         ) extends Property[D, Vector[T]] with MaybeLens[D, Vector[T]] {
+                                                         ) extends ObjectsProperty[D, T] with MaybeLens[D, Vector[T]] {
 
   def unapply(j:D):Option[Option[Vector[T]]] =
     _strictGet(j)

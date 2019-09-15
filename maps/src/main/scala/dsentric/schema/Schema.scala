@@ -36,7 +36,7 @@ object Schema {
     c -> d
   }
 
-  private def baseContractObjectDefinition[D <: DObject](fields:Map[String, Property[D, Any]], contractInfo:ContractInfo, infos:Infos, defs:Definitions, forceNested:Boolean):(ObjectDefinition, Infos, Definitions) = {
+  private def baseContractObjectDefinition[D <: DObject](fields:Map[String, Property[D, _]], contractInfo:ContractInfo, infos:Infos, defs:Definitions, forceNested:Boolean):(ObjectDefinition, Infos, Definitions) = {
     val properties = findPropertyAnnotations(fields, contractInfo, forceNested)
     val (propertyDefs, newInfos, newDefs) = contractPropertyDefinitions(properties, infos, defs, forceNested)
     val (referencedDefinitions, newInfos2, newDefs2) =
@@ -55,7 +55,7 @@ object Schema {
     (objDef, newInfos2, newDefs2)
   }
 
-  private def contractPropertyDefinitions[D <: DObject](properties:Iterable[(String, Property[D, Any], SchemaAnnotations)], infos:Infos, defs:Definitions, forceNested:Boolean):(Vector[PropertyDefinition], Infos, Definitions) = ??? //{
+  private def contractPropertyDefinitions[D <: DObject](properties:Iterable[(String, Property[D, _], SchemaAnnotations)], infos:Infos, defs:Definitions, forceNested:Boolean):(Vector[PropertyDefinition], Infos, Definitions) = ??? //{
 //    properties
 //      .foldLeft((Vector.empty[PropertyDefinition], infos, defs)) {
 //        //Nested, display all properties
@@ -119,7 +119,7 @@ object Schema {
   private def isRequired[D <: DObject](p:Property[D, _]): Boolean =
     p.isInstanceOf[ExpectedProperty[D, _]]
 
-  private def inheritFold[D <: DObject](fields:Map[String, Property[D, Any]], inherits:Vector[ContractInfo], infos:Vector[ContractInfo], defs:Vector[ObjectDefinition], forceNested:Boolean): (Vector[String], Vector[ContractInfo], Vector[ObjectDefinition]) =
+  private def inheritFold[D <: DObject](fields:Map[String, Property[D, _]], inherits:Vector[ContractInfo], infos:Vector[ContractInfo], defs:Vector[ObjectDefinition], forceNested:Boolean): (Vector[String], Vector[ContractInfo], Vector[ObjectDefinition]) =
     inherits.foldLeft((Vector.empty[String], infos, defs)){
       case ((r, infos0, defs0), ci) =>
         val n = ci.schemaAnnotations.typeName.orElse(ci.displayName).getOrElse(throw SchemaGenerationException("Inherited contract cannot be anonymous"))
@@ -132,7 +132,7 @@ object Schema {
         }
     }
 
-  private def findPropertyAnnotations[D <: DObject](fields:Map[String, Property[D, Any]], info:ContractInfo, nestedOverride:Boolean): Iterable[(String, Property[D, Any], SchemaAnnotations)] =
+  private def findPropertyAnnotations[D <: DObject](fields:Map[String, Property[D, _]], info:ContractInfo, nestedOverride:Boolean): Iterable[(String, Property[D, _], SchemaAnnotations)] =
     fields.flatMap { field =>
       val schema =
         if (nestedOverride || info.schemaAnnotations.nested)

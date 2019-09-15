@@ -12,7 +12,7 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
   object Empty extends Contract with Validation
 
   def f(elems:(Path, String)*) =
-    Vector(elems)
+    elems.toVector
 
 
   test("validation of contract type")  {
@@ -29,7 +29,7 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
 
   test("validation of expected field") {
 
-    ExpectedField.$validate(DObject.empty) should be (f(Path("expGT") -> "Value is not of the expected type."))
+    ExpectedField.$validate(DObject.empty) should be (f(Path("expGT") -> "Value is required."))
     ExpectedField.$validate(DObject("expGT" := false)) should be (f(Path("expGT") -> "Value is not of the expected type."))
     ExpectedField.$validate(DObject("expGT" := 7)) shouldBe Vector.empty
     ExpectedField.$validate(DObject("expGT" := 3)) should be (f(Path("expGT") -> "Value 3 is not greater than 5."))
@@ -106,9 +106,9 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     val json2 = DObject("value1" := "V", "nest1" := DObject("value2" := "V", "value3" := "V"), "nest2" := DObject("nest3" := DObject("value4" := "V"), "value5" := "V"))
     NestValid.$validate(json2) shouldBe Vector.empty
 
-    NestValid.$validate(DObject("value1" := "V", "nest1" := DObject("value3" := 3))).toSet shouldBe Set("nest1"\"value2" -> "Value was expected.", "nest1"\"value3" -> "Value is not of the expected type.")
+    NestValid.$validate(DObject("value1" := "V", "nest1" := DObject("value3" := 3))).toSet shouldBe Set("nest1"\"value2" -> "Value is required.", "nest1"\"value3" -> "Value is not of the expected type.")
 
-    NestValid.$validate(DObject("value1" := "V", "nest2" := DObject.empty)).toSet shouldBe Set(Path("nest1") -> "Value was expected." , "nest2"\"nest3" -> "Value was expected.", "nest2"\"value5" -> "Value was expected.")
+    NestValid.$validate(DObject("value1" := "V", "nest2" := DObject.empty)).toSet shouldBe Set(Path("nest1") -> "Value is required." , "nest2"\"nest3" -> "Value is required.", "nest2"\"value5" -> "Value is required.")
   }
 
 //  object ToSanitize extends Contract with Validation {
@@ -182,13 +182,13 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     Parent.$validate(succ) shouldBe Vector.empty
 
     val failfirst = DObject("elements" := Map("first" -> DObject(), "second" -> DObject("id" := 2, "name" := "bob")))
-    Parent.$validate(failfirst) should be (f(Path("elements", "first", "id") -> "Value was expected."))
+    Parent.$validate(failfirst) should be (f(Path("elements", "first", "id") -> "Value is required."))
 
     val failSecond = DObject("elements" := Map("first" -> DObject("id" := 4), "second" -> DObject("id" := 2, "name" := false)))
     Parent.$validate(failSecond) should be (f(Path("elements", "second", "name") -> "Value is not of the expected type."))
 
     val failBoth = DObject("elements" := Map("first" -> DObject(), "second" -> DObject("id" := 2, "name" := false)))
-    Parent.$validate(failBoth) should be (f(Path("elements", "first", "id") -> "Value was expected.",Path("elements", "second", "name") -> "Value is not of the expected type."))
+    Parent.$validate(failBoth) should be (f(Path("elements", "first", "id") -> "Value is required.",Path("elements", "second", "name") -> "Value is not of the expected type."))
   }
 
   test("delta validation") {
@@ -197,32 +197,61 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     Element.$validate(delta, current) shouldBe Vector.empty
   }
 
-  object Keys extends Contract with Validation {
+  object Nulls extends Contract with Validation {
+    val int = \?[Int]
+    val bool = \[Boolean]
 
-    val int = \?[Int](Validators.>(5))
-    val nested = new \\?(Validators.keyValidator("[a-z]*".r, "Invalid key"))
-    val map = \[Map[String, String]]
+    val nested = new \\? {}
   }
+
   val DNULL = new DNull
 
   test("Null validation") {
-    val all = DObject("int" := 10, "nested" -> DObject("values" := 1), "map" := Map("key" := "value") )
+    val all = DObject("int" := 10, "bool" := true, "nested" -> DObject("values" := 1))
     Keys.$validate(DObject("int" := DNULL), all) shouldBe Vector.empty
     Keys.$validate(DObject("nested" := DNULL), all) shouldBe Vector.empty
     Keys.$validate(DObject("nested" -> DObject("values" := DNULL)), all) shouldBe Vector.empty
-    Keys.$validate(DObject("map" -> DObject("key" := DNULL)), all) shouldBe Vector.empty
+    Keys.$validate(DObject("bool" -> DObject("key" := DNULL)), all) shouldBe f(Path("bool") -> "Value is required.")
+  }
+
+  object Keys extends Contract with Validation {
+    val nested = new \\?(Validators.keyValidator("[a-z]*".r, "Invalid key"))
+  }
+
+
+  test("key Validation") {
+    Keys.$validate(DObject("nested" -> DObject("values" := 1))) shouldBe Vector.empty
+    Keys.$validate(DObject("nested" -> DObject("123" := 3))) shouldBe f(Path("nested", "123") -> "Invalid key")
   }
 
   object Appending extends Contract with Validation {
-
     val map = \?[Map[String, String]](Validators.noKeyRemoval)
   }
 
   test("No key removal only") {
-    val obj = DObject("map" := Map("key" := "value") )
-    Appending.$validate(DObject("map" := Map("Key" := "Value2")), obj) shouldBe Vector.empty
-    Appending.$validate(DObject("map" := Map("Key2" := "Value2")), obj)shouldBe Vector.empty
-    Appending.$validate(DObject("map" := Map("Key2" := DNULL)), obj) should not be Vector.empty
+    val obj = DObject("map" := Map("Key" := "value") )
+    Appending.$validate(DObject("map" := ("Key" := "Value2")), obj) shouldBe Vector.empty
+    Appending.$validate(DObject("map" := ("Key2" := "Value2")), obj) shouldBe Vector.empty
+    Appending.$validate(DObject("map" := ("Key" := DNULL)), obj) should not be Vector.empty
+    Appending.$validate(DObject("map" := ("Key2" := DNULL)), obj) shouldBe Vector.empty
+  }
+
+  object Closed extends Contract with Validation with ClosedFields {
+    val internalClosed = new \\? with ClosedFields {
+      val one = \[String]
+      val two = \?[Boolean]
+    }
+    val internalOpen = new \\? {
+      val one = \[String]
+    }
+  }
+
+  test("Closing an objects key options") {
+    Closed.$validate(DObject.empty) shouldBe Vector.empty
+    Closed.$validate(DObject("unexpected" := 2)) shouldBe f(Path.empty -> "Additional key 'unexpected' not allowed.")
+    Closed.$validate(DObject("internalClosed" := ("one" := "value"))) shouldBe Vector.empty
+    Closed.$validate(DObject("internalOpen" := ("one" := "value", "three" := 3))) shouldBe Vector.empty
+    Closed.$validate(DObject("internalClosed" := ("one" := "value", "three" := 3))) shouldBe f(Path("internalClosed") -> "Additional key 'three' not allowed.")
   }
 
 //  object Masking extends Contract with Validation {

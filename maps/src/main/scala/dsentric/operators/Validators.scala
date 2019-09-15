@@ -2,7 +2,7 @@ package dsentric.operators
 
 import dsentric.contracts.ContractFor
 import dsentric.schema._
-import dsentric.{DCodec, DNull, DObject, Length, Numeric, Optionable, Path, PathFailures, Raw, RawObject}
+import dsentric.{DCodec, DNull, DObject, Path, PathFailures, Raw, RawObject}
 
 import scala.util.matching.Regex
 
@@ -364,20 +364,20 @@ trait Validators extends ValidatorOps{
           }
     }
 
-  def noKeyRemoval:RawValidator[Optionable[Map[String,Nothing]]] =
+  val noKeyRemoval:RawValidator[Optionable[Map[String,Nothing]]] =
     new RawValidator[Optionable[Map[String, Nothing]]] {
       def apply(path: Path, value: Option[Raw], currentState: Option[Raw]): PathFailures = {
         currentState.fold(PathFailures.empty){
           case r:RawObject@unchecked =>
             val removed = value.fold(Set.empty[String]){
-              case r:RawObject@unchecked => r.collect{ case (k, _:DNull) => k}.toSet
+              case r2:RawObject@unchecked =>
+                r2.collect{ case (k, _:DNull) => k}.toSet
               case _ => Set.empty
             }.intersect(r.keySet)
-            removed.map(r => path \ r -> "Key value cannot be removed.").toVector
+            removed.map(k => path \ k -> "Key value cannot be removed.").toVector
         }
       }
     }
-
 
   def mapContract[D <: DObject](contract:ContractFor[D]): ValueValidator[Optionable[Map[String, D]]] =
     mapContractK[String, D](contract)
@@ -410,8 +410,8 @@ trait Validators extends ValidatorOps{
             o <- value.toIterator
             t <- getT[Map[K, D], S](o).toIterator
             kv <- t.toIterator
-            f <- Validation.validateFields(contract._fields, kv._2.value, cs.flatMap(_.get(kv._1)).map(_.value))
-          } yield path ++ f._1 -> f._2
+            f <- Validation.validateContract(contract, kv._2.value, cs.flatMap(_.get(kv._1)).map(_.value))
+          } yield path \ kv._1.toString ++ f._1 -> f._2 //TODO to string on key is not ideal, really need dcodec.
 
         failures.toVector
       }
