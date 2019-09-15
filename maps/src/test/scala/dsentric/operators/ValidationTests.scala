@@ -1,9 +1,8 @@
-package dsentric
+package dsentric.operators
 
+import dsentric.PessimisticCodecs._
 import dsentric._
 import org.scalatest.{FunSuite, Matchers}
-import PessimisticCodecs._
-import dsentric.operators.Validators
 
 class ValidationTests extends FunSuite with Matchers {
 

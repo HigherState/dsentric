@@ -1,13 +1,15 @@
 package dsentric.operators
 
-import dsentric.{Failures, Path, Raw}
+import dsentric.{PathFailures, Path, Raw}
 
 trait ValidatorSanitizers {
 
-  val internal: Validator[Option[Nothing]] with Sanitizer[Nothing] =
-    new Validator[Option[Nothing]] with Sanitizer[Nothing]{
-      def apply[S >: Option[Nothing]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
-        value.fold(Failures.empty)(_ => Failures(path -> "Value is reserved and cannot be provided."))
+  //Shouldnt be used in an And or Or validator
+  val internal: RawValidator[Option[Nothing]] with Sanitizer[Nothing] =
+    new RawValidator[Option[Nothing]] with Sanitizer[Nothing]{
+
+      def apply(path:Path, value:Option[Raw], currentState:Option[Raw]): PathFailures =
+        value.fold(PathFailures.empty)(_ => PathFailures(path -> "Value is reserved and cannot be provided."))
 
       def sanitize[S >: Nothing](value: Option[S]):Option[Raw] =
         None

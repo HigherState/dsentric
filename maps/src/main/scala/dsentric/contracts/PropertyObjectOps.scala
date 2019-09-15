@@ -1,7 +1,7 @@
 package dsentric.contracts
 
 import dsentric.{DCodec, DObject, Strictness}
-import dsentric.operators.DataOperator
+import dsentric.operators.{DataOperator, Validators}
 
 trait PropertyObjectOps[D <: DObject]  {
 
@@ -14,9 +14,9 @@ trait PropertyObjectOps[D <: DObject]  {
                   ) extends ExpectedProperty[D, DObject](__nameOverride, __self, _codec, _dataOperators) with SubContractFor[D] {
 
     def this(dataOperators: DataOperator[DObject]*)(implicit codec:DCodec[DObject]) =
-      this(None, codec, dataOperators)
+      this(None, codec, Validators.required +: dataOperators)
     def this(name:String, dataOperators: DataOperator[DObject]*)(implicit codec:DCodec[DObject]) =
-      this(Some(name), codec, dataOperators)
+      this(Some(name), codec, Validators.required +: dataOperators)
 
   }
 

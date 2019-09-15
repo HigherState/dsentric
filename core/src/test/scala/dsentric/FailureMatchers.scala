@@ -14,14 +14,14 @@ final class FailWord {
     new Matcher[Any] {
       def apply(left: Any): MatchResult = {
         val result = left match {
-          case f:Failures @unchecked =>
+          case f:PathFailures @unchecked =>
             f.exists(_._2 == right)
           case _ => false
         }
         val message =
           if (result) ""
           else left match {
-            case f:Failures @unchecked =>
+            case f:PathFailures @unchecked =>
                "expected failure not found"
             case _ =>
               "expected failure"
@@ -40,14 +40,14 @@ final class FailWord {
     new Matcher[Any] {
       def apply(left: Any): MatchResult = {
         val result = left match {
-          case f:Failures @unchecked  =>
+          case f:PathFailures @unchecked  =>
             f.exists(_._1 == right)
           case _ => false
         }
         val message =
           if (result) ""
           else left match {
-            case f:Failures @unchecked  =>
+            case f:PathFailures @unchecked  =>
               "expected failure at path not found"
             case _ =>
               "expected failure"
@@ -66,14 +66,14 @@ final class FailWord {
     new Matcher[Any] {
       def apply(left: Any): MatchResult = {
         val result = left match {
-          case f:Failures @unchecked =>
+          case f:PathFailures @unchecked =>
             f.contains(right)
           case _ => false
         }
         val message =
           if (result) ""
           else left match {
-            case f:Failures @unchecked  =>
+            case f:PathFailures @unchecked  =>
               "expected failure not found"
             case _ =>
               "expected failure"

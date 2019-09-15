@@ -1,7 +1,5 @@
 package dsentric
 
-import dsentric.operators.ValidationText
-
 sealed trait PropertyLens[D <: DObject, T] {
 
   def _path:Path
@@ -24,14 +22,6 @@ trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeL
     PathLensOps
       .traverse(data.value, _path)
       .flatMap(_codec.unapply)
-
-  def $getValid(data:D):(Path, String) Either T =
-    PathLensOps
-      .traverse(data.value, _path)
-      .fold[Either[(Path, String),T]](Left(_path -> ValidationText.EXPECTED_VALUE)){v =>
-        _codec.unapply(v).fold[Either[(Path, String),T]](Left(_path -> ValidationText.UNEXPECTED_TYPE))(Right.apply)
-      }
-
 
   def $getOrElse(data:D, default: => T):T =
     $get(data).getOrElse(default)

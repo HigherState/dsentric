@@ -1,23 +1,20 @@
 package dsentric.operators
 
-import dsentric.{Failures, Path}
+import dsentric.{PathFailures, Path}
 
-case class OrValidator[+T, A <: T, B <: T](left:Validator[A], right:Validator[B]) extends Validator[T] {
-  def apply[S >: T](path:Path, value:Option[S], currentState: => Option[S]):Failures =
+case class OrValidator[+T, A <: T, B <: T](left:ValueValidator[A], right:ValueValidator[B]) extends ValueValidator[T] {
+  def apply[S >: T](path:Path, value:Option[S], currentState: => Option[S]):PathFailures =
     left(path, value, currentState) match {
-      case Failures.empty =>
-        Failures.empty
+      case PathFailures.empty =>
+        PathFailures.empty
       case list =>
         right(path, value, currentState) match {
-          case Failures.empty =>
-            Failures.empty
+          case PathFailures.empty =>
+            PathFailures.empty
           case list2 if list2.size < list.size =>
             list2
           case _ =>
             list
         }
     }
-
-  private[dsentric] override def removalDenied:Boolean =
-    left.removalDenied || right.removalDenied
 }

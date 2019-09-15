@@ -8,5 +8,5 @@ package object dsentric {
   type Length = String with Iterable[Nothing] with Vector[Nothing]
   type Optionable[T] = T with Option[T]
 
-  type Failures = Vector[(Path, String)]
+  type PathFailures = Vector[(Path, String)]
 }

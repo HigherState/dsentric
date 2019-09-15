@@ -97,12 +97,17 @@ class DefaultProperty[D <: DObject, T] private[contracts]
 
 }
 
+sealed trait ObjectsProperty[D <: DObject, T <: DObject] extends Property[D, Vector[T]] {
+  def _contract:ContractFor[T]
+}
+
+
 class ExpectedObjectsProperty[D <: DObject, T <: DObject](private[contracts] val __nameOverride:Option[String],
                                                              val _contract:ContractFor[T],
                                                              val _parent:BaseContract[D],
                                                              val _codec:DCodec[Vector[T]],
                                                              val _dataOperators:Seq[DataOperator[Vector[T]]]
-                                                            ) extends Property[D, Vector[T]] with ExpectedLens[D, Vector[T]] {
+                                                            ) extends ObjectsProperty[D, T] with ExpectedLens[D, Vector[T]] {
 
   def unapply(j: D): Option[Vector[T]] =
     _strictGet(j).flatten
@@ -127,7 +132,7 @@ class DefaultObjectsProperty[D <: DObject, T <: DObject](private[contracts] val 
                                                                 val _codec:DCodec[Vector[T]],
                                                                 val _strictness:Strictness,
                                                                 val _dataOperators:Seq[DataOperator[Option[Vector[T]]]]
-                                                           ) extends Property[D, Vector[T]] with DefaultLens[D, Vector[T]] {
+                                                           ) extends ObjectsProperty[D, T] with DefaultLens[D, Vector[T]] {
 
   def unapply(j:D):Option[Vector[T]] =
     _strictGet(j).flatten
