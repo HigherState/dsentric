@@ -56,6 +56,8 @@ trait DefaultCodecs {
             Some(new DObjectInst(a))
           case v:RawArray@unchecked =>
             Some(new DArray(v))
+          case DNull =>
+            Some(DNull)
           case j =>
             Some(new DValue(j))
         }
@@ -115,13 +117,31 @@ trait DefaultCodecs {
         ArrayDefinition.empty
     }
 
-  implicit val dNullCodec:DCodec[DNull] =
-    new MatchCodec[DNull] with DirectCodec[DNull] {
+  implicit val dNullCodec:DCodec[DNull.type] =
+    new MatchCodec[DNull.type] with DirectCodec[DNull.type] {
       protected def isMatch(a: Raw): Boolean =
-        a.isInstanceOf[DNull]
+        a.isInstanceOf[DNull.type]
 
       def typeDefinition:TypeDefinition =
         NullDefinition
+    }
+
+  implicit def dNullableCodec[T](implicit D:DCodec[T]): DCodec[DNullable[T]] =
+    new DCodec[DNullable[T]] {
+      def apply(t: DNullable[T]): Data =
+        t match {
+          case DNull => DNull
+          case DSome(t) => D(t)
+        }
+
+      def unapply(a: Any): Option[DNullable[T]] =
+        a match {
+          case DNull => Some(DNull)
+          case D(v) => Some(DSome(v))
+          case _ => None
+        }
+      def typeDefinition:TypeDefinition =
+        TypeDefinition.nullable(D.typeDefinition)
     }
 
   implicit def tupleCodec[T1,T2](implicit D1:DCodec[T1], D2:DCodec[T2]):DCodec[(T1, T2)] =
@@ -259,11 +279,11 @@ trait PessimisticCodecs extends DefaultCodecs {
   implicit def optionCodec[T](implicit D:DCodec[T]): DCodec[Option[T]] =
     new DCodec[Option[T]] {
       def apply(t: Option[T]): Data =
-        t.fold[Data](Dsentric.dNull)(t => D(t))
+        t.fold[Data](DNull)(t => D(t))
 
       def unapply(a: Raw): Option[Option[T]] =
         a match {
-          case Dsentric.dNull => Some(None)
+          case DNull => Some(None)
           case D(v) => Some(Some(v))
           case _ => None
         }
@@ -345,7 +365,7 @@ trait PessimisticCodecs extends DefaultCodecs {
             a.toIterator.foldLeft(Option(Map.newBuilder[K, T])){
               case (Some(m), (K(k), D(v))) =>
                 Some(m += (k -> v))
-              case (Some(m), (_, v)) if v.isInstanceOf[DNull] => //dont want deltas to break conversion
+              case (Some(m), (_, DNull)) => //dont want deltas to break conversion
                 Some(m)
               case _ =>
                 None
@@ -373,7 +393,7 @@ trait PessimisticCodecs extends DefaultCodecs {
         a.toIterator.foldLeft(Option(Map.newBuilder[String, T])){
           case (Some(m), (k, D(v))) =>
             Some(m += (k -> v))
-          case (Some(m), (_, v)) if v.isInstanceOf[DNull] => //dont want deltas to break conversion
+          case (Some(m), (_, DNull)) => //dont want deltas to break conversion
             Some(m)
           case _ =>
             None
@@ -487,11 +507,11 @@ trait OptimisticCodecs extends DefaultCodecs {
   implicit def optionCodec[T](implicit D:DCodec[T]): DCodec[Option[T]] =
     new DCodec[Option[T]] {
       def apply(t: Option[T]): Data =
-        t.fold[Data](Dsentric.dNull)(t => D(t))
+        t.fold[Data](DNull)(t => D(t))
 
       def unapply(a: Raw): Option[Option[T]] =
         a match {
-          case Dsentric.dNull => Some(None)
+          case DNull => Some(None)
           case D(v) => Some(Some(v))
           case _ => Some(None)
         }

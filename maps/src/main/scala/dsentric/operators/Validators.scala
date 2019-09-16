@@ -17,7 +17,7 @@ trait Validators extends ValidatorOps{
   val required: RawValidator[Nothing] =
     new RawValidator[Nothing] {
       def apply(path: Path, value: Option[Raw], currentState: Option[Raw]): PathFailures =
-        if ((value.isEmpty && currentState.isEmpty) || value.exists(_.isInstanceOf[DNull]))
+        if ((value.isEmpty && currentState.isEmpty) || value.contains(DNull))
           PathFailures(path -> "Value is required.")
         else PathFailures.empty
     }
@@ -370,7 +370,7 @@ trait Validators extends ValidatorOps{
           case r:RawObject@unchecked =>
             val removed = value.fold(Set.empty[String]){
               case r2:RawObject@unchecked =>
-                r2.collect{ case (k, _:DNull) => k}.toSet
+                r2.collect{ case (k, DNull) => k}.toSet
               case _ => Set.empty
             }.intersect(r.keySet)
             removed.map(k => path \ k -> "Key value cannot be removed.").toVector

@@ -15,5 +15,4 @@ object Dsentric extends DataMatchers with AndMatcher with PropertyOps[DObject] w
   type ContractType = contracts.ContractType
   type ContractTypeFor[D <: DObject] = contracts.ContractTypeFor[D]
 
-  val dNull:DNull = new DNull
 }

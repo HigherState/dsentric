@@ -188,15 +188,14 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
 
     val nested = new \\? {}
   }
-
-  val DNULL = new DNull
+  
 
   test("Null validation") {
     val all = DObject("int" := 10, "bool" := true, "nested" -> DObject("values" := 1))
-    Nulls.$ops.validate(DObject("int" := DNULL), all) shouldBe Vector.empty
-    Nulls.$ops.validate(DObject("nested" := DNULL), all) shouldBe Vector.empty
-    Nulls.$ops.validate(DObject("nested" := ("values" := DNULL)), all) shouldBe Vector.empty
-    Nulls.$ops.validate(DObject("bool" := DNULL), all) shouldBe f(Path("bool") -> "Value is required.")
+    Nulls.$ops.validate(DObject("int" := DNull), all) shouldBe Vector.empty
+    Nulls.$ops.validate(DObject("nested" := DNull), all) shouldBe Vector.empty
+    Nulls.$ops.validate(DObject("nested" := ("values" := DNull)), all) shouldBe Vector.empty
+    Nulls.$ops.validate(DObject("bool" := DNull), all) shouldBe f(Path("bool") -> "Value is required.")
   }
 
   object Keys extends Contract {
@@ -217,8 +216,8 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     val obj = DObject("map" := Map("Key" := "value") )
     Appending.$ops.validate(DObject("map" := ("Key" := "Value2")), obj) shouldBe Vector.empty
     Appending.$ops.validate(DObject("map" := ("Key2" := "Value2")), obj) shouldBe Vector.empty
-    Appending.$ops.validate(DObject("map" := ("Key" := DNULL)), obj) should not be Vector.empty
-    Appending.$ops.validate(DObject("map" := ("Key2" := DNULL)), obj) shouldBe Vector.empty
+    Appending.$ops.validate(DObject("map" := ("Key" := DNull)), obj) should not be Vector.empty
+    Appending.$ops.validate(DObject("map" := ("Key2" := DNull)), obj) shouldBe Vector.empty
   }
 
   object Closed extends Contract with ClosedFields {
@@ -234,9 +233,9 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
   test("Closing an objects key options") {
     Closed.$ops.validate(DObject.empty) shouldBe Vector.empty
     Closed.$ops.validate(DObject("unexpected" := 2)) shouldBe f(Path.empty -> "Additional key 'unexpected' not allowed.")
-    Closed.$ops.validate(DObject("internalClosed" := ("one" := "value"))) shouldBe Vector.empty
-    Closed.$ops.validate(DObject("internalOpen" := ("one" := "value", "three" := 3))) shouldBe Vector.empty
-    Closed.$ops.validate(DObject("internalClosed" := ("one" := "value", "three" := 3))) shouldBe f(Path("internalClosed") -> "Additional key 'three' not allowed.")
+    Closed.$ops.validate(DObject("internalClosed" ::= ("one" := "value"))) shouldBe Vector.empty
+    Closed.$ops.validate(DObject("internalOpen" ::= ("one" := "value", "three" := 3))) shouldBe Vector.empty
+    Closed.$ops.validate(DObject("internalClosed" ::= ("one" := "value", "three" := 3))) shouldBe f(Path("internalClosed") -> "Additional key 'three' not allowed.")
   }
 
   object ReservedAndInternal extends Contract {
@@ -247,7 +246,7 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
 
   test("Reserved and internal") {
     ReservedAndInternal.$ops.validate(DObject.empty) shouldBe Vector.empty
-    ReservedAndInternal.$ops.validate(DObject("internalP" :="internal")) shouldBe f(Path("internalP") -> "Value is reserved and cannot be provided.")
+    ReservedAndInternal.$ops.validate(DObject("internalP" := "internal")) shouldBe f(Path("internalP") -> "Value is reserved and cannot be provided.")
     ReservedAndInternal.$ops.validate(DObject("reservedP" := false)) shouldBe f(Path("reservedP") -> "Value is reserved and cannot be provided.")
   }
 

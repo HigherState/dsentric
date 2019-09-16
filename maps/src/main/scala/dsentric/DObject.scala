@@ -90,11 +90,11 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
   private[dsentric] def internalWrap(value:RawObject):This =
     wrap(value)
 
-  def +(v:(String, Data)):This =
-    wrap(value + (v._1 -> v._2.value))
+  def +(kv:(String, Data)):This =
+    wrap(value + (kv._1 -> kv._2.value))
 
-  def ++(v:TraversableOnce[(String, Data)]):This =
-    wrap(value ++ v.map(t => t._1 -> t._2.value))
+  def ++(kvs:TraversableOnce[(String, Data)]):This =
+    wrap(value ++ kvs.map(kv => kv._1 -> kv._2.value))
 
   def -(key:String):This =
     wrap(value - key)
@@ -110,16 +110,16 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
   def +\(v:(Path, Data)):This =
     wrap(PathLensOps.set(value, v._1, v._2.value))
 
-  def ++\(v:TraversableOnce[(Path, Data)]):This =
-    wrap(v.foldLeft(value){(v, e) =>
-      PathLensOps.set(value, e._1, e._2.value)
+  def ++\(paths:TraversableOnce[(Path, Data)]):This =
+    wrap(paths.foldLeft(value){(v, e) =>
+      PathLensOps.set(v, e._1, e._2.value)
     })
 
   def -\(path:Path):This =
-    wrap(PathLensOps.drop(value, path).getOrElse(Map.empty))
+    wrap(PathLensOps.drop(value, path).getOrElse(value))
 
   def --\(paths:TraversableOnce[Path]):This =
-    wrap(paths.foldLeft(value)((v, p) => PathLensOps.drop(v, p).getOrElse(Map.empty)))
+    wrap(paths.foldLeft(value)((v, p) => PathLensOps.drop(v, p).getOrElse(v)))
 
   def toObject:DObject =
     new DObjectInst(value)
@@ -333,19 +333,26 @@ class DArray(val value:RawArray) extends AnyVal with Data {
     value.contains(data.value)
 }
 
-final class DNull extends Data {
-  override def value:DNull = this
+sealed trait DNullable[+T] {
+  def isNull: Boolean
+}
+
+case object DNull extends Data with DNullable[Nothing] {
+  override def value:Data = this
   override def toString:String = "null"
   override def isNull: Boolean = true
+}
 
-  override def equals(obj: scala.Any): Boolean =
-    obj.isInstanceOf[DNull]
+final case class DSome[T](t:T) extends DNullable[T] {
+  override def isNull: Boolean = false
 }
 
 object Data{
   def apply[T](value:T)(implicit codec:DCodec[T]):Data =
     codec.apply(value)
 }
+
+
 
 object DObject{
 

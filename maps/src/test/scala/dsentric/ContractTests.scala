@@ -245,7 +245,7 @@ class ContractTests extends FunSuite with Matchers {
       case Tuple.optionValue(("one", Some(false))) => true
     }) should be (true)
 
-    (DObject("optionValue" := ("one" -> dNull)) match {
+    (DObject("optionValue" := ("one" -> DNull)) match {
       case Tuple.optionValue(("one", None)) => true
     }) should be (true)
   }
@@ -262,7 +262,7 @@ class ContractTests extends FunSuite with Matchers {
         assert(true)
     }
 
-    DObject("value" -> Dsentric.dNull) match {
+    DObject("value" -> DNull) match {
       case Element.value.$delta(d) =>
         d shouldBe Some(None)
       case _ =>
@@ -288,7 +288,7 @@ class ContractTests extends FunSuite with Matchers {
         assert(true)
     }
 
-    DObject("value" -> Dsentric.dNull) match {
+    DObject("value" -> DNull) match {
       case Element.value.$delta(d) =>
         d shouldBe Some(None)
       case _ =>
@@ -309,7 +309,7 @@ class ContractTests extends FunSuite with Matchers {
         assert(true)
     }
 
-    DObject("value" -> Dsentric.dNull) match {
+    DObject("value" -> DNull) match {
       case Element.value.$deltaDefault(d) =>
         d shouldBe Some(34)
       case _ =>
@@ -335,7 +335,7 @@ class ContractTests extends FunSuite with Matchers {
         assert(true)
     }
 
-    DObject("value" -> Dsentric.dNull) match {
+    DObject("value" -> DNull) match {
       case Element.value.$delta(d) =>
         assert(false)
       case _ =>

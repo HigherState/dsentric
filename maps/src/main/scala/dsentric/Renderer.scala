@@ -34,7 +34,7 @@ object SimpleRenderer extends Renderer {
     case false =>
       sb ++= "false"
       ()
-    case _:DNull =>
+    case DNull =>
       sb ++= "null"
       ()
     case v:RawArray@unchecked =>

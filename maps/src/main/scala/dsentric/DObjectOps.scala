@@ -24,7 +24,7 @@ trait DObjectOps {
 
   private[dsentric] def rightReduceConcatMap(x: RawObject, y: RawObject): RawObject =
     y.foldLeft(x){
-      case (acc, (k, _:DNull)) =>
+      case (acc, (k, DNull)) =>
         acc - k
       case (acc, (k, RawObject.empty)) =>
         acc - k
@@ -154,7 +154,7 @@ trait DObjectOps {
 
   private[dsentric] def reduceMap(target:RawObject):Option[RawObject] = {
     val reducedMap = target.flatMap {
-      case (_ , _: DNull) =>
+      case (k, DNull) =>
         None
       case (k, m: RawObject@unchecked) =>
         reduceMap(m).map(k -> _)

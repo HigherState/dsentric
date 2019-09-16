@@ -55,7 +55,7 @@ object Validation {
     def validatePropertyOperators[D2 <: DObject, T](field:String, property:Property[D2, T], value:RawObject, maybeCurrentState:Option[RawObject]):PathFailures = {
       val v = value.get(field)
       val vt = v.flatMap(property._codec.unapply)
-      if (v.nonEmpty && vt.isEmpty && !v.exists(_.isInstanceOf[DNull]))
+      if (v.nonEmpty && vt.isEmpty && !v.contains(DNull))
         PathFailures(property._path -> "Value is not of the expected type.")
       else
         property._dataOperators.collect{

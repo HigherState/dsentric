@@ -48,7 +48,7 @@ trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeL
       .traverse(data.value, _path) match {
       case None =>
         Some(None)
-      case Some(_:DNull) =>
+      case Some(DNull) =>
         None // Not allowed
       case Some(v) =>
         _codec.unapply(v).map(Some(_))
@@ -78,7 +78,7 @@ trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens
     PathLensOps
       .traverse(data.value, _path)
       .flatMap{
-        case _:DNull =>
+        case DNull =>
           Some(DeltaRemove)
         case v =>
           _codec.unapply(v).map(t => DeltaSet(t))
@@ -103,7 +103,7 @@ trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens
     }
 
   def $setNull: D => D =
-    d => d.internalWrap(PathLensOps.set(d.value, _path, Dsentric.dNull)).asInstanceOf[D]
+    d => d.internalWrap(PathLensOps.set(d.value, _path, DNull)).asInstanceOf[D]
 
   private[dsentric] def _strictGet(data:D):Option[Option[T]] =
     PathLensOps
@@ -117,7 +117,7 @@ trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens
       .traverse(data.value, _path) match {
         case None =>
           Some(None)
-        case Some(_:DNull) =>
+        case Some(DNull) =>
           Some(Some(DeltaRemove))
         case Some(v) => _strictness(v, _codec).map(_.map(DeltaSet(_)))
       }
@@ -145,7 +145,7 @@ trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLe
     PathLensOps
       .traverse(data.value, _path)
       .fold[DeltaDefaultValue[T]](DeltaDefaultReset(_default)) {
-        case _:DNull =>
+        case DNull =>
           DeltaDefaultReset(_default)
         case v =>
           _codec.unapply(v).fold[DeltaDefaultValue[T]](DeltaDefaultReset(_default))(t => DeltaDefaultSet(t))
@@ -174,7 +174,7 @@ trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLe
     }
 
   def $setNull: D => D =
-    d => d.internalWrap(PathLensOps.set(d.value, _path, Dsentric.dNull)).asInstanceOf[D]
+    d => d.internalWrap(PathLensOps.set(d.value, _path, DNull)).asInstanceOf[D]
 
   private[dsentric] def _strictGet(data:D):Option[Option[T]] =
     PathLensOps
@@ -188,7 +188,7 @@ trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLe
       .traverse(data.value, _path) match {
       case None =>
         Some(None)
-      case Some(_:DNull) =>
+      case Some(DNull) =>
         Some(Some(DeltaDefaultReset(_default)))
       case Some(v) => _strictness(v, _codec).map(_.map(DeltaDefaultSet(_)))
     }

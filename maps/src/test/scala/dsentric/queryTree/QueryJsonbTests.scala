@@ -20,7 +20,7 @@ class QueryJsonbTests extends FunSuite with Matchers {
   }
 
   test("Generate query2") {
-    val query = ForceWrapper.dQuery(Map("head" -> Map("string" -> "value1", "dobject" -> Map("value" -> "key", "myNull" -> dNull), "array" -> Vector("value3", "value4"), "boolean" -> true, "integer" -> 1)))
+    val query = ForceWrapper.dQuery(Map("head" -> Map("string" -> "value1", "dobject" -> Map("value" -> "key", "myNull" -> DNull), "array" -> Vector("value3", "value4"), "boolean" -> true, "integer" -> 1)))
     val psql = queryParser("Indexed", query)
     println(psql)
   }
