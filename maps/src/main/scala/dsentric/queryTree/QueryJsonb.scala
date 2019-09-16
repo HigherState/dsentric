@@ -101,7 +101,7 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
     case (false, _) => Right("false")
     case (l:Long, _) => Right(l.toString)
     case (d:Double, _) => Right(d.toString)
-    case (_:DNull, _) => Right("null")
+    case (DNull, _) => Right("null")
     case (_, path) =>
       Left(NonEmptyList("Unsupported type" -> path, Nil))
   }
@@ -135,7 +135,7 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
     case (_:Boolean,_) => Right("boolean")
     case (_:Map[String, Any]@unchecked,_) => Right("object")
     case (_:Vector[Any]@unchecked,_) => Right("array")
-    case (_:DNull,_) => Right("null")
+    case (DNull,_) => Right("null")
     case (_, path) =>
       Left(NonEmptyList("Unsupported type" -> path, Nil))
   }

@@ -277,7 +277,7 @@ sealed trait Property[D <: DObject, T <: Any] extends Struct {
       value.toVector.flatMap {
         case m:Map[String, Any]@unchecked =>
           m.collect {
-            case (key, _:DNull) =>
+            case (key, DNull) =>
               (path \ key, "Removing element is not allowed")
           }.toVector
         case _ =>
@@ -457,7 +457,7 @@ class Maybe[D <: DObject, T] private[dsentric]
   private[dsentric] def _validate(path:Path, value:Option[Any], currentState:Option[Any]):Failures =
     _validateCheck(path, value, currentState, _pathValidator,
       value -> currentState match {
-        case (Some(_:DNull), Some(_)) =>
+        case (Some(DNull), Some(_)) =>
           Vector.empty
         case (Some(v), c)  =>
           _strictness(v, _codec).fold(Failures(path -> ValidationText.UNEXPECTED_TYPE)){ p =>
@@ -499,7 +499,7 @@ class Default[D <: DObject, T] private[dsentric]
     _validateCheck(path, value, currentState, _pathValidator,
       value -> currentState match {
         //Supports null for delta
-        case (Some(_:DNull), Some(_)) =>
+        case (Some(DNull), Some(_)) =>
           Vector.empty
         case (Some(v), c) =>
           _strictness(v, _codec).fold(Failures(path -> ValidationText.UNEXPECTED_TYPE)){ p =>

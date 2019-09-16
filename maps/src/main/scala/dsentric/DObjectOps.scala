@@ -25,7 +25,7 @@ trait DObjectOps {
   private val EMPTY_MAP = Map.empty[String, Any]
   private[dsentric] def rightReduceConcatMap(x: Map[String, Any], y: Map[String, Any]): Map[String, Any] =
     y.foldLeft(x){
-      case (acc, (k, _:DNull)) =>
+      case (acc, (k, DNull)) =>
         acc - k
       case (acc, (k, EMPTY_MAP)) =>
         acc - k
@@ -155,7 +155,7 @@ trait DObjectOps {
 
   private[dsentric] def reduceMap(target:Map[String, Any]):Option[Map[String, Any]] = {
     val reducedMap = target.flatMap {
-      case (k, _: DNull) =>
+      case (k, DNull) =>
         None
       case (k, m: Map[String, Any]@unchecked) =>
         reduceMap(m).map(k -> _)

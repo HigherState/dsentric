@@ -83,7 +83,7 @@ object PathLensOps {
       case _ =>
         None
     }
-
+  //returns none if no change
   private[dsentric] def drop(map:Map[String, Any], path:Path):Option[Map[String, Any]] =
     path match {
       case PathKey(head, PathEnd) =>

@@ -15,7 +15,7 @@ class DObjectOpsTests extends FunSuite with Matchers {
     DObjectOps.rightReduceConcat(obj, DObject.empty) should equal (obj)
     DObjectOps.rightReduceConcat(obj, DObject("three" := 3)) should equal (obj + ("three" := 3))
     DObjectOps.rightReduceConcat(obj, DObject("two" := "three")) should equal (DObject("one" := 1, "two" := "three"))
-    DObjectOps.rightReduceConcat(obj, DObject("one" := dNull)) should equal (DObject("two" := "two"))
+    DObjectOps.rightReduceConcat(obj, DObject("one" := DNull)) should equal (DObject("two" := "two"))
     DObjectOps.rightReduceConcat(obj, DObject("two" := DObject.empty)) should equal (DObject("one" := 1))
   }
 
@@ -31,10 +31,10 @@ class DObjectOpsTests extends FunSuite with Matchers {
   test("Applying nested delta object") {
     val obj = DObject("one" := 1, "obj" := DObject("two" := false, "three" := List(1,2,3,4), "four" := DObject("five" := 5)))
     DObjectOps.rightReduceConcat(obj, DObject("obj" := DObject.empty)) should equal (DObject("one" := 1))
-    DObjectOps.rightReduceConcat(obj, DObject("obj" := dNull)) should equal (DObject("one" := 1))
+    DObjectOps.rightReduceConcat(obj, DObject("obj" := DNull)) should equal (DObject("one" := 1))
     DObjectOps.rightReduceConcat(obj, DObject("obj" := DObject("two" := true))) should equal (DObject("one" := 1, "obj" := DObject("two" := true, "three" := List(1,2,3,4), "four" := DObject("five" := 5))))
-    DObjectOps.rightReduceConcat(obj, DObject("obj" := DObject("three" := dNull))) should equal (DObject("one" := 1, "obj" := DObject("two" := false, "four" := DObject("five" := 5))))
-    DObjectOps.rightReduceConcat(obj, DObject("obj" := DObject("two" := dNull, "three" := dNull, "four" := dNull))) should equal (DObject("one" := 1))
+    DObjectOps.rightReduceConcat(obj, DObject("obj" := DObject("three" := DNull))) should equal (DObject("one" := 1, "obj" := DObject("two" := false, "four" := DObject("five" := 5))))
+    DObjectOps.rightReduceConcat(obj, DObject("obj" := DObject("two" := DNull, "three" := DNull, "four" := DNull))) should equal (DObject("one" := 1))
     DObjectOps.rightReduceConcat(obj, DObject("obj" := DObject("six" := "vi"))) should equal (DObject("one" := 1, "obj" := DObject("two" := false, "three" := List(1,2,3,4), "four" := DObject("five" := 5), "six" := "vi")))
   }
 

@@ -20,8 +20,8 @@ class QueryTreeTests extends FunSuite with Matchers {
   }
 
   test("Generate nested query tree") {
-    val query = ForceWrapper.dQuery(Map("head" -> Map("string" -> "value1", "dobject" -> Map("value" -> "key", "myNull" -> dNull), "array" -> Vector("value3", "value4"), "boolean" -> true, "integer" -> 1)))
-    QueryTree(query) should be (&(List(In(Path("head"),Map("string" -> "value1", "array" -> Vector("value3", "value4"), "boolean" -> true, "integer" -> 1)), In(Path("head", "dobject"),Map("value" -> "key", "myNull" -> dNull)))))
+    val query = ForceWrapper.dQuery(Map("head" -> Map("string" -> "value1", "dobject" -> Map("value" -> "key", "myNull" -> DNull), "array" -> Vector("value3", "value4"), "boolean" -> true, "integer" -> 1)))
+    QueryTree(query) should be (&(List(In(Path("head"),Map("string" -> "value1", "array" -> Vector("value3", "value4"), "boolean" -> true, "integer" -> 1)), In(Path("head", "dobject"),Map("value" -> "key", "myNull" -> DNull)))))
   }
 
   test("Generate or query tree") {

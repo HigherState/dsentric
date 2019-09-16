@@ -16,9 +16,9 @@ class IsNullTests extends FunSuite with Matchers {
   }
 
   test("Data.isNull on null data") {
-    dNull.isNull should be (true)
-    Data(dNull).isNull should be (true)
-    Data(Data(dNull)).isNull should be (true)
+    DNull.isNull should be (true)
+    Data(DNull).isNull should be (true)
+    Data(Data(DNull)).isNull should be (true)
     new Data { val value: Any = null }.isNull should be (true)
     new DArray(null).isNull should be (true)
   }

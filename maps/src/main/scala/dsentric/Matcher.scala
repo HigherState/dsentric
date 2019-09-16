@@ -7,7 +7,7 @@ sealed trait Matcher  {
 
 object ExistenceMatcher extends Matcher {
   def apply(j:Any):Boolean = true
-  protected def default:Any = Dsentric.dNull
+  protected def default:Any = DNull
 }
 
 case class ValueMatcher[T](value:T)(implicit _codec:DCodec[T]) extends Matcher {

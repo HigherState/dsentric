@@ -220,14 +220,13 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     val nested = new \\?(Validators.keyValidator("[a-z]*".r, "Invalid key"))
     val map = \[Map[String, String]]
   }
-  val DNULL = new DNull
 
   test("Null validation") {
     val all = DObject("int" := 10, "nested" -> DObject("values" := 1), "map" := Map("key" := "value") )
-    Keys.$validate(DObject("int" := DNULL), all) shouldBe Right(DObject("int" := DNULL))
-    Keys.$validate(DObject("nested" := DNULL), all) shouldBe Right(DObject("nested" := DNULL))
-    Keys.$validate(DObject("nested" -> DObject("values" := DNULL)), Some(all)) shouldBe Right(DObject("nested" -> DObject("values" := DNULL)))
-    Keys.$validate(DObject("map" -> DObject("key" := DNULL)), Some(all)) shouldBe Right(DObject("map" -> DObject("key" := DNULL)))
+    Keys.$validate(DObject("int" := DNull), all) shouldBe Right(DObject("int" := DNull))
+    Keys.$validate(DObject("nested" := DNull), all) shouldBe Right(DObject("nested" := DNull))
+    Keys.$validate(DObject("nested" -> DObject("values" := DNull)), Some(all)) shouldBe Right(DObject("nested" -> DObject("values" := DNull)))
+    Keys.$validate(DObject("map" -> DObject("key" := DNull)), Some(all)) shouldBe Right(DObject("map" -> DObject("key" := DNull)))
   }
 
   object Appending extends Contract {
@@ -239,7 +238,7 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     val obj = DObject("map" := Map("key" := "value") )
     Appending.$validate(DObject("map" := Map("Key" := "Value2")), Some(obj)) shouldBe Right(DObject("map" := Map("Key" := "Value2")))
     Appending.$validate(DObject("map" := Map("Key2" := "Value2")), Some(obj)) shouldBe Right(DObject("map" := Map("Key2" := "Value2")))
-    Appending.$validate(DObject("map" := Map("Key2" := DNULL)), Some(obj)) should not be Right(DObject("map" := Map("Key2" := DNULL)))
+    Appending.$validate(DObject("map" := Map("Key2" := DNull)), Some(obj)) should not be Right(DObject("map" := Map("Key2" := DNull)))
   }
 
   object Masking extends Contract {
