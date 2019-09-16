@@ -113,6 +113,12 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
       PathLensOps.set(value, e._1, e._2.value)
     })
 
+  def -\(path:Path):This =
+    wrap(PathLensOps.drop(value, path).getOrElse(Map.empty))
+
+  def --\(paths:TraversableOnce[Path]):This =
+    wrap(paths.foldLeft(value)((v, p) => PathLensOps.drop(v, p).getOrElse(Map.empty)))
+
   def toObject:DObject =
     new DObjectInst(value)
 

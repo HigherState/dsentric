@@ -155,6 +155,9 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct { self 
         f
     }
 
+  def $modify(d:D)(f:this.type => D => D):D =
+    f(this)(d)
+
   def $dynamic[T](field:String)(implicit codec:DCodec[T], strictness:Strictness):Maybe[D, T] = {
     val prop = new Maybe[D, T](Validators.empty, Some(field), this, codec, strictness)
     prop
