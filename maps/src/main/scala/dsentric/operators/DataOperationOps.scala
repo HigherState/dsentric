@@ -11,4 +11,6 @@ class DataOperationOps[D <: DObject](contract:BaseContract[D]) {
   def validate(value:DObject, currentState:D):PathFailures =
     Validation.validateContract(contract, value.value, Some(currentState.value))
 
+  //include validateAndReduce so we get a minimumDelta
+
 }

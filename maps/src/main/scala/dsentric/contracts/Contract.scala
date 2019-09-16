@@ -22,6 +22,9 @@ trait ContractFor[D <: DObject]
   val $ops:DataOperationOps[D] =
     new DataOperationOps[D](this)
 
+  def $modify(d:D)(f:this.type => D => D):D =
+    f(this)(d)
+
   override protected def __self: BaseContract[D] = this
 }
 
