@@ -1,5 +1,59 @@
 package dsentric
 
+
+
+sealed trait PathSetter[D <: DObject] extends Function[D, D] {
+  def ~(pathSetter:PathSetter[D]):PathSetter[D] =
+    CompositeSetter(this, pathSetter)
+
+  def apply(v1: D): D =
+    set(v1).asInstanceOf[D]
+
+  private[dsentric] def set(v1:DObject):DObject
+}
+
+private case class ValueSetter[T, D <: DObject](path:Path, value:Any) extends PathSetter[D] {
+
+  def set(v1:DObject):DObject =
+    v1.internalWrap(PathLensOps.set(v1.value, path, value))
+}
+
+private case class MaybeValueSetter[T, D <: DObject](path:Path, value:Option[Any]) extends PathSetter[D] {
+
+  def set(v1:DObject):DObject =
+    value.fold(v1)(v => v1.internalWrap(PathLensOps.set(v1.value, path, v)))
+}
+
+private case class ValueDrop[D <: DObject](path:Path) extends PathSetter[D] {
+
+  def set(v1:DObject):DObject =
+    PathLensOps.drop(v1.value, path).fold(v1)(v1.internalWrap)
+}
+
+private case class CompositeSetter[D <: DObject](leftSetter:PathSetter[D], rightSetter:PathSetter[D]) extends PathSetter[D] {
+
+  def set(v1:DObject):DObject =
+    rightSetter.set(leftSetter.set(v1))
+}
+
+private case class ModifySetter[T, D <: DObject](path:Path, f:T => T, codec:DCodec[T]) extends PathSetter[D] {
+
+  def set(v1:DObject):DObject =
+    PathLensOps.modify(v1.value, path, codec, f).fold(v1)(v1.internalWrap)
+}
+
+private case class MaybeModifySetter[T, D <: DObject](path:Path, f:Option[T] => T, codec:DCodec[T], strictness:Strictness) extends PathSetter[D] {
+  def set(v1:DObject):DObject =
+    PathLensOps.maybeModify(v1.value, path, codec, strictness, f).fold(v1)(v1.internalWrap)
+}
+
+private case class ModifyOrDropSetter[T, D <: DObject](path:Path, f:Option[T] => Option[T], codec:DCodec[T], strictness:Strictness) extends PathSetter[D] {
+  def set(v1:DObject):DObject =
+    PathLensOps.maybeModifyOrDrop(v1.value, path, codec, strictness, f).fold(v1)(v1.internalWrap)
+}
+
+
+
 sealed trait PropertyLens[D <: DObject, T] {
 
   def _path:Path
@@ -7,13 +61,11 @@ sealed trait PropertyLens[D <: DObject, T] {
 
   private[dsentric] def _strictGet(data:D):Option[Option[T]]
 
-  def $set(value:T):D => D =
-    d => d.internalWrap(PathLensOps.set(d.value, _path, _codec(value).value)).asInstanceOf[D]
+  def $set(value:T):PathSetter[D] =
+    ValueSetter(_path, _codec(value).value)
 
-  def $maybeSet(value:Option[T]):D => D =
-    value.fold((d:D) => d){ v =>
-      $set(v)
-    }
+  def $maybeSet(value:Option[T]):PathSetter[D] =
+    MaybeValueSetter(_path, value.map(_codec(_).value))
 }
 
 trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens[D, T] {
@@ -23,19 +75,11 @@ trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeL
       .traverse(data.value, _path)
       .flatMap(_codec.unapply)
 
-  def $getValid(data:D):(Path, String) Either T =
-    PathLensOps
-      .traverse(data.value, _path)
-      .fold[Either[(Path, String),T]](Left(_path -> ValidationText.EXPECTED_VALUE)){v =>
-        _codec.unapply(v).fold[Either[(Path, String),T]](Left(_path -> ValidationText.UNEXPECTED_TYPE))(Right.apply)
-      }
-
-
   def $getOrElse(data:D, default: => T):T =
     $get(data).getOrElse(default)
 
-  def $modify(f:T => T):D => D =
-    d => PathLensOps.modify(d.value, _path, _codec, f).fold(d)(d.internalWrap(_).asInstanceOf[D])
+  def $modify(f:T => T):PathSetter[D] =
+    ModifySetter(_path, f, _codec)
 
   def $copy(p:PropertyLens[D, T]):D => D =
     d => {
@@ -62,8 +106,8 @@ trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeL
         _codec.unapply(v).map(Some(_))
     }
 
-  def $forceDrop:D => D =
-    d => PathLensOps.drop(d.value, _path).fold(d)(d.internalWrap(_).asInstanceOf[D])
+  def $forceDrop: PathSetter[D] =
+    ValueDrop(_path)
 
   //both empty or wrong value are bad values
   private[dsentric] def _strictGet(data:D):Option[Option[T]] =
@@ -92,17 +136,17 @@ trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens
           _codec.unapply(v).map(t => DeltaSet(t))
       }
 
-  def $modify(f:Option[T] => T):D => D =
-    d => PathLensOps.maybeModify(d.value, _path, _codec, _strictness, f).fold(d)(d.internalWrap(_).asInstanceOf[D])
+  def $modify(f:Option[T] => T):PathSetter[D] =
+    MaybeModifySetter(_path, f, _codec, _strictness)
 
-  def $modifyOrDrop(f:Option[T] => Option[T]):D => D =
-    d => PathLensOps.maybeModifyOrDrop(d.value, _path, _codec, _strictness, f).fold(d)(d.internalWrap(_).asInstanceOf[D])
+  def $modifyOrDrop(f:Option[T] => Option[T]):PathSetter[D] =
+    ModifyOrDropSetter(_path, f, _codec, _strictness)
 
-  def $drop:D => D =
-    d => PathLensOps.drop(d.value, _path).fold(d)(d.internalWrap(_).asInstanceOf[D])
+  def $drop: PathSetter[D] =
+    ValueDrop(_path)
 
-  def $setOrDrop(value:Option[T]):D => D =
-    value.fold($drop)(v => $set(v))
+  def $setOrDrop(value:Option[T]):PathSetter[D] =
+    value.fold[PathSetter[D]](ValueDrop(_path))(v => ValueSetter(_path, _codec(v).value))
 
   def $copy(p:PropertyLens[D, T]):D => D =
     (d) => {
@@ -110,8 +154,8 @@ trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens
         .fold(d)(v => $setOrDrop(v)(d))
     }
 
-  def $setNull: D => D =
-    d => d.internalWrap(PathLensOps.set(d.value, _path, DNull)).asInstanceOf[D]
+  def $setNull: PathSetter[D] =
+    ValueSetter(_path, DNull)
 
   private[dsentric] def _strictGet(data:D):Option[Option[T]] =
     PathLensOps
@@ -159,14 +203,15 @@ trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLe
           _codec.unapply(v).fold[DeltaDefaultValue[T]](DeltaDefaultReset(_default))(t => DeltaDefaultSet(t))
       }
 
-  def $modify(f:T => T):D => D =
-    d => PathLensOps.maybeModify(d.value, _path, _codec, _strictness, toDefault.andThen(f)).fold(d)(d.internalWrap(_).asInstanceOf[D])
+  def $restore: PathSetter[D] =
+    ValueDrop(_path)
 
-  def $restore:D=> D =
-    d => PathLensOps.drop(d.value, _path).fold(d)(d.internalWrap(_).asInstanceOf[D])
+  def $modify(f:T => T):PathSetter[D] =
+    MaybeModifySetter(_path, toDefault.andThen(f), _codec, _strictness)
 
-  def $setOrRestore(value:Option[T]):D => D =
-    value.fold($restore)(v => $set(v))
+
+  def $setOrRestore(value:Option[T]):PathSetter[D] =
+    value.fold[PathSetter[D]](ValueDrop(_path))(v => ValueSetter(_path, _codec(v).value))
 
   def $copy(p:PropertyLens[D, T]):D => D =
     (d) => {
@@ -181,8 +226,8 @@ trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLe
       }
     }
 
-  def $setNull: D => D =
-    d => d.internalWrap(PathLensOps.set(d.value, _path, DNull)).asInstanceOf[D]
+  def $setNull: PathSetter[D] =
+    ValueSetter(_path, DNull)
 
   private[dsentric] def _strictGet(data:D):Option[Option[T]] =
     PathLensOps
@@ -205,19 +250,3 @@ trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLe
 case class IdentityLens[D]() extends (D => D) {
   def apply(v1: D): D = v1
 }
-
-//trait MaybeDeltaDelete[Data, IndexedData, T] extends Any {
-//  def maybeProperty:Maybe[Data, IndexedData, T]
-//  protected def deleteValue:Data
-//
-//  def $deltaDelete:Data => Data =
-//    maybeProperty._path.set(Some(deleteValue))
-//}
-//
-//trait DefaultDeltaDelete[Data, IndexedData, T] extends Any {
-//  def defaultProperty:Default[Data, IndexedData, T]
-//  protected def deleteValue:Data
-//
-//  def $deltaDelete:Data => Data =
-//    defaultProperty._path.set(Some(deleteValue))
-//}

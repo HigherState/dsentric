@@ -30,6 +30,10 @@ final class FunctionOps[D <: DObjectLike[D] with DObject](val f:D => D) extends 
   def ~++(kv:Seq[(String, Data)]):D => D =
     f andThen (_ ++ kv)
 
+  //Enables use of other Contract types lens operations
+  def ~+(kv:PathSetter[_]):D => D =
+    f andThen (d => kv.set(d).asInstanceOf[D])
+
 }
 
 trait ToExtensionOps {
