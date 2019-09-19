@@ -20,7 +20,7 @@ object PathLensOps {
         Some(map)
     }
 
-  private[dsentric] def set(map:RawObject, path:Path, value:Any):RawObject =
+  private[dsentric] def set(map:RawObject, path:Path, value:Raw):RawObject =
     path match {
       case PathKey(head, PathEnd) =>
         map + (head -> value)
@@ -36,21 +36,27 @@ object PathLensOps {
   /*
   Returns None if no change
    */
-  private[dsentric] def modify[T](map:RawObject, path:Path, codec:DCodec[T], f:T => T):Option[RawObject] =
+  private[dsentric] def modify[T](map:RawObject, path:Path, f:Raw => Retrieved[Raw]):Option[RawObject] =
     path match {
       case PathKey(head, PathEnd) =>
         for {
           v <- map.get(head)
-          t <- codec.unapply(v)
-          a = codec(f(t)).value
-          r <- if (a == v) None else Some(a) //return None if same value
+          a = f(v)
+          r <- a match {
+            case CantDecode =>
+              None
+            case Found(t) if t == v =>
+              None
+            case Found(t) =>
+              Some(t)
+          }
         } yield map + (head -> r)
 
       case PathKey(head, tail@PathKey(_, _)) =>
          map
            .get(head)
            .collect{case m:RawObject@unchecked => m}
-           .flatMap(modify(_, tail, codec, f))
+           .flatMap(modify(_, tail, f))
            .map(t => map + (head -> t))
 
       case _ =>
@@ -58,18 +64,18 @@ object PathLensOps {
     }
 
   //Can create nested objects
-  private[dsentric] def maybeModify[T](map:RawObject, path:Path, codec:DCodec[T], strictness:Strictness, f:Option[T] => T):Option[RawObject] =
+  //f result is None if codec failed to match
+  private[dsentric] def maybeModify[T](map:RawObject, path:Path, f:Option[Raw] => Retrieved[Raw]):Option[RawObject] =
     path match {
       case PathKey(head, PathEnd) =>
-        map.get(head) match {
-          case None =>
-            Some(map + (head -> codec(f(None)).value))
-          case Some(v) =>
-            for {
-              t <- strictness(v, codec)
-              a = codec(f(t)).value
-              r <- if (t.contains(a)) None else Some(a)
-            } yield map + (head -> r)
+        val v = map.get(head)
+        f(v) match {
+          case CantDecode =>
+            None
+          case Found(t) if v.contains(t) =>
+            None
+          case Found(t) =>
+            Some(map + (head -> t))
         }
 
       case PathKey(head, tail@PathKey(_, _)) =>
@@ -78,8 +84,8 @@ object PathLensOps {
             .get(head)
             .collect{case m:RawObject@unchecked => m}.getOrElse(RawObject.empty)
 
-        maybeModify(child, tail, codec, strictness, f)
-            .map(v => map + (head -> v))
+        maybeModify(child, tail, f)
+          .map(v => map + (head -> v))
       case _ =>
         None
     }
@@ -110,19 +116,20 @@ object PathLensOps {
         None
     }
 
-  private[dsentric] def maybeModifyOrDrop[T](map:RawObject, path:Path, codec:DCodec[T], strictness:Strictness, f:Option[T] => Option[T]):Option[RawObject] =
+  //f is None if codec failed to match, next None is to drop
+  private[dsentric] def maybeModifyOrDrop[T](map:RawObject, path:Path, f:Option[Raw] => Retrieve[Raw]):Option[RawObject] =
     path match {
       case PathKey(head, PathEnd) =>
-        map.get(head) match {
-          case None =>
-            f(None)
-              .map(codec(_).value)
-              .map(v => map + (head -> v))
-
-          case Some(v) =>
-            strictness(v, codec).map { t =>
-              f(t).map(codec(_).value).fold(map - head){r => map + (head -> r)}
-            }
+        val v = map.get(head)
+        f(v) match {
+          case Empty =>
+            v.map(_ => map - head) //if v is empty then there is no change
+          case CantDecode => // failed to decode
+            None
+          case Found(t) if v.contains(t) => // value is the same
+            None
+          case Found(t) =>
+            Some(map + (head -> t))
         }
 
       case PathKey(head, tail@PathKey(_, _)) =>
@@ -131,7 +138,7 @@ object PathLensOps {
             .get(head)
             .collect{case m:RawObject@unchecked => m}.getOrElse(RawObject.empty)
 
-        maybeModifyOrDrop(child, tail, codec, strictness, f)
+        maybeModifyOrDrop(child, tail, f)
           .map(v => map + (head -> v))
       case _ =>
         None

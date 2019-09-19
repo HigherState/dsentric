@@ -2,8 +2,13 @@ import sbt.Keys._
 
 lazy val buildSettings = Seq(
   organization       := "io.higherState",
+<<<<<<< HEAD
   scalaVersion       := "2.12.8",
   version            := "1.0.0",
+=======
+  scalaVersion       := "2.12.7",
+  version            := "0.7.15",
+>>>>>>> master
   scalacOptions     ++= Seq(
     "-deprecation",
     "-encoding", "UTF-8",

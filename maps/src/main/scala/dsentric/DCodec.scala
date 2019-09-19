@@ -42,7 +42,7 @@ trait DefaultCodecs {
 
   implicit val anyCodec:DCodec[Any] =
     new DirectCodec[Any] {
-      def unapply(a: Raw): Option[Any] = Some(a)
+      def unapply(a:Raw): Option[Any] = Some(a)
 
       def typeDefinition:TypeDefinition =
         TypeDefinition.anyDefinition
@@ -70,7 +70,7 @@ trait DefaultCodecs {
 
   implicit val dQueryCodec:DCodec[DQuery] =
     new DCodec[DQuery] {
-      def unapply(a: Raw): Option[DQuery] =
+      def unapply(a:Raw): Option[DQuery] =
         a match {
           case a:RawObject@unchecked =>
             DQuery(a).toOption
@@ -89,7 +89,7 @@ trait DefaultCodecs {
       def apply(t: DObject): DObject =
         t
 
-      def unapply(a: Raw): Option[DObject] =
+      def unapply(a:Raw): Option[DObject] =
         a match {
           case m:RawObject@unchecked =>
             Some(new DObjectInst(m))
@@ -106,7 +106,7 @@ trait DefaultCodecs {
       def apply(t: DArray): DArray =
         t
 
-      def unapply(a: Raw): Option[DArray] =
+      def unapply(a:Raw): Option[DArray] =
         a match {
           case v:RawArray@unchecked =>
             Some(new DArray(v))
@@ -149,7 +149,7 @@ trait DefaultCodecs {
       override def apply(t: (T1, T2)): DArray =
         new DArray(Vector(D1(t._1).value, D2(t._2).value))
 
-      def unapply(a: Raw): Option[(T1, T2)] =
+      def unapply(a:Raw): Option[(T1, T2)] =
         a match {
           case Vector(D1(t1), D2(t2)) =>
             Some(t1 -> t2)
@@ -163,7 +163,7 @@ trait DefaultCodecs {
 
   implicit val pathCodec:DCodec[Path] =
     new DCodec[Path] {
-      def unapply(a: Raw): Option[Path] =
+      def unapply(a:Raw): Option[Path] =
         a match {
           case s:String =>
             Some(Path.fromString(s))
@@ -180,7 +180,7 @@ trait DefaultCodecs {
   def dObjectLikeCodec[T <: DObjectLike[T] with DObject](wrap:Map[String, Any] => T):DCodec[T] =
     new DCodec[T] {
       def apply(t: T):T = t
-      def unapply(a: Raw): Option[T] =
+      def unapply(a:Raw): Option[T] =
         a match {
           case m:RawObject@unchecked =>
             Some(wrap(m))
@@ -215,7 +215,7 @@ trait PessimisticCodecs extends DefaultCodecs {
     }
   implicit val longCodec:DValueCodec[Long] =
     new DirectCodec[Long] {
-      def unapply(a: Raw): Option[Long] =
+      def unapply(a:Raw): Option[Long] =
         NumericPartialFunctions.long.lift(a)
 
       val typeDefinition:TypeDefinition =
@@ -223,7 +223,7 @@ trait PessimisticCodecs extends DefaultCodecs {
     }
   implicit val doubleCodec:DValueCodec[Double] =
     new DirectCodec[Double] {
-      def unapply(a: Raw): Option[Double] =
+      def unapply(a:Raw): Option[Double] =
         NumericPartialFunctions.double.lift(a)
       val typeDefinition:TypeDefinition =
         NumberDefinition(minimum = Some(Double.MinValue), maximum = Some(Double.MaxValue))
@@ -233,7 +233,7 @@ trait PessimisticCodecs extends DefaultCodecs {
     new DValueCodec[Int] {
       def apply(t: Int): DValue =
         new DValue(t.toLong)
-      def unapply(a: Raw): Option[Int] =
+      def unapply(a:Raw): Option[Int] =
         NumericPartialFunctions.int.lift(a)
       val typeDefinition:TypeDefinition =
         IntegerDefinition(minimum = Some(Int.MinValue), maximum = Some(Int.MaxValue))
@@ -242,7 +242,7 @@ trait PessimisticCodecs extends DefaultCodecs {
     new DValueCodec[Short] {
       def apply(t: Short): DValue =
         new DValue(t.toLong)
-      def unapply(a: Raw): Option[Short] =
+      def unapply(a:Raw): Option[Short] =
         NumericPartialFunctions.short.lift(a)
       val typeDefinition:TypeDefinition =
         IntegerDefinition(minimum = Some(Short.MinValue), maximum = Some(Short.MaxValue))
@@ -251,7 +251,7 @@ trait PessimisticCodecs extends DefaultCodecs {
     new DValueCodec[Byte] {
       def apply(t: Byte): DValue =
         new DValue(t.toLong)
-      def unapply(a: Raw): Option[Byte] =
+      def unapply(a:Raw): Option[Byte] =
         NumericPartialFunctions.byte.lift(a)
       val typeDefinition:TypeDefinition =
         IntegerDefinition(minimum = Some(Byte.MinValue), maximum = Some(Byte.MaxValue))
@@ -260,7 +260,7 @@ trait PessimisticCodecs extends DefaultCodecs {
     new DValueCodec[Float] {
       def apply(t: Float): DValue =
         new DValue(t.toDouble)
-      def unapply(a: Raw): Option[Float] =
+      def unapply(a:Raw): Option[Float] =
         NumericPartialFunctions.float.lift(a)
       val typeDefinition:TypeDefinition =
         NumberDefinition(minimum = Some(Float.MinValue), maximum = Some(Float.MaxValue))
@@ -269,7 +269,7 @@ trait PessimisticCodecs extends DefaultCodecs {
     new DValueCodec[Number] {
       def apply(t: Number): DValue =
         new DValue(t)
-      def unapply(a: Raw): Option[Number] =
+      def unapply(a:Raw): Option[Number] =
         NumericPartialFunctions.number.lift(a)
 
       val typeDefinition:TypeDefinition =
@@ -281,7 +281,7 @@ trait PessimisticCodecs extends DefaultCodecs {
       def apply(t: Option[T]): Data =
         t.fold[Data](DNull)(t => D(t))
 
-      def unapply(a: Raw): Option[Option[T]] =
+      def unapply(a:Raw): Option[Option[T]] =
         a match {
           case DNull => Some(None)
           case D(v) => Some(Some(v))
@@ -300,7 +300,7 @@ trait PessimisticCodecs extends DefaultCodecs {
         else
           new DArray(t.map(C.apply(_).value).toVector)
 
-      def unapply(a: Raw): Option[List[T]] =
+      def unapply(a:Raw): Option[List[T]] =
         a match {
           case s:RawArray@unchecked =>
             s.toIterator.map(C.unapply).foldLeft[Option[ListBuffer[T]]](Some(new ListBuffer[T])){
@@ -322,7 +322,7 @@ trait PessimisticCodecs extends DefaultCodecs {
         else
           new DArray(t.map(C.apply(_).value))
 
-      def unapply(a: Raw): Option[Vector[T]] =
+      def unapply(a:Raw): Option[Vector[T]] =
         a match {
           case s:RawArray@unchecked =>
             s.toIterator.map(C.unapply).foldLeft[Option[VectorBuilder[T]]](Some(new VectorBuilder[T])){
@@ -340,14 +340,14 @@ trait PessimisticCodecs extends DefaultCodecs {
   implicit def fixedMapCodec[T](implicit D:DCodec[T]):DCodec[Map[String, T]] =
     if (D.isInstanceOf[DirectCodec[T]])
       new DirectCodec[Map[String, T]] {
-        def unapply(a: Raw): Option[Map[String, T]] =
+        def unapply(a:Raw): Option[Map[String, T]] =
           toMapT(a)
         def typeDefinition:TypeDefinition =
           ObjectDefinition()
       }
     else
       new DCodec[Map[String, T]] {
-        def unapply(a: Raw): Option[Map[String, T]] =
+        def unapply(a:Raw): Option[Map[String, T]] =
           toMapT(a)
 
         def apply(t: Map[String, T]): Data =
@@ -359,7 +359,7 @@ trait PessimisticCodecs extends DefaultCodecs {
 
   implicit def fullMapCodec[K, T](implicit D:DCodec[T], K:DCodec[K]):DCodec[Map[K, T]] =
     new DCodec[Map[K, T]] {
-      def unapply(a: Raw): Option[Map[K, T]] =
+      def unapply(a:Raw): Option[Map[K, T]] =
         a match {
           case a:RawObject@unchecked =>
             a.toIterator.foldLeft(Option(Map.newBuilder[K, T])){
@@ -410,7 +410,7 @@ trait OptimisticCodecs extends DefaultCodecs {
 
   implicit val stringCodec:DValueCodec[String] =
     new DirectCodec[String] {
-      def unapply(a: Raw): Option[String] =
+      def unapply(a:Raw): Option[String] =
         Some(a.toString)
       def typeDefinition:TypeDefinition =
         StringDefinition.empty
@@ -418,7 +418,7 @@ trait OptimisticCodecs extends DefaultCodecs {
 
   implicit val booleanCodec:DValueCodec[Boolean] =
     new DirectCodec[Boolean] {
-      def unapply(a: Raw): Option[Boolean] =
+      def unapply(a:Raw): Option[Boolean] =
         a match {
           case true | i"true" | 1 => Some(true)
           case false | i"false" | 0 => Some(false)
@@ -430,7 +430,7 @@ trait OptimisticCodecs extends DefaultCodecs {
     }
   implicit val longCodec:DValueCodec[Long] =
     new DirectCodec[Long] {
-      def unapply(a: Raw): Option[Long] =
+      def unapply(a:Raw): Option[Long] =
         NumericPartialFunctions.stringDouble.lift(a)
           .fold(NumericPartialFunctions.long.lift(a))(NumericPartialFunctions.long.lift)
 
@@ -440,7 +440,7 @@ trait OptimisticCodecs extends DefaultCodecs {
     }
   implicit val doubleCodec:DValueCodec[Double] =
     new DirectCodec[Double] {
-      def unapply(a: Raw): Option[Double] =
+      def unapply(a:Raw): Option[Double] =
         NumericPartialFunctions.stringDouble.lift(a)
           .orElse(NumericPartialFunctions.double.lift(a))
 
@@ -452,7 +452,7 @@ trait OptimisticCodecs extends DefaultCodecs {
     new DValueCodec[Int] {
       def apply(t: Int): DValue =
         new DValue(t.toLong)
-      def unapply(a: Raw): Option[Int] =
+      def unapply(a:Raw): Option[Int] =
         NumericPartialFunctions.stringDouble.lift(a)
           .fold(NumericPartialFunctions.int.lift(a))(NumericPartialFunctions.int.lift)
 
@@ -463,7 +463,7 @@ trait OptimisticCodecs extends DefaultCodecs {
     new DValueCodec[Short] {
       def apply(t: Short): DValue =
         new DValue(t.toLong)
-      def unapply(a: Raw): Option[Short] =
+      def unapply(a:Raw): Option[Short] =
         NumericPartialFunctions.stringDouble.lift(a)
           .fold(NumericPartialFunctions.short.lift(a))(NumericPartialFunctions.short.lift)
 
@@ -474,7 +474,7 @@ trait OptimisticCodecs extends DefaultCodecs {
     new DValueCodec[Byte] {
       def apply(t: Byte): DValue =
         new DValue(t.toLong)
-      def unapply(a: Raw): Option[Byte] =
+      def unapply(a:Raw): Option[Byte] =
         NumericPartialFunctions.stringDouble.lift(a)
           .fold(NumericPartialFunctions.byte.lift(a))(NumericPartialFunctions.byte.lift)
 
@@ -485,7 +485,7 @@ trait OptimisticCodecs extends DefaultCodecs {
     new DValueCodec[Float] {
       def apply(t: Float): DValue =
         new DValue(t.toDouble)
-      def unapply(a: Raw): Option[Float] =
+      def unapply(a:Raw): Option[Float] =
         NumericPartialFunctions.stringDouble.lift(a)
           .fold(NumericPartialFunctions.float.lift(a))(NumericPartialFunctions.float.lift)
 
@@ -496,7 +496,7 @@ trait OptimisticCodecs extends DefaultCodecs {
     new DValueCodec[Number] {
       def apply(t: Number): DValue =
         new DValue(t)
-      def unapply(a: Raw): Option[Number] =
+      def unapply(a:Raw): Option[Number] =
         NumericPartialFunctions.stringDouble.lift(a)
           .fold(NumericPartialFunctions.number.lift(a))(NumericPartialFunctions.number.lift)
 
@@ -509,7 +509,7 @@ trait OptimisticCodecs extends DefaultCodecs {
       def apply(t: Option[T]): Data =
         t.fold[Data](DNull)(t => D(t))
 
-      def unapply(a: Raw): Option[Option[T]] =
+      def unapply(a:Raw): Option[Option[T]] =
         a match {
           case DNull => Some(None)
           case D(v) => Some(Some(v))
@@ -527,7 +527,7 @@ trait OptimisticCodecs extends DefaultCodecs {
         else
           new DArray(t.map(C.apply(_).value).toVector)
 
-      def unapply(a: Any): Option[List[T]] =
+      def unapply(a:Raw): Option[List[T]] =
         a match {
           case s:RawArray@unchecked =>
             Some(s.toIterator.flatMap(C.unapply).toList)
@@ -547,7 +547,7 @@ trait OptimisticCodecs extends DefaultCodecs {
         else
           new DArray(t.map(C.apply(_).value))
 
-      def unapply(a: Any): Option[Vector[T]] =
+      def unapply(a:Raw): Option[Vector[T]] =
         a match {
           case s:RawArray@unchecked =>
             Some(s.flatMap(C.unapply))
@@ -562,7 +562,7 @@ trait OptimisticCodecs extends DefaultCodecs {
   implicit def fixedMapCodec[T](implicit D:DCodec[T]):DCodec[Map[String, T]] =
     if (D.isInstanceOf[DirectCodec[T]])
       new DirectCodec[Map[String, T]] {
-        def unapply(a: Raw): Option[Map[String, T]] =
+        def unapply(a:Raw): Option[Map[String, T]] =
           toMapT(a)
 
         def typeDefinition:TypeDefinition =
@@ -570,7 +570,7 @@ trait OptimisticCodecs extends DefaultCodecs {
       }
     else
       new DCodec[Map[String, T]] {
-        def unapply(a: Raw): Option[Map[String, T]] =
+        def unapply(a:Raw): Option[Map[String, T]] =
           toMapT(a)
 
         def apply(t: Map[String, T]): Data =

@@ -1,6 +1,6 @@
 package dsentric.contracts
 
-import dsentric.{DCodec, DObject, DProjection, Path, PathLensOps, PatternMatcher,Strictness}
+import dsentric.{DCodec, DObject, DProjection, Path, PathLensOps, PatternMatcher, Strictness}
 import dsentric.operators.DataOperator
 
 sealed trait Property[D <: DObject, T <: Any] {

@@ -214,6 +214,8 @@ final class DObjectInst private[dsentric](val value:RawObject) extends AnyVal wi
   @inline
   protected def wrap(value: RawObject):DObject =
     new DObjectInst(value)
+
+
 }
 
 final class DQuery private[dsentric](val value:RawObject) extends AnyVal with DObject with DObjectLike[DQuery]{

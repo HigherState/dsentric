@@ -52,19 +52,27 @@ object Validation {
       }.getOrElse(PathFailures.empty)
 
     @inline
-    def validatePropertyOperators[D2 <: DObject, T](field:String, property:Property[D2, T], value:RawObject, maybeCurrentState:Option[RawObject]):PathFailures = {
-      val v = value.get(field)
-      val vt = v.flatMap(property._codec.unapply)
-      if (v.nonEmpty && vt.isEmpty && !v.contains(DNull))
-        PathFailures(property._path -> "Value is not of the expected type.")
-      else
-        property._dataOperators.collect{
-          case validator:ValueValidator[T]@unchecked =>
-            validator(property._path, vt, maybeCurrentState.flatMap(property._codec.unapply))
-          case validator:RawValidator[T]@unchecked =>
-            validator(property._path, v, maybeCurrentState.flatMap(_.get(field)))
-        }.toVector.flatten
-    }
+    def validateProperty[D2 <: DObject, T](field:String, property:Property[D2, T], value:RawObject, maybeCurrentState:Option[RawObject]):PathFailures =
+      value.get(field) match {
+        case Some(DNull) =>
+          validatePropertyOperators(field, property, Some(DNull), None, maybeCurrentState)
+        case Some(v) =>
+          property._codec.unapply(v)
+            .fold(PathFailures(property._path -> "Value is not of the expected type.")){ maybeT =>
+              validatePropertyOperators(field, property, Some(v), Some(maybeT), maybeCurrentState)
+            }
+        case None =>
+          validatePropertyOperators(field, property, None, None, maybeCurrentState)
+      }
+
+    @inline
+    def validatePropertyOperators[D2 <: DObject, T](field:String, property:Property[D2, T], maybeValue:Option[Raw], maybeT:Option[T], maybeCurrentState:Option[RawObject]):PathFailures =
+      property._dataOperators.collect{
+        case validator:ValueValidator[T]@unchecked =>
+          validator(property._path, maybeT, maybeCurrentState.flatMap(_.get(field)).flatMap(property._codec.unapply))
+        case validator:RawValidator[T]@unchecked =>
+          validator(property._path, maybeValue, maybeCurrentState.flatMap(_.get(field)))
+      }.toVector.flatten
 
     @inline
     def validateClosed[D2 <: DObject](baseContract:BaseContract[D], value:RawObject): PathFailures =
@@ -84,19 +92,19 @@ object Validation {
     contract._fields.foldLeft(PathFailures.empty){
       case (failures, (field, property:BaseContract[DObject]@unchecked with Property[D, _])) =>
         failures ++
-        validatePropertyOperators(field, property, value, maybeCurrentState) ++
+        validateProperty(field, property, value, maybeCurrentState) ++
         validateContractProperty(field, property, value, maybeCurrentState)
       case (failures, (field, property:ObjectsProperty[D, _]@unchecked)) =>
         failures ++
-        validatePropertyOperators(field, property, value, maybeCurrentState) ++
+        validateProperty(field, property, value, maybeCurrentState) ++
         validateObjectsProperty(field, property, value)
       case (failures, (field, property:MapObjectsProperty[_, D, _]@unchecked)) =>
         failures ++
-        validatePropertyOperators(field, property, value, maybeCurrentState) ++
+        validateProperty(field, property, value, maybeCurrentState) ++
         validateMapObjectsProperty(field, property, value, maybeCurrentState)
       case (failures, (field, property)) =>
         failures ++
-        validatePropertyOperators(field, property, value, maybeCurrentState)
+        validateProperty(field, property, value, maybeCurrentState)
     }
   }
 
