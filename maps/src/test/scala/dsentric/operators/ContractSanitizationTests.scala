@@ -5,7 +5,7 @@ import org.scalatest.{FunSuite, Matchers}
 
 class ContractSanitizationTests extends FunSuite with Matchers with FailureMatchers {
 
-  implicit def strictness = MaybePessimistic
+  implicit def strictness = IgnoreOnWrongType
   import Dsentric._
   import PessimisticCodecs._
 

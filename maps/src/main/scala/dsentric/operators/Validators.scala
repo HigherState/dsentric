@@ -514,5 +514,5 @@ trait ValidatorOps {
     }
 }
 
-object Validators extends Validators with ValidatorSanitizers with Sanitizers
+object Validators extends Validators with ValidatorSanitizers
 

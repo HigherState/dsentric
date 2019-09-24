@@ -36,18 +36,18 @@ object PathLensOps {
   /*
   Returns None if no change
    */
-  private[dsentric] def modify[T](map:RawObject, path:Path, f:Raw => Retrieved[Raw]):Option[RawObject] =
+  private[dsentric] def modify[T](map:RawObject, path:Path, f:Raw => CodecResult[Raw]):Option[RawObject] =
     path match {
       case PathKey(head, PathEnd) =>
         for {
           v <- map.get(head)
           a = f(v)
           r <- a match {
-            case CantDecode =>
+            case DCodeFailure =>
               None
-            case Found(t) if t == v =>
+            case DCodeSuccess(t) if t == v =>
               None
-            case Found(t) =>
+            case DCodeSuccess(t) =>
               Some(t)
           }
         } yield map + (head -> r)
@@ -65,16 +65,16 @@ object PathLensOps {
 
   //Can create nested objects
   //f result is None if codec failed to match
-  private[dsentric] def maybeModify[T](map:RawObject, path:Path, f:Option[Raw] => Retrieved[Raw]):Option[RawObject] =
+  private[dsentric] def maybeModify[T](map:RawObject, path:Path, f:Option[Raw] => CodecResult[Raw]):Option[RawObject] =
     path match {
       case PathKey(head, PathEnd) =>
         val v = map.get(head)
         f(v) match {
-          case CantDecode =>
+          case DCodeFailure =>
             None
-          case Found(t) if v.contains(t) =>
+          case DCodeSuccess(t) if v.contains(t) =>
             None
-          case Found(t) =>
+          case DCodeSuccess(t) =>
             Some(map + (head -> t))
         }
 
@@ -117,18 +117,18 @@ object PathLensOps {
     }
 
   //f is None if codec failed to match, next None is to drop
-  private[dsentric] def maybeModifyOrDrop[T](map:RawObject, path:Path, f:Option[Raw] => Retrieve[Raw]):Option[RawObject] =
+  private[dsentric] def maybeModifyOrDrop[T](map:RawObject, path:Path, f:Option[Raw] => PathResult[Raw]):Option[RawObject] =
     path match {
       case PathKey(head, PathEnd) =>
         val v = map.get(head)
         f(v) match {
           case Empty =>
             v.map(_ => map - head) //if v is empty then there is no change
-          case CantDecode => // failed to decode
+          case DCodeFailure => // failed to decode
             None
-          case Found(t) if v.contains(t) => // value is the same
+          case DCodeSuccess(t) if v.contains(t) => // value is the same
             None
-          case Found(t) =>
+          case DCodeSuccess(t) =>
             Some(map + (head -> t))
         }
 
@@ -139,7 +139,12 @@ object PathLensOps {
             .collect{case m:RawObject@unchecked => m}.getOrElse(RawObject.empty)
 
         maybeModifyOrDrop(child, tail, f)
-          .map(v => map + (head -> v))
+          .map{
+            case m if m.isEmpty =>
+              map - head
+            case m =>
+              map + (head -> m)
+          }
       case _ =>
         None
     }

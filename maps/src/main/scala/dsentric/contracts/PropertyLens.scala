@@ -38,7 +38,7 @@ private case class CompositeSetter[D <: DObject](leftSetter:PathSetter[D], right
  /*
  Option on f Raw result is case of codec failure
   */
-private case class ModifySetter[D <: DObject](path:Path)(f:Raw => Retrieved[Raw]) extends PathSetter[D] {
+private case class ModifySetter[D <: DObject](path:Path)(f:Raw => CodecResult[Raw]) extends PathSetter[D] {
 
   def set(v1:DObject):DObject =
     PathLensOps.modify(v1.value, path, f)
@@ -48,7 +48,7 @@ private case class ModifySetter[D <: DObject](path:Path)(f:Raw => Retrieved[Raw]
 /*
 Option on f Raw result is case of codec failure
  */
-private case class MaybeModifySetter[D <: DObject](path:Path)(f:Option[Raw] => Retrieved[Raw]) extends PathSetter[D] {
+private case class MaybeModifySetter[D <: DObject](path:Path)(f:Option[Raw] => CodecResult[Raw]) extends PathSetter[D] {
   def set(v1:DObject):DObject =
     PathLensOps.maybeModify(v1.value, path,f).fold(v1)(v1.internalWrap)
 }
@@ -56,7 +56,7 @@ private case class MaybeModifySetter[D <: DObject](path:Path)(f:Option[Raw] => R
 /*
 First Option on f Raw result is case of codec failure
  */
-private case class ModifyOrDropSetter[D <: DObject](path:Path)(f:Option[Raw] => Retrieve[Raw]) extends PathSetter[D] {
+private case class ModifyOrDropSetter[D <: DObject](path:Path)(f:Option[Raw] => PathResult[Raw]) extends PathSetter[D] {
   def set(v1:DObject):DObject =
     PathLensOps.maybeModifyOrDrop(v1.value, path, f).fold(v1)(v1.internalWrap)
 }
@@ -68,7 +68,7 @@ sealed trait PropertyLens[D <: DObject, T] {
   def _path:Path
   private[dsentric] def _codec: DCodec[T]
 
-  private[dsentric] def _strictGet(data:D):Option[Option[T]]
+  private[dsentric] def _strictGet(data:D):PathResult[T]
 
   def $set(value:T):PathSetter[D] =
     ValueSetter(_path, _codec(value).value)
@@ -78,6 +78,9 @@ sealed trait PropertyLens[D <: DObject, T] {
 }
 
 trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens[D, T] {
+
+  private[dsentric] def _strictness:Strictness =
+    IgnoreOnWrongType
 
   def $get(data:D):Option[T] =
     PathLensOps
@@ -91,43 +94,37 @@ trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeL
     ModifySetter(_path) { v =>
       _codec.unapply(v) match {
         case None =>
-          CantDecode
+          DCodeFailure
         case Some(t) =>
-          Found(_codec(f(t)).value)
+          DCodeSuccess(_codec(f(t)).value)
       }
     }
 
   def $copy(p:PropertyLens[D, T]):D => D =
     d => {
-      p._strictGet(d).flatten.fold(d){p =>
+      p._strictGet(d).fold(d){p =>
         $set(p)(d)
       }
     }
 
   def $maybeCopy(p:MaybeLens[D, T]):D => D =
     d => {
-      p._strictGet(d).flatten.fold(d){p =>
+      p._strictGet(d).fold(d){p =>
         $set(p)(d)
       }
     }
 
-  private[dsentric] def _strictDeltaGet(data:D):Option[Option[T]] =
-    PathLensOps
-      .traverse(data.value, _path) match {
-      case None =>
-        Some(None)
-      case Some(DNull) =>
-        None // Not allowed
-      case Some(v) =>
-        _codec.unapply(v).map(Some(_))
-    }
+
+  //both empty or wrong value are bad values
+  private[dsentric] def _strictGet(data:D):PathResult[T] =
+    _strictness(data.value, _path, _codec)
+
+  private[dsentric] def _strictDeltaGet(data:D):PathResult[T] =
+    _strictness(data.value, _path, _codec)
 
   def $forceDrop: PathSetter[D] =
     ValueDrop(_path)
 
-  //both empty or wrong value are bad values
-  private[dsentric] def _strictGet(data:D):Option[Option[T]] =
-    $get(data).map(v => Some(v))
 }
 
 trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens[D, Option[T]] {
@@ -155,19 +152,18 @@ trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens
   def $modify(f:Option[T] => T):PathSetter[D] =
     MaybeModifySetter(_path){
       case None =>
-        Some(_codec(f(None)).value)
+        DCodeSuccess(_codec(f(None)).value)
       case Some(v) =>
-        _strictness(v, _codec).map(mt => _codec(f(mt)).value)
+        //Empty gets mapped
+        _strictness(v, _codec).liftEmpty.map(mt => _codec(f(mt)).value)
     }
 
   def $modifyOrDrop(f:Option[T] => Option[T]):PathSetter[D] =
     ModifyOrDropSetter(_path){
-      {
-        case None =>
-          Some(f(None).map(_codec(_).value))
-        case Some(v) =>
-          _strictness(v, _codec).map(t => f(t).map(_codec(_).value))
-      }
+      case None =>
+        PathResult(f(None).map(_codec(_).value))
+      case Some(v) =>
+        _strictness(v, _codec).liftEmpty.flatMap(t => PathResult(f(t).map(_codec(_).value)))
     }
 
   def $drop: PathSetter[D] =
@@ -178,28 +174,26 @@ trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens
 
   def $copy(p:PropertyLens[D, T]):D => D =
     (d) => {
-      p._strictGet(d)
+      p._strictGet(d).liftEmpty
         .fold(d)(v => $setOrDrop(v)(d))
     }
 
   def $setNull: PathSetter[D] =
     ValueSetter(_path, DNull)
 
-  private[dsentric] def _strictGet(data:D):Option[Option[T]] =
-    _strictness(data.value, _path) match {
-      case None => Some(None)
-      case Some(v) => _strictness(v, _codec)
-    }
+  private[dsentric] def _strictGet(data:D):PathResult[T] =
+    _strictness(data.value, _path, _codec)
 
-  private[dsentric] def _strictDeltaGet(data:D):Option[Option[DeltaValue[T]]] =
+  private[dsentric] def _strictDeltaGet(data:D):PathResult[DeltaValue[T]] =
     PathLensOps
       .traverse(data.value, _path) match {
-      case None =>
-        Some(None)
-      case Some(DNull) =>
-        Some(Some(DeltaRemove))
-      case Some(v) => _strictness(v, _codec).map(_.map(DeltaSet(_)))
-    }
+        case None =>
+          Empty
+        case Some(DNull) =>
+          DCodeSuccess(DeltaRemove)
+        case Some(v) =>
+          _strictness(v, _codec).map(DeltaSet(_))
+      }
 
 }
 
@@ -209,14 +203,12 @@ trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLe
 
   private[dsentric] def _strictness:Strictness
 
-
   def $get(data:D):T =
     PathLensOps
       .traverse(data.value, _path)
       .fold(_default) { t =>
         _codec.unapply(t).getOrElse(_default)
       }
-
 
   def $deltaGet(data:D):DeltaDefaultValue[T] =
     PathLensOps
@@ -234,9 +226,9 @@ trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLe
   def $modify(f:T => T):PathSetter[D] =
     MaybeModifySetter(_path){
       case None =>
-        Some(_codec(f(None)).value)
+        DCodeSuccess(_codec(f(_default)).value)
       case Some(v) =>
-        _strictness(v, _codec).map(mt => _codec(f(mt.getOrElse(_default))).value)
+        _strictness(v, _codec).liftEmpty.map(mt => _codec(f(mt.getOrElse(_default))).value)
     }
 
 
@@ -246,34 +238,35 @@ trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLe
   def $copy(p:PropertyLens[D, T]):D => D =
     (d) => {
       p._strictGet(d)
+        .liftEmpty
         .fold(d)(v => $setOrRestore(v)(d))
     }
 
   def $maybeCopy(p:MaybeLens[D, T]):D => D =
     d => {
-      p._strictGet(d).flatten.fold(d){p =>
-        $set(p)(d)
-      }
+      p._strictGet(d)
+        .fold(d){p =>
+          $set(p)(d)
+        }
     }
 
   def $setNull: PathSetter[D] =
     ValueSetter(_path, DNull)
 
-  private[dsentric] def _strictGet(data:D):Option[Option[T]] =
-    PathLensOps
-      .traverse(data.value, _path) match {
-      case None => Some(Some(_default))
-      case Some(v) => _strictness(v, _codec).map(v2 => Some(v2.getOrElse(_default)))
-    }
+  private[dsentric] def _strictGet(data:D):CodecResult[T] =
+    _strictness(data.value, _path, _codec)
+    .liftEmpty
+    .map(_.getOrElse(_default))
 
-  private[dsentric] def _strictDeltaGet(data:D):Option[Option[DeltaDefaultValue[T]]] =
+  private[dsentric] def _strictDeltaGet(data:D):PathResult[DeltaDefaultValue[T]] =
     PathLensOps
       .traverse(data.value, _path) match {
       case None =>
-        Some(None)
+        Empty
       case Some(DNull) =>
-        Some(Some(DeltaDefaultReset(_default)))
-      case Some(v) => _strictness(v, _codec).map(_.map(DeltaDefaultSet(_)))
+        DCodeSuccess(DeltaDefaultReset(_default))
+      case Some(v) =>
+        _strictness(v, _codec).map(DeltaDefaultSet(_))
     }
 }
 

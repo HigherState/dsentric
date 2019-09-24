@@ -1,7 +1,7 @@
 package dsentric.operators
 
-import dsentric.{DCodec, DObject, Path, PathFailures, PathLensOps}
-import dsentric.contracts.{BaseContract, Property}
+import dsentric._
+import dsentric.contracts.BaseContract
 
 object Sanitization {
 
@@ -10,12 +10,12 @@ object Sanitization {
       case (v, (field, property)) =>
         property._dataOperators.collectFirst{ case s:Sanitizer[_] => s} match {
           case None =>
-            value
+            v
           case Some(s) =>
-            PathLensOps.maybeModifyOrDrop(value, contract._path, property, s.sanitize)
-            s.sanitize {
-              value.get(contract._path).flatMap(d => property._codec.unapply(d.value))
-            }
+            def f = (d:Option[Raw]) => PathResult(s.sanitize(d.map(dd => property._strictness.apply(dd, property._codec)).getOrElse(Empty)))
+            PathLensOps.maybeModifyOrDrop(v.value, contract._path, f)
+              .fold(v)(v.internalWrap(_).asInstanceOf[D])
+
         }
     }
   }

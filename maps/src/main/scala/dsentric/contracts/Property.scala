@@ -1,6 +1,6 @@
 package dsentric.contracts
 
-import dsentric.{DCodec, DObject, DProjection, Path, PathLensOps, PatternMatcher, Strictness}
+import dsentric._
 import dsentric.operators.DataOperator
 
 sealed trait Property[D <: DObject, T <: Any] {
@@ -12,6 +12,9 @@ sealed trait Property[D <: DObject, T <: Any] {
 
   private[contracts] def __nameOverride:Option[String]
   def _dataOperators:Seq[DataOperator[_]]
+
+  private[dsentric] def _strictness:Strictness
+  private[dsentric] def _strictGet(data:D):PathResult[T]
 
   def _codec: DCodec[T]
   def _parent: BaseContract[D]
@@ -56,10 +59,10 @@ class ExpectedProperty[D <: DObject, T] private[contracts]
   extends Property[D, T] with ExpectedLens[D, T] {
 
   val $delta:PatternMatcher[D, Option[T]] =
-    new PatternMatcher(_strictDeltaGet)
+    new PatternMatcher(_strictDeltaGet(_).toMatcher)
 
   def unapply(j: D): Option[T] =
-    _strictGet(j).flatten
+    _strictGet(j).toOption
 }
 
 class MaybeProperty[D <: DObject, T] private[contracts]
@@ -71,10 +74,10 @@ class MaybeProperty[D <: DObject, T] private[contracts]
   extends Property[D, T] with MaybeLens[D, T] {
 
   def unapply(j:D):Option[Option[T]] =
-    _strictGet(j)
+    _strictGet(j).toMatcher
 
   val $delta:PatternMatcher[D, Option[Option[T]]] =
-    new PatternMatcher(_strictDeltaGet(_).map(_.map(_.toOption)))
+    new PatternMatcher[D, Option[Option[T]]](d => _strictDeltaGet(d).map(_.toOption).toMatcher)
 }
 
 class DefaultProperty[D <: DObject, T] private[contracts]
@@ -87,13 +90,13 @@ class DefaultProperty[D <: DObject, T] private[contracts]
   extends Property[D, T] with DefaultLens[D, T] {
 
   def unapply(j:D):Option[T] =
-    _strictGet(j).flatten
+    _strictGet(j).toOption
 
   val $delta:PatternMatcher[D, Option[Option[T]]] =
-    new PatternMatcher(_strictDeltaGet(_).map(_.map(_.toOption)))
+    new PatternMatcher(_strictDeltaGet(_).map(_.toOption).toMatcher)
 
   val $deltaDefault:PatternMatcher[D, Option[T]] =
-    new PatternMatcher(_strictDeltaGet(_).map(_.map(_.getValue)))
+    new PatternMatcher(_strictDeltaGet(_).map(_.getValue).toMatcher)
 
 }
 
@@ -110,7 +113,7 @@ class ExpectedObjectsProperty[D <: DObject, T <: DObject](private[contracts] val
                                                             ) extends ObjectsProperty[D, T] with ExpectedLens[D, Vector[T]] {
 
   def unapply(j: D): Option[Vector[T]] =
-    _strictGet(j).flatten
+    _strictGet(j).toOption
 }
 
 class MaybeObjectsProperty[D <: DObject, T <: DObject](private[contracts] val __nameOverride:Option[String],
@@ -122,7 +125,7 @@ class MaybeObjectsProperty[D <: DObject, T <: DObject](private[contracts] val __
                                                          ) extends ObjectsProperty[D, T] with MaybeLens[D, Vector[T]] {
 
   def unapply(j:D):Option[Option[Vector[T]]] =
-    _strictGet(j)
+    _strictGet(j).toMatcher
 }
 
 class DefaultObjectsProperty[D <: DObject, T <: DObject](private[contracts] val __nameOverride:Option[String],
@@ -135,7 +138,7 @@ class DefaultObjectsProperty[D <: DObject, T <: DObject](private[contracts] val 
                                                            ) extends ObjectsProperty[D, T] with DefaultLens[D, Vector[T]] {
 
   def unapply(j:D):Option[Vector[T]] =
-    _strictGet(j).flatten
+    _strictGet(j).toOption
 
 }
 
@@ -154,7 +157,7 @@ class ExpectedMapObjectsProperty[K, D <: DObject, T <: DObject](private[contract
                                                          ) extends MapObjectsProperty[K, D, T] with ExpectedLens[D, Map[K, T]] {
 
   def unapply(j: D): Option[Map[K, T]] =
-    _strictGet(j).flatten
+    _strictGet(j).toOption
 }
 
 class MaybeMapObjectsProperty[K, D <: DObject, T <: DObject](private[contracts] val __nameOverride:Option[String],
@@ -167,7 +170,7 @@ class MaybeMapObjectsProperty[K, D <: DObject, T <: DObject](private[contracts] 
                                                       ) extends MapObjectsProperty[K, D, T] with MaybeLens[D, Map[K, T]] {
 
   def unapply(j:D):Option[Option[Map[K, T]]] =
-    _strictGet(j)
+    _strictGet(j).toMatcher
 }
 
 class DefaultMapObjectsProperty[K, D <: DObject, T <: DObject](private[contracts] val __nameOverride:Option[String],
@@ -181,20 +184,23 @@ class DefaultMapObjectsProperty[K, D <: DObject, T <: DObject](private[contracts
                                                         ) extends MapObjectsProperty[K, D, T] with DefaultLens[D, Map[K, T]] {
 
   def unapply(j:D):Option[Map[K, T]] =
-    _strictGet(j).flatten
+    _strictGet(j).toOption
 
 }
-
-
-
-private[dsentric] class NothingProperty[T](implicit val _codec:DCodec[T]) extends Property[Nothing, T] {
-
-  private[contracts] def __nameOverride: Option[String] =
-    None
-
-  def _dataOperators: Seq[DataOperator[_]] =
-    Seq.empty
-
-  def _parent: BaseContract[Nothing] =
-    NothingBaseContract
-}
+//
+//private[dsentric] class NothingProperty[T](implicit val _codec:DCodec[T]) extends Property[Nothing, T] {
+//
+//  private[dsentric] def _strictness:Strictness =
+//    IgnoreOnWrongType
+//
+//  private[dsentric] def _strictGet(data: Nothing): PathResult[T] = Empty
+//
+//  private[contracts] def __nameOverride: Option[String] =
+//    None
+//
+//  def _dataOperators: Seq[DataOperator[_]] =
+//    Seq.empty
+//
+//  def _parent: BaseContract[Nothing] =
+//    NothingBaseContract
+//}
