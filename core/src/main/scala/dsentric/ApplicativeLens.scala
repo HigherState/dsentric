@@ -108,11 +108,12 @@ object ApplicativeLens {
 
   type E[Data, P] = ApplicativeLens[Data, P]
 
-  implicit def evaluatorHNil[Data]:Aux[Data, HNil, HNil] = new Evaluator[Data, HNil] {
-    type OutP = HNil
+  implicit def evaluatorHNil[Data]:Aux[Data, HNil, HNil] =
+    new Evaluator[Data, HNil] {
+      type OutP = HNil
 
-    def patternMatch(data:Data, lp:HNil) = Some(HNil)
-  }
+      def patternMatch(data:Data, lp:HNil) = Some(HNil)
+    }
 
   implicit def evalHCons[Data, P, L <: HList](implicit evalT: Evaluator[Data, L]): Aux[Data, E[Data, P] :: L, P :: evalT.OutP] =
     new Evaluator[Data, E[Data, P] :: L] {
