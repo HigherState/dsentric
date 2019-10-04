@@ -27,7 +27,7 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct { self 
             m.invoke(this) match {
               case prop: Property[D, Any]@unchecked =>
                 Some(m.getName -> prop)
-              case result =>
+              case _ =>
                 None
             }
           }
@@ -317,7 +317,7 @@ sealed trait Property[D <: DObject, T <: Any] extends Struct {
       __localPath =
         Path(_nameOverride.getOrElse {
           _parent._fields.find(p => p._2 == this).getOrElse{
-            throw UninitializedFieldError(s"Unable to initialize property field from fields: ${_parent._fields.map(_._1).mkString(",")}")
+            throw UninitializedFieldError(s"Unable to initialize property field from fields: ${_parent._fields.map(_._1).mkString(",")}. Ensure any defined composite lens in the contract are lazy")
           }._1
         })
       __path = _parent._path ++ __localPath
