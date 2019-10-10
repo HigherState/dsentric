@@ -103,12 +103,16 @@ trait Query {
 }
 
 object Query extends Query {
-  private[dsentric] def apply(value:Option[Any], query:Map[String, Any]):Boolean = {
+
+  val dNull = new DNull
+
+
+  private[dsentric] def apply(value:Option[Any], query:Map[String, Any], notFoundAsNull:Boolean):Boolean = {
     query.forall {
       case ("$and", values:Vector[Any]@unchecked) =>
-        values.collect{ case m:Map[String, Any]@unchecked => m}.forall(apply(value, _))
+        values.collect{ case m:Map[String, Any]@unchecked => m}.forall(apply(value, _, notFoundAsNull))
       case ("$or", values:Vector[Any]@unchecked) =>
-        values.collect{ case m:Map[String, Any]@unchecked => m}.exists(apply(value, _))
+        values.collect{ case m:Map[String, Any]@unchecked => m}.exists(apply(value, _, notFoundAsNull))
       case ("$eq", v) =>
         value.contains(v)
       case ("$ne", v) =>
@@ -140,67 +144,81 @@ object Query extends Query {
       case ("$exists", v:Boolean) =>
         value.isDefined == v
       case ("$not", v:Map[String, Any]@unchecked) =>
-        !apply(value, v)
+        !apply(value, v, notFoundAsNull)
       case ("$elemMatch", v:Map[String, Any]@unchecked) =>
-        value.collect { case seq:Vector[Any]@unchecked => seq.exists(s => apply(Some(s), v)) }.getOrElse(false)
+        value.collect { case seq:Vector[Any]@unchecked => seq.exists(s => apply(Some(s), v, notFoundAsNull)) }.getOrElse(false)
       case ("$elemMatch", v) =>
         value.collect { case seq:Vector[Any]@unchecked => seq.contains(v) }.getOrElse(false)
       case (key, v:Map[String, Any]@unchecked) =>
-        apply(value.collect{ case m:Map[String, Any]@unchecked => m}.flatMap(_.get(key)), v)
-      case (key, v) =>
+        val maybeValue = value.collect{ case m:Map[String, Any]@unchecked => m}.flatMap(_.get(key))
+        if (notFoundAsNull)
+          apply(maybeValue.orElse(Some(dNull)), v, notFoundAsNull)
+        else
+          apply(maybeValue, v, notFoundAsNull)
+      case (key, v) if notFoundAsNull =>
+        value.collect{
+          case m:Map[String, Any]@unchecked =>
+            m.get(key).orElse(Some(dNull)).contains(v)
+          case d if d == dNull =>
+            v == d
+        }.getOrElse(false)
+      case (key, v)  =>
         value.collect{ case m:Map[String, Any]@unchecked => m}.fold(false) { l =>
           l.get(key).contains(v)
         }
     }
   }
 
-  private[dsentric] def apply(value:Any, query:Tree):Boolean = {
+  private[dsentric] def apply(value:Any, query:Tree, valueNotFoundAsNull:Boolean):Boolean = {
     import Dsentric._
     query match {
       case &(trees) =>
-        trees.forall(t => this(value, t))
+        trees.forall(t => this(value, t, valueNotFoundAsNull))
       case |(trees) =>
-        trees.exists(t => this(value, t))
+        trees.exists(t => this(value, t, valueNotFoundAsNull))
       case !!(tree) =>
-        !this(value, tree)
+        !this(value, tree, valueNotFoundAsNull)
       case ?(path, "$eq", v) =>
-        search(value -> path).exists(x => order(x -> v).contains(0))
+        search(valueNotFoundAsNull)(value -> path).exists(x => order(x -> v).contains(0))
       case ?(path, "$ne", v) =>
-        !search(value -> path).exists(x => order(x -> v).contains(0))
+        !search(valueNotFoundAsNull)(value -> path).exists(x => order(x -> v).contains(0))
       case /(path, regex) =>
-        search(value -> path).collect{case s:String => s}.exists(s => regex.pattern.matcher(s).matches)
+        search(valueNotFoundAsNull)(value -> path).collect{case s:String => s}.exists(s => regex.pattern.matcher(s).matches)
       case In(path, values) =>
         values.forall{ kv =>
-          search(value -> (path \ kv._1)).exists(x => order(x -> kv._2).contains(0))
+          search(valueNotFoundAsNull)(value -> (path \ kv._1)).exists(x => order(x -> kv._2).contains(0))
         }
       case %(path, _, regex) =>
-        search(value -> path).collect{case s:String => s}.exists(s => regex.pattern.matcher(s).matches)
+        search(valueNotFoundAsNull)(value -> path).collect{case s:String => s}.exists(s => regex.pattern.matcher(s).matches)
       case ?(path, "$lt", v) =>
-        search(value -> path).exists(x => order(x -> v).contains(-1))
+        search(valueNotFoundAsNull)(value -> path).exists(x => order(x -> v).contains(-1))
       case ?(path, "$gt", v) =>
-        search(value -> path).exists(x => order(x -> v).contains(1))
+        search(valueNotFoundAsNull)(value -> path).exists(x => order(x -> v).contains(1))
       case ?(path, "$lte", v) =>
-        search(value -> path).exists(x => order(x -> v).exists(r => r <= 0))
+        search(valueNotFoundAsNull)(value -> path).exists(x => order(x -> v).exists(r => r <= 0))
       case ?(path, "$gte", v) =>
-        search(value -> path).exists(x => order(x -> v).exists(r => r >= 0))
+        search(valueNotFoundAsNull)(value -> path).exists(x => order(x -> v).exists(r => r >= 0))
       case ?(path, "$in", values:Vector[Any]@unchecked) =>
-        search(value -> path).exists(j => values.contains(j))
+        search(valueNotFoundAsNull)(value -> path).exists(j => values.contains(j))
       case ?(path, "$nin", values:Vector[Any]@unchecked) =>
-        !search(value -> path).exists(j => values.contains(j))
+        !search(valueNotFoundAsNull)(value -> path).exists(j => values.contains(j))
       case ?(path, "$exists", v:Boolean) =>
-        search(value -> path).nonEmpty == v
+        search(valueNotFoundAsNull)(value -> path).nonEmpty == v
       case Exists(path, subQuery) =>
-        search(value -> path).collect { case v:Vector[Any] => v.exists(s => apply(s, subQuery)) }.getOrElse(false)
+        search(valueNotFoundAsNull)(value -> path).collect { case v:Vector[Any] => v.exists(s => apply(s, subQuery, valueNotFoundAsNull)) }.getOrElse(false)
       case _ =>
         false
     }
   }
 
-  private def search:Function[(Any, Path), Option[Any]] = {
+  private def search(valueNotFoundAsNull:Boolean):Function[(Any, Path), Option[Any]] = {
     case (v, Nil) =>
       Some(v)
     case (v:Map[String, Any]@unchecked, p@(_ :: _)) =>
-      PathLensOps.traverse(v, p)
+      if (valueNotFoundAsNull)
+        PathLensOps.traverse(v, p).orElse(Some(dNull))
+      else
+        PathLensOps.traverse(v, p)
     case _ => None
   }
 
