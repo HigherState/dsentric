@@ -220,8 +220,8 @@ final class DQuery private[dsentric](val value:Map[String, Any]) extends AnyVal 
 
   protected def wrap(value: Map[String, Any]) = new DQuery(value)
 
-  def isMatch(j:DObject):Boolean =
-    Query(Some(j.value), value)
+  def isMatch(j:DObject, valueNotFoundAsNull:Boolean = false):Boolean =
+    Query(Some(j.value), value, valueNotFoundAsNull)
 
   def &&(d:DQuery):DQuery =
     (value.get("$and"), d.value.get("$and")) match {
