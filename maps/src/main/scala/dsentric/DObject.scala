@@ -222,8 +222,8 @@ final class DQuery private[dsentric](val value:RawObject) extends AnyVal with DO
 
   protected def wrap(value: RawObject) = new DQuery(value)
 
-  def isMatch(j:DObject):Boolean =
-    Query(Some(j.value), value)
+  def isMatch(j:DObject, valueNotFoundAsNull:Boolean = false):Boolean =
+    Query(Some(j.value), value, valueNotFoundAsNull)
 
   def &&(d:DQuery):DQuery =
     (value.get("$and"), d.value.get("$and")) match {

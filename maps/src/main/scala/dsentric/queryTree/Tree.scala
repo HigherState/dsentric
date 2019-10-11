@@ -5,8 +5,10 @@ import dsentric.{DObject, Path, Query}
 import scala.util.matching.Regex
 
 sealed trait Tree {
-  def isMatch(j:DObject):Boolean =
-    Query.apply(j.value, this)
+
+  def isMatch(j:DObject, valueNotFoundAsNull:Boolean = false):Boolean =
+    Query.apply(j.value, this, valueNotFoundAsNull)
+
 
   def partition(paths:Set[Path]): (Option[Tree], Option[Tree]) =
     QueryTree.partition(this, paths)

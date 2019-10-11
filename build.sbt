@@ -35,22 +35,11 @@ lazy val commons_math = "org.apache.commons" % "commons-math3" % "3.6.1"
 
 lazy val settings = buildSettings
 
-//lazy val dsentric = project.in(file("."))
-//  .settings(moduleName := "dsentric")
-//  .settings(settings)
-//  .aggregate(core, monocle)
-//  .dependsOn(core)
-
 lazy val core = project
   .settings(moduleName := "dsentric-core")
   .settings(settings)
   .settings(libraryDependencies ++= Seq(reflect, shapeless, scalatest, commons_math))
 
-//lazy val monocle = project
-//  .settings(moduleName := "dsentric-monocle")
-//  .settings(settings)
-//  .settings(libraryDependencies := Seq(reflect, scalaz, shapeless, monoclecore, scalatest))
-//  .dependsOn(core)
 
 lazy val maps = project
   .settings(moduleName := "dsentric-maps")
@@ -63,9 +52,3 @@ lazy val graphql = project
   .settings(settings)
   .settings(libraryDependencies ++= Seq(reflect, shapeless, scalatest, commons_math))
   .dependsOn(core, maps, core % "test -> test")
-
-//lazy val argonaut = project
-//  .settings(moduleName := "dsentric-argonaut")
-//  .settings(settings)
-//  .settings(libraryDependencies := Seq(scalatest, argo))
-//  .dependsOn(monocle)

@@ -177,5 +177,3 @@ object QueryTree {
     }
   }
 }
-
-
