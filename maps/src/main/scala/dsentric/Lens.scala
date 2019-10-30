@@ -1,7 +1,5 @@
 package dsentric
 
-
-
 sealed trait PathSetter[D <: DObject] extends Function[D, D] {
   def ~(pathSetter:PathSetter[D]):PathSetter[D] =
     CompositeSetter(this, pathSetter)
@@ -9,47 +7,48 @@ sealed trait PathSetter[D <: DObject] extends Function[D, D] {
   def apply(v1: D): D =
     set(v1).asInstanceOf[D]
 
-  private[dsentric] def set(v1:DObject):DObject
+  def set:DObject => DObject
 }
 
 private case class ValueSetter[T, D <: DObject](path:Path, value:Any) extends PathSetter[D] {
 
-  def set(v1:DObject):DObject =
-    v1.internalWrap(PathLensOps.set(v1.value, path, value))
+  def set:DObject => DObject =
+    v1 => v1.internalWrap(PathLensOps.set(v1.value, path, value))
+
 }
 
 private case class MaybeValueSetter[T, D <: DObject](path:Path, value:Option[Any]) extends PathSetter[D] {
 
-  def set(v1:DObject):DObject =
-    value.fold(v1)(v => v1.internalWrap(PathLensOps.set(v1.value, path, v)))
+  def set:DObject => DObject =
+    v1 => value.fold(v1)(v => v1.internalWrap(PathLensOps.set(v1.value, path, v)))
 }
 
 private case class ValueDrop[D <: DObject](path:Path) extends PathSetter[D] {
 
-  def set(v1:DObject):DObject =
-    PathLensOps.drop(v1.value, path).fold(v1)(v1.internalWrap)
+  def set:DObject => DObject =
+    v1 => PathLensOps.drop(v1.value, path).fold(v1)(v1.internalWrap)
 }
 
 private case class CompositeSetter[D <: DObject](leftSetter:PathSetter[D], rightSetter:PathSetter[D]) extends PathSetter[D] {
 
-  def set(v1:DObject):DObject =
-    rightSetter.set(leftSetter.set(v1))
+  def set:DObject => DObject =
+    v1 => rightSetter.set(leftSetter.set(v1))
 }
 
 private case class ModifySetter[T, D <: DObject](path:Path, f:T => T, codec:DCodec[T]) extends PathSetter[D] {
 
-  def set(v1:DObject):DObject =
-    PathLensOps.modify(v1.value, path, codec, f).fold(v1)(v1.internalWrap)
+  def set:DObject => DObject=
+    v1 => PathLensOps.modify(v1.value, path, codec, f).fold(v1)(v1.internalWrap)
 }
 
 private case class MaybeModifySetter[T, D <: DObject](path:Path, f:Option[T] => T, codec:DCodec[T], strictness:Strictness) extends PathSetter[D] {
-  def set(v1:DObject):DObject =
-    PathLensOps.maybeModify(v1.value, path, codec, strictness, f).fold(v1)(v1.internalWrap)
+  def set:DObject => DObject=
+    v1 => PathLensOps.maybeModify(v1.value, path, codec, strictness, f).fold(v1)(v1.internalWrap)
 }
 
 private case class ModifyOrDropSetter[T, D <: DObject](path:Path, f:Option[T] => Option[T], codec:DCodec[T], strictness:Strictness) extends PathSetter[D] {
-  def set(v1:DObject):DObject =
-    PathLensOps.maybeModifyOrDrop(v1.value, path, codec, strictness, f).fold(v1)(v1.internalWrap)
+  def set:DObject => DObject =
+    v1 => PathLensOps.maybeModifyOrDrop(v1.value, path, codec, strictness, f).fold(v1)(v1.internalWrap)
 }
 
 
