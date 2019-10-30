@@ -25,6 +25,9 @@ trait ContractFor[D <: DObject]
   def $modify(d:D)(f:this.type => D => D):D =
     f(this)(d)
 
+  def $delta(f:this.type => PathSetter[D]):DObject =
+    f(this).set(DObject.empty)
+
   override protected def __self: BaseContract[D] = this
 }
 
