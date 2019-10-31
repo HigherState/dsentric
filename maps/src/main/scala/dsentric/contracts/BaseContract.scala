@@ -1,8 +1,13 @@
 package dsentric.contracts
 
-import dsentric.{DCodec, DObject, DProjection, Path, Strictness}
+import dsentric.failure.{IgnoreOnIncorrectTypeBehaviour, IncorrectTypeBehaviour}
+import dsentric.{DCodec, DObject, DProjection, Path}
 
-private[dsentric] trait BaseContract[D <: DObject] {
+private[dsentric] trait WithIncorrectTypeBehaviour {
+  private[dsentric] def _incorrectTypeBehaviour:IncorrectTypeBehaviour
+}
+
+private[dsentric] trait BaseContract[D <: DObject] extends WithIncorrectTypeBehaviour {
 
   private var __fields:Map[String, Property[D, Any]] = _
   @volatile
@@ -34,8 +39,8 @@ private[dsentric] trait BaseContract[D <: DObject] {
   def _keys:Set[String] =
     _fields.keySet
 
-  def $dynamic[T](field:String)(implicit codec:DCodec[T], strictness:Strictness):MaybeProperty[D, T] =
-    new MaybeProperty[D, T](Some(field), this, codec, strictness, Seq.empty)
+  def $dynamic[T](field:String)(implicit codec:DCodec[T]):MaybeProperty[D, T] =
+    new MaybeProperty[D, T](Some(field), this, codec, Seq.empty)
 
   def $$(projection:DProjection):DProjection =
     projection.nest(this._path)
@@ -46,9 +51,15 @@ private[dsentric] trait BaseContract[D <: DObject] {
 
 private[dsentric] object EmptyBaseContract extends BaseContract[DObject] {
   def _path: Path = Path.empty
+
+  def _incorrectTypeBehaviour:IncorrectTypeBehaviour =
+    IgnoreOnIncorrectTypeBehaviour
 }
 
 private[dsentric] object NothingBaseContract extends BaseContract[Nothing] {
   def _path: Path = Path.empty
+
+  def _incorrectTypeBehaviour:IncorrectTypeBehaviour =
+    IgnoreOnIncorrectTypeBehaviour
 }
 

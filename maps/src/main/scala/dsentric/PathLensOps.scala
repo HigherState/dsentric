@@ -33,63 +33,6 @@ object PathLensOps {
         map
     }
 
-  /*
-  Returns None if no change
-   */
-  private[dsentric] def modify[T](map:RawObject, path:Path, f:Raw => CodecResult[Raw]):Option[RawObject] =
-    path match {
-      case PathKey(head, PathEnd) =>
-        for {
-          v <- map.get(head)
-          a = f(v)
-          r <- a match {
-            case DCodeFailure =>
-              None
-            case DCodeSuccess(t) if t == v =>
-              None
-            case DCodeSuccess(t) =>
-              Some(t)
-          }
-        } yield map + (head -> r)
-
-      case PathKey(head, tail@PathKey(_, _)) =>
-         map
-           .get(head)
-           .collect{case m:RawObject@unchecked => m}
-           .flatMap(modify(_, tail, f))
-           .map(t => map + (head -> t))
-
-      case _ =>
-        None
-    }
-
-  //Can create nested objects
-  //f result is None if codec failed to match
-  private[dsentric] def maybeModify[T](map:RawObject, path:Path, f:Option[Raw] => CodecResult[Raw]):Option[RawObject] =
-    path match {
-      case PathKey(head, PathEnd) =>
-        val v = map.get(head)
-        f(v) match {
-          case DCodeFailure =>
-            None
-          case DCodeSuccess(t) if v.contains(t) =>
-            None
-          case DCodeSuccess(t) =>
-            Some(map + (head -> t))
-        }
-
-      case PathKey(head, tail@PathKey(_, _)) =>
-        val child =
-          map
-            .get(head)
-            .collect{case m:RawObject@unchecked => m}.getOrElse(RawObject.empty)
-
-        maybeModify(child, tail, f)
-          .map(v => map + (head -> v))
-      case _ =>
-        None
-    }
-
   //returns none if no change
   private[dsentric] def drop(map:RawObject, path:Path):Option[RawObject] =
     path match {
@@ -111,39 +54,6 @@ object PathLensOps {
                 }
             case _ =>
               None
-          }
-      case _ =>
-        None
-    }
-
-  //f is None if codec failed to match, next None is to drop
-  private[dsentric] def maybeModifyOrDrop[T](map:RawObject, path:Path, f:Option[Raw] => PathResult[Raw]):Option[RawObject] =
-    path match {
-      case PathKey(head, PathEnd) =>
-        val v = map.get(head)
-        f(v) match {
-          case Empty =>
-            v.map(_ => map - head) //if v is empty then there is no change
-          case DCodeFailure => // failed to decode
-            None
-          case DCodeSuccess(t) if v.contains(t) => // value is the same
-            None
-          case DCodeSuccess(t) =>
-            Some(map + (head -> t))
-        }
-
-      case PathKey(head, tail@PathKey(_, _)) =>
-        val child =
-          map
-            .get(head)
-            .collect{case m:RawObject@unchecked => m}.getOrElse(RawObject.empty)
-
-        maybeModifyOrDrop(child, tail, f)
-          .map{
-            case m if m.isEmpty =>
-              map - head
-            case m =>
-              map + (head -> m)
           }
       case _ =>
         None

@@ -1,6 +1,6 @@
 package dsentric.operators
 
-import dsentric.{DCodec, Data, Empty, Path, PathFailures, Raw, PathResult}
+import dsentric.{DCodec, Data, Empty, Path, PathFailures, Raw, ValidResult}
 
 trait ValidatorSanitizers {
 
@@ -11,7 +11,7 @@ trait ValidatorSanitizers {
       def apply(path:Path, value:Option[Raw], currentState:Option[Raw]): PathFailures =
         value.fold(PathFailures.empty)(_ => PathFailures(path -> "Value is reserved and cannot be provided."))
 
-      def sanitize[S >: Nothing]: Function[PathResult[S], Option[Data]] = {
+      def sanitize[S >: Nothing]: Function[ValidResult[S], Option[Data]] = {
         _ => None
       }
     }
@@ -19,7 +19,7 @@ trait ValidatorSanitizers {
   def mask[T](mask:T)(implicit D:DCodec[T]):RawValidator[Option[Nothing]] with Sanitizer[Nothing] =
     new RawValidator[Option[Nothing]] with Sanitizer[Nothing] {
       private val dataMask = D(mask)
-      def sanitize[S >: Nothing]: PathResult[S] => Option[Data] = {
+      def sanitize[S >: Nothing]: ValidResult[S] => Option[Data] = {
         case Empty =>
           None
         case _ =>
@@ -37,7 +37,7 @@ trait ValidatorSanitizers {
     new RawValidator[Option[Nothing]] with Sanitizer[Nothing] {
       private val dataMask = D(mask)
 
-      def sanitize[S >: Nothing]: PathResult[S] => Option[Data] = {
+      def sanitize[S >: Nothing]: ValidResult[S] => Option[Data] = {
         _ => Some(dataMask)
       }
 

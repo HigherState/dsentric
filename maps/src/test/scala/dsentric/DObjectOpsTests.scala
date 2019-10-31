@@ -6,7 +6,6 @@ import org.scalatest.{FunSuite, Matchers}
 class DObjectOpsTests extends FunSuite with Matchers {
 
   import PessimisticCodecs._
-  implicit def strictness = IgnoreOnWrongType
   import Dsentric._
 
 

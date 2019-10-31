@@ -5,7 +5,6 @@ import org.scalatest.{FunSuite, Matchers}
 
 class ContractValidationTests extends FunSuite with Matchers with FailureMatchers {
 
-  implicit def strictness = IgnoreOnWrongType
   import Dsentric._
   import PessimisticCodecs._
 
@@ -36,7 +35,6 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
   }
 
   object MaybeField extends Contract {
-    implicit def strictness = IgnoreOnWrongType
     val mayNonEmpty = \?[String](Validators.nonEmptyOrWhiteSpace)
 
   }
@@ -49,7 +47,6 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
   }
 
   object DefaultField extends Contract {
-    implicit def strictness = IgnoreOnWrongType
     val inDefault = \![String]("default", Validators.in("default", "one", "two"))
   }
 
@@ -86,7 +83,6 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
   }
 
   test("Nested validation") {
-    implicit def strictness = IgnoreOnWrongType
     object NestValid extends Contract {
       val value1 = \[String]
       val nest1 = new \\ {

@@ -1,6 +1,6 @@
 package dsentric.contracts
 
-import dsentric.{DCodec, DObject, Strictness}
+import dsentric.{DCodec, DObject}
 import dsentric.operators.{DataOperator, Validators}
 
 trait PropertyObjectOps[D <: DObject]  {
@@ -22,29 +22,27 @@ trait PropertyObjectOps[D <: DObject]  {
 
   class \\? private(override private[contracts] val __nameOverride:Option[String],
                     override val _codec:DCodec[DObject],
-                    override val _strictness:Strictness,
                     override val _dataOperators:Seq[DataOperator[Option[DObject]]]
-                   ) extends MaybeProperty[D, DObject](__nameOverride, __self, _codec, _strictness, _dataOperators) with SubContractFor[D] {
+                   ) extends MaybeProperty[D, DObject](__nameOverride, __self, _codec, _dataOperators) with SubContractFor[D] {
 
-    def this(dataOperators: DataOperator[Option[DObject]]*)(implicit strictness:Strictness, codec:DCodec[DObject]) =
-      this(None, codec, strictness, dataOperators)
-    def this(name:String, dataOperators: DataOperator[Option[DObject]]*)(implicit strictness:Strictness, codec:DCodec[DObject]) =
-      this(Some(name), codec, strictness, dataOperators)
+    def this(dataOperators: DataOperator[Option[DObject]]*)(implicit codec:DCodec[DObject]) =
+      this(None, codec, dataOperators)
+    def this(name:String, dataOperators: DataOperator[Option[DObject]]*)(implicit codec:DCodec[DObject]) =
+      this(Some(name), codec, dataOperators)
 
   }
 
   class \\! private(override private[contracts] val __nameOverride:Option[String],
                     override val _default:DObject,
                     override val _codec:DCodec[DObject],
-                    override val _strictness:Strictness,
                     override val _dataOperators:Seq[DataOperator[Option[DObject]]]
-                   ) extends DefaultProperty[D, DObject](__nameOverride, _default, __self, _codec, _strictness, _dataOperators) with SubContractFor[D] {
+                   ) extends DefaultProperty[D, DObject](__nameOverride, _default, __self, _codec, _dataOperators) with SubContractFor[D] {
 
 
-    def this(default:DObject, dataOperators: DataOperator[Option[DObject]]*)(implicit strictness:Strictness, codec:DCodec[DObject]) =
-      this(None, default, codec, strictness, dataOperators)
-    def this(default:DObject, name:String, dataOperators: DataOperator[Option[DObject]]*)(implicit strictness:Strictness, codec:DCodec[DObject]) =
-      this(Some(name), default, codec, strictness, dataOperators)
+    def this(default:DObject, dataOperators: DataOperator[Option[DObject]]*)(implicit codec:DCodec[DObject]) =
+      this(None, default, codec, dataOperators)
+    def this(default:DObject, name:String, dataOperators: DataOperator[Option[DObject]]*)(implicit codec:DCodec[DObject]) =
+      this(Some(name), default, codec, dataOperators)
 
   }
 }

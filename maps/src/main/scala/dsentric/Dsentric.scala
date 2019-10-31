@@ -4,8 +4,6 @@ import dsentric.contracts.PropertyOps
 
 object Dsentric extends DataMatchers with AndMatcher with PropertyOps[DObject] with ToExtensionOps {
 
-  implicit def strictness:Strictness = EmptyOnWrongType
-
   type Contract = contracts.Contract
   type SubContract = contracts.SubContract
 
