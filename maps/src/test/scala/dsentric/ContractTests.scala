@@ -251,31 +251,31 @@ class ContractTests extends FunSuite with Matchers {
   }
 
 
-  test("Delta maybe matching") {
-    object Element extends Contract {
-      val value = \?[Int]
-    }
-    DObject.empty match {
-      case Element.value.$delta(d) =>
-        d shouldBe None
-      case _ =>
-        assert(true)
-    }
-
-    DObject("value" -> DNull) match {
-      case Element.value.$delta(d) =>
-        d shouldBe Some(None)
-      case _ =>
-        assert(false)
-    }
-
-    DObject("value" := 4) match {
-      case Element.value.$delta(d) =>
-        d shouldBe Some(Some(4))
-      case _ =>
-        assert(false)
-    }
-  }
+//  test("Delta maybe matching") {
+//    object Element extends Contract {
+//      val value = \?[Int]
+//    }
+//    DObject.empty match {
+//      case Element.value.$delta(d) =>
+//        d shouldBe None
+//      case _ =>
+//        assert(true)
+//    }
+//
+//    DObject("value" -> DNull) match {
+//      case Element.value.$delta(d) =>
+//        d shouldBe Some(None)
+//      case _ =>
+//        assert(false)
+//    }
+//
+//    DObject("value" := 4) match {
+//      case Element.value.$delta(d) =>
+//        d shouldBe Some(Some(4))
+//      case _ =>
+//        assert(false)
+//    }
+//  }
 
   test("Delta default matching") {
     object Element extends Contract {
@@ -302,26 +302,26 @@ class ContractTests extends FunSuite with Matchers {
         assert(false)
     }
 
-    DObject.empty match {
-      case Element.value.$deltaDefault(d) =>
-        d shouldBe None
-      case _ =>
-        assert(true)
-    }
-
-    DObject("value" -> DNull) match {
-      case Element.value.$deltaDefault(d) =>
-        d shouldBe Some(34)
-      case _ =>
-        assert(false)
-    }
-
-    DObject("value" := 4) match {
-      case Element.value.$deltaDefault(d) =>
-        d shouldBe Some(4)
-      case _ =>
-        assert(false)
-    }
+//    DObject.empty match {
+//      case Element.value.$deltaDefault(d) =>
+//        d shouldBe None
+//      case _ =>
+//        assert(true)
+//    }
+//
+//    DObject("value" -> DNull) match {
+//      case Element.value.$deltaDefault(d) =>
+//        d shouldBe Some(34)
+//      case _ =>
+//        assert(false)
+//    }
+//
+//    DObject("value" := 4) match {
+//      case Element.value.$deltaDefault(d) =>
+//        d shouldBe Some(4)
+//      case _ =>
+//        assert(false)
+//    }
   }
 
   test("Delta expected matching") {

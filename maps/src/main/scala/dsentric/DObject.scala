@@ -1,6 +1,8 @@
 package dsentric
 
 import cats.data._
+import dsentric.contracts.{PathSetter, ValidPathSetter}
+import dsentric.failure.ValidResult
 
 import scala.collection.{Iterable, IterableLike, mutable}
 
@@ -164,6 +166,11 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
   def intersects(obj:DObject):Boolean =
     DObjectOps.intersects(value, obj.value, false)
 
+  def modify[D >: This <: DObject](f:PathSetter[D]):This =
+    internalWrap(f(this.asInstanceOf[D]).value)
+
+  def modify[D >: This <: DObject](f:ValidPathSetter[D]):ValidResult[This] =
+    f(this.asInstanceOf[D]).map(d => internalWrap(d.asInstanceOf[DObject].value))
   /*
   Value on the left hand side is the selection by the projection, the value on the right has the values exluded
    */
@@ -214,8 +221,6 @@ final class DObjectInst private[dsentric](val value:RawObject) extends AnyVal wi
   @inline
   protected def wrap(value: RawObject):DObject =
     new DObjectInst(value)
-
-
 }
 
 final class DQuery private[dsentric](val value:RawObject) extends AnyVal with DObject with DObjectLike[DQuery]{

@@ -1,5 +1,6 @@
 package dsentric.operators
 
+import dsentric.failure.ValidResult
 import dsentric.{Data, Path, PathFailures, Raw}
 import dsentric.schema.{ObjectDefinition, TypeDefinition}
 

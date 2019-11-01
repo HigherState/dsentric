@@ -1,6 +1,7 @@
 package dsentric.operators
 
-import dsentric.{DCodec, Data, Empty, Path, PathFailures, Raw, ValidResult}
+import dsentric.failure.ValidResult
+import dsentric.{DCodec, Data, Path, PathFailures, Raw}
 
 trait ValidatorSanitizers {
 
@@ -20,7 +21,7 @@ trait ValidatorSanitizers {
     new RawValidator[Option[Nothing]] with Sanitizer[Nothing] {
       private val dataMask = D(mask)
       def sanitize[S >: Nothing]: ValidResult[S] => Option[Data] = {
-        case Empty =>
+        case Left(_) =>
           None
         case _ =>
           Some(dataMask)

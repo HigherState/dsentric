@@ -40,17 +40,6 @@ object EmptyOnIncorrectTypeBehaviour extends IncorrectTypeBehaviour {
 }
 
 /*
-  An incorrect type will fail to return a match but copy or modify operations will be ignored
- */
-object IgnoreOnIncorrectTypeBehaviour extends IncorrectTypeBehaviour {
-  def apply[T](value:Raw, path:Path, codec:DCodec[T]):ValidResult[Option[T]] =
-    codec.unapply(value).fold(ValidResult.failure[Option[T]](IncorrectTypeFailure(path, codec)))(t => ValidResult.success(Some(t)))
-
-  def matcher[T](value:Raw, path:Path, codec:DCodec[T]):Option[Option[T]] =
-    codec.unapply(value).fold(Option.empty[Option[T]])(t => Some(Some(t)))
-}
-
-/*
   An incorrect type will fail to return a match and copy or modify operations will fail
  */
 object FailOnIncorrectTypeBehaviour extends IncorrectTypeBehaviour {

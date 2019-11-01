@@ -2,7 +2,7 @@ package dsentric.contracts
 
 import dsentric.operators.DataOperationOps
 import dsentric._
-import dsentric.failure.{EmptyOnIncorrectTypeBehaviour, FailOnIncorrectTypeBehaviour, IgnoreOnIncorrectTypeBehaviour, IncorrectTypeBehaviour}
+import dsentric.failure.{EmptyOnIncorrectTypeBehaviour, FailOnIncorrectTypeBehaviour, IncorrectTypeBehaviour}
 
 trait SubContractFor[D <: DObject]
   extends BaseContract[D]
@@ -28,7 +28,7 @@ trait ContractFor[D <: DObject]
 
   def $modify(d:D)(f:this.type => D => D):D =
     f(this)(d)
-
+ //TODO Delta object perhaps?
   def $delta(f:this.type => DObject => DObject):DObject =
     f(this)(DObject.empty)
 

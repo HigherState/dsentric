@@ -1,6 +1,6 @@
 package dsentric.contracts
 
-import dsentric.failure.{IgnoreOnIncorrectTypeBehaviour, IncorrectTypeBehaviour}
+import dsentric.failure.{FailOnIncorrectTypeBehaviour, IncorrectTypeBehaviour}
 import dsentric.{DCodec, DObject, DProjection, Path}
 
 private[dsentric] trait WithIncorrectTypeBehaviour {
@@ -53,13 +53,13 @@ private[dsentric] object EmptyBaseContract extends BaseContract[DObject] {
   def _path: Path = Path.empty
 
   def _incorrectTypeBehaviour:IncorrectTypeBehaviour =
-    IgnoreOnIncorrectTypeBehaviour
+    FailOnIncorrectTypeBehaviour
 }
 
 private[dsentric] object NothingBaseContract extends BaseContract[Nothing] {
   def _path: Path = Path.empty
 
   def _incorrectTypeBehaviour:IncorrectTypeBehaviour =
-    IgnoreOnIncorrectTypeBehaviour
+    FailOnIncorrectTypeBehaviour
 }
 

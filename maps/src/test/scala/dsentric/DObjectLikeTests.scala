@@ -46,10 +46,10 @@ class DObjectLikeTests extends FunSuite with Matchers {
       CustomContract.nested.value.$set(4)(Custom(Map.empty))
 
     newCustom shouldBe custom
-
-    val dropCustom =
-      CustomContract.string.$set("Value") ~
-      CustomContract.nested.$forceDrop
+//
+//    val dropCustom =
+//      CustomContract.string.$set("Value") ~
+//      CustomContract.nested.$forceDrop
   }
   implicit val customCodec =
     DefaultCodecs.dObjectLikeCodec[Custom](Custom)

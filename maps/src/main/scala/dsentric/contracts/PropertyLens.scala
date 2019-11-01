@@ -18,20 +18,21 @@ sealed trait PropertyLens[D <: DObject, T] {
   private[contracts] def _get(obj:D):ValidResult[Option[T]]
 
   private[contracts] def _set(obj:D, value:T):D =
-    obj.internalWrap(PathLensOps.set(obj.value, _path, _codec(value))).asInstanceOf[D]
+    obj.internalWrap(PathLensOps.set(obj.value, _path, _codec(value).value)).asInstanceOf[D]
 }
 
 trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens[D, T] {
 
   private[dsentric] def _incorrectTypeBehaviour:IncorrectTypeBehaviour
 
-  private[contracts] def _get(data:D):ValidResult[Option[T]] = {
-    val result = _incorrectTypeBehaviour.traverse(data.value, _path, _codec)
-    result.flatMap{
-      case None => ValidResult.failure(ExpectedFailure(_path))
-      case _ => result
+  private[contracts] def _get(data:D):ValidResult[Option[T]] =
+    expectedResult(_incorrectTypeBehaviour.traverse(data.value, _path, _codec), _path)
+
+  private def expectedResult(v:ValidResult[Option[T]], path:Path): ValidResult[Option[T]] =
+    v.flatMap{
+      case None => ValidResult.failure(ExpectedFailure(path))
+      case _ => v
     }
-  }
 
   def $get(obj:D):ValidResult[T] =
     _incorrectTypeBehaviour.traverse(obj.value, _path, _codec)
@@ -45,7 +46,7 @@ trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeL
 
   //When copying a maybe property with no value, then the copy does nothing
   def $copy(p:PropertyLens[D, T]):ValidPathSetter[D] =
-    ModifySetter(_get, identity[T], _set)
+    ModifySetter(d => expectedResult(p._get(d), p._path), identity[T], _set)
 
   lazy val $delta:ExpectedDelta[T] =
     ExpectedDelta(_path, _codec, _incorrectTypeBehaviour)
