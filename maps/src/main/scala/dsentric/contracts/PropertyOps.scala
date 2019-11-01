@@ -1,13 +1,12 @@
 package dsentric.contracts
 
 import dsentric.operators.{DataOperator, Validators}
-import dsentric.{DCodec, DObject}
+import dsentric.{DCodec, DObject, StringCodec}
 
 trait PropertyOps[D <: DObject] {
 
   protected def __self:BaseContract[D] =
     NothingBaseContract.asInstanceOf[BaseContract[D]]
-
 
 
   def \[T](implicit codec:DCodec[T]):ExpectedProperty[D, T] =
@@ -38,46 +37,19 @@ trait PropertyOps[D <: DObject] {
     new DefaultProperty[D, T](Some(name), default:T, __self, codec, dataOperators)
 
 
-  def \:[T <: DObject](contract:ContractFor[T], dataOperators: DataOperator[Vector[T]]*)(implicit codec:DCodec[Vector[T]]):ExpectedObjectsProperty[D, T] =
-    new ExpectedObjectsProperty[D, T](None, contract, __self, codec, Validators.required +: dataOperators)
+  def \::[T <: DObject](contract:ContractFor[T], dataOperators: DataOperator[Option[Vector[T]]]*)(implicit codec:DCodec[Vector[T]]):ObjectsProperty[D, T] =
+    new ObjectsProperty[D, T](None, contract, __self, codec, dataOperators)
 
-  def \:[T <: DObject](contract:ContractFor[T], name:String, dataOperators: DataOperator[Vector[T]]*)(implicit codec:DCodec[Vector[T]]):ExpectedObjectsProperty[D, T] =
-    new ExpectedObjectsProperty[D, T](Some(name), contract, __self, codec, Validators.required +: dataOperators)
-
-
-  def \:?[T <: DObject](contract:ContractFor[T], dataOperators: DataOperator[Option[Vector[T]]]*)(implicit codec:DCodec[Vector[T]]):MaybeObjectsProperty[D, T] =
-    new MaybeObjectsProperty[D, T](None, contract, __self, codec, dataOperators)
-
-  def \:?[T <: DObject](contract:ContractFor[T], name:String, dataOperators: DataOperator[Option[Vector[T]]]*)(implicit codec:DCodec[Vector[T]]):MaybeObjectsProperty[D, T] =
-    new MaybeObjectsProperty[D, T](Some(name), contract, __self, codec, dataOperators)
+  def \::[T <: DObject](contract:ContractFor[T], name:String, dataOperators: DataOperator[Option[Vector[T]]]*)(implicit codec:DCodec[Vector[T]]):ObjectsProperty[D, T] =
+    new ObjectsProperty[D, T](Some(name), contract, __self, codec, dataOperators)
 
 
-  def \:![T <: DObject](contract:ContractFor[T], default:Vector[T], dataOperators: DataOperator[Option[Vector[T]]]*)(implicit codec:DCodec[Vector[T]]):DefaultObjectsProperty[D, T] =
-    new DefaultObjectsProperty[D, T](None, contract, default, __self, codec, dataOperators)
 
-  def \:![T <: DObject](contract:ContractFor[T], name:String, default:Vector[T], dataOperators: DataOperator[Option[Vector[T]]]*)(implicit codec:DCodec[Vector[T]]):DefaultObjectsProperty[D, T] =
-    new DefaultObjectsProperty[D, T](Some(name), contract, default, __self, codec, dataOperators)
+  def \->[K, T <: DObject](contract:ContractFor[T], dataOperators: DataOperator[Option[Map[K, T]]]*)(implicit codec:DCodec[Map[K, T]], keyCodec:StringCodec[K]):MapObjectsProperty[D, K, T] =
+    new MapObjectsProperty[D, K, T](None, contract, __self, codec, keyCodec, Validators.required +: dataOperators)
 
-
-  def \->[K, T <: DObject](contract:ContractFor[T], dataOperators: DataOperator[Map[K, T]]*)(implicit codec:DCodec[Map[K, T]], keyCodec:DCodec[K]):ExpectedMapObjectsProperty[K, D, T] =
-    new ExpectedMapObjectsProperty[K, D, T](None, contract, __self, codec, keyCodec, Validators.required +: dataOperators)
-
-  def \->[K, T <: DObject](contract:ContractFor[T], name:String, dataOperators: DataOperator[Map[K, T]]*)(implicit codec:DCodec[Map[K, T]], keyCodec:DCodec[K]):ExpectedMapObjectsProperty[K, D, T] =
-    new ExpectedMapObjectsProperty[K, D, T](Some(name), contract, __self, codec, keyCodec, Validators.required +: dataOperators)
-
-
-  def \->?[K, T <: DObject](contract:ContractFor[T], dataOperators: DataOperator[Option[Map[K, T]]]*)(implicit codec:DCodec[Map[K, T]], keyCodec:DCodec[K]):MaybeMapObjectsProperty[K, D, T] =
-    new MaybeMapObjectsProperty[K, D, T](None, contract, __self, codec, keyCodec, dataOperators)
-
-  def \->?[K, T <: DObject](contract:ContractFor[T], name:String, dataOperators: DataOperator[Option[Map[K, T]]]*)(implicit codec:DCodec[Map[K, T]], keyCodec:DCodec[K]):MaybeMapObjectsProperty[K, D, T] =
-    new MaybeMapObjectsProperty[K, D, T](Some(name), contract, __self, codec, keyCodec, dataOperators)
-
-
-  def \->![K, T <: DObject](contract:ContractFor[T], default:Map[K, T], dataOperators: DataOperator[Option[Map[K, T]]]*)(implicit codec:DCodec[Map[K, T]], keyCodec:DCodec[K]):DefaultMapObjectsProperty[K, D, T] =
-    new DefaultMapObjectsProperty[K, D, T](None, contract, default, __self, codec, keyCodec, dataOperators)
-
-  def \->![K, T <: DObject](contract:ContractFor[T], name:String, default:Map[K, T], dataOperators: DataOperator[Option[Map[K, T]]]*)(implicit codec:DCodec[Map[K, T]], keyCodec:DCodec[K]):DefaultMapObjectsProperty[K, D, T] =
-    new DefaultMapObjectsProperty[K, D, T](Some(name), contract, default, __self, codec, keyCodec, dataOperators)
+  def \->[K, T <: DObject](contract:ContractFor[T], name:String, dataOperators: DataOperator[Option[Map[K, T]]]*)(implicit codec:DCodec[Map[K, T]], keyCodec:StringCodec[K]):MapObjectsProperty[D, K, T] =
+    new MapObjectsProperty[D, K, T](Some(name), contract, __self, codec, keyCodec, Validators.required +: dataOperators)
 
 }
 

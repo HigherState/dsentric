@@ -221,17 +221,10 @@ class ContractTests extends FunSuite with Matchers {
     }
     object ContractArray extends Contract {
 
-      val elements = \:(Element)
+      val elements = \::(Element)
 
-      val maybeElements = \:?(Element)
-
-      val defaultElements = \:!(Element, Vector.empty)
     }
 
-    (DObject.empty match {
-      case ContractArray.defaultElements(elements) =>
-        elements.size
-    }) should be (0)
   }
 
   test("tuple codec") {

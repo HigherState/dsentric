@@ -20,7 +20,7 @@ object Validation {
       }.getOrElse(PathFailures.empty)
 
     @inline
-    def validateMapObjectsProperty[K, D2 <: DObject, D3 <: DObject](field:String, property:MapObjectsProperty[K, D2, D3], value:RawObject, maybeCurrentState:Option[RawObject]):PathFailures =
+    def validateMapObjectsProperty[K, D2 <: DObject, D3 <: DObject](field:String, property:MapObjectsProperty[D2, K, D3], value:RawObject, maybeCurrentState:Option[RawObject]):PathFailures =
       value.get(field).collect {
         case rvs:RawObject@unchecked =>
           rvs.toIterator.flatMap{ case (k, v) =>

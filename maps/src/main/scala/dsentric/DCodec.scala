@@ -15,6 +15,14 @@ trait DValueCodec[T] extends DCodec[T] {
   override def apply(t:T):DValue
 }
 
+trait StringCodec[T] extends DCodec[T] {
+  override def apply(t:T):DValue =
+    new DValue(toString(t))
+
+
+  def toString(t:T):String
+}
+
 trait DObjectCodec[T] extends DCodec[T] {
   override def apply(t:T):DObject
 }
@@ -117,6 +125,27 @@ trait DefaultCodecs {
         ArrayDefinition.empty
     }
 
+  implicit def setCodec[T](implicit D:StringCodec[T]):DCodec[Set[T]] =
+    new DCodec[Set[T]] {
+      def apply(t: Set[T]): Data =
+        ForceWrapper.dObject(t.map(D.toString(_) -> 1).toMap)
+
+      def unapply(a: Raw): Option[Set[T]] =
+        a match {
+          case obj:RawObject@unchecked =>
+            obj.foldLeft(Option(Set.empty[T])){
+              case (Some(a), (key, 1)) =>
+                D.unapply(key).map(a + _)
+              case _ =>
+                None
+            }
+          case _ =>
+            None
+        }
+
+      def typeDefinition: TypeDefinition = ???
+    }
+
   implicit val dNullCodec:DCodec[DNull.type] =
     new MatchCodec[DNull.type] with DirectCodec[DNull.type] {
       protected def isMatch(a: Raw): Boolean =
@@ -161,17 +190,17 @@ trait DefaultCodecs {
         ArrayDefinition(Vector(D1.typeDefinition, D2.typeDefinition))
     }
 
-  implicit val pathCodec:DCodec[Path] =
-    new DCodec[Path] {
+  implicit val pathCodec:StringCodec[Path] =
+    new StringCodec[Path] {
       def unapply(a:Raw): Option[Path] =
         a match {
           case s:String =>
             Some(Path.fromString(s))
-          case j =>
+          case _ =>
             None
         }
-      def apply(t: Path): Data =
-        new DValue(t.toString)
+
+      def toString(t: Path): String = t.toString
 
       def typeDefinition:TypeDefinition =
         TypeDefinition.anyDefinition
@@ -191,18 +220,21 @@ trait DefaultCodecs {
       def typeDefinition:TypeDefinition =
         ObjectDefinition.empty
     }
-
-
-
-
 }
 
 trait PessimisticCodecs extends DefaultCodecs {
 
-  implicit val stringCodec:DValueCodec[String] =
-    new DirectCodec[String] with MatchCodec[String] {
-      protected def isMatch(a: Raw): Boolean =
-        a.isInstanceOf[String]
+  implicit val stringCodec:StringCodec[String] =
+    new StringCodec[String]  {
+
+      def toString(t: String): String = t
+
+      def unapply(a: Raw): Option[String] =
+        a match {
+          case s:String => Some(s)
+          case _ => None
+        }
+
       def typeDefinition:TypeDefinition =
         StringDefinition.empty
     }
@@ -408,10 +440,14 @@ trait OptimisticCodecs extends DefaultCodecs {
 
   import dsentric.util.ToStringContextOps._
 
-  implicit val stringCodec:DValueCodec[String] =
-    new DirectCodec[String] {
-      def unapply(a:Raw): Option[String] =
+  implicit val stringCodec:StringCodec[String] =
+    new StringCodec[String] {
+
+      def toString(t: String): String = t
+
+      def unapply(a: Raw): Option[String] =
         Some(a.toString)
+
       def typeDefinition:TypeDefinition =
         StringDefinition.empty
     }

@@ -419,12 +419,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       it("Should return value if set") {
         MaybeField.field.$getOrElse(DObject("field" := "test"), "orElse").right.value shouldBe "test"
       }
-      it("Should return nested object if set") {
-        MaybeField.nested.$getOrElse(DObject("nested" ::= ("nestedField" := "value")), DObject.empty).right.value shouldBe DObject(("nestedField" := "value"))
-      }
-      it("Should return object if nested not set") {
-        MaybeField.nested.$getOrElse(DObject.empty, DObject.empty).right.value shouldBe DObject.empty
-      }
+
       it("Should return nested field value") {
         MaybeField.nested.nestedField.$getOrElse(DObject("nested" ::= ("nestedField" := "value")), "orElse").right.value shouldBe "value"
       }
@@ -817,7 +812,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
     val copy = \![String]("default")
     val maybeCopied = \?[String]
     val expectedCopied = \[String]
-    val nested = new \\!(DObject("nestedField" := "defaultObject")) {
+    val nested = new \\? {
       val nestedField = \![String]("defaultValue")
       val nestedCopy = \![String]("defaultValue")
     }
@@ -829,7 +824,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
     val copy = \![String]("default")
     val expectedCopied = \[String]
     val maybeCopied = \?[String]
-    val nested = new \\!(DObject("nestedField" := "defaultObject")) {
+    val nested = new \\?  {
       val nestedField = \![String]("defaultValue")
       val nestedCopy = \![String]("defaultValue")
     }

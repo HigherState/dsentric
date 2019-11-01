@@ -108,7 +108,7 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
   }
 
   object ContractArray extends Contract {
-    val array = \:(ExpectedField)
+    val array = \::(ExpectedField)
   }
 
   test("Contract array validation") {
@@ -122,27 +122,13 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
   }
 
   object ContractArrayNonEmpty extends Contract {
-    val array  = \:(ExpectedField, Validators.nonEmpty)
+    val array  = \::(ExpectedField, Validators.nonEmpty)
   }
 
   test("Contract array nonEmpty validation") {
     ContractArrayNonEmpty.$ops.validate(DObject.empty) should be (f(Path("array") -> "Value is required."))
     ContractArrayNonEmpty.$ops.validate(DObject("array" -> DArray.empty)) should be (f(Path("array") -> "Value must not be empty."))
     ContractArrayNonEmpty.$ops.validate(DObject("array" -> DArray(DObject("expGT" := 6)))) shouldBe Vector.empty
-  }
-
-  object ContractMaybeArray extends Contract {
-    val array = \:?(ExpectedField)
-  }
-
-  test("Contract maybe array validation") {
-    ContractMaybeArray.$ops.validate(DObject.empty) shouldBe Vector.empty
-    ContractMaybeArray.$ops.validate(DObject("array" -> DArray.empty)) shouldBe Vector.empty
-
-    ContractMaybeArray.$ops.validate(DObject("array" -> DArray(DObject("expGT" := 6)))) shouldBe Vector.empty
-    ContractMaybeArray.$ops.validate(DObject("array" -> DArray(DObject("expGT" := 6), DObject("expGT" := 8)))) shouldBe Vector.empty
-    ContractMaybeArray.$ops.validate(DObject("array" -> DArray(DObject("expGT" := 4)))) should be (f("array" \ 0 \ "expGT" -> "Value 4 is not greater than 5."))
-    ContractMaybeArray.$ops.validate(DObject("array" -> DArray(DObject("expGT" := 6), DObject("expGT" := 4)))) should be (f("array" \ 1 \ "expGT" -> "Value 4 is not greater than 5."))
   }
 
 

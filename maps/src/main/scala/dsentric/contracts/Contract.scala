@@ -16,7 +16,8 @@ trait SubContractFor[D <: DObject]
 trait ContractFor[D <: DObject]
   extends BaseContract[D]
   with PropertyOps[D]
-  with PropertyObjectOps[D] {
+  with PropertyObjectOps[D]
+  with ContractLens[D] {
 
   private[dsentric] def _incorrectTypeBehaviour:IncorrectTypeBehaviour =
     FailOnIncorrectTypeBehaviour
@@ -25,12 +26,6 @@ trait ContractFor[D <: DObject]
 
   val $ops:DataOperationOps[D] =
     new DataOperationOps[D](this)
-
-  def $modify(d:D)(f:this.type => D => D):D =
-    f(this)(d)
- //TODO Delta object perhaps?
-  def $delta(f:this.type => DObject => DObject):DObject =
-    f(this)(DObject.empty)
 
   override protected def __self: BaseContract[D] = this
 }

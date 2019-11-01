@@ -41,9 +41,6 @@ object Schema7 extends Contract {
   val objectWithRefs = new \\ with AnotherNested with AnotherNested2
 }
 
-object Schema8 extends Contract {
-  val directRename = new \\!(DObject("Value" := 3)) with ToRename
-}
 
 
 class SchemaTests extends FunSuite with Matchers {
@@ -179,17 +176,5 @@ class SchemaTests extends FunSuite with Matchers {
     schema7 shouldBe schema7Def
   }
 
-  test("Direct inheritance reference renamed") {
-    val (schema8, _) = Schema.contractObjectDefinitions(Schema8)
-    val directRef = PropertyDefinition("directRename", ByRefDefinition("Renamed"), Nil, Some(Map("Value" -> 3)), false, None)
-    val schema8Def = ObjectDefinition(
-      Some("Schema8"),
-      None,
-      None,
-      Vector.empty,
-      Vector(directRef)
-    )
-    schema8 shouldBe schema8Def
-  }
 
 }
