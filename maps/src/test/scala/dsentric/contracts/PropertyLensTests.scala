@@ -97,9 +97,6 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       it("Should return value if set") {
         ExpectedField.field.$get(DObject("field" := "test")).right.value shouldBe ("test")
       }
-      it("Should return nested object") {
-        ExpectedField.nested.$get(DObject("nested" ::= ("nestedField" := "value"))).right.value shouldBe DObject("nestedField" := "value")
-      }
       it("Should return nested field value") {
         ExpectedField.nested.nestedField.$get(DObject("nested" ::= ("nestedField" := "value"))).right.value shouldBe "value"
       }
@@ -380,9 +377,6 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Should return value if set") {
         MaybeField.field.$get(DObject("field" := "test")).right.value should contain ("test")
-      }
-      it("Should return nested object") {
-        MaybeField.nested.$get(DObject("nested" ::= ("nestedField" := "value"))).right.value should contain (DObject("nestedField" := "value"))
       }
       it("Should return nested field value") {
         MaybeField.nested.nestedField.$get(DObject("nested" ::= ("nestedField" := "value"))).right.value should contain ("value")
@@ -898,12 +892,6 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Should return value if set") {
         DefaultField.field.$get(DObject("field" := "test")).right.value shouldBe "test"
-      }
-      it("Should return nested object") {
-        DefaultField.nested.$get(DObject("nested" ::= ("nestedField" := "value"))).right.value shouldBe DObject("nestedField" := "value")
-      }
-      it("Should return nested object default if not found") {
-        DefaultField.nested.$get(DObject.empty).right.value shouldBe DObject("nestedField" := "defaultObject")
       }
       it("Should return nested field value") {
         DefaultField.nested.nestedField.$get(DObject("nested" ::= ("nestedField" := "value"))).right.value shouldBe "value"

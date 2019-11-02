@@ -4,7 +4,7 @@ import dsentric.failure.{FailOnIncorrectTypeBehaviour, IncorrectTypeBehaviour}
 import dsentric.{DCodec, DObject, DProjection, Path}
 
 private[dsentric] trait WithIncorrectTypeBehaviour {
-  private[dsentric] def _incorrectTypeBehaviour:IncorrectTypeBehaviour
+  private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour
 }
 
 private[dsentric] trait BaseContract[D <: DObject] extends WithIncorrectTypeBehaviour {
@@ -52,14 +52,6 @@ private[dsentric] trait BaseContract[D <: DObject] extends WithIncorrectTypeBeha
 private[dsentric] object EmptyBaseContract extends BaseContract[DObject] {
   def _path: Path = Path.empty
 
-  def _incorrectTypeBehaviour:IncorrectTypeBehaviour =
+  private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour =
     FailOnIncorrectTypeBehaviour
 }
-
-private[dsentric] object NothingBaseContract extends BaseContract[Nothing] {
-  def _path: Path = Path.empty
-
-  def _incorrectTypeBehaviour:IncorrectTypeBehaviour =
-    FailOnIncorrectTypeBehaviour
-}
-

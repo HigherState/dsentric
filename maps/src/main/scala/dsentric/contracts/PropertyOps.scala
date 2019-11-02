@@ -5,9 +5,7 @@ import dsentric.{DCodec, DObject, StringCodec}
 
 trait PropertyOps[D <: DObject] {
 
-  protected def __self:BaseContract[D] =
-    NothingBaseContract.asInstanceOf[BaseContract[D]]
-
+  protected def __self:BaseContract[D] = null
 
   def \[T](implicit codec:DCodec[T]):ExpectedProperty[D, T] =
     new ExpectedProperty[D, T](None, __self, codec, PropertyOps.requiredS)

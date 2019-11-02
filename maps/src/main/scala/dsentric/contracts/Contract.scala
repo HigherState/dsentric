@@ -19,7 +19,7 @@ trait ContractFor[D <: DObject]
   with PropertyObjectOps[D]
   with ContractLens[D] {
 
-  private[dsentric] def _incorrectTypeBehaviour:IncorrectTypeBehaviour =
+  private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour =
     FailOnIncorrectTypeBehaviour
 
   def _path:Path = Path.empty
@@ -31,7 +31,7 @@ trait ContractFor[D <: DObject]
 }
 
 trait EmptyOnIncorrectType extends WithIncorrectTypeBehaviour {
-  private[dsentric] override def _incorrectTypeBehaviour: IncorrectTypeBehaviour =
+  private[dsentric] override def __incorrectTypeBehaviour: IncorrectTypeBehaviour =
     EmptyOnIncorrectTypeBehaviour
 }
 

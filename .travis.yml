@@ -1,7 +1,7 @@
 jdk: oraclejdk8
 language: scala
 scala:
-   - 2.12.5
+   - 2.12.10
 script:
   - sbt clean coverage test coverageReport &&
     sbt coverageAggregate

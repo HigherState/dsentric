@@ -3,7 +3,7 @@ package dsentric.contracts
 import dsentric._
 import dsentric.failure._
 
-sealed trait PropertyLens[D <: DObject, T] {
+private[dsentric] trait PropertyLens[D <: DObject, T] {
 
   def _path:Path
   def _codec: DCodec[T]
@@ -19,6 +19,15 @@ sealed trait PropertyLens[D <: DObject, T] {
 
   private[contracts] def __set(obj:D, value:T):D =
     obj.internalWrap(PathLensOps.set(obj.value, _path, _codec(value).value)).asInstanceOf[D]
+
+  private[contracts] def __expected(obj:D):ValidResult[T] =
+    __get(obj)
+      .flatMap{
+        case None =>
+          ValidResult.failure[T](ExpectedFailure(_path))
+        case Some(t) =>
+          Right(t)
+      }
 }
 
 private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens[D, T] {
@@ -35,11 +44,8 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
     }
 
   def $get(obj:D):ValidResult[T] =
-    __incorrectTypeBehaviour.traverse(obj.value, _path, _codec)
-      .flatMap{
-        case None => ValidResult.failure[T](ExpectedFailure(_path))
-        case Some(t) => Right(t)
-      }
+    __expected(obj)
+
 
   def $modify(f:T => T):ValidPathSetter[D] =
     ModifySetter(__get, f, __set)
@@ -123,33 +129,17 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
     .map(_.getOrElse(_default))
 }
 
-private[dsentric] trait ContractLens[D <: DObject] {
-
-  private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour =
-    FailOnIncorrectTypeBehaviour
-
-  def $modify(d:D)(f:this.type => D => D):D =
-    f(this)(d)
-
-  def $delta(f:this.type => DObject => DObject):DObject =
-    f(this)(DObject.empty)
 
 
-}
 
 //Codec implies it doesnt actually have to be an array as raw type
-private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] {
+private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends PropertyLens[D, Vector[T]] {
   def _path:Path
   def _contract:ContractFor[T]
 
-  private[dsentric] def _codec: DCodec[Vector[T]]
-  private[dsentric] def _incorrectTypeBehaviour:IncorrectTypeBehaviour
-
-
+  private[contracts] def __get(obj: D): ValidResult[Option[Vector[T]]] = ???
 
   def $get(obj:D):ValidResult[Vector[T]] = ???
-
-  def $set(elements:Vector[T]):PathSetter[D] = ???
 
   def $clear:PathSetter[D] = ???
 
@@ -160,18 +150,14 @@ private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] {
 
 }
 
-private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] {
+private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends PropertyLens[D, Map[K, T]] {
   def _path:Path
   def _contract:ContractFor[T]
+  def _keyCodec:StringCodec[K]
 
-  private[dsentric] def _codec: DCodec[Map[K, T]]
-  private[dsentric] def _incorrectTypeBehaviour:IncorrectTypeBehaviour
-
-  private[dsentric] def _keyCodec:StringCodec[K]
+  private[contracts] def __get(obj: D): ValidResult[Option[Map[K, T]]] = ???
 
   def $get(obj:D):ValidResult[Map[K, T]] = ???
-
-  def $set(elements:Map[K, T]):PathSetter[D] = ???
 
   def $clear:PathSetter[D] = ???
 
@@ -182,43 +168,12 @@ private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] {
 
 
 
-sealed trait ObjectLens[D <: DObject] {
-
-  def _path:Path
-  private[dsentric] def _codec: DCodec[DObject]
-  private[dsentric] def _incorrectTypeBehaviour:IncorrectTypeBehaviour
-
-}
-
-trait ExpectedObjectLens[D <: DObject] extends ObjectLens[D]{
-
-  private lazy val default =
-    _fields.foldLeft(ValidResult.success(DObject.empty)){
-      case (key, property) => ???
-    }
-
-  def _fields: Map[String, Property[D, _]]
-
-  def $get(obj:D):ValidResult[DObject] = ???
-
-  def unapply(obj:D):Option[D] =
-    ???
-}
-
-trait MaybeObjectLens[D <: DObject] extends ObjectLens[D] {
-
-  def _fields: Map[String, Property[D, _]]
-
-  def unapply(obj:D):Option[Option[D]] =
-    ???
-
-  def $get(obj:D):ValidResult[Option[DObject]] = ???
-}
 
 
 
 
-case class ExpectedDelta[T](_path:Path, _codec:DCodec[T], _incorrectTypeBehaviour:IncorrectTypeBehaviour) {
+
+final case class ExpectedDelta[T](_path:Path, _codec:DCodec[T], _incorrectTypeBehaviour:IncorrectTypeBehaviour) {
   def $get(delta:DObject):ValidResult[Option[T]] =
     _incorrectTypeBehaviour.traverse(delta.value, _path, _codec)
 
@@ -241,7 +196,7 @@ case class ExpectedDelta[T](_path:Path, _codec:DCodec[T], _incorrectTypeBehaviou
     _incorrectTypeBehaviour.matcher(delta.value, _path, _codec)
 }
 
-case class MaybeDelta[T](_path:Path, _codec:DCodec[T], _incorrectTypeBehaviour:IncorrectTypeBehaviour) {
+final case class MaybeDelta[T](_path:Path, _codec:DCodec[T], _incorrectTypeBehaviour:IncorrectTypeBehaviour) {
   private val _deltaCodec = PessimisticCodecs.dNullableCodec[T](_codec)
 
   def $get(delta:DObject):ValidResult[Option[DNullable[T]]] =
@@ -274,3 +229,5 @@ case class MaybeDelta[T](_path:Path, _codec:DCodec[T], _incorrectTypeBehaviour:I
   def unapply(delta:DObject):Option[Option[DNullable[T]]] =
     _incorrectTypeBehaviour.matcher(delta.value, _path, _deltaCodec)
 }
+
+

@@ -1,10 +1,10 @@
 package dsentric.contracts
 
 import dsentric._
-import dsentric.failure.IncorrectTypeBehaviour
+import dsentric.failure.{IncorrectTypeBehaviour, ValidResult}
 import dsentric.operators.{DataOperator, Validators}
 
-sealed trait Property[D <: DObject, T <: Any] {
+sealed trait Property[D <: DObject, T <: Any] extends PropertyLens[D, T] {
 
   private var __path: Path = _
   private var __localPath: Path = _
@@ -16,7 +16,7 @@ sealed trait Property[D <: DObject, T <: Any] {
 
   @inline
   private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour =
-    _parent._incorrectTypeBehaviour
+    _parent.__incorrectTypeBehaviour
 
   def _codec: DCodec[T]
   def _parent: BaseContract[D]
@@ -81,7 +81,8 @@ class ObjectsProperty[D <: DObject, T <: DObject](private[contracts] val __nameO
                                                           val _parent:BaseContract[D],
                                                           val _codec:DCodec[Vector[T]],
                                                           val _dataOperators:Seq[DataOperator[Option[Vector[T]]]]
-                                                         ) extends Property[D, Vector[T]] with ObjectsLens[D, T]
+                                                         ) extends Property[D, Vector[T]] with ObjectsLens[D, T] {
+}
 
 class MapObjectsProperty[D <: DObject, K, T <: DObject](private[contracts] val __nameOverride:Option[String],
                                                        val _contract:ContractFor[T],
@@ -92,8 +93,6 @@ class MapObjectsProperty[D <: DObject, K, T <: DObject](private[contracts] val _
                                                       ) extends Property[D, Map[K, T]] with MapObjectsLens[D, K, T]
 
 trait PropertyObjectOps[D <: DObject]  { __internal:BaseContract[D] =>
-
-
 
   class \\ private(override private[contracts] val __nameOverride:Option[String],
                    override val _codec:DCodec[DObject],
