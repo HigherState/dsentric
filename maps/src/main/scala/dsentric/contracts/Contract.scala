@@ -28,6 +28,7 @@ trait ContractFor[D <: DObject]
     new DataOperationOps[D](this)
 
   override protected def __self: BaseContract[D] = this
+  def _root: ContractFor[D] = this
 }
 
 trait EmptyOnIncorrectType extends WithIncorrectTypeBehaviour {

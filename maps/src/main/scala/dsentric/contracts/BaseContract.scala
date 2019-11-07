@@ -15,6 +15,8 @@ private[dsentric] trait BaseContract[D <: DObject] extends WithIncorrectTypeBeha
 
   def apply[R](f:this.type => R):R = f(this)
 
+  def _root: ContractFor[D]
+
   def _path:Path
 
   def _fields: Map[String, Property[D, _]] =
@@ -47,11 +49,4 @@ private[dsentric] trait BaseContract[D <: DObject] extends WithIncorrectTypeBeha
 
   def $$(paths:Path*):DProjection =
     DProjection(paths:_*).nest(this._path)
-}
-
-private[dsentric] object EmptyBaseContract extends BaseContract[DObject] {
-  def _path: Path = Path.empty
-
-  private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour =
-    FailOnIncorrectTypeBehaviour
 }

@@ -1,6 +1,8 @@
 package dsentric
 
-import dsentric.contracts.PathSetter
+import cats.data.NonEmptyList
+import dsentric.contracts.{PathSetter, ValidPathSetter}
+import dsentric.failure.{Failure, ValidResult}
 
 final class StringOps(val self:String) extends AnyVal {
   def \(part:String):Path =
@@ -38,6 +40,32 @@ final class FunctionOps[D <: DObjectLike[D] with DObject](val f:D => D) extends 
     f andThen (_ ++ kv)
 }
 
+final class ValidFunctionOps[D <: DObjectLike[D] with DObject](val f:D => ValidResult[D]) extends AnyVal  {
+  def ~+(kv:(String, Data)):D => ValidResult[D] =
+    f andThen (_.map(_ + kv))
+
+  def ~++(kv:Seq[(String, Data)]):D => ValidResult[D] =
+    f andThen (_.map(_ ++ kv))
+
+  def ~[T <: D with ValidResult[D]](f2:D => T):D => ValidResult[D] =
+    (j: D) => f(j).flatMap {
+      f(_) match {
+        case Left(failures: NonEmptyList[Failure]) =>
+          Left(failures)
+        case Right(d: D@unchecked) =>
+          Right(d)
+        case d: D@unchecked =>
+          Right(d)
+      }
+    }
+
+  def ~(f2:ValidPathSetter[D]):D => ValidResult[D] =
+    (j: D) => f(j).flatMap(f2)
+
+
+  def |>(d:D):ValidResult[D] = f(d)
+}
+
 trait ToExtensionOps {
 
   implicit def toStringOps(s: String): StringOps =
@@ -48,6 +76,9 @@ trait ToExtensionOps {
 
   implicit def toFunctionOps[D <: DObjectLike[D] with DObject](f: D => D): FunctionOps[D] =
     new FunctionOps[D](f)
+
+  implicit def toValidFunctionOps[D <: DObjectLike[D] with DObject](f: D => ValidResult[D]): ValidFunctionOps[D] =
+    new ValidFunctionOps[D](f)
 
   implicit def pathOps(p:Path): PathOps =
     new PathOps(p)

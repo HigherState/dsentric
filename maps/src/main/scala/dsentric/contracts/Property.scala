@@ -20,6 +20,7 @@ sealed trait Property[D <: DObject, T <: Any] extends PropertyLens[D, T] {
 
   def _codec: DCodec[T]
   def _parent: BaseContract[D]
+  def _root: ContractFor[D] = _parent._root
   def _path:Path =
     if (_bitmap1) __path
     else {

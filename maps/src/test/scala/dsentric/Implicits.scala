@@ -1,7 +1,9 @@
 package dsentric
 
 import cats.data.NonEmptyList
-import org.scalatest.enablers.Containing
+import org.scalatest.enablers.{Aggregating, Containing}
+
+import scala.collection.GenTraversable
 
 object Implicits {
 
@@ -15,5 +17,32 @@ object Implicits {
 
       def containsNoneOf(container: NonEmptyList[T], elements: Seq[Any]): Boolean =
         !elements.exists(e => contains(container, e))
+    }
+
+  implicit def nonEmptyListAggregating[T]:Aggregating[NonEmptyList[T]] =
+    new Aggregating[NonEmptyList[T]] {
+      def containsAtLeastOneOf(aggregation: NonEmptyList[T], eles: Seq[Any]): Boolean =
+        eles.exists(e => aggregation.head == e || aggregation.tail.contains(e))
+
+      def containsTheSameElementsAs(leftAggregation: NonEmptyList[T], rightAggregation: GenTraversable[Any]): Boolean =
+        if (leftAggregation.size == rightAggregation.size) {
+          leftAggregation.toList.zip(rightAggregation.toIterable).forall(p => p._1 == p._2)
+        }
+        else false
+
+      def containsOnly(aggregation: NonEmptyList[T], eles: Seq[Any]): Boolean =
+        aggregation.size == eles.size && containsAllOf(aggregation, eles)
+
+      def containsAllOf(aggregation: NonEmptyList[T], eles: Seq[Any]): Boolean =
+        eles.forall(e => aggregation.head == e || aggregation.tail.contains(e))
+
+      def containsAtMostOneOf(aggregation: NonEmptyList[T], eles: Seq[Any]): Boolean =
+        eles.foldLeft(0){
+          case (2, _) => 2
+          case (i, e) =>
+            if (aggregation.head == e || aggregation.tail.contains(e)) i + 1
+            else i
+        } < 2
+
     }
 }

@@ -1,6 +1,7 @@
 package dsentric.contracts
 
-import dsentric.failure.ValidResult
+import cats.data.NonEmptyList
+import dsentric.failure.{Failure, ValidResult}
 import dsentric.{DObject, Path, PathLensOps, Raw}
 
 sealed trait PathSetter[D <: DObject] extends Function[D, D] {
@@ -23,6 +24,9 @@ sealed trait ValidPathSetter[D <: DObject] extends Function[D, ValidResult[D]] {
   def ~(pathSetter:PathSetter[D]):ValidPathSetter[D] =
     CompositeValidSetter(this, LiftedSetter(pathSetter))
 
+  @inline
+  final protected def asD(d:DObject):D = d.asInstanceOf[D]
+
   def apply(v1: D): ValidResult[D]
 }
 
@@ -35,6 +39,27 @@ private final case class ValueSetter[D <: DObject](path:Path, value:Raw) extends
 
   def apply(v1: D): D =
     asD(v1.internalWrap(PathLensOps.set(v1.value, path, value)))
+
+}
+
+private final case class ValidValueSetter[D <: DObject](path:Path, value:ValidResult[Raw]) extends ValidPathSetter[D] {
+
+  def apply(v1: D): ValidResult[D] =
+    value.map(r => asD(v1.internalWrap(PathLensOps.set(v1.value, path, r))))
+
+}
+
+private final case class VerifyValueSetter[D <: DObject](path:Path, value:Raw, verify:D => List[Failure]) extends ValidPathSetter[D] {
+
+  def apply(v1: D): ValidResult[D] = {
+    val r = asD(v1.internalWrap(PathLensOps.set(v1.value, path, value)))
+    verify(r) match {
+      case head :: tail =>
+        Left(NonEmptyList(head, tail))
+      case Nil =>
+        Right(r)
+    }
+  }
 
 }
 

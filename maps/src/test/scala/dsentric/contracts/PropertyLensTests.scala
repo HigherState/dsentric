@@ -180,7 +180,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Should expected fail an empty value empty with EmptyOnIncorrectType") {
         val base = DObject.empty
-        EmptyExpectedField.field.$modify(_ + "2")(base).left.value should contain (ExpectedFailure(ExpectedField.field))
+        EmptyExpectedField.field.$modify(_ + "2")(base).left.value should contain (ExpectedFailure(EmptyExpectedField.field))
       }
       it("Should incorrect type fail on incorrect type") {
         val base = DObject("field" := 123)
@@ -268,7 +268,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Copying an empty maybe field will fail with expected type") {
         val base = DObject("copy" := "test")
-        ExpectedField.copy.$copy(ExpectedField.maybeCopied)(base).left.value should contain (ExpectedFailure(ExpectedField.maybeCopied))
+        ExpectedField.copy.$copy(ExpectedField.maybeCopied)(base).left.value should contain (ExpectedFailure(ExpectedField.copy))
       }
       it("Copying an empty default value should set as default") {
         val base = DObject.empty
@@ -780,7 +780,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Copying an expected value will fail expected when EmptyOnIncorrectType") {
         val base = DObject("expectedCopied" := 123)
-        MaybeField.copy.$copy(EmptyMaybeField.expectedCopied)(base).left.value should contain (ExpectedFailure(MaybeField.expectedCopied))
+        MaybeField.copy.$copy(EmptyMaybeField.expectedCopied)(base).left.value should contain (ExpectedFailure(EmptyMaybeField.expectedCopied))
       }
       it("Copying an empty default value should set as default") {
         val base = DObject.empty
