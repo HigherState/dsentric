@@ -25,7 +25,7 @@ object Validation {
         case rvs:RawObject@unchecked =>
           rvs.toIterator.flatMap{ case (k, v) =>
             val keyFailures =
-              if (property._keyCodec.unapply(k).isEmpty)
+              if (property._codec.keyCodec.unapply(k).isEmpty)
                 PathFailures(property._path ->  "Invalid key value '$k'.")
               else
                 PathFailures.empty

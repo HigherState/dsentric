@@ -27,8 +27,18 @@ trait DObjectCodec[T] extends DCodec[T] {
   override def apply(t:T):DObject
 }
 
-trait DArrayCodec[T] extends DCodec[T] {
-  override def apply(t:T):DArray
+trait DArrayCodec[T, S] extends DCodec[S] {
+  override def apply(t:S):DArray
+
+  def valueCodec:DCodec[T]
+}
+
+trait DMapCodec[K, T] extends DCodec[Map[K, T]] {
+  override def apply(t:Map[K,T]):DObject
+
+  def keyCodec:StringCodec[K]
+
+  def valueCodec:DCodec[T]
 }
 
 
@@ -109,8 +119,8 @@ trait DefaultCodecs {
         ObjectDefinition.empty
     }
 
-  implicit val dArrayCodec:DArrayCodec[DArray] =
-    new DArrayCodec[DArray] {
+  implicit val dArrayCodec:DArrayCodec[Any, DArray] =
+    new DArrayCodec[Any, DArray] {
       def apply(t: DArray): DArray =
         t
 
@@ -123,6 +133,9 @@ trait DefaultCodecs {
         }
       def typeDefinition:TypeDefinition =
         ArrayDefinition.empty
+
+      def valueCodec: DCodec[Any] =
+        anyCodec
     }
 
   implicit def setCodec[T](implicit D:StringCodec[T]):DCodec[Set[T]] =
@@ -174,7 +187,7 @@ trait DefaultCodecs {
     }
 
   implicit def tupleCodec[T1,T2](implicit D1:DCodec[T1], D2:DCodec[T2]):DCodec[(T1, T2)] =
-    new DArrayCodec[(T1, T2)] {
+    new DCodec[(T1, T2)] {
       override def apply(t: (T1, T2)): DArray =
         new DArray(Vector(D1(t._1).value, D2(t._2).value))
 
@@ -324,8 +337,8 @@ trait PessimisticCodecs extends DefaultCodecs {
         TypeDefinition.nullable(D.typeDefinition)
     }
 
-  implicit def listCodec[T](implicit C:DCodec[T]):DArrayCodec[List[T]] =
-    new DArrayCodec[List[T]] {
+  implicit def listCodec[T](implicit C:DCodec[T]):DArrayCodec[T, List[T]] =
+    new DArrayCodec[T, List[T]] {
       def apply(t: List[T]): DArray =
         if (C.isInstanceOf[DirectCodec[T]])
           new DArray(t.toVector)
@@ -342,12 +355,15 @@ trait PessimisticCodecs extends DefaultCodecs {
           case _ =>
             None
         }
+
+      def valueCodec: DCodec[T] = C
+
       def typeDefinition:TypeDefinition =
         ArrayDefinition(Vector(C.typeDefinition))
     }
 
-  implicit def vectorCodec[T](implicit C:DCodec[T]):DArrayCodec[Vector[T]] =
-    new DArrayCodec[Vector[T]] {
+  implicit def vectorCodec[T](implicit C:DCodec[T]):DArrayCodec[T, Vector[T]] =
+    new DArrayCodec[T, Vector[T]] {
       def apply(t: Vector[T]): DArray =
         if (C.isInstanceOf[DirectCodec[T]])
           new DArray(t)
@@ -365,32 +381,48 @@ trait PessimisticCodecs extends DefaultCodecs {
             None
         }
 
+
+      def valueCodec: DCodec[T] = C
+
       def typeDefinition:TypeDefinition =
         ArrayDefinition(Vector(C.typeDefinition))
     }
 
-  implicit def fixedMapCodec[T](implicit D:DCodec[T]):DCodec[Map[String, T]] =
+  implicit def fixedMapCodec[T](implicit D:DCodec[T]):DMapCodec[String, T] =
     if (D.isInstanceOf[DirectCodec[T]])
-      new DirectCodec[Map[String, T]] {
+      new DMapCodec[String, T] {
+        def apply(t: Map[String, T]): DObject =
+          new DObjectInst(t)
+
         def unapply(a:Raw): Option[Map[String, T]] =
           toMapT(a)
         def typeDefinition:TypeDefinition =
           ObjectDefinition()
+
+        def keyCodec: StringCodec[String] =
+          stringCodec
+
+        def valueCodec: DCodec[T] = D
       }
     else
-      new DCodec[Map[String, T]] {
+      new DMapCodec[String, T] {
         def unapply(a:Raw): Option[Map[String, T]] =
-          toMapT(a)
+          toMapT(a)(D)
 
-        def apply(t: Map[String, T]): Data =
-          new DValue(t.mapValues(D(_).value))
+        def apply(t: Map[String, T]): DObject =
+          new DObjectInst(t.mapValues(D(_).value))
 
         def typeDefinition:TypeDefinition =
           ObjectDefinition(additionalProperties = Right(D.typeDefinition))
+
+        def keyCodec: StringCodec[String] =
+          stringCodec
+
+        def valueCodec: DCodec[T] = D
       }
 
-  implicit def fullMapCodec[K, T](implicit D:DCodec[T], K:DCodec[K]):DCodec[Map[K, T]] =
-    new DCodec[Map[K, T]] {
+  implicit def fullMapCodec[K, T](implicit D:DCodec[T], K:StringCodec[K]):DMapCodec[K, T] =
+    new DMapCodec[K, T] {
       def unapply(a:Raw): Option[Map[K, T]] =
         a match {
           case a:RawObject@unchecked =>
@@ -406,8 +438,8 @@ trait PessimisticCodecs extends DefaultCodecs {
             None
         }
 
-      def apply(t: Map[K, T]): Data =
-        new DValue(t.map(p => K(p._1).value.toString -> D(p._2).value))
+      def apply(t: Map[K, T]): DObject =
+        new DObjectInst(t.map(p => K(p._1).value.toString -> D(p._2).value))
 
       def typeDefinition:TypeDefinition =
         K.typeDefinition match {
@@ -417,9 +449,12 @@ trait PessimisticCodecs extends DefaultCodecs {
             ObjectDefinition(additionalProperties = Right(D.typeDefinition))
         }
 
+      def keyCodec: StringCodec[K] = K
+
+      def valueCodec: DCodec[T] = D
     }
 
-  private def toMapT[T](a:Any)(implicit D:DCodec[T]) =
+  private def toMapT[T](a:Any)(implicit D:DCodec[T]): Option[Map[String, T]] =
     a match {
       case a:RawObject@unchecked =>
         a.toIterator.foldLeft(Option(Map.newBuilder[String, T])){
@@ -555,8 +590,8 @@ trait OptimisticCodecs extends DefaultCodecs {
         TypeDefinition.nullable(D.typeDefinition)
     }
 
-  implicit def listCodec[T](implicit C:DCodec[T]):DArrayCodec[List[T]] =
-    new DArrayCodec[List[T]] {
+  implicit def listCodec[T](implicit C:DCodec[T]):DArrayCodec[T, List[T]] =
+    new DArrayCodec[T, List[T]] {
       def apply(t: List[T]): DArray =
         if (C.isInstanceOf[DirectCodec[T]])
           new DArray(t.toVector)
@@ -571,12 +606,15 @@ trait OptimisticCodecs extends DefaultCodecs {
             None
         }
 
+
+      def valueCodec: DCodec[T] = C
+
       def typeDefinition:TypeDefinition =
         ArrayDefinition(Vector(C.typeDefinition))
     }
 
-  implicit def vectorCodec[T](implicit C:DCodec[T]):DArrayCodec[Vector[T]] =
-    new DArrayCodec[Vector[T]] {
+  implicit def vectorCodec[T](implicit C:DCodec[T]):DArrayCodec[T, Vector[T]] =
+    new DArrayCodec[T, Vector[T]] {
       def apply(t: Vector[T]): DArray =
         if (C.isInstanceOf[DirectCodec[T]])
           new DArray(t)
@@ -591,32 +629,46 @@ trait OptimisticCodecs extends DefaultCodecs {
             None
         }
 
+
+      def valueCodec: DCodec[T] = C
+
       def typeDefinition:TypeDefinition =
         ArrayDefinition(Vector(C.typeDefinition))
     }
 
-  implicit def fixedMapCodec[T](implicit D:DCodec[T]):DCodec[Map[String, T]] =
+  implicit def fixedMapCodec[T](implicit D:DCodec[T]):DMapCodec[String, T] =
     if (D.isInstanceOf[DirectCodec[T]])
-      new DirectCodec[Map[String, T]] {
+      new DMapCodec[String, T] {
+        def apply(t: Map[String, T]): DObject =
+          new DObjectInst(t)
+
         def unapply(a:Raw): Option[Map[String, T]] =
           toMapT(a)
 
         def typeDefinition:TypeDefinition =
           ObjectDefinition(additionalProperties = Right(D.typeDefinition))
+
+        def keyCodec: StringCodec[String] = stringCodec
+
+        def valueCodec: DCodec[T] = D
       }
     else
-      new DCodec[Map[String, T]] {
+      new DMapCodec[String, T] {
         def unapply(a:Raw): Option[Map[String, T]] =
           toMapT(a)
 
-        def apply(t: Map[String, T]): Data =
-          new DValue(t.mapValues(D(_).value))
+        def apply(t: Map[String, T]): DObject =
+          new DObjectInst(t.mapValues(D(_).value))
 
         def typeDefinition:TypeDefinition =
           ObjectDefinition(additionalProperties = Right(D.typeDefinition))
+
+        def keyCodec: StringCodec[String] = stringCodec
+
+        def valueCodec: DCodec[T] = D
       }
 
-  private def toMapT[T](a:Raw)(implicit D:DCodec[T]) =
+  private def toMapT[T](a:Raw)(implicit D:DCodec[T]): Option[Map[String, T]] =
     a match {
       case a:RawObject@unchecked =>
         Some(a.flatMap(p => D.unapply(p._2).map(p._1 -> _)))

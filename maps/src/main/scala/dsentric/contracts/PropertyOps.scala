@@ -1,7 +1,7 @@
 package dsentric.contracts
 
-import dsentric.operators.{DataOperator, Validators}
-import dsentric.{DCodec, DObject, StringCodec}
+import dsentric.operators.{DataOperator, RawValidator, Validators}
+import dsentric.{DArrayCodec, DCodec, DMapCodec, DObject, StringCodec}
 
 trait PropertyOps[D <: DObject] {
 
@@ -35,22 +35,23 @@ trait PropertyOps[D <: DObject] {
     new DefaultProperty[D, T](Some(name), default:T, __self, codec, dataOperators)
 
 
-  def \::[T <: DObject](contract:ContractFor[T], dataOperators: DataOperator[Option[Vector[T]]]*)(implicit codec:DCodec[Vector[T]]):ObjectsProperty[D, T] =
+  def \::[T <: DObject](contract:ContractFor[T], dataOperators: DataOperator[Option[Vector[T]]]*)(implicit codec:DArrayCodec[T, Vector[T]]):ObjectsProperty[D, T] =
     new ObjectsProperty[D, T](None, contract, __self, codec, dataOperators)
 
-  def \::[T <: DObject](contract:ContractFor[T], name:String, dataOperators: DataOperator[Option[Vector[T]]]*)(implicit codec:DCodec[Vector[T]]):ObjectsProperty[D, T] =
+  def \::[T <: DObject](contract:ContractFor[T], name:String, dataOperators: DataOperator[Option[Vector[T]]]*)(implicit codec:DArrayCodec[T, Vector[T]]):ObjectsProperty[D, T] =
     new ObjectsProperty[D, T](Some(name), contract, __self, codec, dataOperators)
 
 
 
-  def \->[K, T <: DObject](contract:ContractFor[T], dataOperators: DataOperator[Option[Map[K, T]]]*)(implicit codec:DCodec[Map[K, T]], keyCodec:StringCodec[K]):MapObjectsProperty[D, K, T] =
-    new MapObjectsProperty[D, K, T](None, contract, __self, codec, keyCodec, Validators.required +: dataOperators)
+  def \->[K, T <: DObject](contract:ContractFor[T], dataOperators: DataOperator[Option[Map[K, T]]]*)(implicit codec:DMapCodec[K, T]):MapObjectsProperty[D, K, T] =
+    new MapObjectsProperty[D, K, T](None, contract, __self, codec, Validators.required +: dataOperators)
 
-  def \->[K, T <: DObject](contract:ContractFor[T], name:String, dataOperators: DataOperator[Option[Map[K, T]]]*)(implicit codec:DCodec[Map[K, T]], keyCodec:StringCodec[K]):MapObjectsProperty[D, K, T] =
-    new MapObjectsProperty[D, K, T](Some(name), contract, __self, codec, keyCodec, Validators.required +: dataOperators)
+  def \->[K, T <: DObject](contract:ContractFor[T], name:String, dataOperators: DataOperator[Option[Map[K, T]]]*)(implicit codec:DMapCodec[K, T], keyCodec:StringCodec[K]):MapObjectsProperty[D, K, T] =
+    new MapObjectsProperty[D, K, T](Some(name), contract, __self, codec, Validators.required +: dataOperators)
 
 }
 
 object PropertyOps {
-  val requiredS = Seq(Validators.required)
+  val requiredS: Seq[RawValidator[Nothing]] =
+    Seq(Validators.required)
 }

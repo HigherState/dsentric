@@ -44,7 +44,7 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
     }
 
   def $verify(obj:D):List[Failure] =
-    __incorrectTypeBehaviour.verify(obj.value, this, true)
+    FailOnIncorrectTypeBehaviour.verify(obj.value, this, true)
 
   def $get(obj:D):ValidResult[T] =
     __expected(obj)
@@ -84,7 +84,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
     __get(obj).map(_.getOrElse(default))
 
   def $verify(obj:D):List[Failure] =
-    __incorrectTypeBehaviour.verify(obj.value, this, false)
+    FailOnIncorrectTypeBehaviour.verify(obj.value, this, false)
 
   def $drop: PathSetter[D] =
     ValueDrop(_path)
@@ -127,7 +127,7 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
     ValueSetter(_path, _codec(value).value)
 
   def $verify(obj:D):List[Failure] =
-    __incorrectTypeBehaviour.verify(obj.value, this, false)
+    FailOnIncorrectTypeBehaviour.verify(obj.value, this, false)
 
   def $restore: PathSetter[D] =
     ValueDrop(_path)
@@ -148,31 +148,6 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
     __incorrectTypeBehaviour.traverseMatcher(obj.value, this)
     .map(_.getOrElse(_default))
 }
-
-
-
-
-
-
-private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends PropertyLens[D, Map[K, T]] {
-  def _path:Path
-  def _contract:ContractFor[T]
-  def _keyCodec:StringCodec[K]
-
-  private[contracts] def __get(obj: D): ValidResult[Option[Map[K, T]]] = ???
-
-  def $verify(obj: D): List[Failure] = ???
-
-  def $get(obj:D):ValidResult[Map[K, T]] = ???
-
-  def $clear:PathSetter[D] = ???
-
-  def $add(keyValue:(K, T)):ValidPathSetter[D] = ???
-
-  def $map(f:T => T):ValidPathSetter[D] = ???
-}
-
-
 
 
 

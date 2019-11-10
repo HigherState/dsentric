@@ -80,16 +80,14 @@ class DefaultProperty[D <: DObject, T] private[contracts]
 class ObjectsProperty[D <: DObject, T <: DObject](private[contracts] val __nameOverride:Option[String],
                                                           val _contract:ContractFor[T],
                                                           val _parent:BaseContract[D],
-                                                          val _codec:DCodec[Vector[T]],
+                                                          val _codec:DArrayCodec[T, Vector[T]],
                                                           val _dataOperators:Seq[DataOperator[Option[Vector[T]]]]
-                                                         ) extends Property[D, Vector[T]] with ObjectsLens[D, T] {
-}
+                                                         ) extends Property[D, Vector[T]] with ObjectsLens[D, T]
 
 class MapObjectsProperty[D <: DObject, K, T <: DObject](private[contracts] val __nameOverride:Option[String],
                                                        val _contract:ContractFor[T],
                                                        val _parent:BaseContract[D],
-                                                       val _codec:DCodec[Map[K, T]],
-                                                       val _keyCodec:StringCodec[K],
+                                                       val _codec:DMapCodec[K, T],
                                                        val _dataOperators:Seq[DataOperator[Option[Map[K, T]]]]
                                                       ) extends Property[D, Map[K, T]] with MapObjectsLens[D, K, T]
 

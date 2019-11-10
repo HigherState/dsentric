@@ -165,12 +165,12 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       }
     }
     describe("$set") {
-
-      it("should succeed if maybe property of wrong type") {
-        EmptyExpectedObject.maybe.$set(DObject("property" := 123, "additional" := "temp"))(DObject.empty).right.value shouldBe DObject("maybe" := DObject("additional" := "temp"))
+      //Anything using the lens to set should be correct
+      it("should fail if maybe property of wrong type") {
+        EmptyExpectedObject.maybe.$set(DObject("property" := 123, "additional" := "temp"))(DObject.empty).left.value should contain (IncorrectTypeFailure(EmptyExpectedObject.maybe.property))
       }
-      it("should succeed if default property of wrong type") {
-        EmptyExpectedObject.default.$set(DObject("property" := 123))(DObject.empty).right.value shouldBe DObject("default" := DObject.empty)
+      it("should fail if default property of wrong type") {
+        EmptyExpectedObject.default.$set(DObject("property" := 123))(DObject.empty).left.value should contain (IncorrectTypeFailure(EmptyExpectedObject.default.property))
       }
     }
   }
@@ -356,13 +356,9 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
         val base = DObject.empty
         Objects.expectedObjects.$append(DObject("property" := 123))(base).left.value should contain(IncorrectTypeFailure(ExpectedObjects.property))
       }
-      it("Should Fail if append if objects being appended to are wrong") {
+      it("Should succeed if append if objects being appended to are wrong") {
         val base = DObject("expectedObjects" := Vector(DObject.empty))
-        Objects.expectedObjects.$append(DObject("property" := "value"))(base).left.value should contain(ExpectedFailure(ExpectedObjects.property).rebase(Objects, Path("expectedObjects", 0)))
-      }
-      it("Should Fail with both if object wrong and objects being appended to is wrong") {
-        val base = DObject("expectedObjects" := Vector(DObject.empty))
-        Objects.expectedObjects.$append(DObject("property" := 123))(base).left.value should contain allOf(IncorrectTypeFailure(ExpectedObjects.property), ExpectedFailure(ExpectedObjects.property).rebase(Objects, Path("expectedObjects", 0)))
+        Objects.expectedObjects.$append(DObject("property" := "value"))(base).right.value shouldBe DObject("expectedObjects" := Vector(DObject.empty, DObject("property" := "value")))
       }
       it("Should append expected") {
         val base = DObject("expectedObjects" := Vector(DObject("property" := "test1")))
@@ -375,23 +371,48 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
     }
     describe("$set") {
       it("Should set empty") {
-        pending
+        val base = DObject.empty
+        Objects.expectedObjects.$set(Vector.empty)(base).right.value shouldBe DObject("expectedObjects" := Vector.empty[DObject])
       }
       it("Should fail if any set objects are invalid") {
-        pending
+        val base = DObject.empty
+        val array = Vector(ExpectedObjects.$create(_.property.$set("one")), DObject.empty, ExpectedObjects.$create(_.property.$set("two")))
+        Objects.expectedObjects.$set(array)(base).left.value should contain (ExpectedFailure(ExpectedObjects.property).rebase(Objects, Objects.expectedObjects._path \ 1))
       }
       it("Should include any empty objects if allowed") {
-        pending
+        val maybeBase = DObject.empty
+        val maybeArray = Vector(MaybeObjects.$create(_.property.$set("one")), DObject.empty, MaybeObjects.$create(_.property.$set("two")))
+        Objects.maybeObjects.$set(maybeArray)(maybeBase).right.value shouldBe DObject("maybeObjects" := maybeArray)
       }
       it("Should replace existing collection") {
-        pending
+        val defaultBase = DObject.empty
+        val defaultArray = Vector(MaybeObjects.$create(_.property.$set("one")), DObject.empty, MaybeObjects.$create(_.property.$set("two")))
+        Objects.defaultObjects.$set(defaultArray)(defaultBase).right.value shouldBe DObject("defaultObjects" := defaultArray)
       }
       it("Should replace existing wrong collection") {
+        val base = DObject("expectedObjects" := Vector(123, DObject("property" := "one"), "blah"))
+        val array = Vector(ExpectedObjects.$create(_.property.$set("one")), ExpectedObjects.$create(_.property.$set("two")))
+        Objects.expectedObjects.$set(array)(base).right.value shouldBe DObject("expectedObjects" := array)
+      }
+    }
+    describe("$map") {
+      it("Should succeed if objects are empty") {
+        pending
+      }
+      it("Should succeed if objects are valid") {
+        pending
+      }
+      it("Should fail if any object is invalid") {
+        pending
+      }
+      it("Should provide any default values") {
         pending
       }
     }
   }
-
+  object EmptyExpectedObjects extends Contract with EmptyOnIncorrectType {
+    val property = \[String]
+  }
   object EmptyMaybeObjects extends Contract with EmptyOnIncorrectType {
     val property = \?[String]
   }
@@ -400,50 +421,54 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
   }
 
   object EmptyObjects extends Contract with EmptyOnIncorrectType {
-    val maybeObjects = \::[DObject](MaybeObjects)
+    val maybeObjects = \::[DObject](EmptyMaybeObjects)
 
-    val defaultObjects = \::[DObject](DefaultObjects)
+    val defaultObjects = \::[DObject](EmptyDefaultObjects)
+
+    val expectedObjects = \::[DObject](EmptyExpectedObjects)
   }
 
   describe("Objects Lens with EmptyOnIncorrectTypes") {
     describe("$get") {
       it("Should return empty if not a vector") {
-        pending
+        val base = DObject("maybeObjects" := 123)
+        EmptyObjects.maybeObjects.$get(base).right.value shouldBe Vector.empty
       }
 
       it("Should return with empty object if maybe incorrect type") {
-        pending
-      }
-
-      it("Should fail if expected incorrect type") {
-        pending
+        val base = DObject("maybeObjects" := Vector(DObject("property" := 123)))
+        EmptyObjects.maybeObjects.$get(base).right.value shouldBe Vector(DObject.empty)
       }
 
       it("Should include any defaults if default incorrect type") {
-        pending
+        val base = DObject("defaultObjects" := Vector(DObject("property" := 123)))
+        EmptyObjects.defaultObjects.$get(base).right.value shouldBe Vector(DObject("property" := "default"))
       }
     }
     describe("$append") {
 
-      it("Should succeed if append if appended object has any optional incorrect types") {
-        pending
+      it("Should fail if append if appended object has any optional incorrect types") {
+        val base = DObject("maybeObjects" := Vector(DObject("property" := "one")))
+        EmptyObjects.maybeObjects.$append(DObject("property" := 123))(base).left.value should contain (IncorrectTypeFailure(EmptyMaybeObjects.property))
       }
       it("Should fail on append if appended object has any expected incorrect types") {
-        pending
+        val base = DObject("expectedObjects" := Vector(DObject("property" := "one")))
+        EmptyObjects.expectedObjects.$append(DObject("property" := 123))(base).left.value should contain (IncorrectTypeFailure(EmptyExpectedObjects.property))
       }
       it("Should succeed if current collection has any optional incorrect types") {
-        pending //will it remove those incorrect types... hmmm.
+        val base = DObject("maybeObjects" := Vector(DObject("property" := 123)))
+        EmptyObjects.maybeObjects.$append(DObject("property" := "string"))(base).right.value shouldBe DObject("maybeObjects" := Vector(DObject.empty, DObject("property" := "string")))
       }
     }
     describe("$set") {
       it("Should set empty") {
-        pending
+        val base = DObject.empty
+        EmptyObjects.expectedObjects.$set(Vector.empty)(base).right.value shouldBe DObject("expectedObjects" := Vector.empty[DObject])
       }
-      it("Should succeed if any set objects hav any optional incorrect types") {
-        pending
-      }
-      it("Should fail if any set objects have any expected incorrect types") {
-        pending
+      it("Should fail if any set objects have any optional incorrect types") {
+        val base = DObject.empty
+        val array = Vector(DObject("property" := "value"), DObject.empty, DObject("property" := 123))
+        EmptyObjects.maybeObjects.$set(array)(base).left.value should contain (IncorrectTypeFailure(EmptyMaybeObjects.property).rebase(EmptyObjects, Objects.maybeObjects._path \ 2))
       }
     }
   }
