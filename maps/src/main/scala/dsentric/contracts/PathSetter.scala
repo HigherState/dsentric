@@ -100,6 +100,18 @@ private final case class ModifySetter[D <: DObject, T](getter:D => ValidResult[O
       }
 }
 
+private final case class ModifyValidSetter[D <: DObject, T](getter:D => ValidResult[Option[T]], f:T => ValidResult[T], setter:(D, T) => D) extends ValidPathSetter[D] {
+
+  def apply(v1: D): ValidResult[D] =
+    getter(v1)
+      .flatMap{
+        case None =>
+          Right(v1)
+        case Some(t) =>
+          f(t).map(t => setter(v1, t))
+      }
+}
+
 private final case class RawModifySetter[D <: DObject, T](modifier:D => ValidResult[Raw],  path:Path) extends ValidPathSetter[D] {
 
   def apply(v1: D): ValidResult[D] =

@@ -124,7 +124,7 @@ private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends Property
   def $set(objs:Vector[T]):ValidPathSetter[D] = {
     val validRaw =
       objs.toList.zipWithIndex.flatMap{e =>
-        _contract.$verify(e._1).map(_.rebase(_root, _path \ e._2))
+        _contract.$verify(e._1).map(_.rebase(_contract, Path(e._2)))
       } match {
         case head :: tail =>
           Left(NonEmptyList(head, tail))
@@ -140,7 +140,7 @@ private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends Property
   def $append(element:T):ValidPathSetter[D] = {
     def modifier(d:D): ValidResult[RawArray] =
       (_contract.$verify(element) -> __getRaw(d)) match {
-        case (Nil, Right(d)) => Right(d :+ _codec.valueCodec(element))
+        case (Nil, Right(d)) => Right(d :+ _codec.valueCodec(element).value)
         case (l, Left(f)) => Left(f ++ l)
         case (head :: tail, _) => Left(NonEmptyList(head, tail))
       }
@@ -151,6 +151,8 @@ private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends Property
   def $map(f:T => T):ValidPathSetter[D] =
     ModifySetter[D, Vector[T]](__get, _.map(f), __set)
 
+  def $map(f:ValidPathSetter[T]):ValidPathSetter[D] =
+    ModifyValidSetter[D, Vector[T]](__get, t => ValidResult.parSequence(t.map(e => f(e))), __set)
 }
 
 
@@ -193,13 +195,29 @@ private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends Pr
   def $get(obj:D):ValidResult[Map[K, T]] =
     __get(obj).map(_.getOrElse(Map.empty))
 
-  def $get(k:K, obj:D):ValidResult[Option[T]] =
-    __incorrectTypeBehaviour.traverse(obj.value, _root, _path \ _codec.keyCodec.toString(k), _codec.valueCodec)
+  def $get(k:K)(obj:D):ValidResult[Option[T]] = {
+    val key = _codec.keyCodec.toString(k)
+    __incorrectTypeBehaviour.traverse(obj.value, _root, _path \ key, _codec.valueCodec)
+    .flatMap {
+      case None =>
+        Right(None)
+      case Some(t) =>
+        _contract.$get(t) match {
+          case Left(f) =>
+            Left(f.map(_.rebase(_root, _path \ key)))
+          case Right(v) =>
+            Right(Some(v))
+        }
+    }
+  }
+
+  def $exists(k:K)(obj:D):ValidResult[Boolean] =
+    __getRaw(obj).map(_.contains(_codec.keyCodec.toString(k)))
 
   def $set(objs:Map[K, T]):ValidPathSetter[D] = {
     val validRaw =
       objs.flatMap{e =>
-        _contract.$verify(e._2).map(_.rebase(_root, _path \ _codec.keyCodec.toString(e._1)))
+        _contract.$verify(e._2).map(_.rebase(_contract, Path(_codec.keyCodec.toString(e._1))))
       } match {
         case head :: tail =>
           Left(NonEmptyList(head, tail))
