@@ -83,6 +83,7 @@ private[dsentric] object ObjectLens {
 
 
 //Codec implies it doesnt actually have to be an array as raw type
+//Any modifications setting empty vector should clear the field
 private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends PropertyLens[D, Vector[T]] {
   def _contract:ContractFor[T]
   def _codec:DArrayCodec[T, Vector[T]]
@@ -131,7 +132,10 @@ private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends Property
         case Nil =>
           Right(_codec.apply(objs).value)
       }
-    ValidValueSetter(_path, validRaw)
+    if (validRaw.exists(_.isEmpty))
+      LiftedSetter(ValueDrop(_path))
+    else
+      ValidValueSetter(_path, validRaw)
   }
 
   def $clear:PathSetter[D] =
@@ -155,7 +159,7 @@ private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends Property
     ModifyValidSetter[D, Vector[T]](__get, t => ValidResult.parSequence(t.map(e => f(e))), __set)
 }
 
-
+//Any modifications setting empty map should clear the field
 private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends PropertyLens[D, Map[K, T]] {
   def _path:Path
   def _contract:ContractFor[T]
@@ -224,20 +228,27 @@ private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends Pr
         case Nil =>
           Right(_codec.apply(objs).value)
       }
-    ValidValueSetter(_path, validRaw)
+    if (validRaw.exists(_.isEmpty))
+      LiftedSetter(ValueDrop(_path))
+    else
+      ValidValueSetter(_path, validRaw)
   }
 
   def $clear:PathSetter[D] =
     ValueDrop(_path)
 
   def $remove(key:K):ValidPathSetter[D] =
-    RawModifySetter(d => __getRaw(d).map(_ - _codec.keyCodec.toString(key)), _path)
+    RawModifyOrDropSetter(d => __getRaw(d).map{ obj =>
+      val newObj = obj - _codec.keyCodec.toString(key)
+      if (newObj.isEmpty) None
+      else Some(newObj)
+    }, _path)
 
   def $add(keyValue:(K, T)):ValidPathSetter[D] = {
     def modifier(d:D): ValidResult[RawObject] =
       (_contract.$verify(keyValue._2) -> __getRaw(d)) match {
         case (Nil, Right(d)) =>
-          Right(d + (_codec.keyCodec.toString(keyValue._1) ->  _codec.valueCodec(keyValue._2)))
+          Right(d + (_codec.keyCodec.toString(keyValue._1) ->  _codec.valueCodec(keyValue._2).value))
         case (l, Left(f)) =>
           Left(f ++ l)
         case (head :: tail, _) =>
@@ -247,9 +258,11 @@ private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends Pr
     RawModifySetter(modifier, _path)
   }
 
-
   def $map(f:T => T):ValidPathSetter[D] =
     ModifySetter[D, Map[K, T]](__get, _.mapValues(f), __set)
+
+  def $map(f:ValidPathSetter[T]):ValidPathSetter[D] =
+    ModifyValidSetter[D, Map[K, T]](__get, t => ValidResult.parSequence(t.map(e => f(e._2).map(e._1 -> _)).toVector).map(_.toMap), __set)
 }
 
 

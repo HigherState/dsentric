@@ -359,6 +359,10 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
         val base = DObject.empty
         Objects.expectedObjects.$append(DObject("property" := 123))(base).left.value should contain(IncorrectTypeFailure(ExpectedObjects.property))
       }
+      it("Should fail if append if field being appended to is of the wrong type") {
+        val base = DObject("expectedObjects" := 1234)
+        Objects.expectedObjects.$append(DObject("property" := "value"))(base).left.value should contain(IncorrectTypeFailure(Objects.expectedObjects))
+      }
       it("Should succeed if append if objects being appended to are wrong") {
         val base = DObject("expectedObjects" := Vector(DObject.empty))
         Objects.expectedObjects.$append(DObject("property" := "value"))(base).right.value shouldBe DObject("expectedObjects" := Vector(DObject.empty, DObject("property" := "value")))
@@ -375,7 +379,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
     describe("$set") {
       it("Should set empty") {
         val base = DObject.empty
-        Objects.expectedObjects.$set(Vector.empty)(base).right.value shouldBe DObject("expectedObjects" := Vector.empty[DObject])
+        Objects.expectedObjects.$set(Vector.empty)(base).right.value shouldBe DObject.empty
       }
       it("Should fail if any set objects are invalid") {
         val base = DObject.empty
@@ -443,6 +447,10 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
         val base = DObject("maybeObjects" := 123)
         EmptyObjects.maybeObjects.$get(base).right.value shouldBe Vector.empty
       }
+      it("Should ignore a failed element") {
+        val base = DObject("maybeObjects" := Vector(DObject("property" := "value"), 123))
+        EmptyObjects.maybeObjects.$get(base).right.value shouldBe Vector(DObject("property" := "value"))
+      }
 
       it("Should return with empty object if maybe incorrect type") {
         val base = DObject("maybeObjects" := Vector(DObject("property" := 123)))
@@ -466,18 +474,18 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       }
       it("Should succeed if current collection has any optional incorrect types") {
         val base = DObject("maybeObjects" := Vector(DObject("property" := 123)))
-        EmptyObjects.maybeObjects.$append(DObject("property" := "string"))(base).right.value shouldBe DObject("maybeObjects" := Vector(DObject.empty, DObject("property" := "string")))
+        EmptyObjects.maybeObjects.$append(DObject("property" := "string"))(base).right.value shouldBe DObject("maybeObjects" := Vector(DObject("property" := 123), DObject("property" := "string")))
+      }
+      it("Should succeed if current is incorrect type") {
+        val base = DObject("maybeObjects" := false)
+        EmptyObjects.maybeObjects.$append(DObject("property" := "string"))(base).right.value shouldBe DObject("maybeObjects" := Vector(DObject("property" := "string")))
       }
     }
     describe("$set") {
-      it("Should set empty") {
-        val base = DObject.empty
-        EmptyObjects.expectedObjects.$set(Vector.empty)(base).right.value shouldBe DObject("expectedObjects" := Vector.empty[DObject])
-      }
       it("Should fail if any set objects have any optional incorrect types") {
         val base = DObject.empty
         val array = Vector(DObject("property" := "value"), DObject.empty, DObject("property" := 123))
-        EmptyObjects.maybeObjects.$set(array)(base).left.value should contain (IncorrectTypeFailure(EmptyMaybeObjects.property).rebase(EmptyObjects, EmptyObjects.maybeObjects._path \ 2))
+        EmptyObjects.maybeObjects.$set(array)(base).left.value should contain (IncorrectTypeFailure(EmptyMaybeObjects.property).rebase(EmptyMaybeObjects, Path(2)))
       }
     }
   }
@@ -562,9 +570,10 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       }
     }
     describe("$set") {
-      it("Should set empty object") {
+      //Setting empty could remove?
+      it("Should clear if set empty object") {
         val base = DObject.empty
-        MapObjects.expectedMap.$set(Map.empty)(base).right.value shouldBe DObject("expectedMap" := DObject.empty)
+        MapObjects.expectedMap.$set(Map.empty)(base).right.value shouldBe DObject.empty
       }
       it("Should set correct map values") {
         val base = DObject.empty
@@ -627,40 +636,169 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
         val base = DObject("expectedMap" := 123)
         MapObjects.expectedMap.$remove("first")(base).left.value should contain (IncorrectTypeFailure(MapObjects.expectedMap))
       }
+      it("Should clear field if last element removed") {
+
+      }
     }
     describe("$add") {
-      it("Should add if no map object") {
-        pending
+      it("Should create single element map if no map object") {
+        val base = DObject.empty
+        val r = MapObjects.defaultMap.$add("first" -> Default.$create(_.property.$set(false)))(base).right.value
+        r shouldBe DObject("defaultMap" ::= "first" -> DObject("property" := false))
       }
       it("Should fail if map not correct type") {
-        pending
+        val base = DObject("expectedMap" := 123)
+        val r = MapObjects.expectedMap.$add("first" -> Expected.$create(_.property.$set("value")))(base).left.value
+        r should contain (IncorrectTypeFailure(MapObjects.expectedMap))
       }
       it("Should add if map exists") {
-        pending
+        val base = DObject("expectedMap" := Map("first" -> Expected.$create(_.property.$set("value1"))))
+        val r = MapObjects.expectedMap.$add("second" -> Expected.$create(_.property.$set("value2")))(base).right.value
+        r shouldBe DObject("expectedMap" ::= ("first" -> DObject("property" := "value1"), "second" -> DObject("property" := "value2")))
       }
       it("Should add if map objects not all valid") {
-        pending
+        val base = DObject("maybeMap" := Map("first" -> Expected.$create(_.property.$set("value1"))))
+        val r = MapObjects.maybeMap.$add("second" -> Maybe.$create(_.property.$set(456)))(base).right.value
+        r shouldBe DObject("maybeMap" ::= ("first" -> DObject("property" := "value1"), "second" -> DObject("property" := 456)))
       }
       it("Should fail if added object fails") {
-        pending
+        val base = DObject.empty
+        val r = MapObjects.defaultMap.$add("first" ::= ("property" := 123))(base).left.value
+        r should contain (IncorrectTypeFailure(Default.property))
       }
       it("Should replace object if object already exists") {
-        pending
+        val base = DObject("expectedMap" ::= ("first" -> DObject("property" := "value1"), "second" -> DObject("property" := "value2")))
+        val r = MapObjects.expectedMap.$add("second" -> Expected.$create(_.property.$set("value3")))(base).right.value
+        r shouldBe DObject("expectedMap" ::= ("first" -> DObject("property" := "value1"), "second" -> DObject("property" := "value3")))
       }
     }
     describe("$map") {
       it("Should succeed if objects are empty") {
-        pending
+        val base = DObject.empty
+        val r = MapObjects.expectedMap.$map(Expected.property.$modify(_ + "1"))(base).right.value
+        r shouldBe DObject.empty
       }
       it("Should succeed if objects are valid") {
-        pending
+        val base = DObject("expectedMap" ::= ("first" -> DObject("property" := "value1"), "second" -> DObject("property" := "value2")))
+        val r = MapObjects.expectedMap.$map(Expected.property.$modify(_ + "*"))(base).right.value
+        r shouldBe DObject("expectedMap" ::= ("first" -> DObject("property" := "value1*"), "second" -> DObject("property" := "value2*")))
       }
       it("Should fail if any object is invalid") {
-        pending
+        val base = DObject("expectedMap" ::= ("first" -> DObject("property" := "value1"), "second" -> DObject("property" := 123)))
+        val r = MapObjects.expectedMap.$map(Expected.property.$modify(_ + "*"))(base).left.value
+        r should contain (IncorrectTypeFailure(Expected.property).rebase(MapObjects, MapObjects.expectedMap._path \ "second"))
       }
       it("Should provide any default values") {
-        pending
+        val base = DObject("defaultMap" ::= ("first" -> DObject("property" := true), "second" -> DObject.empty))
+        val r = MapObjects.defaultMap.$map(a => a + ("property2" := 123))(base).right.value
+        r shouldBe DObject("defaultMap" ::= ("first" -> DObject("property" := true, "property2" := 123), "second" -> DObject("property" := false, "property2" := 123)))
       }
     }
+  }
+
+  describe("MapObjectsPropertyLens with EmptyOnIncorrectType") {
+
+    object EmptyExpected extends Contract with EmptyOnIncorrectType {
+      val property = \[String]
+    }
+    object EmptyMaybe extends Contract with EmptyOnIncorrectType {
+      val property = \?[Int]
+    }
+    object EmptyDefault extends Contract with EmptyOnIncorrectType {
+      val property = \![Boolean](false)
+    }
+
+    object EmptyMapObjects extends Contract with EmptyOnIncorrectType {
+      val expectedMap = \->[String, DObject](EmptyExpected)
+      val maybeMap = \->[String, DObject](EmptyMaybe)
+      val defaultMap = \->[String, DObject](EmptyDefault)
+    }
+
+    describe("$get for map") {
+      it("Should return Empty if map not correct type") {
+        val base = DObject("expectedMap" := 123)
+        EmptyMapObjects.expectedMap.$get(base).right.value shouldBe Map.empty
+      }
+      it("Should drop key value if the object fails") {
+        val base = DObject("maybeMap" := Map("first" -> DObject("property" := false), "second" -> 345))
+        EmptyMapObjects.maybeMap.$get(base).right.value shouldBe Map("first" -> DObject("property" := false))
+      }
+    }
+    describe("$get for individual object") {
+      it("Should empty failure if object fails") {
+        val base = DObject("expectedMap" := DObject("first" := DObject.empty, "second" := DObject("property" := "value2")))
+        EmptyMapObjects.expectedMap.$get("first")(base).right.value shouldBe None
+        val base2 = DObject("maybeMap" := DObject("first" := DObject("property" := "value"), "second" := 123))
+        EmptyMapObjects.expectedMap.$get("second")(base2).right.value shouldBe None
+      }
+    }
+    describe("$set") {
+      it("Should fail if any objects being set fail") {
+        val base = DObject.empty
+        val set = Map("first" -> DObject("property" := "value1"), "second" -> DObject("property" := 1234))
+        MapObjects.expectedMap.$set(set)(base).left.value should contain (IncorrectTypeFailure(Expected.property).rebase(Expected, Path("second")))
+      }
+
+    }
+    describe("$remove") {
+      it("Should ignore if maps not correct type") {
+        val base = DObject("expectedMap" := 123)
+        EmptyMapObjects.expectedMap.$remove("first")(base).right.value shouldBe base
+      }
+    }
+//    describe("$add") {
+//      it("Should create single element map if no map object") {
+//        val base = DObject.empty
+//        val r = MapObjects.defaultMap.$add("first" -> Default.$create(_.property.$set(false)))(base).right.value
+//        r shouldBe DObject("defaultMap" ::= "first" -> DObject("property" := false))
+//      }
+//      it("Should fail if map not correct type") {
+//        val base = DObject("expectedMap" := 123)
+//        val r = MapObjects.expectedMap.$add("first" -> Expected.$create(_.property.$set("value")))(base).left.value
+//        r should contain (IncorrectTypeFailure(MapObjects.expectedMap))
+//      }
+//      it("Should add if map exists") {
+//        val base = DObject("expectedMap" := Map("first" -> Expected.$create(_.property.$set("value1"))))
+//        val r = MapObjects.expectedMap.$add("second" -> Expected.$create(_.property.$set("value2")))(base).right.value
+//        r shouldBe DObject("expectedMap" ::= ("first" -> DObject("property" := "value1"), "second" -> DObject("property" := "value2")))
+//      }
+//      it("Should add if map objects not all valid") {
+//        val base = DObject("maybeMap" := Map("first" -> Expected.$create(_.property.$set("value1"))))
+//        val r = MapObjects.maybeMap.$add("second" -> Maybe.$create(_.property.$set(456)))(base).right.value
+//        r shouldBe DObject("maybeMap" ::= ("first" -> DObject("property" := "value1"), "second" -> DObject("property" := 456)))
+//      }
+//      it("Should fail if added object fails") {
+//        val base = DObject.empty
+//        val r = MapObjects.defaultMap.$add("first" ::= ("property" := 123))(base).left.value
+//        r should contain (IncorrectTypeFailure(Default.property))
+//      }
+//      it("Should replace object if object already exists") {
+//        val base = DObject("expectedMap" ::= ("first" -> DObject("property" := "value1"), "second" -> DObject("property" := "value2")))
+//        val r = MapObjects.expectedMap.$add("second" -> Expected.$create(_.property.$set("value3")))(base).right.value
+//        r shouldBe DObject("expectedMap" ::= ("first" -> DObject("property" := "value1"), "second" -> DObject("property" := "value3")))
+//      }
+//    }
+//    describe("$map") {
+//      it("Should succeed if objects are empty") {
+//        val base = DObject.empty
+//        val r = MapObjects.expectedMap.$map(Expected.property.$modify(_ + "1"))(base).right.value
+//        r shouldBe DObject.empty
+//      }
+//      it("Should succeed if objects are valid") {
+//        val base = DObject("expectedMap" ::= ("first" -> DObject("property" := "value1"), "second" -> DObject("property" := "value2")))
+//        val r = MapObjects.expectedMap.$map(Expected.property.$modify(_ + "*"))(base).right.value
+//        r shouldBe DObject("expectedMap" ::= ("first" -> DObject("property" := "value1*"), "second" -> DObject("property" := "value2*")))
+//      }
+//      it("Should fail if any object is invalid") {
+//        val base = DObject("expectedMap" ::= ("first" -> DObject("property" := "value1"), "second" -> DObject("property" := 123)))
+//        val r = MapObjects.expectedMap.$map(Expected.property.$modify(_ + "*"))(base).left.value
+//        r should contain (IncorrectTypeFailure(Expected.property).rebase(MapObjects, MapObjects.expectedMap._path \ "second"))
+//      }
+//      it("Should provide any default values") {
+//        val base = DObject("defaultMap" ::= ("first" -> DObject("property" := true), "second" -> DObject.empty))
+//        val r = MapObjects.defaultMap.$map(a => a + ("property2" := 123))(base).right.value
+//        r shouldBe DObject("defaultMap" ::= ("first" -> DObject("property" := true, "property2" := 123), "second" -> DObject("property" := false, "property2" := 123)))
+//      }
+//    }
   }
 }

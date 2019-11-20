@@ -2,7 +2,7 @@ package dsentric.contracts
 
 import cats.data.NonEmptyList
 import dsentric.failure.{Failure, ValidResult}
-import dsentric.{DObject, Path, PathLensOps, Raw}
+import dsentric.{DObject, Path, PathLensOps, Raw, RawObject}
 
 sealed trait PathSetter[D <: DObject] extends Function[D, D] {
   def ~(pathSetter:PathSetter[D]):PathSetter[D] =
@@ -117,6 +117,17 @@ private final case class RawModifySetter[D <: DObject, T](modifier:D => ValidRes
   def apply(v1: D): ValidResult[D] =
     modifier(v1).map{r =>
       asD(v1.internalWrap(PathLensOps.set(v1.value, path, r)))
+    }
+}
+
+private final case class RawModifyOrDropSetter[D <: DObject, T](modifier:D => ValidResult[Option[Raw]],  path:Path) extends ValidPathSetter[D] {
+
+  def apply(v1: D): ValidResult[D] =
+    modifier(v1).map{
+      case None =>
+        asD(v1.internalWrap(PathLensOps.drop(v1.value, path).getOrElse(RawObject.empty)))
+      case Some(r) =>
+        asD(v1.internalWrap(PathLensOps.set(v1.value, path, r)))
     }
 }
 

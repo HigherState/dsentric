@@ -13,7 +13,7 @@ final class StringOps(val self:String) extends AnyVal {
   def :=[T](t:T)(implicit D: DCodec[T]):(String, Data) =
     self -> D(t)
 
-  def ::=(pairs:(String, Data)*):(String, Data) =
+  def ::=(pairs:(String, Data)*):(String, DObject) =
     self -> DObject(pairs:_*)
 
   def p:Path = Path(self)
