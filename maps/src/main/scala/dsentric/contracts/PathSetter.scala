@@ -131,6 +131,30 @@ private final case class RawModifyOrDropSetter[D <: DObject, T](modifier:D => Va
     }
 }
 
+private final case class RawModifyOrIgnoreSetter[D <: DObject, T](modifier:D => ValidResult[Option[Raw]],  path:Path) extends ValidPathSetter[D] {
+
+  def apply(v1: D): ValidResult[D] =
+    modifier(v1).map{
+      case None =>
+        v1
+      case Some(r) =>
+        asD(v1.internalWrap(PathLensOps.set(v1.value, path, r)))
+    }
+}
+
+private final case class RawModifyDropOrIgnoreSetter[D <: DObject, T](modifier:D => ValidResult[Option[Option[Raw]]],  path:Path) extends ValidPathSetter[D] {
+
+  def apply(v1: D): ValidResult[D] =
+    modifier(v1).map{
+      case None =>
+        v1
+      case Some(None) =>
+        asD(v1.internalWrap(PathLensOps.drop(v1.value, path).getOrElse(RawObject.empty)))
+      case Some(Some(r)) =>
+        asD(v1.internalWrap(PathLensOps.set(v1.value, path, r)))
+    }
+}
+
 /*
 Option on f Raw result is case of codec failure
  */
