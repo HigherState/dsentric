@@ -1,11 +1,13 @@
 package dsentric.operators
 
-import dsentric.{PathFailures, Path}
+import dsentric.contracts.ContractFor
+import dsentric.failure.ValidationFailures
+import dsentric.{DObject, Path}
 import dsentric.schema.TypeDefinition
 
 case class AndValidator[+T, A <: T, B <: T](left:ValueValidator[A], right:ValueValidator[B]) extends ValueValidator[T] {
-  def apply[S >: T](path:Path, value:Option[S], currentState: => Option[S]):PathFailures =
-    left(path, value, currentState) ++ right(path, value, currentState)
+  def apply[S >: T, D <: DObject](contract:ContractFor[D], path:Path, value:Option[S], currentState: => Option[S]):ValidationFailures =
+    left(contract, path, value, currentState) ++ right(contract, path, value, currentState)
 
   override def definition:PartialFunction[TypeDefinition, TypeDefinition] =
     left.definition.andThen(right.definition)

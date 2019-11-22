@@ -1,7 +1,8 @@
 package dsentric.operators
 
-import dsentric.failure.ValidResult
-import dsentric.{DCodec, Data, Path, PathFailures, Raw}
+import dsentric.failure._
+import dsentric._
+import dsentric.contracts.ContractFor
 
 trait ValidatorSanitizers {
 
@@ -9,8 +10,8 @@ trait ValidatorSanitizers {
   val internal: RawValidator[Option[Nothing]] with Sanitizer[Nothing] =
     new RawValidator[Option[Nothing]] with Sanitizer[Nothing]{
 
-      def apply(path:Path, value:Option[Raw], currentState:Option[Raw]): PathFailures =
-        value.fold(PathFailures.empty)(_ => PathFailures(path -> "Value is reserved and cannot be provided."))
+      def apply[D <: DObject](contract:ContractFor[D], path:Path, value:Option[Raw], currentState:Option[Raw]): ValidationFailures =
+        value.fold(ValidationFailures.empty)(_ => ValidationFailures(ReservedFailure(contract, path)))
 
       def sanitize[S >: Nothing]: Function[ValidResult[S], Option[Data]] = {
         _ => None
@@ -27,11 +28,11 @@ trait ValidatorSanitizers {
           Some(dataMask)
       }
 
-      def apply(path: Path, value: Option[Raw], currentState: Option[Raw]): PathFailures =
+      def apply[D <: DObject](contract:ContractFor[D], path: Path, value: Option[Raw], currentState: Option[Raw]): ValidationFailures =
         if (value.contains(dataMask.value))
-          PathFailures(path -> "Value cannot be the same as its mask.")
+          ValidationFailures(MaskFailure(contract, path, mask))
         else
-          PathFailures.empty
+          ValidationFailures.empty
     }
 
   def maskEmpty[T](mask:T)(implicit D:DCodec[T]):RawValidator[Option[Nothing]] with Sanitizer[Nothing] =
@@ -42,11 +43,11 @@ trait ValidatorSanitizers {
         _ => Some(dataMask)
       }
 
-      def apply(path: Path, value: Option[Raw], currentState: Option[Raw]): PathFailures =
+      def apply[D <: DObject](contract:ContractFor[D], path: Path, value: Option[Raw], currentState: Option[Raw]): ValidationFailures =
         if (value.contains(dataMask.value))
-          PathFailures(path -> "Value cannot be the same as its mask.")
+          ValidationFailures(MaskFailure(contract, path, mask))
         else
-          PathFailures.empty
+          ValidationFailures.empty
     }
 
 }

@@ -86,15 +86,17 @@ private[dsentric] object ObjectLens {
 //Any modifications setting empty vector should clear the field
 private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends PropertyLens[D, Vector[T]] {
   def _contract:ContractFor[T]
-  def _codec:DArrayCodec[T, Vector[T]]
+  def _valueCodec:DObjectCodec[T]
+  val _codec:DArrayCodec[T, Vector[T]] =
+    PessimisticCodecs.vectorCodec(_valueCodec)
 
   private def __getRaw(obj:D):ValidResult[RawArray] =
     PathLensOps.traverse(obj.value, _path).fold[ValidResult[RawArray]](Right(RawArray.empty)){
       case r:RawArray@unchecked => Right(r)
       case _ if __incorrectTypeBehaviour == EmptyOnIncorrectTypeBehaviour =>
         Right(RawArray.empty)
-      case _ =>
-        ValidResult.failure(IncorrectTypeFailure(this))
+      case v =>
+        ValidResult.failure(IncorrectTypeFailure(this, v.getClass))
     }
 
   private[contracts] def __get(obj: D): ValidResult[Option[Vector[T]]] =
@@ -105,7 +107,7 @@ private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends Property
           Some {
             array.flatMap{e =>
               println(e)
-              val a = _codec.valueCodec.unapply(e)
+              val a = _valueCodec.unapply(e)
               println(a)
               a.flatMap(t => _contract.$get(t).toOption)
 
@@ -116,8 +118,8 @@ private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends Property
         val validResults: Vector[ValidResult[T]] =
           array.zipWithIndex
             .map { p =>
-              _codec.valueCodec.unapply(p._1)
-                .fold[ValidResult[T]](ValidResult.failure(IncorrectTypeFailure(_contract, Path.empty, _codec.valueCodec))) { t =>
+              _valueCodec.unapply(p._1)
+                .fold[ValidResult[T]](ValidResult.failure(IncorrectTypeFailure(_contract, Path.empty, _valueCodec, p._1.getClass))) { t =>
                   _contract.$get(t)
                 }
                 .left
@@ -135,9 +137,9 @@ private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends Property
           ValidResult.success{
             Some {
               array.flatMap{e =>
-                _codec.valueCodec.unapply(e)
+                _valueCodec.unapply(e)
                   .flatMap(t => _contract.$get(t).toOption)
-                  .map(t => _codec.valueCodec(f(t)).value)
+                  .map(t => _valueCodec(f(t)).value)
               }
             }
           }
@@ -145,9 +147,9 @@ private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends Property
           val validResults: Vector[ValidResult[Raw]] =
             array.zipWithIndex
               .map { p =>
-                _codec.valueCodec.unapply(p._1)
-                  .fold[ValidResult[Raw]](ValidResult.failure(IncorrectTypeFailure(_contract, Path.empty, _codec.valueCodec))) { t =>
-                    _contract.$get(t).map(t => _codec.valueCodec(f(t)).value)
+                _valueCodec.unapply(p._1)
+                  .fold[ValidResult[Raw]](ValidResult.failure(IncorrectTypeFailure(_contract, Path.empty, _valueCodec, p._1.getClass))) { t =>
+                    _contract.$get(t).map(t => _valueCodec(f(t)).value)
                   }
                   .left
                   .map(_.map(_.rebase(_root, _path \ p._2)))
@@ -168,13 +170,13 @@ private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends Property
               .map { p =>
                 val validResult =
                   if (isIgnore)
-                    _codec.valueCodec.unapply(p._1)
+                    _valueCodec.unapply(p._1)
                       .flatMap(_contract.$get(_).toOption)
-                      .fold(ValidResult.success(p._1))(t => f(t).map(_codec.valueCodec(_).value))
+                      .fold(ValidResult.success(p._1))(t => f(t).map(_valueCodec(_).value))
                   else
-                    _codec.valueCodec.unapply(p._1)
-                      .fold[ValidResult[Raw]](ValidResult.failure(IncorrectTypeFailure(_contract, Path.empty, _codec.valueCodec))) { t =>
-                        _contract.$get(t).flatMap(t => f(t).map(_codec.valueCodec(_).value))
+                    _valueCodec.unapply(p._1)
+                      .fold[ValidResult[Raw]](ValidResult.failure(IncorrectTypeFailure(_contract, Path.empty, _valueCodec, p._1.getClass))) { t =>
+                        _contract.$get(t).flatMap(t => f(t).map(_valueCodec(_).value))
                       }
                 validResult.left
                   .map(_.map(_.rebase(_root, _path \ p._2)))
@@ -215,7 +217,7 @@ private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends Property
   def $append(element:T):ValidPathSetter[D] = {
     def modifier(d:D): ValidResult[RawArray] =
       _contract.$verify(element) -> __getRaw(d) match {
-        case (Nil, Right(d)) => Right(d :+ _codec.valueCodec(element).value)
+        case (Nil, Right(d)) => Right(d :+ _valueCodec(element).value)
         case (l, Left(f)) => Left(f ++ l)
         case (head :: tail, _) => Left(NonEmptyList(head, tail))
       }
@@ -234,15 +236,17 @@ private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends Property
 private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends PropertyLens[D, Map[K, T]] {
   def _path:Path
   def _contract:ContractFor[T]
-  def _codec:DMapCodec[K, T]
+  def _keyCodec:StringCodec[K]
+  def _valueCodec:DObjectCodec[T]
+  val _codec:DMapCodec[K, T] = PessimisticCodecs.fullMapCodec( _valueCodec, _keyCodec)
 
   private def __getRaw(obj:D):ValidResult[RawObject] =
     PathLensOps.traverse(obj.value, _path).fold[ValidResult[RawObject]](Right(RawObject.empty)){
       case r:RawObject@unchecked => Right(r)
       case _ if __incorrectTypeBehaviour == EmptyOnIncorrectTypeBehaviour =>
         Right(RawObject.empty)
-      case _ =>
-        ValidResult.failure(IncorrectTypeFailure(this))
+      case v =>
+        ValidResult.failure(IncorrectTypeFailure(this, v.getClass))
     }
 
   private[contracts] def __get(obj: D): ValidResult[Option[Map[K, T]]] =
@@ -252,18 +256,18 @@ private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends Pr
           ValidResult.success{
             Some{
               rawObj.flatMap{p =>
-                _codec.valueCodec.unapply(p._2)
+                _valueCodec.unapply(p._2)
                   .flatMap(t => _contract.$get(t).toOption)
-                  .map(tt => _codec.keyCodec.fromString(p._1) -> tt)
+                  .map(tt => _keyCodec.fromString(p._1) -> tt)
               }
             }
           }
         else {
           val validResults = rawObj.toIterator.map{p =>
-            _codec.valueCodec.unapply(p._2)
-              .fold[ValidResult[(K, T)]](ValidResult.failure(IncorrectTypeFailure(_contract, Path.empty, _codec.valueCodec))){t =>
+            _valueCodec.unapply(p._2)
+              .fold[ValidResult[(K, T)]](ValidResult.failure(IncorrectTypeFailure(_contract, Path.empty, _valueCodec, p._2.getClass))){t =>
                 _contract.$get(t)
-                  .map(tt => _codec.keyCodec.fromString(p._1) -> tt)
+                  .map(tt => _keyCodec.fromString(p._1) -> tt)
               }
               .left
               .map(_.map(_.rebase(_root, _path \ p._1)))
@@ -280,9 +284,9 @@ private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends Pr
           ValidResult.success{
             Some {
               map.flatMap{p =>
-                _codec.valueCodec.unapply(p._2)
+                _valueCodec.unapply(p._2)
                   .flatMap(t => _contract.$get(t).toOption)
-                  .map(t => p._1 -> _codec.valueCodec(f(t)).value)
+                  .map(t => p._1 -> _valueCodec(f(t)).value)
               }
             }
           }
@@ -290,9 +294,9 @@ private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends Pr
           val validResults: Vector[ValidResult[(String, Raw)]] =
             map
               .map { p =>
-                _codec.valueCodec.unapply(p._2)
-                  .fold[ValidResult[(String, Raw)]](ValidResult.failure(IncorrectTypeFailure(_contract, Path.empty, _codec.valueCodec))) { t =>
-                    _contract.$get(t).map(t => p._1 -> _codec.valueCodec(f(t)).value)
+                _valueCodec.unapply(p._2)
+                  .fold[ValidResult[(String, Raw)]](ValidResult.failure(IncorrectTypeFailure(_contract, Path.empty, _valueCodec, p._2.getClass))) { t =>
+                    _contract.$get(t).map(t => p._1 -> _valueCodec(f(t)).value)
                   }
                   .left
                   .map(_.map(_.rebase(_root, _path \ p._1)))
@@ -313,13 +317,13 @@ private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends Pr
               .map { p =>
                 val validResult =
                   if (isIgnore)
-                    _codec.valueCodec.unapply(p._2)
+                    _valueCodec.unapply(p._2)
                       .flatMap(_contract.$get(_).toOption)
-                      .fold(ValidResult.success(p))(t => f(t).map(v => p._1 -> _codec.valueCodec(v).value))
+                      .fold(ValidResult.success(p))(t => f(t).map(v => p._1 -> _valueCodec(v).value))
                   else
-                    _codec.valueCodec.unapply(p._2)
-                      .fold[ValidResult[(String, Raw)]](ValidResult.failure(IncorrectTypeFailure(_contract, Path.empty, _codec.valueCodec))) { t =>
-                        _contract.$get(t).flatMap(t => f(t).map(v => p._1 -> _codec.valueCodec(v).value))
+                    _valueCodec.unapply(p._2)
+                      .fold[ValidResult[(String, Raw)]](ValidResult.failure(IncorrectTypeFailure(_contract, Path.empty, _valueCodec, p._2.getClass))) { t =>
+                        _contract.$get(t).flatMap(t => f(t).map(v => p._1 -> _valueCodec(v).value))
                       }
                 validResult.left
                   .map(_.map(_.rebase(_root, _path \ p._1)))
@@ -332,15 +336,15 @@ private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends Pr
   def $verify(obj: D): List[Failure] =
     __incorrectTypeBehaviour.traverse(obj.value, this)
       .fold(_.toList, mv => mv.getOrElse(Vector.empty).toList.flatMap { e =>
-        _contract.$verify(e._2).map(_.rebase(_root, _path \ _codec.keyCodec.toString(e._1)))
+        _contract.$verify(e._2).map(_.rebase(_root, _path \ _keyCodec.toString(e._1)))
       })
 
   def $get(obj:D):ValidResult[Map[K, T]] =
     __get(obj).map(_.getOrElse(Map.empty))
 
   def $get(k:K)(obj:D):ValidResult[Option[T]] = {
-    val key = _codec.keyCodec.toString(k)
-    __incorrectTypeBehaviour.traverse(obj.value, _root, _path \ key, _codec.valueCodec)
+    val key = _keyCodec.toString(k)
+    __incorrectTypeBehaviour.traverse(obj.value, _root, _path \ key, _valueCodec)
       .flatMap {
         case None =>
           Right(None)
@@ -363,7 +367,7 @@ private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends Pr
   def $set(objs:Map[K, T]):ValidPathSetter[D] = {
     val validRaw =
       objs.flatMap{e =>
-        _contract.$verify(e._2).map(_.rebase(_contract, Path(_codec.keyCodec.toString(e._1))))
+        _contract.$verify(e._2).map(_.rebase(_contract, Path(_keyCodec.toString(e._1))))
       } match {
         case head :: tail =>
           Left(NonEmptyList(head, tail))
@@ -383,7 +387,7 @@ private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends Pr
     RawModifyDropOrIgnoreSetter(d => __getRaw(d).map{ obj =>
       if (obj.isEmpty) None
       else Some {
-        val newObj = obj - _codec.keyCodec.toString(key)
+        val newObj = obj - _keyCodec.toString(key)
         if (newObj.isEmpty) None
         else Some(newObj)
       }
@@ -393,7 +397,7 @@ private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends Pr
     def modifier(d:D): ValidResult[RawObject] =
       (_contract.$verify(keyValue._2) -> __getRaw(d)) match {
         case (Nil, Right(d)) =>
-          Right(d + (_codec.keyCodec.toString(keyValue._1) ->  _codec.valueCodec(keyValue._2).value))
+          Right(d + (_keyCodec.toString(keyValue._1) ->  _valueCodec(keyValue._2).value))
         case (l, Left(f)) =>
           Left(f ++ l)
         case (head :: tail, _) =>

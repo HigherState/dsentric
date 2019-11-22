@@ -42,7 +42,7 @@ private[dsentric] trait BaseContract[D <: DObject] extends WithIncorrectTypeBeha
     _fields.keySet
 
   def $dynamic[T](field:String)(implicit codec:DCodec[T]):MaybeProperty[D, T] =
-    new MaybeProperty[D, T](Some(field), this, codec, Seq.empty)
+    new MaybeProperty[D, T](Some(field), this, codec, List.empty)
 
   def $$(projection:DProjection):DProjection =
     projection.nest(this._path)

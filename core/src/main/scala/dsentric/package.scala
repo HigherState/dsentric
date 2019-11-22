@@ -4,5 +4,4 @@ package object dsentric {
   type RawObject = Map[String, Any]
   type RawArray = Vector[Any]
 
-  type PathFailures = Vector[(Path, String)]
 }

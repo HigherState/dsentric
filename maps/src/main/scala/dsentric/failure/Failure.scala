@@ -1,22 +1,30 @@
 package dsentric.failure
 
 import dsentric.contracts.{ContractFor, PropertyLens}
-import dsentric.{DCodec, DObject, Path}
+import dsentric.{DCodec, DObject, Path, StringCodec}
+
+import scala.util.matching.Regex
 
 sealed trait Failure {
   def path:Path
 
   def rebase[G <: DObject](rootContract:ContractFor[G], rootPath:Path):Failure
+
+  def message:String
 }
 
-case class ExpectedFailure[D <: DObject](contract: ContractFor[D], path:Path) extends Failure {
+final case class ExpectedFailure[D <: DObject](contract: ContractFor[D], path:Path) extends Failure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): ExpectedFailure[G] =
-    ExpectedFailure[G](rootContract, rootPath ++ path)
+    copy(contract = rootContract, path = rootPath ++ path)
+
+  def message = "Expected value not found."
 }
 
-case class IncorrectTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T]) extends Failure {
+final case class IncorrectTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T], foundRawType:Class[_]) extends Failure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  IncorrectTypeFailure[G, T] =
-    IncorrectTypeFailure[G, T](rootContract, rootPath ++ path, codec)
+    copy(contract = rootContract, path = rootPath ++ path)
+
+  def message = s"Type '${codec.typeDefinition.name} was expected."
 }
 
 object ExpectedFailure {
@@ -25,6 +33,101 @@ object ExpectedFailure {
 }
 
 object IncorrectTypeFailure {
-  def apply[D <: DObject, T](property:PropertyLens[D, T]):IncorrectTypeFailure[D, T] =
-    IncorrectTypeFailure(property._root, property._path, property._codec)
+  def apply[D <: DObject, T](property:PropertyLens[D, T], foundType:Class[_]):IncorrectTypeFailure[D, T] =
+    IncorrectTypeFailure(property._root, property._path, property._codec, foundType)
+}
+
+
+sealed trait ValidationFailure extends Failure {
+  def message:String
+}
+
+final case class ClosedContractFailure[D <: DObject](contract: ContractFor[D], path:Path, field:String) extends ValidationFailure {
+  def message: String = s"Contract is closed and does not contain field '$field'."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): ClosedContractFailure[G] =
+    copy(contract = rootContract, path = rootPath ++ path)
+}
+
+final case class ReservedFailure[D <: DObject](contract: ContractFor[D], path:Path) extends ValidationFailure {
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): ReservedFailure[G] =
+    copy(contract = rootContract, path = rootPath ++ path)
+
+  def message:String = "Value is reserved and cannot be provided."
+}
+
+final case class ImmutableFailure[D <: DObject](contract: ContractFor[D], path:Path) extends ValidationFailure {
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): ImmutableFailure[G] =
+    copy(contract = rootContract, path = rootPath ++ path)
+
+  def message:String = "Value is immutable and cannot be changed."
+}
+
+final case class NumericalFailure[D <: DObject](contract: ContractFor[D], path:Path, found:Number, compare:Number, operation:String) extends ValidationFailure {
+  def message: String = s"Value $found is not $operation $compare."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): NumericalFailure[G] =
+    copy(contract = rootContract, path = rootPath ++ path)
+}
+
+final case class MinimumLengthFailure[D <: DObject](contract: ContractFor[D], path:Path, minLength:Int, foundLength:Int) extends ValidationFailure {
+  def message: String = s"Value with length of $foundLength must have a minimum length of $minLength."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): MinimumLengthFailure[G] =
+    copy(contract = rootContract, path = rootPath ++ path)
+}
+
+final case class MaximumLengthFailure[D <: DObject](contract: ContractFor[D], path:Path, maxLength:Int, foundLength:Int) extends ValidationFailure {
+  def message: String = s"Value with length of $foundLength must have a maximum length of $maxLength."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): MaximumLengthFailure[G] =
+    copy(contract = rootContract, path = rootPath ++ path)
+}
+
+final case class InvalidValueFailure[D <: DObject, T](contract: ContractFor[D], path:Path, value:T) extends ValidationFailure {
+  def message: String = s"Value $value is not a permitted value."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): InvalidValueFailure[G, T] =
+    copy(contract = rootContract, path = rootPath ++ path)
+}
+
+final case class NonEmptyOrWhitespaceFailure[D <: DObject](contract: ContractFor[D], path:Path) extends ValidationFailure {
+  def message: String = s"String value cannot be empty or whitespace."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): NonEmptyOrWhitespaceFailure[G] =
+    copy(contract = rootContract, path = rootPath ++ path)
+}
+
+
+final case class CustomValidationFailure[D <: DObject, T](contract: ContractFor[D], path:Path, value:T, message:String) extends ValidationFailure {
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): CustomValidationFailure[G, T] =
+    copy(contract = rootContract, path = rootPath ++ path)
+}
+
+final case class RegexFailure[D <: DObject](contract: ContractFor[D], path:Path, regex:Regex, value:String, message:String) extends ValidationFailure {
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): RegexFailure[G] =
+    copy(contract = rootContract, path = rootPath ++ path)
+}
+
+final case class KeyRemovalFailure[D <: DObject, T](contract: ContractFor[D], path:Path, keyString:String) extends ValidationFailure {
+  def message:String = s"Key '$keyString' cannot be removed."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): KeyRemovalFailure[G, T] =
+    copy(contract = rootContract, path = rootPath ++ path)
+}
+
+final case class IncorrectKeyTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:StringCodec[T], foundType:Class[_]) extends Failure {
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): IncorrectKeyTypeFailure[G, T] =
+    copy(contract = rootContract, path = rootPath ++ path)
+
+  def message = s"Type '${codec.typeDefinition.name} was expected for the key, type ${foundType.getSimpleName} was found."
+}
+
+final case class MaskFailure[D <: DObject, T](contract: ContractFor[D], path:Path, mask:T) extends ValidationFailure {
+  def message:String = s"Value cannot be the same as the mask value '$mask'."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): MaskFailure[G, T] =
+    copy(contract = rootContract, path = rootPath ++ path)
 }

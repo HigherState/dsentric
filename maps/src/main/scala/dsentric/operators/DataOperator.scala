@@ -1,7 +1,8 @@
 package dsentric.operators
 
-import dsentric.failure.ValidResult
-import dsentric.{Data, Path, PathFailures, Raw}
+import dsentric.contracts.ContractFor
+import dsentric.failure.{ValidResult, ValidationFailures}
+import dsentric.{DObject, Data, Path, Raw}
 import dsentric.schema.{ObjectDefinition, TypeDefinition}
 
 sealed trait DataOperator[+T]
@@ -23,12 +24,12 @@ sealed trait Validator[+T] extends DataOperator[T]{
 
 trait RawValidator[+T] extends Validator[T] {
 
-  def apply(path:Path, value:Option[Raw], currentState:Option[Raw]): PathFailures
+  def apply[D <: DObject](contract:ContractFor[D], path:Path, value:Option[Raw], currentState:Option[Raw]):ValidationFailures
 }
 
 trait ValueValidator[+T] extends Validator[T] {
 
-  def apply[S >: T](path:Path, value:Option[S], currentState: => Option[S]): PathFailures
+  def apply[S >: T, D <: DObject](contract:ContractFor[D], path:Path, value:Option[S], currentState: => Option[S]): ValidationFailures
 
   def &&[S >: T] (v:ValueValidator[S]):ValueValidator[S] =
     AndValidator(this, v)
@@ -38,7 +39,7 @@ trait ValueValidator[+T] extends Validator[T] {
 }
 
 trait ContextValidator[+T] extends DataOperator[T] {
-  def apply[S >: T](path:Path, value:Option[S], currentState: => Option[S]): PathFailures
+  def apply[S >: T](path:Path, value:Option[S], currentState: => Option[S]): ValidationFailures
 }
 
 trait Transform[+T] extends DataOperator[T] {

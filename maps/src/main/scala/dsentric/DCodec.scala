@@ -225,9 +225,11 @@ trait DefaultCodecs {
         TypeDefinition.anyDefinition
     }
 
-  def dObjectLikeCodec[T <: DObjectLike[T] with DObject](wrap:Map[String, Any] => T):DCodec[T] =
-    new DCodec[T] {
-      def apply(t: T):T = t
+  def dObjectLikeCodec[T <: DObjectLike[T] with DObject](wrap:Map[String, Any] => T):DObjectCodec[T] =
+    new DObjectCodec[T] {
+
+      def apply(t: T):DObject =
+        new DObjectInst(t.value)
       def unapply(a:Raw): Option[T] =
         a match {
           case m:RawObject@unchecked =>

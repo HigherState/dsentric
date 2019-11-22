@@ -67,7 +67,7 @@ object EmptyOnIncorrectTypeBehaviour extends IncorrectTypeBehaviour {
  */
 object FailOnIncorrectTypeBehaviour extends IncorrectTypeBehaviour {
   def apply[D <: DObject, T](value:Raw, contract:ContractFor[D], path:Path, codec:DCodec[T]):ValidResult[Option[T]] =
-    codec.unapply(value).fold(ValidResult.failure[Option[T]](IncorrectTypeFailure(contract, path, codec)))(t => ValidResult.success(Some(t)))
+    codec.unapply(value).fold(ValidResult.failure[Option[T]](IncorrectTypeFailure(contract, path, codec, value.getClass)))(t => ValidResult.success(Some(t)))
 
   def matcher[D <: DObject, T](value:Raw, contract:ContractFor[D], path:Path, codec:DCodec[T]):Option[Option[T]] =
     codec.unapply(value).fold(Option.empty[Option[T]])(t => Some(Some(t)))
@@ -78,7 +78,7 @@ object FailOnIncorrectTypeBehaviour extends IncorrectTypeBehaviour {
         List(ExpectedFailure(contract, path))
       case Some(codec(_)) | None =>
         Nil
-      case Some(_) =>
-        List(IncorrectTypeFailure(contract, path, codec))
+      case Some(v) =>
+        List(IncorrectTypeFailure(contract, path, codec, v.getClass))
     }
 }

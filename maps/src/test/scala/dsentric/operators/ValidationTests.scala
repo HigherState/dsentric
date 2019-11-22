@@ -66,6 +66,7 @@ class ValidationTests extends FunSuite with Matchers {
   test("keyMatcher") {
     import PessimisticCodecs._
     import dsentric.Dsentric._
+
     val r = "[a-z]*".r
     val validator = Validators.keyValidator(r, "Invalid Key")
 
