@@ -40,7 +40,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       }
       it("Should fail if empty object is wrong type") {
         val base = DObject("empty" := "wrongType")
-        ExpectedObject.empty.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.empty))
+        ExpectedObject.empty.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.empty, "wrongType".getClass))
       }
       it("Should succeed if empty object has additional values") {
         val base = DObject("empty" ::= ("value" := 1))
@@ -54,7 +54,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       }
       it("Should fail if nested expected property is of wrong type") {
         val base = DObject("expected" ::= ("property" := "value"))
-        ExpectedObject.expected.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.expected.property))
+        ExpectedObject.expected.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.expected.property, "value".getClass))
       }
       it("Should succeed if nested expected property is present") {
         val base = DObject("expected" ::= ("property" := 123))
@@ -62,7 +62,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       }
       it("Should fail if nested maybe property is of wrong typ") {
         val base = DObject("maybe" ::= ("property" := "value"))
-        ExpectedObject.maybe.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.maybe.property))
+        ExpectedObject.maybe.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.maybe.property, "value".getClass))
       }
       it("Should succeed if nested maybe property is empty") {
         val base = DObject("maybe" := DObject.empty)
@@ -76,7 +76,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       }
       it("Should fail if nested default property is of wrong type") {
         val base = DObject("default" ::= ("property" := 123))
-        ExpectedObject.default.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.default.property))
+        ExpectedObject.default.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.default.property, 123.getClass))
       }
       it("Should succeed if nested default value is empty with default value") {
         val base = DObject("default" := DObject.empty)
@@ -109,7 +109,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
     describe("$set") {
       it("Should fail if object would fail") {
         ExpectedObject.expected.$set(DObject.empty)(DObject.empty).left.value should contain (ExpectedFailure(ExpectedObject.expected.property))
-        ExpectedObject.expected.$set(DObject("property" := "fail"))(DObject.empty).left.value should contain (IncorrectTypeFailure(ExpectedObject.expected.property))
+        ExpectedObject.expected.$set(DObject("property" := "fail"))(DObject.empty).left.value should contain (IncorrectTypeFailure(ExpectedObject.expected.property, "fail".getClass))
         ExpectedObject.nestedExpected.$set(DObject.empty)(DObject.empty).left.value should contain (ExpectedFailure(ExpectedObject.nestedExpected.nested.property))
       }
       it("should succeed if object would succeed") {
@@ -167,10 +167,10 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
     describe("$set") {
       //Anything using the lens to set should be correct
       it("should fail if maybe property of wrong type") {
-        EmptyExpectedObject.maybe.$set(DObject("property" := 123, "additional" := "temp"))(DObject.empty).left.value should contain (IncorrectTypeFailure(EmptyExpectedObject.maybe.property))
+        EmptyExpectedObject.maybe.$set(DObject("property" := 123, "additional" := "temp"))(DObject.empty).left.value should contain (IncorrectTypeFailure(EmptyExpectedObject.maybe.property, 123.getClass))
       }
       it("should fail if default property of wrong type") {
-        EmptyExpectedObject.default.$set(DObject("property" := 123))(DObject.empty).left.value should contain (IncorrectTypeFailure(EmptyExpectedObject.default.property))
+        EmptyExpectedObject.default.$set(DObject("property" := 123))(DObject.empty).left.value should contain (IncorrectTypeFailure(EmptyExpectedObject.default.property, 123.getClass))
       }
     }
   }
@@ -196,7 +196,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
     }
     it("Should fail if empty object is wrong type") {
       val base = DObject("empty" := "wrongType")
-      MaybeObject.empty.$get(base).left.value should contain (IncorrectTypeFailure(MaybeObject.empty))
+      MaybeObject.empty.$get(base).left.value should contain (IncorrectTypeFailure(MaybeObject.empty, "wrongType".getClass))
     }
     it("Should succeed if empty object has additional values") {
       val base = DObject("empty" ::= ("value" := 1) )
@@ -212,7 +212,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
     }
     it("Should fail if nested expected property is of wrong type") {
       val base = DObject("expected" ::= ("property" := "value") )
-      MaybeObject.expected.$get(base).left.value should contain (IncorrectTypeFailure(MaybeObject.expected.property))
+      MaybeObject.expected.$get(base).left.value should contain (IncorrectTypeFailure(MaybeObject.expected.property, "value".getClass))
     }
     it("Should succeed if nested expected property is present") {
       val base = DObject("expected" ::= ("property" := 123) )
@@ -220,7 +220,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
     }
     it("Should fail if nested maybe property is of wrong typ") {
       val base = DObject("maybe" ::= ("property" := "value") )
-      MaybeObject.maybe.$get(base).left.value should contain (IncorrectTypeFailure(MaybeObject.maybe.property))
+      MaybeObject.maybe.$get(base).left.value should contain (IncorrectTypeFailure(MaybeObject.maybe.property, "value".getClass))
     }
     it("Should succeed if nested maybe property is empty") {
       val base = DObject("maybe" := DObject.empty)
@@ -234,7 +234,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
     }
     it("Should fail if nested default property is of wrong type") {
       val base = DObject("default" ::= ("property" := 123) )
-      MaybeObject.default.$get(base).left.value should contain (IncorrectTypeFailure(MaybeObject.default.property))
+      MaybeObject.default.$get(base).left.value should contain (IncorrectTypeFailure(MaybeObject.default.property, 123.getClass))
     }
     it("Should return None of default object doesn't exist") {
       val base = DObject.empty
@@ -314,7 +314,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       }
       it("Should fail if not a vector") {
         val base = DObject("expectedObjects" := "fail")
-        Objects.expectedObjects.$get(base).left.value should contain(IncorrectTypeFailure(Objects.expectedObjects))
+        Objects.expectedObjects.$get(base).left.value should contain(IncorrectTypeFailure(Objects.expectedObjects, "fail".getClass))
       }
       it("Should succeed if all objects succeed") {
         val expecteds = Vector(DObject("property" := "test"), DObject("property" := "test2", "additional" := 123))
@@ -324,7 +324,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       it("Should fail if any object fails") {
         val expecteds = Vector(DObject("property" := "test"), DObject("property" := false), DObject("property" := "test2", "additional" := 123))
         val base = DObject("expectedObjects" := expecteds)
-        Objects.expectedObjects.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObjects.property).rebase(Objects, Path("expectedObjects", 1)))
+        Objects.expectedObjects.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObjects.property, false.getClass).rebase(Objects, Path("expectedObjects", 1)))
         val expecteds2 = Vector(DObject("property" := "test"), DObject.empty, DObject("property" := "test2", "additional" := 123))
         val base2 = DObject("expectedObjects" := expecteds2)
         Objects.expectedObjects.$get(base2).left.value should contain(ExpectedFailure(ExpectedObjects.property).rebase(Objects, Path("expectedObjects", 1)))
@@ -357,11 +357,11 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       }
       it("Should Fail if append if appended object is wrong") {
         val base = DObject.empty
-        Objects.expectedObjects.$append(DObject("property" := 123))(base).left.value should contain(IncorrectTypeFailure(ExpectedObjects.property))
+        Objects.expectedObjects.$append(DObject("property" := 123))(base).left.value should contain(IncorrectTypeFailure(ExpectedObjects.property, 123.getClass))
       }
       it("Should fail if append if field being appended to is of the wrong type") {
         val base = DObject("expectedObjects" := 1234)
-        Objects.expectedObjects.$append(DObject("property" := "value"))(base).left.value should contain(IncorrectTypeFailure(Objects.expectedObjects))
+        Objects.expectedObjects.$append(DObject("property" := "value"))(base).left.value should contain(IncorrectTypeFailure(Objects.expectedObjects, 1234.getClass))
       }
       it("Should succeed if append if objects being appended to are wrong") {
         val base = DObject("expectedObjects" := Vector(DObject.empty))
@@ -466,11 +466,11 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
 
       it("Should fail if append if appended object has any optional incorrect types") {
         val base = DObject("maybeObjects" := Vector(DObject("property" := "one")))
-        EmptyObjects.maybeObjects.$append(DObject("property" := 123))(base).left.value should contain (IncorrectTypeFailure(EmptyMaybeObjects.property))
+        EmptyObjects.maybeObjects.$append(DObject("property" := 123))(base).left.value should contain (IncorrectTypeFailure(EmptyMaybeObjects.property, 123.getClass))
       }
       it("Should fail on append if appended object has any expected incorrect types") {
         val base = DObject("expectedObjects" := Vector(DObject("property" := "one")))
-        EmptyObjects.expectedObjects.$append(DObject("property" := 123))(base).left.value should contain (IncorrectTypeFailure(EmptyExpectedObjects.property))
+        EmptyObjects.expectedObjects.$append(DObject("property" := 123))(base).left.value should contain (IncorrectTypeFailure(EmptyExpectedObjects.property, 123.getClass))
       }
       it("Should succeed if current collection has any optional incorrect types") {
         val base = DObject("maybeObjects" := Vector(DObject("property" := 123)))
@@ -485,7 +485,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       it("Should fail if any set objects have any optional incorrect types") {
         val base = DObject.empty
         val array = Vector(DObject("property" := "value"), DObject.empty, DObject("property" := 123))
-        EmptyObjects.maybeObjects.$set(array)(base).left.value should contain (IncorrectTypeFailure(EmptyMaybeObjects.property).rebase(EmptyMaybeObjects, Path(2)))
+        EmptyObjects.maybeObjects.$set(array)(base).left.value should contain (IncorrectTypeFailure(EmptyMaybeObjects.property, 123.getClass).rebase(EmptyMaybeObjects, Path(2)))
       }
     }
     describe("$map") {
@@ -534,11 +534,11 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       }
       it("Should fail if map not correct type") {
         val base = DObject("expectedMap" := 123)
-        MapObjects.expectedMap.$get(base).left.value should contain (IncorrectTypeFailure(MapObjects.expectedMap))
+        MapObjects.expectedMap.$get(base).left.value should contain (IncorrectTypeFailure(MapObjects.expectedMap, 123.getClass))
       }
       it("Should fail if any object fails") {
         val base = DObject("maybeMap" := Map("first" -> DObject("property" := false), "second" -> DObject("property" := 456)))
-        MapObjects.maybeMap.$get(base).left.value should contain (IncorrectTypeFailure(Maybe.property).rebase(MapObjects, MapObjects.maybeMap._path \ "first"))
+        MapObjects.maybeMap.$get(base).left.value should contain (IncorrectTypeFailure(Maybe.property, false.getClass).rebase(MapObjects, MapObjects.maybeMap._path \ "first"))
       }
       it("Should provide any default values") {
         val base = DObject("defaultMap" := Map("first" -> DObject("additional" := 23)))
@@ -595,7 +595,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       it("Should fail if any objects being set fail") {
         val base = DObject.empty
         val set = Map("first" -> DObject("property" := "value1"), "second" -> DObject("property" := 1234))
-        MapObjects.expectedMap.$set(set)(base).left.value should contain (IncorrectTypeFailure(Expected.property).rebase(Expected, Path("second")))
+        MapObjects.expectedMap.$set(set)(base).left.value should contain (IncorrectTypeFailure(Expected.property, 1234.getClass).rebase(Expected, Path("second")))
       }
       it("Should replace map if map is incorrect type") {
         val base = DObject("maybeMap" := DObject("first" := DObject("property" := 456), "second" := DObject("property" := false)))
@@ -646,7 +646,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       }
       it("Should fail if maps not correct type") {
         val base = DObject("expectedMap" := 123)
-        MapObjects.expectedMap.$remove("first")(base).left.value should contain (IncorrectTypeFailure(MapObjects.expectedMap))
+        MapObjects.expectedMap.$remove("first")(base).left.value should contain (IncorrectTypeFailure(MapObjects.expectedMap, 1234.getClass))
       }
       it("Should clear field if last element removed") {
 
@@ -661,7 +661,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       it("Should fail if map not correct type") {
         val base = DObject("expectedMap" := 123)
         val r = MapObjects.expectedMap.$add("first" -> Expected.$create(_.property.$set("value")))(base).left.value
-        r should contain (IncorrectTypeFailure(MapObjects.expectedMap))
+        r should contain (IncorrectTypeFailure(MapObjects.expectedMap, 123.getClass))
       }
       it("Should add if map exists") {
         val base = DObject("expectedMap" := Map("first" -> Expected.$create(_.property.$set("value1"))))
@@ -676,7 +676,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       it("Should fail if added object fails") {
         val base = DObject.empty
         val r = MapObjects.defaultMap.$add("first" ::= ("property" := 123))(base).left.value
-        r should contain (IncorrectTypeFailure(Default.property))
+        r should contain (IncorrectTypeFailure(Default.property, 123.getClass))
       }
       it("Should replace object if object already exists") {
         val base = DObject("expectedMap" ::= ("first" -> DObject("property" := "value1"), "second" -> DObject("property" := "value2")))
@@ -698,7 +698,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       it("Should fail if any object is invalid") {
         val base = DObject("expectedMap" ::= ("first" -> DObject("property" := "value1"), "second" -> DObject("property" := 123)))
         val r = MapObjects.expectedMap.$map(Expected.property.$modify(_ + "*"))(base).left.value
-        r should contain (IncorrectTypeFailure(Expected.property).rebase(MapObjects, MapObjects.expectedMap._path \ "second"))
+        r should contain (IncorrectTypeFailure(Expected.property, 123.getClass).rebase(MapObjects, MapObjects.expectedMap._path \ "second"))
       }
       it("Should provide any default values") {
         val base = DObject("defaultMap" ::= ("first" -> DObject("property" := true), "second" -> DObject.empty))
@@ -748,7 +748,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       it("Should fail if any objects being set fail") {
         val base = DObject.empty
         val set = Map("first" -> DObject("property" := "value1"), "second" -> DObject("property" := 1234))
-        EmptyMapObjects.expectedMap.$set(set)(base).left.value should contain (IncorrectTypeFailure(EmptyExpected.property).rebase(EmptyExpected, Path("second")))
+        EmptyMapObjects.expectedMap.$set(set)(base).left.value should contain (IncorrectTypeFailure(EmptyExpected.property, 123.getClass).rebase(EmptyExpected, Path("second")))
       }
 
     }
@@ -767,7 +767,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers
       it("Should fail if added object fails") {
         val base = DObject.empty
         val r = EmptyMapObjects.defaultMap.$add("first" ::= ("property" := 123))(base).left.value
-        r should contain (IncorrectTypeFailure(EmptyDefault.property))
+        r should contain (IncorrectTypeFailure(EmptyDefault.property, 123.getClass))
       }
     }
     describe("$map") {
