@@ -376,7 +376,7 @@ trait Validators extends ValidatorOps{
       def apply[S >: Optionable[Keyable], D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
         for {
           co <- value.toList
-          ct <- getT[Keyable, S](co).toList
+          ct <- getKeyable(co).toList
           key <- ct.keys.toList if !r.pattern.matcher(key).matches()
         } yield RegexFailure(contract, path, r, key, message)
     }
@@ -410,6 +410,20 @@ trait ValidatorOps {
       case Some(s: T@unchecked) => Some(s)
       case None => None
       case s: T@unchecked => Some(s)
+    }
+
+  protected def getKeyable[S >: Optionable[Keyable]](t:S):Option[Map[String, Any]] =
+    t match {
+      case Some(s: Map[String, Any]@unchecked) =>
+        Some(s)
+      case Some(d:DObject) =>
+        Some(d.value)
+      case None =>
+        None
+      case s: Map[String, Any]@unchecked =>
+        Some(s)
+      case d:DObject =>
+        Some(d.value)
     }
 
   protected def resolve[S >: Numeric](value:S, target:S):Option[(Int, Number, Number)] =
