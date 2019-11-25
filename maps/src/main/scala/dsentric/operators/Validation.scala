@@ -17,7 +17,7 @@ object Validation {
           val (failures, maybeCollection) = array.zipWithIndex.foldRight((ValidationFailures.empty, Option(List.empty[D3]))){
             case ((obj:RawObject@unchecked, index), (failures, maybeElements)) =>
               property._valueCodec.unapply(obj).fold[(ValidationFailures, Option[List[D3]])]{
-                val f = IncorrectTypeFailure(property._root, property._path \ index, property._valueCodec, obj.getClass)
+                val f = IncorrectTypeFailure(property._root, property._path \ index, property._valueCodec, obj)
                 (f :: failures) -> None
               } { t  =>
                 val fs = validateContract(property._contract, obj, None).map(_.rebase(property._root, property._path \ index))
@@ -25,7 +25,7 @@ object Validation {
               }
 
             case ((raw, index), (failures, _)) =>
-              val f = IncorrectTypeFailure(property._root, property._path \ index, property._valueCodec, raw.getClass)
+              val f = IncorrectTypeFailure(property._root, property._path \ index, property._valueCodec, raw)
               (f :: failures) -> None
           }
           //if we can transform the vector we can validate the property
@@ -33,7 +33,7 @@ object Validation {
         case DNull =>
           validatePropertyOperators(field, property, Some(RawArray.empty), Some(Vector.empty[D3]), maybeCurrentState)
         case raw =>
-          ValidationFailures(IncorrectTypeFailure(property._root, property._path, property._codec, raw.getClass))
+          ValidationFailures(IncorrectTypeFailure(property._root, property._path, property._codec, raw))
       }
 
     @inline
@@ -45,11 +45,11 @@ object Validation {
               case ((key, obj:RawObject@unchecked), (failures, maybeMap)) =>
                 val (failures2, maybeKey) =
                   property._codec.keyCodec.unapply(key).fold[(ValidationFailures, Option[K])]{
-                    (IncorrectKeyTypeFailure(property._root, property._path, property._codec.keyCodec, key.getClass) :: failures) -> None
+                    (IncorrectKeyTypeFailure(property._root, property._path, property._codec.keyCodec, key) :: failures) -> None
                   }{k => failures -> Some(k)}
 
                 property._valueCodec.unapply(obj).fold[(ValidationFailures, Option[Map[K, D3]])]{
-                  val f = IncorrectTypeFailure(property._root, property._path \ key, property._valueCodec, obj.getClass)
+                  val f = IncorrectTypeFailure(property._root, property._path \ key, property._valueCodec, obj)
                   (f :: failures2) -> None
                 } { t  =>
                   val cs = maybeCurrentState.flatMap(_.get(field).collect {
@@ -68,10 +68,10 @@ object Validation {
               case ((key, raw), (failures, _)) =>
                 val failures2 =
                   if (property._codec.keyCodec.unapply(key).isEmpty)
-                    IncorrectKeyTypeFailure(property._root, property._path, property._codec.keyCodec, key.getClass) :: failures
+                    IncorrectKeyTypeFailure(property._root, property._path, property._codec.keyCodec, key) :: failures
                   else failures
                 val failures3 =
-                  IncorrectTypeFailure(property._root, property._path \ key, property._codec.valueCodec, raw.getClass) :: failures2
+                  IncorrectTypeFailure(property._root, property._path \ key, property._codec.valueCodec, raw) :: failures2
                 failures3 -> None
             }
           //if we can transform the vector we can validate the property
@@ -80,7 +80,7 @@ object Validation {
         case DNull =>
           validatePropertyOperators(field, property, Some(RawObject.empty), Some(Map.empty[K, D3]), maybeCurrentState)
         case raw =>
-          ValidationFailures(IncorrectTypeFailure(property._root, property._path, property._codec, raw.getClass))
+          ValidationFailures(IncorrectTypeFailure(property._root, property._path, property._codec, raw))
       }
 
 
@@ -98,7 +98,7 @@ object Validation {
           validatePropertyOperators(field, property, Some(DNull), None, maybeCurrentState)
         case Some(v) =>
           property._codec.unapply(v)
-            .fold(ValidationFailures(IncorrectTypeFailure(property, v.getClass))){ maybeT =>
+            .fold(ValidationFailures(IncorrectTypeFailure(property, v))){ maybeT =>
               validatePropertyOperators(field, property, Some(v), Some(maybeT), maybeCurrentState)
             }
         case None =>
@@ -118,21 +118,23 @@ object Validation {
       }.flatten
 
     @inline
-    def validateClosed[D2 <: DObject](baseContract:BaseContract[D], value:RawObject): ValidationFailures =
-      if (baseContract.isInstanceOf[ClosedFields]) {
-        value.keySet.filterNot(baseContract._fields.keySet).map { k =>
-          baseContract match {
-            case p: Property[D2, _]@unchecked =>
-              ClosedContractFailure(p._root, p._path, k)
-            case b: ContractFor[D] =>
-              ClosedContractFailure(b, Path.empty, k)
-          }
-        }.toList
-      }
+    def validateClosed[D2 <: DObject](baseContract:BaseContract[D], value:RawObject, maybeCurrentState:Option[RawObject]): ValidationFailures =
+      if (baseContract.isInstanceOf[ClosedFields])
+        //DNull value in a delta context will either remove an invalid value or flatten to empty so it is allowed
+        //Techically so would empty object but thats a bit of a challenge
+        value.filterNot(kv => baseContract._fields.keySet(kv._1) || (kv._2 == DNull && maybeCurrentState.nonEmpty))
+          .map { kv =>
+            baseContract match {
+              case p: Property[D2, _]@unchecked =>
+                ClosedContractFailure(p._root, p._path, kv._1)
+              case b: ContractFor[D] =>
+                ClosedContractFailure(b, Path.empty, kv._1)
+            }
+          }.toList
       else
         ValidationFailures.empty
 
-    validateClosed(contract, value) ++
+    validateClosed(contract, value, maybeCurrentState) ++
     contract._fields.foldLeft(ValidationFailures.empty){
       case (failures, (field, property:BaseContract[DObject]@unchecked with Property[D, _])) =>
         failures ++
@@ -140,11 +142,9 @@ object Validation {
         validateContractProperty(field, property, value, maybeCurrentState)
       case (failures, (field, property:ObjectsProperty[D, _]@unchecked)) =>
         failures ++
-        //validateProperty(field, property, value, maybeCurrentState, Some(Vector.empty)) ++
         validateObjectsProperty(field, property, value)
       case (failures, (field, property:MapObjectsProperty[D, _, _]@unchecked)) =>
         failures ++
-        //validateProperty(field, property, value, maybeCurrentState, Some(property._codec.unapply(RawObject.empty).get)) ++
         validateMapObjectsProperty(field, property, value, maybeCurrentState)
       case (failures, (field, property)) =>
         failures ++

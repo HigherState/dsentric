@@ -1,7 +1,7 @@
 package dsentric.failure
 
 import dsentric.contracts.{ContractFor, PropertyLens}
-import dsentric.{DCodec, DObject, Path, StringCodec}
+import dsentric.{DCodec, DObject, Path, Raw, StringCodec}
 
 import scala.util.matching.Regex
 
@@ -20,11 +20,11 @@ final case class ExpectedFailure[D <: DObject](contract: ContractFor[D], path:Pa
   def message = "Expected value not found."
 }
 
-final case class IncorrectTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T], foundRawType:Class[_]) extends Failure {
+final case class IncorrectTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T], foundRaw:Raw) extends Failure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  IncorrectTypeFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
 
-  def message = s"Type '${codec.typeDefinition.name} was expected."
+  def message = s"Type '${codec.typeDefinition.name} was expected, type ${foundRaw.getClass.getSimpleName} was found."
 }
 
 object ExpectedFailure {
@@ -33,8 +33,8 @@ object ExpectedFailure {
 }
 
 object IncorrectTypeFailure {
-  def apply[D <: DObject, T](property:PropertyLens[D, T], foundType:Class[_]):IncorrectTypeFailure[D, T] =
-    IncorrectTypeFailure(property._root, property._path, property._codec, foundType)
+  def apply[D <: DObject, T](property:PropertyLens[D, T], foundRaw:Raw):IncorrectTypeFailure[D, T] =
+    IncorrectTypeFailure(property._root, property._path, property._codec, foundRaw)
 }
 
 
@@ -118,11 +118,11 @@ final case class KeyRemovalFailure[D <: DObject, T](contract: ContractFor[D], pa
     copy(contract = rootContract, path = rootPath ++ path)
 }
 
-final case class IncorrectKeyTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:StringCodec[T], foundType:Class[_]) extends Failure {
+final case class IncorrectKeyTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:StringCodec[T], foundRaw:Raw) extends Failure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): IncorrectKeyTypeFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
 
-  def message = s"Type '${codec.typeDefinition.name} was expected for the key, type ${foundType.getSimpleName} was found."
+  def message = s"Type '${codec.typeDefinition.name} was expected for the key, type ${foundRaw.getClass.getSimpleName} was found."
 }
 
 final case class MaskFailure[D <: DObject, T](contract: ContractFor[D], path:Path, mask:T) extends ValidationFailure {

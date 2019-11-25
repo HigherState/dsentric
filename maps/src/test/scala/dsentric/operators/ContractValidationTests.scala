@@ -1,7 +1,7 @@
 package dsentric.operators
 
 import dsentric._
-import dsentric.failure.{ExpectedFailure, IncorrectTypeFailure, NumericalFailure, ValidationFailures}
+import dsentric.failure.{ClosedContractFailure, ExpectedFailure, IncorrectTypeFailure, NumericalFailure, ValidationFailures}
 import org.scalatest.{FunSpec, FunSuite, Matchers}
 
 class ContractValidationTests extends FunSpec with Matchers with FailureMatchers {
@@ -10,15 +10,33 @@ class ContractValidationTests extends FunSpec with Matchers with FailureMatchers
   import PessimisticCodecs._
 
   describe("Contract validation") {
-    object Empty extends Contract
+    describe("Contract structure") {
+      object Empty extends Contract
 
-    it("Should validate an empty Contract") {
-      Empty.$ops.validate(DObject.empty) shouldBe Vector.empty
-      Empty.$ops.validate(DObject("key" := "value")) shouldBe Vector.empty
+      it("Should validate an empty Contract") {
+        Empty.$ops.validate(DObject.empty) shouldBe ValidationFailures.empty
+        Empty.$ops.validate(DObject("key" := "value")) shouldBe ValidationFailures.empty
+      }
+      it("Should validate deltas") {
+        Empty.$ops.validate(DObject("key" := "value"), DObject("key" := 123)) shouldBe ValidationFailures.empty
+        Empty.$ops.validate(DObject("key" := DNull), DObject("key" := 123)) shouldBe ValidationFailures.empty
+      }
     }
-    it("Should validate deltas") {
-      Empty.$ops.validate(DObject("key" := "value"), DObject("key" := 123)) shouldBe Vector.empty
-      Empty.$ops.validate(DObject("key" := DNull), DObject("key" := 123)) shouldBe Vector.empty
+    describe("Closed contract structure") {
+      object EmptyClosed extends Contract with ClosedFields
+
+      it("Should validate an empty contract") {
+        EmptyClosed.$ops.validate(DObject.empty) shouldBe ValidationFailures.empty
+      }
+      it("Should fail on any other field") {
+        EmptyClosed.$ops.validate(DObject("field" := false)) should contain (ClosedContractFailure(EmptyClosed, Path.empty, "field"))
+      }
+      it("Should fail on delta value") {
+        EmptyClosed.$ops.validate(DObject("field" := false), DObject.empty) should contain (ClosedContractFailure(EmptyClosed, Path.empty, "field"))
+      }
+      it("Should succeed on removing a field") {
+        EmptyClosed.$ops.validate(DObject("field" := DNull), DObject("field" := true)) shouldBe ValidationFailures.empty
+      }
     }
   }
 
@@ -31,7 +49,7 @@ class ContractValidationTests extends FunSpec with Matchers with FailureMatchers
         ExpectedField.$ops.validate(DObject.empty) should contain(ExpectedFailure(ExpectedField.exp))
       }
       it("Should fail if field is of wrong type") {
-        ExpectedField.$ops.validate(DObject("exp" := false)) should contain(IncorrectTypeFailure(ExpectedField.exp, false.getClass))
+        ExpectedField.$ops.validate(DObject("exp" := false)) should contain(IncorrectTypeFailure(ExpectedField.exp, false))
       }
       it("Should succeed if field exists and is of correct type") {
         ExpectedField.$ops.validate(DObject("exp" := "test")) shouldBe ValidationFailures.empty
@@ -40,7 +58,7 @@ class ContractValidationTests extends FunSpec with Matchers with FailureMatchers
         ExpectedField.$ops.validate(DObject.empty, DObject.empty) should contain(ExpectedFailure(ExpectedField.exp))
       }
       it("Should fail if delta is incorrect type") {
-        ExpectedField.$ops.validate(DObject("exp" := false), DObject("exp" := "test")) should contain(IncorrectTypeFailure(ExpectedField.exp, false.getClass))
+        ExpectedField.$ops.validate(DObject("exp" := false), DObject("exp" := "test")) should contain(IncorrectTypeFailure(ExpectedField.exp, false))
       }
       it("Should succeed if delta is correct type") {
         ExpectedField.$ops.validate(DObject("exp" := "test"), DObject("exp" := "test2")) shouldBe ValidationFailures.empty
@@ -80,64 +98,120 @@ class ContractValidationTests extends FunSpec with Matchers with FailureMatchers
   describe("Maybe field validation") {
     describe("Maybe field structure") {
       object MaybeField extends Contract {
-        val exp = \?[Long]
+        val myb = \?[Long]
       }
       it("Should succeed if field not found") {
         MaybeField.$ops.validate(DObject.empty) shouldBe ValidationFailures.empty
       }
       it("Should fail if field is of wrong type") {
-        MaybeField.$ops.validate(DObject("exp" := false)) should contain(IncorrectTypeFailure(MaybeField.exp, false.getClass))
+        MaybeField.$ops.validate(DObject("myb" := false)) should contain(IncorrectTypeFailure(MaybeField.myb, false))
       }
       it("Should succeed if field exists and is of correct type") {
-        MaybeField.$ops.validate(DObject("exp" := "test")) shouldBe ValidationFailures.empty
+        MaybeField.$ops.validate(DObject("myb" := 434)) shouldBe ValidationFailures.empty
       }
       it("Should succeed if delta and field is empty") {
         MaybeField.$ops.validate(DObject.empty, DObject.empty) shouldBe ValidationFailures.empty
       }
       it("Should fail if delta is incorrect type") {
-        MaybeField.$ops.validate(DObject("exp" := false), DObject("exp" := 1324)) should contain(IncorrectTypeFailure(MaybeField.exp, false.getClass))
+        MaybeField.$ops.validate(DObject("myb" := false), DObject("myb" := 1324)) should contain(IncorrectTypeFailure(MaybeField.myb, false))
       }
       it("Should succeed if delta is correct type") {
-        MaybeField.$ops.validate(DObject("exp" := "test"), DObject("exp" := "test2")) shouldBe ValidationFailures.empty
+        MaybeField.$ops.validate(DObject("myb" := 4123), DObject("myb" := 432)) shouldBe ValidationFailures.empty
       }
       it("Should succeed if delta is correct type and state is incorrect") {
-        MaybeField.$ops.validate(DObject("exp" := "test"), DObject("exp" := false)) shouldBe ValidationFailures.empty
+        MaybeField.$ops.validate(DObject("myb" := 1234), DObject("myb" := false)) shouldBe ValidationFailures.empty
       }
       it("Should succeed if delta is empty and state is incorrect") {
-        MaybeField.$ops.validate(DObject.empty, DObject("exp" := false)) shouldBe ValidationFailures.empty
+        MaybeField.$ops.validate(DObject.empty, DObject("myb" := false)) shouldBe ValidationFailures.empty
       }
       it("Should succeed if delta is null") {
-        MaybeField.$ops.validate(DObject("exp" := DNull), DObject("exp" := "test")) shouldBe ValidationFailures.empty
+        MaybeField.$ops.validate(DObject("myb" := DNull), DObject("myb" := "test")) shouldBe ValidationFailures.empty
       }
     }
-  describe("Maybefield with validator") {
-    object MaybeValidator extends Contract {
-      val expGT = \?[Int](Validators.>(5))
+    describe("Maybefield with validator") {
+      object MaybeValidator extends Contract {
+        val mybGT = \?[Int](Validators.>(5))
+      }
+      it("Should succeed if value is valid") {
+        MaybeValidator.$ops.validate(DObject("mybGT" := 6)) shouldBe ValidationFailures.empty
+      }
+      it("Should fail if value is invalid") {
+        MaybeValidator.$ops.validate(DObject("mybGT" := 3)) should contain(NumericalFailure(MaybeValidator, Path("mybGT"), 3, 5, "greater than"))
+      }
+      it("Should succeed if delta is valid and state is invalid") {
+        MaybeValidator.$ops.validate(DObject("mybGT" := 6), DObject("mybGT" := 3)) shouldBe ValidationFailures.empty
+      }
+      it("Should succeed if delta is valid and state is valid") {
+        MaybeValidator.$ops.validate(DObject("mybGT" := 6), DObject("mybGT" := 7)) shouldBe ValidationFailures.empty
+      }
+      it("Should fail if delta is invalid") {
+        MaybeValidator.$ops.validate(DObject("mybGT" := 3), DObject("mybGT" := 7)) should contain(NumericalFailure(MaybeValidator, Path("mybGT"), 3, 5, "greater than"))
+      }
     }
-    it("Should succeed if value is valid") {
-      MaybeValidator.$ops.validate(DObject("expGT" := 6)) shouldBe ValidationFailures.empty
-    }
-    it("Should fail if value is invalid") {
-      MaybeValidator.$ops.validate(DObject("expGT" := 3)) should contain(NumericalFailure(MaybeValidator, Path("expGT"), 3, 5, "greater than"))
-    }
-    it("Should succeed if delta is valid and state is invalid") {
-      MaybeValidator.$ops.validate(DObject("expGT" := 6), DObject("expGT" := 3)) shouldBe ValidationFailures.empty
-    }
-    it("Should succeed if delta is valid and state is valid") {
-      MaybeValidator.$ops.validate(DObject("expGT" := 6), DObject("expGT" := 7)) shouldBe ValidationFailures.empty
-    }
-    it("Should fail if delta is invalid") {
-      MaybeValidator.$ops.validate(DObject("expGT" := 3), DObject("expGT" := 7)) should contain(NumericalFailure(MaybeValidator, Path("expGT"), 3, 5, "greater than"))
-    }
-  }
   }
 
   describe("Default field validation") {
-
+    describe("Default field structure") {
+      object DefaultField extends Contract {
+        val dfl = \![Long](4353)
+      }
+      it("Should succeed if field not found") {
+        DefaultField.$ops.validate(DObject.empty) shouldBe ValidationFailures.empty
+      }
+      it("Should fail if field is of wrong type") {
+        DefaultField.$ops.validate(DObject("dfl" := false)) should contain(IncorrectTypeFailure(DefaultField.dfl, false))
+      }
+      it("Should succeed if field exists and is of correct type") {
+        DefaultField.$ops.validate(DObject("dfl" := 5312)) shouldBe ValidationFailures.empty
+      }
+      it("Should succeed if delta and field is empty") {
+        DefaultField.$ops.validate(DObject.empty, DObject.empty) shouldBe ValidationFailures.empty
+      }
+      it("Should fail if delta is incorrect type") {
+        DefaultField.$ops.validate(DObject("dfl" := false), DObject("dfl" := 1324)) should contain(IncorrectTypeFailure(DefaultField.dfl, false))
+      }
+      it("Should succeed if delta is correct type") {
+        DefaultField.$ops.validate(DObject("dfl" := 123), DObject("dfl" := 5122)) shouldBe ValidationFailures.empty
+      }
+      it("Should succeed if delta is correct type and state is incorrect") {
+        DefaultField.$ops.validate(DObject("dfl" := 5321), DObject("dfl" := false)) shouldBe ValidationFailures.empty
+      }
+      it("Should succeed if delta is empty and state is incorrect") {
+        DefaultField.$ops.validate(DObject.empty, DObject("dfl" := false)) shouldBe ValidationFailures.empty
+      }
+      it("Should succeed if delta is null") {
+        DefaultField.$ops.validate(DObject("dfl" := DNull), DObject("dfl" := "test")) shouldBe ValidationFailures.empty
+      }
+    }
+    describe("Defaultfield with validator") {
+      object DefaultValidator extends Contract {
+        val dflGT = \?[Int](Validators.>(5))
+      }
+      it("Should succeed if value is valid") {
+        DefaultValidator.$ops.validate(DObject("dflGT" := 6)) shouldBe ValidationFailures.empty
+      }
+      it("Should fail if value is invalid") {
+        DefaultValidator.$ops.validate(DObject("dflGT" := 3)) should contain(NumericalFailure(DefaultValidator, Path("dflGT"), 3, 5, "greater than"))
+      }
+      it("Should succeed if delta is valid and state is invalid") {
+        DefaultValidator.$ops.validate(DObject("dflGT" := 6), DObject("dflGT" := 3)) shouldBe ValidationFailures.empty
+      }
+      it("Should succeed if delta is valid and state is valid") {
+        DefaultValidator.$ops.validate(DObject("dflGT" := 6), DObject("dflGT" := 7)) shouldBe ValidationFailures.empty
+      }
+      it("Should fail if delta is invalid") {
+        DefaultValidator.$ops.validate(DObject("dflGT" := 3), DObject("dflGT" := 7)) should contain(NumericalFailure(DefaultValidator, Path("dflGT"), 3, 5, "greater than"))
+      }
+    }
   }
 
   describe("Expected nested object validation") {
+    describe("Nested object structure") {
 
+    }
+    describe("Nested object validation") {
+      
+    }
   }
 
   describe("Maybe nested object validation") {

@@ -83,10 +83,10 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
         ExpectedField.field.$get(DObject.empty).left.value should contain (ExpectedFailure(ExpectedField.field))
       }
       it("Should incorrect type  if null value") {
-        ExpectedField.field.$get(DObject("field" := DNull)).left.value should contain (IncorrectTypeFailure(ExpectedField.field, DNull.getClass))
+        ExpectedField.field.$get(DObject("field" := DNull)).left.value should contain (IncorrectTypeFailure(ExpectedField.field, DNull))
       }
       it("Should incorrect type  if value is of the wrong type") {
-        ExpectedField.field.$get(DObject("field" := false)).left.value should contain (IncorrectTypeFailure(ExpectedField.field, false.getClass))
+        ExpectedField.field.$get(DObject("field" := false)).left.value should contain (IncorrectTypeFailure(ExpectedField.field, false))
       }
       it("Should empty if null value and EmptyOnIncorrectType") {
         EmptyExpectedField.field.$get(DObject("field" := DNull)).left.value should contain (ExpectedFailure(EmptyExpectedField.field))
@@ -104,7 +104,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
         ExpectedField.nulled.$get(DObject.empty).left.value should contain (ExpectedFailure(ExpectedField.nulled))
       }
       it("Should incorrect type  if nullable wrong type") {
-        ExpectedField.nulled.$get(DObject("nulled" := "wrong")).left.value should contain (IncorrectTypeFailure(ExpectedField.nulled, "wrong".getClass))
+        ExpectedField.nulled.$get(DObject("nulled" := "wrong")).left.value should contain (IncorrectTypeFailure(ExpectedField.nulled, "wrong"))
       }
       it("Should return null if nullable null") {
         ExpectedField.nulled.$get(DObject("nulled" := DNull)).right.value shouldBe DNull
@@ -184,11 +184,11 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Should incorrect type fail on incorrect type") {
         val base = DObject("field" := 123)
-        ExpectedField.field.$modify(_ + "2")(base).left.value should contain (IncorrectTypeFailure(ExpectedField.field, "2".getClass))
+        ExpectedField.field.$modify(_ + "2")(base).left.value should contain (IncorrectTypeFailure(ExpectedField.field, 123))
       }
       it("Should incorrect type fail on null type") {
         val base = DObject("field" := DNull)
-        ExpectedField.field.$modify(_ + "2")(base).left.value should contain (IncorrectTypeFailure(ExpectedField.field, "2".getClass))
+        ExpectedField.field.$modify(_ + "2")(base).left.value should contain (IncorrectTypeFailure(ExpectedField.field, DNull))
       }
       it("Should expected fail on incorrect type with EmptyOnIncorrectType") {
         val base = DObject("field" := 123)
@@ -218,7 +218,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
         val base3 = DObject.empty
         ExpectedField.nulled.$modify{case DNull => DSome(0); case DSome(x) => DSome(x + 1)}(base3).left.value should contain (ExpectedFailure(ExpectedField.nulled))
         val base4 = DObject("nulled" := "wrong")
-        ExpectedField.nulled.$modify{case DNull => DSome(0); case DSome(x) => DSome(x + 1)}(base4).left.value should contain (IncorrectTypeFailure(ExpectedField.nulled, "wrong".getClass))
+        ExpectedField.nulled.$modify{case DNull => DSome(0); case DSome(x) => DSome(x + 1)}(base4).left.value should contain (IncorrectTypeFailure(ExpectedField.nulled, "wrong"))
       }
     }
     describe("$copy") {
@@ -232,15 +232,15 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Copying a wrong type to a set value is incorrect type failure") {
         val base1 = DObject("field" := 123)
-        ExpectedField.copy.$copy(ExpectedField.field)(base1).left.value should contain (IncorrectTypeFailure(ExpectedField.field, 123.getClass))
+        ExpectedField.copy.$copy(ExpectedField.field)(base1).left.value should contain (IncorrectTypeFailure(ExpectedField.field, 123))
         val base2 = DObject("copy" := "leave", "field" := 123)
-        ExpectedField.copy.$copy(ExpectedField.field)(base2).left.value should contain (IncorrectTypeFailure(ExpectedField.field, 123.getClass))
+        ExpectedField.copy.$copy(ExpectedField.field)(base2).left.value should contain (IncorrectTypeFailure(ExpectedField.field, 123))
       }
       it("Copying a null value to a set value is incorrect type failure") {
         val base1 = DObject("field" := DNull)
-        ExpectedField.copy.$copy(ExpectedField.field)(base1).left.value should contain (IncorrectTypeFailure(ExpectedField.field, DNull.getClass))
+        ExpectedField.copy.$copy(ExpectedField.field)(base1).left.value should contain (IncorrectTypeFailure(ExpectedField.field, DNull))
         val base2 = DObject("copy" := "leave", "field" := DNull)
-        ExpectedField.copy.$copy(ExpectedField.field)(base2).left.value should contain (IncorrectTypeFailure(ExpectedField.field, DNull.getClass))
+        ExpectedField.copy.$copy(ExpectedField.field)(base2).left.value should contain (IncorrectTypeFailure(ExpectedField.field, DNull))
       }
       it("Copying to an empty value will copy") {
         val base = DObject("field" := "copyMe")
@@ -280,7 +280,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Copying a default value set as the wrong type should fail with incorrect type") {
         val base = DObject("defaultCopied" := 1234)
-        ExpectedField.copy.$copy(ExpectedField.defaultCopied)(base).left.value should contain (IncorrectTypeFailure(ExpectedField.defaultCopied, 1234.getClass))
+        ExpectedField.copy.$copy(ExpectedField.defaultCopied)(base).left.value should contain (IncorrectTypeFailure(ExpectedField.defaultCopied, 1234))
       }
       it("Copying a default value set as the wrong type should set default value when EmptyOnIncorrectType") {
         val base = DObject("defaultCopied" := 1234)
@@ -364,13 +364,13 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
         MaybeField.field.$get(DObject.empty).right.value shouldBe empty
       }
       it("Should incorrect type fail when null value") {
-        MaybeField.field.$get(DObject("field" := DNull)).left.value should contain (IncorrectTypeFailure(MaybeField.field, DNull.getClass))
+        MaybeField.field.$get(DObject("field" := DNull)).left.value should contain (IncorrectTypeFailure(MaybeField.field, DNull))
       }
       it("Should return empty if null value when EmptyOnIncorrectType") {
         EmptyMaybeField.field.$get(DObject("field" := DNull)).right.value shouldBe empty
       }
       it("Should incorrect type fail if value is of the wrong type") {
-        MaybeField.field.$get(DObject("field" := false)).left.value should contain (IncorrectTypeFailure(MaybeField.field, false.getClass))
+        MaybeField.field.$get(DObject("field" := false)).left.value should contain (IncorrectTypeFailure(MaybeField.field, false))
       }
       it("Should return empty  if value is of the wrong type and when EmptyOnIncorrectType") {
         EmptyMaybeField.field.$get(DObject("field" := false)).right.value shouldBe empty
@@ -385,7 +385,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
         MaybeField.nulled.$get(DObject.empty).right.value shouldBe empty
       }
       it("Should incorrect type fail  if nullable wrong type") {
-        MaybeField.nulled.$get(DObject("nulled" := "wrong")).left.value should contain (IncorrectTypeFailure(MaybeField.nulled, "wrong".getClass))
+        MaybeField.nulled.$get(DObject("nulled" := "wrong")).left.value should contain (IncorrectTypeFailure(MaybeField.nulled, "wrong"))
       }
       it("Should return null if nullable null") {
         MaybeField.nulled.$get(DObject("nulled" := DNull)).right.value should contain (DNull)
@@ -402,13 +402,13 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
         EmptyMaybeField.field.$getOrElse(DObject("field" := false), "orElse").right.value shouldBe "orElse"
       }
       it("Should incorrect type fail if value is of the wrong type") {
-        MaybeField.field.$getOrElse(DObject("field" := false), "orElse").left.value should contain (IncorrectTypeFailure(MaybeField.field, false.getClass))
+        MaybeField.field.$getOrElse(DObject("field" := false), "orElse").left.value should contain (IncorrectTypeFailure(MaybeField.field, false))
       }
       it("Should return orElse if null value when EmptyOnIncorrectType") {
         EmptyMaybeField.field.$getOrElse(DObject("field" := DNull), "orElse").right.value shouldBe "orElse"
       }
       it("Should incorrect type fail if value is null") {
-        MaybeField.field.$getOrElse(DObject("field" := DNull), "orElse").left.value should contain (IncorrectTypeFailure(MaybeField.field, DNull.getClass))
+        MaybeField.field.$getOrElse(DObject("field" := DNull), "orElse").left.value should contain (IncorrectTypeFailure(MaybeField.field, DNull))
       }
       it("Should return value if set") {
         MaybeField.field.$getOrElse(DObject("field" := "test"), "orElse").right.value shouldBe "test"
@@ -425,7 +425,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
         EmptyMaybeField.nulled.$getOrElse(DObject("nulled" := "wrong"), DSome(123)).right.value shouldBe DSome(123)
       }
       it("Should incorrect type fail if nullable wrong type") {
-        MaybeField.nulled.$getOrElse(DObject("nulled" := "wrong"), DSome(123)).left.value should contain (IncorrectTypeFailure(MaybeField.nulled, "wrong".getClass))
+        MaybeField.nulled.$getOrElse(DObject("nulled" := "wrong"), DSome(123)).left.value should contain (IncorrectTypeFailure(MaybeField.nulled, "wrong"))
       }
       it("Should return null if nullable null") {
         MaybeField.nulled.$getOrElse(DObject("nulled" := DNull), DSome(123)).right.value shouldBe DNull
@@ -509,7 +509,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Should fail incorrect type if wrong type") {
         val base = DObject("field" := 123)
-        MaybeField.field.$modify(pf)(base).left.value should contain (IncorrectTypeFailure(MaybeField.field, 123.getClass))
+        MaybeField.field.$modify(pf)(base).left.value should contain (IncorrectTypeFailure(MaybeField.field, 123))
       }
       it("Should treat as empty a wrong type when EmptyOnIncorrectType") {
         val base = DObject("field" := 123)
@@ -517,7 +517,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Should fail incorrect type if  leave a null type") {
         val base = DObject("field" := DNull)
-        MaybeField.field.$modify(pf)(base).left.value should contain (IncorrectTypeFailure(MaybeField.field, DNull.getClass))
+        MaybeField.field.$modify(pf)(base).left.value should contain (IncorrectTypeFailure(MaybeField.field, DNull))
       }
       it("Should treat as empty null when EmptyOnIncorrectType") {
         val base = DObject("field" := DNull)
@@ -569,11 +569,11 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Should incorrect type fail on a wrong type") {
         val base = DObject("field" := 123)
-        MaybeField.field.$modifyOrDrop(pf)(base).left.value should contain (IncorrectTypeFailure(MaybeField.field, 123.getClass))
+        MaybeField.field.$modifyOrDrop(pf)(base).left.value should contain (IncorrectTypeFailure(MaybeField.field, 123))
       }
       it("Should incorrect type fail on null") {
         val base = DObject("field" := DNull)
-        MaybeField.field.$modifyOrDrop(pf)(base).left.value should contain (IncorrectTypeFailure(MaybeField.field, DNull.getClass))
+        MaybeField.field.$modifyOrDrop(pf)(base).left.value should contain (IncorrectTypeFailure(MaybeField.field, DNull))
       }
       it("Should treat as empty a wrong type when EmptyOnIncorrectTypeBehaviour") {
         val base = DObject("field" := 123)
@@ -718,9 +718,9 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Copying a wrong type to a set value is incorrect type failure") {
         val base1 = DObject("field" := 123)
-        MaybeField.copy.$copy(MaybeField.field)(base1).left.value should contain (IncorrectTypeFailure(MaybeField.field, 123.getClass))
+        MaybeField.copy.$copy(MaybeField.field)(base1).left.value should contain (IncorrectTypeFailure(MaybeField.field, 123))
         val base2 = DObject("copy" := "leave", "field" := 123)
-        MaybeField.copy.$copy(MaybeField.field)(base2).left.value should contain (IncorrectTypeFailure(MaybeField.field, 123.getClass))
+        MaybeField.copy.$copy(MaybeField.field)(base2).left.value should contain (IncorrectTypeFailure(MaybeField.field, 123))
       }
       it("Copying a wrong type to a set value is treated as empty on EmptyOnIncorrectType") {
         val base1 = DObject("field" := 123)
@@ -730,9 +730,9 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Copying a null value to a set value  is incorrect type failure") {
         val base1 = DObject("field" := DNull)
-        MaybeField.copy.$copy(MaybeField.field)(base1).left.value should contain (IncorrectTypeFailure(MaybeField.field, DNull.getClass))
+        MaybeField.copy.$copy(MaybeField.field)(base1).left.value should contain (IncorrectTypeFailure(MaybeField.field, DNull))
         val base2 = DObject("copy" := "leave", "field" := DNull)
-        MaybeField.copy.$copy(MaybeField.field)(base2).left.value should contain (IncorrectTypeFailure(MaybeField.field, DNull.getClass))
+        MaybeField.copy.$copy(MaybeField.field)(base2).left.value should contain (IncorrectTypeFailure(MaybeField.field, DNull))
       }
       it("Copying to an empty value will copy") {
         val base = DObject("field" := "copyMe")
@@ -756,7 +756,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Copying into a nested value with wrong type is incorrect type failure") {
         val base = DObject("field" := 123)
-        MaybeField.nested.nestedField.$copy(MaybeField.field)(base).left.value should contain (IncorrectTypeFailure(MaybeField.field, 123.getClass))
+        MaybeField.nested.nestedField.$copy(MaybeField.field)(base).left.value should contain (IncorrectTypeFailure(MaybeField.field, 123))
       }
       it("Copying into a nested value with wrong type is will not create structure when EmptyOnIncorrectType") {
         val base = DObject("field" := 123)
@@ -776,7 +776,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Copying an expected value will fail incorrect type when incorrect type") {
         val base = DObject("expectedCopied" := 123)
-        MaybeField.copy.$copy(MaybeField.expectedCopied)(base).left.value should contain (IncorrectTypeFailure(MaybeField.expectedCopied, 123.getClass))
+        MaybeField.copy.$copy(MaybeField.expectedCopied)(base).left.value should contain (IncorrectTypeFailure(MaybeField.expectedCopied, 123))
       }
       it("Copying an expected value will fail expected when EmptyOnIncorrectType") {
         val base = DObject("expectedCopied" := 123)
@@ -792,7 +792,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Copying a default value set as the wrong type should fail with incorrect type)") {
         val base = DObject("defaultCopied" := 1234)
-        MaybeField.copy.$copy(MaybeField.defaultCopied)(base).left.value should contain (IncorrectTypeFailure(MaybeField.defaultCopied, 1234.getClass))
+        MaybeField.copy.$copy(MaybeField.defaultCopied)(base).left.value should contain (IncorrectTypeFailure(MaybeField.defaultCopied, 1234))
       }
       it("Copying a default value set as the wrong type should set default when EmptyOnIncorrectType)") {
         val base = DObject("defaultCopied" := 1234)
@@ -879,13 +879,13 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
         DefaultField.field.$get(DObject.empty).right.value shouldBe "defaultValue"
       }
       it("Should return incorrect type failure if null value") {
-        DefaultField.field.$get(DObject("field" := DNull)).left.value should contain (IncorrectTypeFailure(DefaultField.field, DNull.getClass))
+        DefaultField.field.$get(DObject("field" := DNull)).left.value should contain (IncorrectTypeFailure(DefaultField.field, DNull))
       }
       it("Should return default value if null value and EmptyOnIncorrectType") {
         EmptyDefaultField.field.$get(DObject("field" := DNull)).right.value shouldBe "defaultValue"
       }
       it("Should return incorrect type failure if value is of the wrong type") {
-        DefaultField.field.$get(DObject("field" := false)).left.value should contain (IncorrectTypeFailure(DefaultField.field, false.getClass))
+        DefaultField.field.$get(DObject("field" := false)).left.value should contain (IncorrectTypeFailure(DefaultField.field, false))
       }
       it("Should return default value if wrong type and EmptyOnIncorrectType") {
         EmptyDefaultField.field.$get(DObject("field" := false)).right.value shouldBe "defaultValue"
@@ -900,7 +900,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
         DefaultField.nulled.$get(DObject.empty).right.value shouldBe DSome(23)
       }
       it("Should return incorrect type failure if nullable wrong type") {
-        DefaultField.nulled.$get(DObject("nulled" := "wrong")).left.value should contain (IncorrectTypeFailure(DefaultField.nulled, "wrong".getClass))
+        DefaultField.nulled.$get(DObject("nulled" := "wrong")).left.value should contain (IncorrectTypeFailure(DefaultField.nulled, "wrong"))
       }
       it("Should return null if nullable null") {
         DefaultField.nulled.$get(DObject("nulled" := DNull)).right.value shouldBe DNull
@@ -984,7 +984,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Should fail with incorrect type when type is wrong") {
         val base = DObject("field" := 123)
-        DefaultField.field.$modify(pf)(base).left.value should contain (IncorrectTypeFailure(DefaultField.field, 123.getClass))
+        DefaultField.field.$modify(pf)(base).left.value should contain (IncorrectTypeFailure(DefaultField.field, 123))
       }
       it("Should modify default when type is wrong and EmptyOnIncorrect") {
         val base = DObject("field" := 123)
@@ -992,7 +992,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Should fail with incorrect type when type is null") {
         val base = DObject("field" := DNull)
-        DefaultField.field.$modify(pf)(base).left.value should contain (IncorrectTypeFailure(DefaultField.field, DNull.getClass))
+        DefaultField.field.$modify(pf)(base).left.value should contain (IncorrectTypeFailure(DefaultField.field, DNull))
       }
       it("Should modify default when value is Null and EmptyOnIncorrect") {
         val base = DObject("field" := DNull)
@@ -1125,9 +1125,9 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Copying a wrong type to a set value will fail with incorrect type") {
         val base1 = DObject("field" := 123)
-        DefaultField.copy.$copy(DefaultField.field)(base1).left.value should contain (IncorrectTypeFailure(DefaultField.field, 123.getClass))
+        DefaultField.copy.$copy(DefaultField.field)(base1).left.value should contain (IncorrectTypeFailure(DefaultField.field, 123))
         val base2 = DObject("copy" := "leave", "field" := 123)
-        DefaultField.copy.$copy(DefaultField.field)(base2).left.value should contain (IncorrectTypeFailure(DefaultField.field, 123.getClass))
+        DefaultField.copy.$copy(DefaultField.field)(base2).left.value should contain (IncorrectTypeFailure(DefaultField.field, 123))
       }
       it("Copying a wrong type to a set value will set default on EmptyOnIncorrectType") {
         val base1 = DObject("field" := 123)
@@ -1137,9 +1137,9 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Copying a null to a set value will fail with incorrect type") {
         val base1 = DObject("field" := DNull)
-        DefaultField.copy.$copy(DefaultField.field)(base1).left.value should contain (IncorrectTypeFailure(DefaultField.field, DNull.getClass))
+        DefaultField.copy.$copy(DefaultField.field)(base1).left.value should contain (IncorrectTypeFailure(DefaultField.field, DNull))
         val base2 = DObject("copy" := "leave", "field" := DNull)
-        DefaultField.copy.$copy(DefaultField.field)(base2).left.value should contain (IncorrectTypeFailure(DefaultField.field, DNull.getClass))
+        DefaultField.copy.$copy(DefaultField.field)(base2).left.value should contain (IncorrectTypeFailure(DefaultField.field, DNull))
       }
       it("Copying a null to a set value will set default on EmptyOnIncorrectType") {
         val base1 = DObject("field" := DNull)
@@ -1169,7 +1169,7 @@ class PropertyLensTests extends FunSpec with Matchers with FailureMatchers with 
       }
       it("Copying into a nested value with wrong type will fail with incorrect type") {
         val base = DObject("field" := 123)
-        DefaultField.nested.nestedField.$copy(DefaultField.field)(base).left.value should contain (IncorrectTypeFailure(DefaultField.field, 123.getClass))
+        DefaultField.nested.nestedField.$copy(DefaultField.field)(base).left.value should contain (IncorrectTypeFailure(DefaultField.field, 123))
       }
       it("Copying into a nested value with wrong type will create structure when EmptyOnIncorrectType") {
         val base = DObject("field" := 123)
