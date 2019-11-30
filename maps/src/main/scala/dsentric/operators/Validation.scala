@@ -82,24 +82,14 @@ object Validation {
       }
 
     @inline
-    def validateContractProperty[D2 <: DObject](field:String, property:BaseContract[DObject] with Property[D2, _], value:RawObject, maybeCurrentState:Option[RawObject], hasEmptyDefault:Boolean):ValidationFailures =
-      value.get(field) match {
-        case Some(rv:RawObject@unchecked) =>
+    def validateContractProperty[D2 <: DObject](field:String, property:BaseContract[DObject] with Property[D2, _], value:RawObject, maybeCurrentState:Option[RawObject]):ValidationFailures =
+      value.get(field).collect {
+        case rv:RawObject@unchecked =>
           validateContract(property, rv, maybeCurrentState.flatMap(_.get(field).collect{case rs:RawObject@unchecked => rs}))
-        case None if hasEmptyDefault =>
-          val state = maybeCurrentState.flatMap(_.get(field).collect{case rs:RawObject@unchecked => rs})
-          if (state.isEmpty)
-            validateContract(property, RawObject.empty, None)
-          else
-            ValidationFailures.empty
-        case Some(DNull) if hasEmptyDefault =>
-          validateContract(property, RawObject.empty, None)
-        case _ =>
-          ValidationFailures.empty
-      }
+      }.getOrElse(ValidationFailures.empty)
 
     @inline
-    def validateProperty[D2 <: DObject, T](field:String, property:Property[D2, T], value:RawObject, maybeCurrentState:Option[RawObject], default: => Option[T]):ValidationFailures =
+    def validateProperty[D2 <: DObject, T](field:String, property:Property[D2, T], value:RawObject, maybeCurrentState:Option[RawObject]):ValidationFailures =
       value.get(field) match {
         case Some(DNull) =>
           validatePropertyOperators(field, property, Some(DNull), None, maybeCurrentState)
@@ -109,9 +99,7 @@ object Validation {
               validatePropertyOperators(field, property, Some(v), Some(maybeT), maybeCurrentState)
             }
         case None =>
-          default.fold(validatePropertyOperators(field, property, None, None, maybeCurrentState)){t =>
-            validatePropertyOperators(field, property, Some(property._codec(t)), Some(t), maybeCurrentState)
-          }
+          validatePropertyOperators(field, property, None, None, maybeCurrentState)
 
       }
 
@@ -141,16 +129,27 @@ object Validation {
       else
         ValidationFailures.empty
 
+    def convertExpectedObjectBehaviour(field:String, value:RawObject, maybeCurrentState:Option[RawObject]):RawObject =
+      value.get(field) -> maybeCurrentState.flatMap(_.get(field).collect{case rs:RawObject@unchecked => rs}) match {
+        case (None | Some(DNull), None) =>
+          value + (field -> RawObject.empty)
+        case (Some(DNull), Some(state)) =>
+          value + (field -> state.mapValues(_ => DNull))
+        case _ =>
+          value
+    }
+
     validateClosed(contract, value, maybeCurrentState) ++
     contract._fields.foldLeft(ValidationFailures.empty){
       case (failures, (field, property:BaseContract[DObject]@unchecked with ExpectedObjectProperty[D])) =>
+        val newValue = convertExpectedObjectBehaviour(field, value, maybeCurrentState)
         failures ++
-        validateProperty(field, property, value, maybeCurrentState, Some(DObject.empty)) ++
-        validateContractProperty(field, property, value, maybeCurrentState, true)
+        validateProperty(field, property, newValue, maybeCurrentState) ++
+        validateContractProperty(field, property, newValue, maybeCurrentState)
       case (failures, (field, property:BaseContract[DObject]@unchecked with Property[D, _])) =>
         failures ++
-        validateProperty(field, property, value, maybeCurrentState, None) ++
-        validateContractProperty(field, property, value, maybeCurrentState, false)
+        validateProperty(field, property, value, maybeCurrentState) ++
+        validateContractProperty(field, property, value, maybeCurrentState)
       case (failures, (field, property:ObjectsProperty[D, _]@unchecked)) =>
         failures ++
         validateObjectsProperty(field, property, value)
@@ -159,7 +158,7 @@ object Validation {
         validateMapObjectsProperty(field, property, value, maybeCurrentState)
       case (failures, (field, property)) =>
         failures ++
-        validateProperty(field, property, value, maybeCurrentState, None)
+        validateProperty(field, property, value, maybeCurrentState)
     }
   }
 

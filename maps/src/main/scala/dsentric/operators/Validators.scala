@@ -188,11 +188,29 @@ trait Validators extends ValidatorOps {
   def minLength(x: Int): ValueValidator[Optionable[Length]] =
     new ValueValidator[Optionable[Length]] {
       def apply[S >: Optionable[Length], D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
-        for {
-          v <- value.toList
-          l <- getLength(v)
-          if l < x
-        } yield MinimumLengthFailure(contract, path, x, l)
+        value -> currentState match {
+          case (Some(c:DObject), Some(s:DObject)) =>
+            val l = getLengthDif(c.value, s.value)
+            if (l < x)
+              List(MinimumLengthFailure(contract, path, x, l))
+            else
+              ValidationFailures.empty
+          case (Some(c:Map[String, Nothing]@unchecked), Some(s:Map[String, Nothing]@unchecked)) =>
+            val l = getLengthDif(c, s)
+            if (l < x)
+              List(MinimumLengthFailure(contract, path, x, l))
+            else
+              ValidationFailures.empty
+          case (c, _) =>
+            for {
+              v <- c.toList
+              l <- getLength(v)
+              if l < x
+            } yield MinimumLengthFailure(contract, path, x, l)
+
+
+        }
+
 
       override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
         case n:StringDefinition => n.copy(minLength = Some(x))
@@ -206,11 +224,26 @@ trait Validators extends ValidatorOps {
   def maxLength(x: Int): ValueValidator[Optionable[Length]] =
     new ValueValidator[Optionable[Length]] {
       def apply[S >: Optionable[Length], D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
-        for {
-          v <- value.toList
-          l <- getLength(v)
-          if l > x
-        } yield MaximumLengthFailure(contract, path, x, l)
+        value -> currentState match {
+          case (Some(c: DObject), Some(s: DObject)) =>
+            val l = getLengthDif(c.value, s.value)
+            if (l > x)
+              List(MaximumLengthFailure(contract, path, x, l))
+            else
+              ValidationFailures.empty
+          case (Some(c: Map[String, Nothing]@unchecked), Some(s: Map[String, Nothing]@unchecked)) =>
+            val l = getLengthDif(c, s)
+            if (l > x)
+              List(MaximumLengthFailure(contract, path, x, l))
+            else
+              ValidationFailures.empty
+          case (c, _) =>
+            for {
+              v <- c.toList
+              l <- getLength(v)
+              if l > x
+            } yield MaximumLengthFailure(contract, path, x, l)
+        }
 
       override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
         case n:StringDefinition => n.copy(maxLength = Some(x))
@@ -401,6 +434,11 @@ trait ValidatorOps {
       case _ =>
         None
     }
+
+  protected def getLengthDif[T](c:Map[String, T], v:Map[String, T]):Int = {
+    val (remove, add) = c.partition(_._2 == DNull)
+    ((v.keySet -- remove.keySet) ++ add.keySet).size
+  }
 
   protected def getString[S >: Optionable[String]](x:S):Option[String] =
     x match {

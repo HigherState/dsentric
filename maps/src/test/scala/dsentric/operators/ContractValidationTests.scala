@@ -3,7 +3,7 @@ package dsentric.operators
 import dsentric._
 import dsentric.contracts.ClosedFields
 import dsentric.failure._
-import org.scalatest.{FunSpec, FunSuite, Matchers}
+import org.scalatest.{FunSpec, Matchers}
 
 class ContractValidationTests extends FunSpec with Matchers {
 
@@ -281,13 +281,109 @@ class ContractValidationTests extends FunSpec with Matchers {
         ExpectedValid.$ops.validate(DObject("noRemoval" ::= ("myb" := ""), "oneOrTwo" ::= ("value" := false))) should contain (NonEmptyOrWhitespaceFailure(ExpectedValid, ExpectedValid.noRemoval.myb._path))
       }
       describe("with deltas") {
-
+        it("Should fail on Null if empty object would fail") {
+          ExpectedValid.$ops.validate(DObject("oneOrTwo" := DNull), DObject("oneOrTwo" ::= ("value" := false))) should contain (MinimumLengthFailure(ExpectedValid, ExpectedValid.oneOrTwo._path, 1, 0))
+          ExpectedValid.$ops.validate(DObject("noRemoval" := DNull), DObject("noRemoval" ::= ("myb" := "value"))) should contain (KeyRemovalFailure(ExpectedValid, ExpectedValid.noRemoval._path, "myb"))
+        }
+        it("Should fail on delta if final state fails") {
+          ExpectedValid.$ops.validate(DObject("oneOrTwo" ::= ("value3" := 123)), DObject("oneOrTwo" ::= ("value" := false, "value2" := "b"))) should contain (MaximumLengthFailure(ExpectedValid, ExpectedValid.oneOrTwo._path, 2, 3))
+          ExpectedValid.$ops.validate(DObject("noRemoval" ::= ("remove" := DNull)), DObject("noRemoval" ::= ("myb" := "value", "remove" := 3))) should contain (KeyRemovalFailure(ExpectedValid, ExpectedValid.noRemoval._path, "remove"))
+        }
+        it("Should succeeed if delta makes initial bad state, correct") {
+          ExpectedValid.$ops.validate(DObject("oneOrTwo" ::= ("value3" := DNull)), DObject("oneOrTwo" ::= ("value" := false, "value2" := 123, "value3" := "vb"))) shouldBe ValidationFailures.empty
+        }
       }
     }
   }
 
-  describe("Maybe nested object validation") {
+  describe("Maybe object validation") {
 
+    describe("Nested object structure") {
+      object MaybeEmpty extends Contract {
+        val nested = new \\? {}
+      }
+      object MaybeExpected extends Contract {
+        val nested = new \\? {
+          val exp = \[String]
+        }
+      }
+      object MaybeMaybe extends Contract {
+        val nested = new \\? {
+          val myb = \?[String]
+        }
+      }
+      object MaybeClosed extends Contract {
+        val nested = new \\? with ClosedFields {
+          val myb = \?[String]
+        }
+      }
+      it("Should be valid if object is empty and no expected properties") {
+        MaybeEmpty.$ops.validate(DObject.empty) shouldBe ValidationFailures.empty
+      }
+      it("Should be valid if object is empty and only maybe properties") {
+        MaybeMaybe.$ops.validate(DObject.empty) shouldBe ValidationFailures.empty
+      }
+      it("Should be valid if object is empty and has expected properties") {
+        MaybeExpected.$ops.validate(DObject.empty) shouldBe ValidationFailures.empty
+      }
+      it("Should fail if object is not an object") {
+        MaybeExpected.$ops.validate(DObject("nested" := 123)) should contain(IncorrectTypeFailure(MaybeExpected.nested, 123))
+      }
+      it("Should fail if closed and has extra properties") {
+        MaybeClosed.$ops.validate(DObject("nested" ::= ("extra" := 123))) should contain(ClosedContractFailure(MaybeClosed, MaybeClosed.nested._path, "extra"))
+      }
+      it("Should be valid if closed and contains only included valid properties") {
+        MaybeClosed.$ops.validate(DObject("nested" ::= ("myb" := "value"))) shouldBe ValidationFailures.empty
+      }
+      describe("with deltas") {
+        it("Should succeed if nested is null and object has no expected properties") {
+          MaybeEmpty.$ops.validate(DObject("nested" := DNull), DObject("nested" ::= ("value" := 123))) shouldBe ValidationFailures.empty
+          MaybeMaybe.$ops.validate(DObject("nested" := DNull), DObject("nested" ::= ("myb" := "value"))) shouldBe ValidationFailures.empty
+        }
+        it("Should succeed if nested is null and object has expected properties") {
+          MaybeExpected.$ops.validate(DObject("nested" := DNull), DObject("nested" ::= ("exp" := "value"))) shouldBe ValidationFailures.empty
+        }
+        it("Should fail if contents fail") {
+          MaybeExpected.$ops.validate(DObject("nested" ::= ("exp" := DNull)), DObject("nested" ::= ("exp" := "value"))) should contain(ExpectedFailure(MaybeExpected.nested.exp))
+        }
+        it("Should succeed if contents succeed") {
+          MaybeExpected.$ops.validate(DObject("nested" ::= ("exp" := "value2")), DObject("nested" ::= ("exp" := "value"))) shouldBe ValidationFailures.empty
+        }
+      }
+    }
+    describe("Nested object validation") {
+      object MaybeValid extends Contract {
+        val noRemoval = new \\?(Validators.noKeyRemoval) {
+          val myb = \?[String](Validators.nonEmptyOrWhiteSpace)
+        }
+        val oneOrTwo = new \\?(Validators.minLength(1) && Validators.maxLength(2)) {}
+      }
+      it("Should succeed if object validation succeeds") {
+        MaybeValid.$ops.validate(DObject("noRemoval" ::= ("myb" := "value"), "oneOrTwo" ::= ("value" := false)))
+      }
+      it("Should succeed if empty expected object would fail and no object value provided") {
+        MaybeValid.$ops.validate(DObject.empty) shouldBe ValidationFailures.empty
+      }
+      it("Should fail if object validation fails") {
+        MaybeValid.$ops.validate(DObject("oneOrTwo" ::= ("value" := false, "value2" := 123, "value3" := "v"))) should contain (MaximumLengthFailure(MaybeValid, MaybeValid.oneOrTwo._path, 2, 3))
+      }
+      it("Should fail if nested property fails") {
+        MaybeValid.$ops.validate(DObject("noRemoval" ::= ("myb" := ""), "oneOrTwo" ::= ("value" := false))) should contain (NonEmptyOrWhitespaceFailure(MaybeValid, MaybeValid.noRemoval.myb._path))
+      }
+      describe("with deltas") {
+        it("Should succeed on Null even if empty object would fail") {
+          MaybeValid.$ops.validate(DObject("oneOrTwo" := DNull), DObject("oneOrTwo" ::= ("value" := false))) shouldBe ValidationFailures.empty
+          MaybeValid.$ops.validate(DObject("noRemoval" := DNull), DObject("noRemoval" ::= ("myb" := "value"))) shouldBe ValidationFailures.empty
+        }
+        it("Should fail on delta if final state fails") {
+          MaybeValid.$ops.validate(DObject("oneOrTwo" ::= ("value3" := 123)), DObject("oneOrTwo" ::= ("value" := false, "value2" := "b"))) should contain (MaximumLengthFailure(MaybeValid, MaybeValid.oneOrTwo._path, 2, 3))
+          MaybeValid.$ops.validate(DObject("noRemoval" ::= ("remove" := DNull)), DObject("noRemoval" ::= ("myb" := "value", "remove" := 3))) should contain (KeyRemovalFailure(MaybeValid, MaybeValid.noRemoval._path, "remove"))
+        }
+        it("Should succeeed if delta makes initial bad state, correct") {
+          MaybeValid.$ops.validate(DObject("oneOrTwo" ::= ("value3" := DNull)), DObject("oneOrTwo" ::= ("value" := false, "value2" := 123, "value3" := "vb"))) shouldBe ValidationFailures.empty
+        }
+      }
+    }
   }
 
   describe("Objects validation") {

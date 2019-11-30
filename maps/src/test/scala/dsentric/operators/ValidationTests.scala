@@ -3,7 +3,7 @@ package dsentric.operators
 import dsentric.PessimisticCodecs._
 import dsentric._
 import dsentric.contracts.Contract
-import dsentric.failure.ValidationFailures
+import dsentric.failure.{MaximumLengthFailure, MinimumLengthFailure, ValidationFailures}
 import org.scalatest.{FunSuite, Matchers}
 
 class ValidationTests extends FunSuite with Matchers {
@@ -39,17 +39,31 @@ class ValidationTests extends FunSuite with Matchers {
 
   test("Length validators") {
     Validators.minLength(4)(TestContract, Path.empty, Some(List(1,2,3,4,5,6)), None) should be (ValidationFailures.empty)
-    Validators.minLength(4)(TestContract, Path.empty, Some(Vector(1,2)), None) should not be ValidationFailures.empty
+    Validators.minLength(4)(TestContract, Path.empty, Some(Vector(1,2)), None) should contain (MinimumLengthFailure(TestContract, Path.empty, 4, 2))
     Validators.maxLength(12)(TestContract, Path.empty, Some(Some(Iterable(3,2,2,1))), None) should be (ValidationFailures.empty)
-    Validators.maxLength(3)(TestContract, Path.empty, Some(Iterable(3,2,2,1)), None) should not be ValidationFailures.empty
+    Validators.maxLength(3)(TestContract, Path.empty, Some(Iterable(3,2,2,1)), None) should contain (MaximumLengthFailure(TestContract, Path.empty, 3, 4))
     Validators.maxLength(3)(TestContract, Path.empty, Some("dashj"), None) should not be ValidationFailures.empty
   }
+  test("Length validators with DObject") {
+    import Dsentric._
+    Validators.minLength(2)(TestContract, Path.empty, Some(DObject("one" := 1, "two" := 2)), None) should be (ValidationFailures.empty)
+    Validators.minLength(2)(TestContract, Path.empty, Some(DObject("one" := 1)), None) should contain (MinimumLengthFailure(TestContract, Path.empty, 2, 1))
+    Validators.maxLength(2)(TestContract, Path.empty, Some(DObject("one" := 1, "two" := 2)), None) should be (ValidationFailures.empty)
+    Validators.maxLength(2)(TestContract, Path.empty, Some(DObject("one" := 1, "two" := 2, "three" := 3)), None) should contain (MaximumLengthFailure(TestContract, Path.empty, 2, 3))
+  }
+  test("Length validators with DObject under delta") {
+    import Dsentric._
+    Validators.minLength(2)(TestContract, Path.empty, Some(DObject("one" := 1)), Some(DObject("two" := 1, "three" := 2))) should be (ValidationFailures.empty)
+    Validators.minLength(2)(TestContract, Path.empty, Some(DObject("one" := 1, "two" := DNull)), Some(DObject("two" := 1, "one" := 3))) should contain (MinimumLengthFailure(TestContract, Path.empty, 2, 1))
+    Validators.maxLength(2)(TestContract, Path.empty, Some(DObject("one" := 1)), Some(DObject("two" := 1, "three" := 2))) should contain (MaximumLengthFailure(TestContract, Path.empty, 2, 3))
+    Validators.maxLength(2)(TestContract, Path.empty, Some(DObject("one" := 1, "two" := DNull)), Some(DObject("two" := 1, "three" := 2))) should be (ValidationFailures.empty)
+  }
+
 
   test("in/nin validators") {
     Validators.in("one", "two", "three").apply(TestContract, Path.empty, Some("one"), None) should be (ValidationFailures.empty)
     Validators.in("one", "two", "three").apply(TestContract, Path.empty, Some(Some("two")), None) should be (ValidationFailures.empty)
     Validators.in("one", "two", "three").apply(TestContract, Path.empty, Some("four"), None) should not be ValidationFailures.empty
-
     Validators.nin(1,2,3).apply(TestContract, Path.empty, Some(4), None) should be (ValidationFailures.empty)
     Validators.nin(1,2,3).apply(TestContract, Path.empty, Some(2), None) should not be ValidationFailures.empty
   }
