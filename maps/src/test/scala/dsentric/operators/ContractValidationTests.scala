@@ -1,10 +1,11 @@
 package dsentric.operators
 
 import dsentric._
-import dsentric.failure.{ClosedContractFailure, ExpectedFailure, IncorrectTypeFailure, NumericalFailure, ValidationFailures}
+import dsentric.contracts.ClosedFields
+import dsentric.failure._
 import org.scalatest.{FunSpec, FunSuite, Matchers}
 
-class ContractValidationTests extends FunSpec with Matchers with FailureMatchers {
+class ContractValidationTests extends FunSpec with Matchers {
 
   import Dsentric._
   import PessimisticCodecs._
@@ -205,12 +206,83 @@ class ContractValidationTests extends FunSpec with Matchers with FailureMatchers
     }
   }
 
-  describe("Expected nested object validation") {
-    describe("Nested object structure") {
+  describe("Expected object validation") {
 
+    describe("Nested object structure") {
+      object ExpectedEmpty extends Contract {
+        val nested = new \\ {}
+      }
+      object ExpectedExpected extends Contract {
+        val nested = new \\ {
+          val exp = \[String]
+        }
+      }
+      object ExpectedMaybe extends Contract {
+        val nested = new \\ {
+          val myb = \?[String]
+        }
+      }
+      object ExpectedClosed extends Contract {
+        val nested = new \\ with ClosedFields {
+          val myb = \?[String]
+        }
+      }
+      it("Should be valid if object is empty and no expected properties") {
+        ExpectedEmpty.$ops.validate(DObject.empty) shouldBe ValidationFailures.empty
+      }
+      it("Should be valid if object is empty and only maybe properties") {
+        ExpectedMaybe.$ops.validate(DObject.empty) shouldBe ValidationFailures.empty
+      }
+      it("Should fail if object is empty and has expected properties") {
+        ExpectedExpected.$ops.validate(DObject.empty) should contain(ExpectedFailure(ExpectedExpected.nested.exp))
+      }
+      it("Should fail if object is not an object") {
+        ExpectedExpected.$ops.validate(DObject("nested" := 123)) should contain(IncorrectTypeFailure(ExpectedExpected.nested, 123))
+      }
+      it("Should fail if closed and has extra properties") {
+        ExpectedClosed.$ops.validate(DObject("nested" ::= ("extra" := 123))) should contain(ClosedContractFailure(ExpectedClosed, ExpectedClosed.nested._path, "extra"))
+      }
+      it("Should be valid if closed and contains only included valid properties") {
+        ExpectedClosed.$ops.validate(DObject("nested" ::= ("myb" := "value"))) shouldBe ValidationFailures.empty
+      }
+      describe("with deltas") {
+        it("Should succeed if nested is null and object has no expected properties") {
+          ExpectedEmpty.$ops.validate(DObject("nested" := DNull), DObject("nested" ::= ("value" := 123))) shouldBe ValidationFailures.empty
+          ExpectedMaybe.$ops.validate(DObject("nested" := DNull), DObject("nested" ::= ("myb" := "value"))) shouldBe ValidationFailures.empty
+        }
+        it("Should fail if nested is null and object has expected properties") {
+          ExpectedExpected.$ops.validate(DObject("nested" := DNull), DObject("nested" ::= ("exp" := "value"))) should contain(ExpectedFailure(ExpectedExpected.nested.exp))
+        }
+        it("Should fail if contents fail") {
+          ExpectedExpected.$ops.validate(DObject("nested" ::= ("exp" := DNull)), DObject("nested" ::= ("exp" := "value"))) should contain(ExpectedFailure(ExpectedExpected.nested.exp))
+        }
+        it("Should succeed if contents succeed") {
+          ExpectedExpected.$ops.validate(DObject("nested" ::= ("exp" := "value2")), DObject("nested" ::= ("exp" := "value"))) shouldBe ValidationFailures.empty
+        }
+      }
     }
     describe("Nested object validation") {
-      
+      object ExpectedValid extends Contract {
+        val noRemoval = new \\(Validators.noKeyRemoval) {
+          val myb = \?[String](Validators.nonEmptyOrWhiteSpace)
+        }
+        val oneOrTwo = new \\(Validators.minLength(1) && Validators.maxLength(2)) {}
+      }
+      it("Should succeed if object validation succeeds") {
+        ExpectedValid.$ops.validate(DObject("noRemoval" ::= ("myb" := "value"), "oneOrTwo" ::= ("value" := false)))
+      }
+      it("Should fail if empty expected object would fail and no object value provided") {
+        ExpectedValid.$ops.validate(DObject.empty) should contain(MinimumLengthFailure(ExpectedValid, ExpectedValid.oneOrTwo._path, 1, 0))
+      }
+      it("Should fail if object validation fails") {
+        ExpectedValid.$ops.validate(DObject("oneOrTwo" ::= ("value" := false, "value2" := 123, "value3" := "v"))) should contain (MaximumLengthFailure(ExpectedValid, ExpectedValid.oneOrTwo._path, 2, 3))
+      }
+      it("Should fail if nested property fails") {
+        ExpectedValid.$ops.validate(DObject("noRemoval" ::= ("myb" := ""), "oneOrTwo" ::= ("value" := false))) should contain (NonEmptyOrWhitespaceFailure(ExpectedValid, ExpectedValid.noRemoval.myb._path))
+      }
+      describe("with deltas") {
+
+      }
     }
   }
 

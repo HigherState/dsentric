@@ -5,8 +5,6 @@ import dsentric._
 import dsentric.failure.{ClosedContractFailure, IncorrectKeyTypeFailure, IncorrectTypeFailure, ValidationFailures}
 
 
-trait ClosedFields
-
 object Validation {
   def validateContract[D <: DObject](contract:BaseContract[D], value:RawObject, maybeCurrentState:Option[RawObject]):ValidationFailures = {
 
@@ -83,13 +81,22 @@ object Validation {
           ValidationFailures(IncorrectTypeFailure(property._root, property._path, property._codec, raw))
       }
 
-
     @inline
-    def validateContractProperty[D2 <: DObject](field:String, property:BaseContract[DObject] with Property[D2, _], value:RawObject, maybeCurrentState:Option[RawObject]):ValidationFailures =
-      value.get(field).collect {
-        case rv:RawObject@unchecked =>
+    def validateContractProperty[D2 <: DObject](field:String, property:BaseContract[DObject] with Property[D2, _], value:RawObject, maybeCurrentState:Option[RawObject], hasEmptyDefault:Boolean):ValidationFailures =
+      value.get(field) match {
+        case Some(rv:RawObject@unchecked) =>
           validateContract(property, rv, maybeCurrentState.flatMap(_.get(field).collect{case rs:RawObject@unchecked => rs}))
-      }.getOrElse(ValidationFailures.empty)
+        case None if hasEmptyDefault =>
+          val state = maybeCurrentState.flatMap(_.get(field).collect{case rs:RawObject@unchecked => rs})
+          if (state.isEmpty)
+            validateContract(property, RawObject.empty, None)
+          else
+            ValidationFailures.empty
+        case Some(DNull) if hasEmptyDefault =>
+          validateContract(property, RawObject.empty, None)
+        case _ =>
+          ValidationFailures.empty
+      }
 
     @inline
     def validateProperty[D2 <: DObject, T](field:String, property:Property[D2, T], value:RawObject, maybeCurrentState:Option[RawObject], default: => Option[T]):ValidationFailures =
@@ -136,10 +143,14 @@ object Validation {
 
     validateClosed(contract, value, maybeCurrentState) ++
     contract._fields.foldLeft(ValidationFailures.empty){
+      case (failures, (field, property:BaseContract[DObject]@unchecked with ExpectedObjectProperty[D])) =>
+        failures ++
+        validateProperty(field, property, value, maybeCurrentState, Some(DObject.empty)) ++
+        validateContractProperty(field, property, value, maybeCurrentState, true)
       case (failures, (field, property:BaseContract[DObject]@unchecked with Property[D, _])) =>
         failures ++
         validateProperty(field, property, value, maybeCurrentState, None) ++
-        validateContractProperty(field, property, value, maybeCurrentState)
+        validateContractProperty(field, property, value, maybeCurrentState, false)
       case (failures, (field, property:ObjectsProperty[D, _]@unchecked)) =>
         failures ++
         validateObjectsProperty(field, property, value)

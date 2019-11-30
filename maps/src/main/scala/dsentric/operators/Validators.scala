@@ -3,11 +3,11 @@ package dsentric.operators
 import dsentric.contracts.ContractFor
 import dsentric.failure._
 import dsentric.schema._
-import dsentric.{DCodec, DNull, DObject, Path, Raw, RawObject, StringCodec}
+import dsentric.{DArray, DCodec, DNull, DObject, Path, Raw, RawObject, StringCodec}
 
 import scala.util.matching.Regex
 
-trait Validators extends ValidatorOps{
+trait Validators extends ValidatorOps {
 
   val reserved: RawValidator[Option[Nothing]] =
     new RawValidator[Option[Nothing]] {
@@ -392,6 +392,10 @@ trait ValidatorOps {
         Some(a.size)
       case s:String =>
         Some(s.size)
+      case d:DObject =>
+        Some(d.size)
+      case d:DArray =>
+        Some(d.value.size)
       case Some(s) =>
         getLength(s)
       case _ =>

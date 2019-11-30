@@ -1,10 +1,10 @@
 package dsentric.contracts
 
 import dsentric.failure.{ExpectedFailure, IncorrectTypeFailure}
-import dsentric.{DObject, Data, Dsentric, FailureMatchers, Path, PessimisticCodecs}
+import dsentric.{DObject, Data, Dsentric, Path, PessimisticCodecs}
 import org.scalatest.{EitherValues, FunSpec, Matchers}
 
-class PropertyObjectLensTests extends FunSpec with Matchers with FailureMatchers with EitherValues {
+class PropertyObjectLensTests extends FunSpec with Matchers with EitherValues {
   import Dsentric._
   import PessimisticCodecs._
   import dsentric.Implicits._

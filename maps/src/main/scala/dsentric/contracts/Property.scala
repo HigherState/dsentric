@@ -1,8 +1,8 @@
 package dsentric.contracts
 
 import dsentric._
-import dsentric.failure.{IncorrectTypeBehaviour, ValidResult}
-import dsentric.operators.{DataOperator, Validators}
+import dsentric.failure.IncorrectTypeBehaviour
+import dsentric.operators.DataOperator
 
 sealed trait Property[D <: DObject, T <: Any] extends PropertyLens[D, T] {
 
@@ -92,17 +92,20 @@ class MapObjectsProperty[D <: DObject, K, T <: DObject](private[contracts] val _
                                                        val _dataOperators:List[DataOperator[Option[Map[K, T]]]]
                                                       ) extends Property[D, Map[K, T]] with MapObjectsLens[D, K, T]
 
-trait PropertyObjectOps[D <: DObject]  { __internal:BaseContract[D] =>
+sealed trait ExpectedObjectProperty[D <: DObject] extends Property[D, DObject] with ExpectedObjectLens[D] with SubContractFor[D]
+sealed trait MaybeObjectProperty[D <: DObject] extends Property[D, DObject] with MaybeObjectLens[D] with SubContractFor[D]
+
+trait PropertyObjectOps[D <: DObject] { __internal:BaseContract[D] =>
 
   class \\ private(override private[contracts] val __nameOverride:Option[String],
                    override val _codec:DCodec[DObject],
                    override val _dataOperators:List[DataOperator[DObject]]
-                  ) extends Property[D, DObject] with ExpectedObjectLens[D] with SubContractFor[D] {
+                  ) extends ExpectedObjectProperty[D] {
 
     def this(dataOperators: DataOperator[DObject]*)(implicit codec:DCodec[DObject]) =
-      this(None, codec, Validators.required :: dataOperators.toList)
+      this(None, codec, dataOperators.toList)
     def this(name:String, dataOperators: DataOperator[DObject]*)(implicit codec:DCodec[DObject]) =
-      this(Some(name), codec, Validators.required :: dataOperators.toList)
+      this(Some(name), codec, dataOperators.toList)
 
     def _parent: BaseContract[D] = __internal
   }
@@ -110,7 +113,7 @@ trait PropertyObjectOps[D <: DObject]  { __internal:BaseContract[D] =>
   class \\? private(override private[contracts] val __nameOverride:Option[String],
                     override val _codec:DCodec[DObject],
                     override val _dataOperators:List[DataOperator[Option[DObject]]]
-                   ) extends Property[D, DObject] with MaybeObjectLens[D] with SubContractFor[D] {
+                   ) extends MaybeObjectProperty[D] {
 
     def this(dataOperators: DataOperator[Option[DObject]]*)(implicit codec:DCodec[DObject]) =
       this(None, codec, dataOperators.toList)

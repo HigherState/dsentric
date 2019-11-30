@@ -7,6 +7,8 @@ private[dsentric] trait WithIncorrectTypeBehaviour {
   private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour
 }
 
+trait ClosedFields
+
 private[dsentric] trait BaseContract[D <: DObject] extends WithIncorrectTypeBehaviour {
 
   private var __fields:Map[String, Property[D, Any]] = _

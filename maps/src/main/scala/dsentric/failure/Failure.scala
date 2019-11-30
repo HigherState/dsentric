@@ -13,18 +13,27 @@ sealed trait Failure {
   def message:String
 }
 
-final case class ExpectedFailure[D <: DObject](contract: ContractFor[D], path:Path) extends Failure {
+sealed trait StructuralFailure extends Failure
+
+final case class ExpectedFailure[D <: DObject](contract: ContractFor[D], path:Path) extends StructuralFailure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): ExpectedFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
 
   def message = "Expected value not found."
 }
 
-final case class IncorrectTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T], foundRaw:Raw) extends Failure {
+final case class IncorrectTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T], foundRaw:Raw) extends StructuralFailure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  IncorrectTypeFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
 
   def message = s"Type '${codec.typeDefinition.name} was expected, type ${foundRaw.getClass.getSimpleName} was found."
+}
+
+final case class ClosedContractFailure[D <: DObject](contract: ContractFor[D], path:Path, field:String) extends StructuralFailure {
+  def message: String = s"Contract is closed and cannot have value for field '$field'."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): ClosedContractFailure[G] =
+    copy(contract = rootContract, path = rootPath ++ path)
 }
 
 object ExpectedFailure {
@@ -37,17 +46,15 @@ object IncorrectTypeFailure {
     IncorrectTypeFailure(property._root, property._path, property._codec, foundRaw)
 }
 
-
-sealed trait ValidationFailure extends Failure {
-  def message:String
+object ClosedContractFailure {
+  def apply[D <: DObject, T](property:PropertyLens[D, T], field:String):ClosedContractFailure[D] =
+    ClosedContractFailure(property._root, property._path, field)
 }
 
-final case class ClosedContractFailure[D <: DObject](contract: ContractFor[D], path:Path, field:String) extends ValidationFailure {
-  def message: String = s"Contract is closed and does not contain field '$field'."
 
-  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): ClosedContractFailure[G] =
-    copy(contract = rootContract, path = rootPath ++ path)
-}
+
+
+sealed trait ValidationFailure extends Failure
 
 final case class ReservedFailure[D <: DObject](contract: ContractFor[D], path:Path) extends ValidationFailure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): ReservedFailure[G] =
@@ -97,7 +104,6 @@ final case class NonEmptyOrWhitespaceFailure[D <: DObject](contract: ContractFor
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): NonEmptyOrWhitespaceFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
 }
-
 
 final case class CustomValidationFailure[D <: DObject, T](contract: ContractFor[D], path:Path, value:T, message:String) extends ValidationFailure {
 
