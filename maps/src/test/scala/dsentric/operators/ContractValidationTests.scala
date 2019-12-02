@@ -386,14 +386,9 @@ class ContractValidationTests extends FunSpec with Matchers {
     }
   }
 
-  describe("Objects validation") {
+  describe("Objects validation") {}
 
-  }
-
-  describe("Object map validation") {
-
-  }
-  
+  describe("Object map validation") {}
 //
 //  test("validation of optional field") {
 //    MaybeField.$ops.validate(DObject.empty) shouldBe Vector.empty

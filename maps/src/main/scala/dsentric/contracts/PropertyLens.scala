@@ -12,9 +12,6 @@ private[dsentric] trait PropertyLens[D <: DObject, T] {
 
   def $verify(obj:D):List[Failure]
 
-  def $maybeSet(value:Option[T]):PathSetter[D] =
-    MaybeValueSetter(_path, value.map(_codec(_).value))
-
   private[contracts] def __get(obj:D):ValidResult[Option[T]]
 
   private[contracts] def __set(obj:D, value:T):D =
@@ -52,6 +49,11 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
   def $set(value:T):PathSetter[D] =
     ValueSetter(_path, _codec(value).value)
 
+  def $maybeSet(value:Option[T]):PathSetter[D] =
+    value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
+      ValueSetter(_path, _codec(v).value)
+    }
+
   def $modify(f:T => T):ValidPathSetter[D] =
     ModifySetter(__get, f, __set)
 
@@ -79,6 +81,11 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
 
   def $set(value:T):PathSetter[D] =
     ValueSetter(_path, _codec(value).value)
+
+  def $maybeSet(value:Option[T]):PathSetter[D] =
+    value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
+      ValueSetter(_path, _codec(v).value)
+    }
 
   def $getOrElse(obj:D, default: => T):ValidResult[T] =
     __get(obj).map(_.getOrElse(default))
@@ -125,6 +132,11 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
 
   def $set(value:T):PathSetter[D] =
     ValueSetter(_path, _codec(value).value)
+
+  def $maybeSet(value:Option[T]):PathSetter[D] =
+    value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
+      ValueSetter(_path, _codec(v).value)
+    }
 
   def $verify(obj:D):List[Failure] =
     FailOnIncorrectTypeBehaviour.verify(obj.value, this, false)

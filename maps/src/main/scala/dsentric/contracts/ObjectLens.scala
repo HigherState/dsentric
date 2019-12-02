@@ -11,13 +11,22 @@ private[dsentric] sealed trait ObjectLens[D <: DObject] extends PropertyLens[D, 
   def $modify(f:this.type => D => D):D => D =
     f(this)
 
-  def $validModify(f:this.type => D => ValidResult[D]):D => ValidResult[D] =
+  def $verifyModify(f:this.type => D => ValidResult[D]):D => ValidResult[D] =
     f(this)
 
   def $verify(obj:D):List[Failure] =
     //Verifying ignores EmptyOnIncorrectTypeBehaviour
     FailOnIncorrectTypeBehaviour.verify(obj.value, this, false) ++
     ObjectLens.propertyVerifier(_fields, obj)
+
+  //Dynamic object so validation is against root contract
+  def $set(d:DObject):ValidPathSetter[D] =
+    VerifyValueSetter(_path, d.value, ObjectLens.propertyVerifier(_fields, _))
+
+  def $maybeSet(d:Option[DObject]):ValidPathSetter[D] =
+    d.fold[ValidPathSetter[D]](IdentityValidSetter[D]()) { v =>
+      VerifyValueSetter(_path, v.value, ObjectLens.propertyVerifier(_fields, _))
+    }
 
   private[dsentric] def __get(obj:D):ValidResult[Option[DObject]] =
     ObjectLens.propertyApplicator(_fields, obj)
@@ -32,10 +41,6 @@ private[dsentric] trait ExpectedObjectLens[D <: DObject] extends ObjectLens[D]{
 
   def $get(obj:D):ValidResult[DObject] =
     __get(obj).map(_.getOrElse(DObject.empty))
-
-  //Dynamic object so validation is against root contract
-  def $set(d:DObject):ValidPathSetter[D] =
-    VerifyValueSetter(_path, d.value, ObjectLens.propertyVerifier(_fields, _))
 
   def unapply(obj:D):Option[DObject] =
     $get(obj).toOption //TODO Optimise
@@ -55,6 +60,7 @@ private[dsentric] trait MaybeObjectLens[D <: DObject] extends ObjectLens[D] {
       case _ =>
         __get(obj)
     }
+
 }
 
 

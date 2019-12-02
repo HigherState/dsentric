@@ -30,6 +30,14 @@ sealed trait ValidPathSetter[D <: DObject] extends Function[D, ValidResult[D]] {
   def apply(v1: D): ValidResult[D]
 }
 
+private case class IdentitySetter[D <: DObject]() extends PathSetter[D] {
+  def apply(v1:D): D = v1
+}
+
+private case class IdentityValidSetter[D <: DObject]() extends ValidPathSetter[D] {
+  def apply(v1:D): ValidResult[D] = Right(v1)
+}
+
 private final case class LiftedSetter[D <: DObject](pathSetter:PathSetter[D]) extends ValidPathSetter[D] {
   def apply(v1: D): ValidResult[D] =
     ValidResult.success(pathSetter(v1))
@@ -61,12 +69,6 @@ private final case class VerifyValueSetter[D <: DObject](path:Path, value:Raw, v
     }
   }
 
-}
-
-private final case class MaybeValueSetter[D <: DObject](path:Path, value:Option[Raw]) extends PathSetter[D] {
-
-  def apply(v1: D): D =
-    value.fold(v1)(v => asD(v1.internalWrap(PathLensOps.set(v1.value, path, v))))
 }
 
 private final case class ValueDrop[D <: DObject](path:Path) extends PathSetter[D] {

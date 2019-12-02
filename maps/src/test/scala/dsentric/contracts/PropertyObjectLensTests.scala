@@ -105,6 +105,9 @@ class PropertyObjectLensTests extends FunSpec with Matchers with EitherValues {
         val base3 = DObject("nestedDefault" ::= ("nested" := DObject.empty))
         ExpectedObject.nestedDefault.$get(base3).right.value shouldBe result
       }
+      it("Should fail if nested object is closed and contains additional properties") {
+        pending
+      }
     }
     describe("$set") {
       it("Should fail if object would fail") {
@@ -116,6 +119,9 @@ class PropertyObjectLensTests extends FunSpec with Matchers with EitherValues {
         ExpectedObject.expected.$set(DObject("property" := 1))(DObject.empty).right.value shouldBe DObject("expected" := DObject("property" := 1))
         ExpectedObject.maybe.$set(DObject.empty)(DObject.empty).right.value shouldBe DObject("maybe" := DObject.empty)
         ExpectedObject.default.$set(DObject.empty)(DObject.empty).right.value shouldBe DObject("default" := DObject.empty)
+      }
+      it("Should fail if object is closed and contains additional properties") {
+        pending
       }
     }
   }
@@ -148,6 +154,9 @@ class PropertyObjectLensTests extends FunSpec with Matchers with EitherValues {
         val base = DObject("expected" ::= ("property" := "value"))
         EmptyExpectedObject.expected.$get(base).left.value should contain(ExpectedFailure(EmptyExpectedObject.expected.property))
       }
+      it("Should succeed if nested object is closed and contains additional properties") {
+        pending
+      }
       it("Should succeed if nested maybe property is of wrong type") {
         val base = DObject("maybe" ::= ("property" := "value"))
         EmptyExpectedObject.maybe.$get(base).right.value shouldBe DObject.empty
@@ -164,6 +173,7 @@ class PropertyObjectLensTests extends FunSpec with Matchers with EitherValues {
         EmptyExpectedObject.nestedDefault.$get(base).right.value shouldBe result
       }
     }
+
     describe("$set") {
       //Anything using the lens to set should be correct
       it("should fail if maybe property of wrong type") {
@@ -171,6 +181,9 @@ class PropertyObjectLensTests extends FunSpec with Matchers with EitherValues {
       }
       it("should fail if default property of wrong type") {
         EmptyExpectedObject.default.$set(DObject("property" := 123))(DObject.empty).left.value should contain (IncorrectTypeFailure(EmptyExpectedObject.default.property, 123))
+      }
+      it("Should fail if object is closed and set object contains additional properties") {
+        pending
       }
     }
   }
@@ -189,60 +202,78 @@ class PropertyObjectLensTests extends FunSpec with Matchers with EitherValues {
         val property = \![String]("default")
       }
     }
-
-    it("Should succeed with none if empty object is empty") {
-      val base = DObject.empty
-      MaybeObject.empty.$get(base).right.value shouldBe None
+    describe("$get") {
+      it("Should succeed with none if empty object is empty") {
+        val base = DObject.empty
+        MaybeObject.empty.$get(base).right.value shouldBe None
+      }
+      it("Should fail if empty object is wrong type") {
+        val base = DObject("empty" := "wrongType")
+        MaybeObject.empty.$get(base).left.value should contain(IncorrectTypeFailure(MaybeObject.empty, "wrongType"))
+      }
+      it("Should succeed if empty object has additional values") {
+        val base = DObject("empty" ::= ("value" := 1))
+        MaybeObject.empty.$get(base).right.value shouldBe Some(DObject("value" := 1))
+      }
+      it("Should return None if expected object doesnt exist") {
+        val base = DObject.empty
+        MaybeObject.expected.$get(base).right.value shouldBe None
+      }
+      it("Should fail if nested expected property not found in object") {
+        val base = DObject("expected" := DObject.empty)
+        MaybeObject.expected.$get(base).left.value should contain(ExpectedFailure(MaybeObject.expected.property))
+      }
+      it("Should fail if nested expected property is of wrong type") {
+        val base = DObject("expected" ::= ("property" := "value"))
+        MaybeObject.expected.$get(base).left.value should contain(IncorrectTypeFailure(MaybeObject.expected.property, "value"))
+      }
+      it("Should succeed if nested expected property is present") {
+        val base = DObject("expected" ::= ("property" := 123))
+        MaybeObject.expected.$get(base).right.value shouldBe Some(DObject("property" := 123))
+      }
+      it("Should fail if nested maybe property is of wrong typ") {
+        val base = DObject("maybe" ::= ("property" := "value"))
+        MaybeObject.maybe.$get(base).left.value should contain(IncorrectTypeFailure(MaybeObject.maybe.property, "value"))
+      }
+      it("Should succeed if nested maybe property is empty") {
+        val base = DObject("maybe" := DObject.empty)
+        MaybeObject.maybe.$get(base).right.value shouldBe Some(DObject.empty)
+        val base2 = DObject.empty
+        MaybeObject.maybe.$get(base2).right.value shouldBe None
+      }
+      it("Should succeed if nested maybe property is set") {
+        val base = DObject("maybe" ::= ("property" := false))
+        MaybeObject.maybe.$get(base).right.value shouldBe Some(DObject("property" := false))
+      }
+      it("Should fail if nested default property is of wrong type") {
+        val base = DObject("default" ::= ("property" := 123))
+        MaybeObject.default.$get(base).left.value should contain(IncorrectTypeFailure(MaybeObject.default.property, 123))
+      }
+      it("Should return None of default object doesn't exist") {
+        val base = DObject.empty
+        MaybeObject.default.$get(base).right.value shouldBe None
+      }
+      it("Should succeed if nested default value is empty with default value") {
+        val base = DObject("default" := DObject.empty)
+        MaybeObject.default.$get(base).right.value shouldBe Some(DObject("property" := "default"))
+      }
+      it("Should fail if nested object is closed and contains additional properties") {
+        pending
+      }
     }
-    it("Should fail if empty object is wrong type") {
-      val base = DObject("empty" := "wrongType")
-      MaybeObject.empty.$get(base).left.value should contain (IncorrectTypeFailure(MaybeObject.empty, "wrongType"))
-    }
-    it("Should succeed if empty object has additional values") {
-      val base = DObject("empty" ::= ("value" := 1) )
-      MaybeObject.empty.$get(base).right.value shouldBe Some(DObject("value" := 1))
-    }
-    it("Should return None if expected object doesnt exist") {
-      val base = DObject.empty
-      MaybeObject.expected.$get(base).right.value shouldBe None
-    }
-    it("Should fail if nested expected property not found in object") {
-      val base = DObject("expected" := DObject.empty)
-      MaybeObject.expected.$get(base).left.value should contain (ExpectedFailure(MaybeObject.expected.property))
-    }
-    it("Should fail if nested expected property is of wrong type") {
-      val base = DObject("expected" ::= ("property" := "value") )
-      MaybeObject.expected.$get(base).left.value should contain (IncorrectTypeFailure(MaybeObject.expected.property, "value"))
-    }
-    it("Should succeed if nested expected property is present") {
-      val base = DObject("expected" ::= ("property" := 123) )
-      MaybeObject.expected.$get(base).right.value shouldBe Some(DObject("property" := 123))
-    }
-    it("Should fail if nested maybe property is of wrong typ") {
-      val base = DObject("maybe" ::= ("property" := "value") )
-      MaybeObject.maybe.$get(base).left.value should contain (IncorrectTypeFailure(MaybeObject.maybe.property, "value"))
-    }
-    it("Should succeed if nested maybe property is empty") {
-      val base = DObject("maybe" := DObject.empty)
-      MaybeObject.maybe.$get(base).right.value shouldBe Some(DObject.empty)
-      val base2 = DObject.empty
-      MaybeObject.maybe.$get(base2).right.value shouldBe None
-    }
-    it("Should succeed if nested maybe property is set") {
-      val base = DObject("maybe" ::= ("property" := false))
-      MaybeObject.maybe.$get(base).right.value shouldBe Some(DObject("property" := false))
-    }
-    it("Should fail if nested default property is of wrong type") {
-      val base = DObject("default" ::= ("property" := 123) )
-      MaybeObject.default.$get(base).left.value should contain (IncorrectTypeFailure(MaybeObject.default.property, 123))
-    }
-    it("Should return None of default object doesn't exist") {
-      val base = DObject.empty
-      MaybeObject.default.$get(base).right.value shouldBe None
-    }
-    it("Should succeed if nested default value is empty with default value") {
-      val base = DObject("default" := DObject.empty)
-      MaybeObject.default.$get(base).right.value shouldBe Some(DObject("property" := "default"))
+    describe("$maybeSet") {
+      it("Should fail if object would fail") {
+        MaybeObject.expected.$maybeSet(Some(DObject.empty))(DObject.empty).left.value should contain (ExpectedFailure(MaybeObject.expected.property))
+        MaybeObject.expected.$set(DObject("property" := "fail"))(DObject.empty).left.value should contain (IncorrectTypeFailure(MaybeObject.expected.property, "fail"))
+      }
+      it("should succeed if object would succeed") {
+        MaybeObject.expected.$set(DObject("property" := 1))(DObject.empty).right.value shouldBe DObject("expected" := DObject("property" := 1))
+        MaybeObject.maybe.$set(DObject.empty)(DObject.empty).right.value shouldBe DObject("maybe" := DObject.empty)
+        MaybeObject.default.$set(DObject.empty)(DObject.empty).right.value shouldBe DObject("default" := DObject.empty)
+      }
+      it("Should fail if object is closed and contains additional properties") {
+        pending
+      }
     }
   }
 
