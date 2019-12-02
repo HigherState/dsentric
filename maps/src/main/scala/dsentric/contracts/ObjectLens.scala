@@ -14,25 +14,40 @@ private[dsentric] sealed trait ObjectLens[D <: DObject] extends PropertyLens[D, 
   def $verifyModify(f:this.type => D => ValidResult[D]):D => ValidResult[D] =
     f(this)
 
-  def $verify(obj:D):List[Failure] =
+  def $verify(obj:D):List[StructuralFailure] = {
     //Verifying ignores EmptyOnIncorrectTypeBehaviour
-    FailOnIncorrectTypeBehaviour.verify(obj.value, this, false) ++
-    ObjectLens.propertyVerifier(_fields, obj)
+    val failures =
+      FailOnIncorrectTypeBehaviour.traverse(obj.value, this) match {
+        case Right(Some(t)) =>
+          ObjectLens.closedFailures(this.isInstanceOf[ClosedFields], _root, _path, _fields.keySet, t.keySet)
+        case Left(NonEmptyList(head, tail)) =>
+          head :: tail
+        case _ =>
+          Nil
+      }
+    failures ++ ObjectLens.propertyVerifier(_root, _path, _fields, obj)
+  }
+
+  private def verifyResult(d:DObject) = (obj:D) =>
+      ObjectLens.propertyVerifier(_root, _path, _fields, obj) ++
+      ObjectLens.closedFailures(this.isInstanceOf[ClosedFields], _root, _path, _fields.keySet, d.keySet)
 
   //Dynamic object so validation is against root contract
   def $set(d:DObject):ValidPathSetter[D] =
-    VerifyValueSetter(_path, d.value, ObjectLens.propertyVerifier(_fields, _))
+    VerifyValueSetter(_path, d.value, verifyResult(d))
 
   def $maybeSet(d:Option[DObject]):ValidPathSetter[D] =
     d.fold[ValidPathSetter[D]](IdentityValidSetter[D]()) { v =>
-      VerifyValueSetter(_path, v.value, ObjectLens.propertyVerifier(_fields, _))
+      VerifyValueSetter(_path, v.value, verifyResult(v))
     }
 
   private[dsentric] def __get(obj:D):ValidResult[Option[DObject]] =
-    ObjectLens.propertyApplicator(_fields, obj)
-      .flatMap{d =>
-        __incorrectTypeBehaviour.traverse(d.value, this)
-      }
+    for {
+      d <- ObjectLens.propertyApplicator(_root, _path, _fields, obj)
+      l <- __incorrectTypeBehaviour.traverse(d.value, this)
+      r <- l.map(v => ObjectLens.closedResult(this.isInstanceOf[ClosedFields], _root, _path, _fields.keySet, v).map(Some.apply)).getOrElse(Right(None))
+    } yield r
+
 }
 
 private[dsentric] trait ExpectedObjectLens[D <: DObject] extends ObjectLens[D]{
@@ -66,7 +81,11 @@ private[dsentric] trait MaybeObjectLens[D <: DObject] extends ObjectLens[D] {
 
 private[dsentric] object ObjectLens {
 
-  def propertyApplicator[D <: DObject](fields: Map[String, Property[D, _]], obj:D):ValidResult[D] =
+  def propertyApplicator[D <: DObject](
+                                        contract:ContractFor[D],
+                                        path:Path,
+                                        fields: Map[String, Property[D, _]],
+                                        obj:D):ValidResult[D] =
     fields.foldLeft[ValidResult[D]](Right(obj)){
       //TODO Optimise
       case (Right(d), (_, p:Property[D, Any]@unchecked)) =>
@@ -77,14 +96,46 @@ private[dsentric] object ObjectLens {
             p.__set(d, r)
         }
       case (l:Left[NonEmptyList[Failure], D], (_, p:Property[D, Any]@unchecked)) =>
-        p.__get(obj).swap.toOption.fold(l)(f => Left(l.value ++ f.toList))
+        p.__get(obj)
+          .swap
+          .toOption.fold(l)(f => Left(l.value ++ f.toList))
     }
 
-  def propertyVerifier[D <: DObject](fields: Map[String, Property[D, _]], obj:D):List[Failure] =
+  def propertyVerifier[D <: DObject](contract:ContractFor[D],
+                                     path:Path,
+                                     fields: Map[String, Property[D, _]],
+                                     obj:D):List[StructuralFailure] =
     fields.flatMap{
       case (_, p:Property[D, Any]@unchecked) =>
         p.$verify(obj)
     }.toList
+
+  @inline
+  def closedResult[D <: DObject, D2 <: DObject](
+                                    isClosed:Boolean,
+                                    contract:ContractFor[D],
+                                    path:Path,
+                                    fields:Set[String],
+                                    obj:D2):ValidResult[D2] =
+    closedFailures(isClosed, contract, path, fields, obj.keySet) match {
+      case head :: tail =>
+        Left(NonEmptyList(head, tail))
+      case Nil =>
+        Right(obj)
+    }
+  @inline
+  def closedFailures[D <: DObject](
+    isClosed:Boolean,
+    contract:ContractFor[D],
+    path:Path,
+    fields:Set[String],
+    objKeys:Set[String]):List[StructuralFailure] =
+      if (isClosed)
+        objKeys.filterNot(fields).map{k =>
+          ClosedContractFailure(contract, path, k)
+        }.toList
+      else
+        Nil
 }
 
 
@@ -112,9 +163,7 @@ private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends Property
         ValidResult.success{
           Some {
             array.flatMap{e =>
-              println(e)
               val a = _valueCodec.unapply(e)
-              println(a)
               a.flatMap(t => _contract.$get(t).toOption)
 
             }
@@ -195,7 +244,7 @@ private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends Property
   def $get(obj:D):ValidResult[Vector[T]] =
     __get(obj).map(_.getOrElse(Vector.empty))
 
-  def $verify(obj:D):List[Failure] =
+  def $verify(obj:D):List[StructuralFailure] =
     __incorrectTypeBehaviour.traverse(obj.value, this)
     .fold(_.toList, mv => mv.getOrElse(Vector.empty).toList.zipWithIndex.flatMap { e =>
       _contract.$verify(e._1).map(_.rebase(_root, _path \ e._2))
@@ -339,7 +388,7 @@ private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends Pr
       }
   }
 
-  def $verify(obj: D): List[Failure] =
+  def $verify(obj: D): List[StructuralFailure] =
     __incorrectTypeBehaviour.traverse(obj.value, this)
       .fold(_.toList, mv => mv.getOrElse(Vector.empty).toList.flatMap { e =>
         _contract.$verify(e._2).map(_.rebase(_root, _path \ _keyCodec.toString(e._1)))

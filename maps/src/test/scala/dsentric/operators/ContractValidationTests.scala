@@ -184,7 +184,7 @@ class ContractValidationTests extends FunSpec with Matchers {
         DefaultField.$ops.validate(DObject("dfl" := DNull), DObject("dfl" := "test")) shouldBe ValidationFailures.empty
       }
     }
-    describe("Defaultfield with validator") {
+    describe("Default field with validator") {
       object DefaultValidator extends Contract {
         val dflGT = \?[Int](Validators.>(5))
       }
@@ -386,7 +386,9 @@ class ContractValidationTests extends FunSpec with Matchers {
     }
   }
 
-  describe("Objects validation") {}
+  describe("Objects validation") {
+
+  }
 
   describe("Object map validation") {}
 //

@@ -28,7 +28,6 @@ class PropertyLensTests extends FunSpec with Matchers with EitherValues {
     val defaultCopied = \![String]("default")
   }
 
-
   describe("expected lens") {
     describe("$set") {
       it("should set an empty field") {

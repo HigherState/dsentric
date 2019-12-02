@@ -114,13 +114,13 @@ object Query { //extends Query {
         value.contains(v)
       case ("$ne", v) =>
         !value.contains(v)
+      //TODO regex not escaped
       case ("$regex" | "$options", _) =>
         query.get("$regex").collect{
           case v:String =>
             val options = query.get("$options").collect{ case o:String => s"(?$o)" }.getOrElse("")
             value.collect { case s:String => (options + v).r.pattern.matcher(s).matches }.getOrElse(false)
         }.getOrElse(false)
-
       case ("$like", v:String) =>
         value.collect {
           case s:String =>

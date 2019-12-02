@@ -13,7 +13,9 @@ sealed trait Failure {
   def message:String
 }
 
-sealed trait StructuralFailure extends Failure
+sealed trait StructuralFailure extends Failure {
+  def rebase[G <: DObject](rootContract:ContractFor[G], rootPath:Path):StructuralFailure
+}
 
 final case class ExpectedFailure[D <: DObject](contract: ContractFor[D], path:Path) extends StructuralFailure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): ExpectedFailure[G] =
