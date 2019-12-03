@@ -357,6 +357,8 @@ class ContractValidationTests extends FunSpec with Matchers {
           val myb = \?[String](Validators.nonEmptyOrWhiteSpace)
         }
         val oneOrTwo = new \\?(Validators.minLength(1) && Validators.maxLength(2)) {}
+
+        val reserved = new \\?(Validators.reserved)
       }
       it("Should succeed if object validation succeeds") {
         MaybeValid.$ops.validate(DObject("noRemoval" ::= ("myb" := "value"), "oneOrTwo" ::= ("value" := false)))
@@ -369,6 +371,9 @@ class ContractValidationTests extends FunSpec with Matchers {
       }
       it("Should fail if nested property fails") {
         MaybeValid.$ops.validate(DObject("noRemoval" ::= ("myb" := ""), "oneOrTwo" ::= ("value" := false))) should contain (NonEmptyOrWhitespaceFailure(MaybeValid, MaybeValid.noRemoval.myb._path))
+      }
+      it("Should fail if reserved element exists") {
+        MaybeValid.$ops.validate(DObject("reserved" ::= ("value" := 1))) should contain (ReservedFailure(MaybeValid, MaybeValid.reserved._path))
       }
       describe("with deltas") {
         it("Should succeed on Null even if empty object would fail") {
@@ -387,202 +392,89 @@ class ContractValidationTests extends FunSpec with Matchers {
   }
 
   describe("Objects validation") {
+    describe("Objects structure") {
+      object ObjectContract extends Contract with ClosedFields {
+        val exp = \[Int]
+      }
+      object Objects extends Contract {
+        val objects = \::(ObjectContract)
+      }
+      it("Should succeed if objects is empty") {
+        Objects.$ops.validate(DObject.empty) shouldBe ValidationFailures.empty
+      }
+      it("Should succeed if object is an empty vector") {
+        Objects.$ops.validate(DObject("objects" := Vector.empty[DObject])) shouldBe ValidationFailures.empty
+      }
+      it("Should fail if objects is not a vector of objects") {
+        Objects.$ops.validate(DObject("objects" := Vector("one", "two"))) should contain (IncorrectTypeFailure(Objects, Objects.objects._path \ 0, Objects.objects._valueCodec, "one"))
+      }
+      it("Should succeed if objects contains valid objects") {
+        Objects.$ops.validate(DObject("objects" := Vector(DObject("exp" := 1), DObject("exp" := 2)))) shouldBe ValidationFailures.empty
+      }
+      it("Should fail if contained objects are invalid") {
+        Objects.$ops.validate(DObject("objects" := Vector(DObject("exp" := 1), DObject.empty))) should contain (ExpectedFailure(Objects, Objects.objects._path \ 1 \ "exp"))
+        Objects.$ops.validate(DObject("objects" := Vector(DObject("exp" := 1, "additional" := "failed")))) should contain (ClosedContractFailure(Objects, Objects.objects._path \ 0, "additional"))
+      }
+      describe("with deltas") {
+        it("Should succeed if objects is null") {
+          Objects.$ops.validate(DObject("objects" := DNull), DObject("objects" := Vector(DObject("exp" := 1), DObject("exp" := 2)))) shouldBe ValidationFailures.empty
+        }
+        it("Should fail if contents fail") {
+          Objects.$ops.validate(
+            DObject("objects" := Vector(DObject("exp" := "value"))),
+            DObject("objects" := Vector(DObject("exp" := 1), DObject("exp" := 2)))
+          ) should contain (IncorrectTypeFailure(Objects, Objects.objects._path \ 0 \ "exp", ObjectContract.exp._codec, "value"))
+        }
+        it("Should succeed if contents succeed") {
+          Objects.$ops.validate(
+            DObject("objects" := Vector(DObject("exp" := 3))),
+            DObject("objects" := Vector(DObject("exp" := 1), DObject("exp" := 2)))
+          ) shouldBe ValidationFailures.empty
+        }
+      }
+    }
+    describe("Objects validation") {
+      object ObjectContract extends Contract {
+        val exp = \[Int](Validators.>(3))
+        val maybe = \?[String](Validators.nonEmptyOrWhiteSpace)
+      }
+      object LengthObjects extends Contract {
+        val objects = \::(ObjectContract, Validators.nonEmpty)
+      }
+      object ReservedObjects extends Contract {
+        val objects = \::(ObjectContract, Validators.reserved)
+      }
+      it("Should return validation failure if objects validation is invalid") {
+        LengthObjects.$ops.validate(DObject.empty) should contain (MinimumLengthFailure(LengthObjects, LengthObjects.objects._path, 1, 0))
+        LengthObjects.$ops.validate(DObject("objects" := Vector.empty[DObject])) should contain (MinimumLengthFailure(LengthObjects, LengthObjects.objects._path, 1, 0))
+      }
+      it("Should return reserved failure") {
+        ReservedObjects.$ops.validate(DObject("objects" := Vector(DObject("exp" := 5)))) should contain(ReservedFailure(ReservedObjects, ReservedObjects.objects._path))
+      }
+      it("Should return validation failures for objects") {
+        val base = DObject("objects" := Vector(DObject("exp" := 3, "maybe" := "\t")))
+        val failures = LengthObjects.$ops.validate(base)
+        failures should contain (NumericalFailure(LengthObjects, LengthObjects.objects._path \ 0 \ "exp", 3, 3, "greater than"))
+        failures should contain (NonEmptyOrWhitespaceFailure(LengthObjects, LengthObjects.objects._path \ 0 \ "maybe"))
+      }
 
+      describe("With deltas") {
+        it("Should fail if contents fail") {
+          LengthObjects.$ops.validate(
+            DObject("objects" := Vector(DObject("exp" := 2))),
+            DObject("objects" := Vector(DObject("exp" := 5), DObject("exp" := 7, "maybe" := "value")))
+          ) should contain (NumericalFailure(LengthObjects, LengthObjects.objects._path \ 0 \ "exp", 3, 2, "greater than"))
+        }
+        it("Should succeed if content succeeds") {
+          LengthObjects.$ops.validate(
+            DObject("objects" := Vector(DObject("exp" := 5), DObject("exp" := 7, "maybe" := "value"))),
+            DObject("objects" := Vector(DObject("exp" := 2)))
+          ) shouldBe ValidationFailures.empty
+        }
+      }
+    }
   }
 
   describe("Object map validation") {}
-//
-//  test("validation of optional field") {
-//    MaybeField.$ops.validate(DObject.empty) shouldBe Vector.empty
-//    MaybeField.$ops.validate(DObject("mayNonEmpty" := false)) should be (f(Path("mayNonEmpty") -> "Value is not of the expected type."))
-//    MaybeField.$ops.validate(DObject("mayNonEmpty" := "TEST")) shouldBe Vector.empty
-//    MaybeField.$ops.validate(DObject("mayNonEmpty" := "")) should be (f(Path("mayNonEmpty") -> "String must not be empty or whitespace."))
-//  }
-//
-//  object DefaultField extends Contract {
-//    val inDefault = \![String]("default", Validators.in("default", "one", "two"))
-//  }
-//
-//  test("validation of default field") {
-//    DefaultField.$ops.validate(DObject.empty) shouldBe Vector.empty
-//    DefaultField.$ops.validate(DObject("inDefault" := false)) should be (f(Path("inDefault") -> "Value is not of the expected type."))
-//    DefaultField.$ops.validate(DObject("inDeafult" := "two")) shouldBe Vector.empty
-//    DefaultField.$ops.validate(DObject("inDefault" := "three")) should be (f(Path("inDefault") -> "'three' is not an allowed value."))
-//  }
-//
-//  object NestedExpectedField extends Contract {
-//
-//    val nested = new \\{
-//      val expected = \[String]
-//    }
-//  }
-//
-//  test("validation of expected nested contract") {
-//    NestedExpectedField.$ops.validate(DObject.empty) should be (f(Path("nested") -> "Value is required."))
-//    NestedExpectedField.$ops.validate(DObject("nested" := DObject.empty)) should be (f(Path("nested", "expected") -> "Value is required."))
-//    NestedExpectedField.$ops.validate(DObject("nested" := DObject("expected" := "value"))) shouldBe Vector.empty
-//  }
-//
-//  object NestedMaybeField extends Contract {
-//    val nested = new \\?{
-//      val expected = \[String]
-//    }
-//  }
-//
-//  test("validation of maybe nested contract") {
-//    NestedMaybeField.$ops.validate(DObject.empty) shouldBe Vector.empty
-//    NestedMaybeField.$ops.validate(DObject("nested" := DObject.empty)) should be (f(Path("nested", "expected") -> "Value is required."))
-//    NestedExpectedField.$ops.validate(DObject("nested" := DObject("expected" := "value"))) shouldBe Vector.empty
-//  }
-//
-//  test("Nested validation") {
-//    object NestValid extends Contract {
-//      val value1 = \[String]
-//      val nest1 = new \\ {
-//        val value2 = \[String]
-//        val value3 = \[String]
-//      }
-//      val nest2 = new \\? {
-//        val nest3 = new \\ {
-//          val value4 = \[String]
-//        }
-//        val value5 = \[String]
-//      }
-//    }
-//
-//    val json1 = DObject("value1" := "V", "nest1" := DObject("value2" := "V", "value3" := "V"))
-//    NestValid.$ops.validate(json1) shouldBe Vector.empty
-//    val json2 = DObject("value1" := "V", "nest1" := DObject("value2" := "V", "value3" := "V"), "nest2" := DObject("nest3" := DObject("value4" := "V"), "value5" := "V"))
-//    NestValid.$ops.validate(json2) shouldBe Vector.empty
-//
-//    NestValid.$ops.validate(DObject("value1" := "V", "nest1" := DObject("value3" := 3))).toSet shouldBe Set("nest1"\"value2" -> "Value is required.", "nest1"\"value3" -> "Value is not of the expected type.")
-//
-//    NestValid.$ops.validate(DObject("value1" := "V", "nest2" := DObject.empty)).toSet shouldBe Set(Path("nest1") -> "Value is required." , "nest2"\"nest3" -> "Value is required.", "nest2"\"value5" -> "Value is required.")
-//  }
-//
-//  object ContractArray extends Contract {
-//    val array = \::(ExpectedField)
-//  }
-//
-//  test("Contract array validation") {
-//    ContractArray.$ops.validate(DObject.empty) shouldBe Vector.empty
-//    ContractArray.$ops.validate(DObject("array" -> DArray.empty)) shouldBe Vector.empty
-//
-//    ContractArray.$ops.validate(DObject("array" -> DArray(DObject("expGT" := 6)))) shouldBe Vector.empty
-//    ContractArray.$ops.validate(DObject("array" -> DArray(DObject("expGT" := 6), DObject("expGT" := 8)))) shouldBe Vector.empty
-//    ContractArray.$ops.validate(DObject("array" -> DArray(DObject("expGT" := 4)))) should be (f("array" \ 0 \ "expGT" -> "Value 4 is not greater than 5."))
-//    ContractArray.$ops.validate(DObject("array" -> DArray(DObject("expGT" := 6), DObject("expGT" := 4)))) should be (f("array" \ 1 \ "expGT" -> "Value 4 is not greater than 5."))
-//  }
-//
-//  object ContractArrayNonEmpty extends Contract {
-//    val array  = \::(ExpectedField, Validators.nonEmpty)
-//  }
-//
-//  test("Contract array nonEmpty validation") {
-//    ContractArrayNonEmpty.$ops.validate(DObject.empty) shouldBe f(Path("array") -> "Value must not be empty.")
-//    ContractArrayNonEmpty.$ops.validate(DObject("array" -> DArray.empty)) shouldBe f(Path("array") -> "Value must not be empty.")
-//    ContractArrayNonEmpty.$ops.validate(DObject("array" -> DArray(DObject("expGT" := 6)))) shouldBe Vector.empty
-//  }
-//
-//
-//  object Element extends Contract {
-//    val id = \[Int]
-//    val name = \?[String]
-//  }
-//
-//  object Parent extends Contract {
-//    val elements = \->[String, DObject](Element)
-//  }
-//
-//  test("map contract validator") {
-//
-//    Parent.$ops.validate(DObject.empty) shouldBe Vector.empty
-//
-//    val succ = DObject("elements" := Map("first" -> DObject("id" := 4), "second" -> DObject("id" := 2, "name" := "bob")))
-//    Parent.$ops.validate(succ) shouldBe Vector.empty
-//
-//    val failfirst = DObject("elements" := Map("first" -> DObject(), "second" -> DObject("id" := 2, "name" := "bob")))
-//    Parent.$ops.validate(failfirst) should be (f(Path("elements", "first", "id") -> "Value is required."))
-//
-//    val failSecond = DObject("elements" := Map("first" -> DObject("id" := 4), "second" -> DObject("id" := 2, "name" := false)))
-//    Parent.$ops.validate(failSecond) should be (f(Path("elements", "second", "name") -> "Value is not of the expected type."))
-//
-//    val failBoth = DObject("elements" := Map("first" -> DObject(), "second" -> DObject("id" := 2, "name" := false)))
-//    Parent.$ops.validate(failBoth) should be (f(Path("elements", "first", "id") -> "Value is required.",Path("elements", "second", "name") -> "Value is not of the expected type."))
-//  }
-//
-//  test("delta validation") {
-//    val current = Element.$create(e => e.id.$set(1) ~ e.name.$set("Value"))
-//    //val delta = Element.$create(_.name.$setNull)
-//    //Element.$ops.validate(delta, current) shouldBe Vector.empty
-//  }
-//
-//  object Nulls extends Contract {
-//    val int = \?[Int]
-//    val bool = \[Boolean]
-//
-//    val nested = new \\? {}
-//  }
-//
-//
-//  test("Null validation") {
-//    val all = DObject("int" := 10, "bool" := true, "nested" -> DObject("values" := 1))
-//    Nulls.$ops.validate(DObject("int" := DNull), all) shouldBe Vector.empty
-//    Nulls.$ops.validate(DObject("nested" := DNull), all) shouldBe Vector.empty
-//    Nulls.$ops.validate(DObject("nested" := ("values" := DNull)), all) shouldBe Vector.empty
-//    Nulls.$ops.validate(DObject("bool" := DNull), all) shouldBe f(Path("bool") -> "Value is required.")
-//  }
-//
-//  object Keys extends Contract {
-//    val nested = new \\?(Validators.keyValidator("[a-z]*".r, "Invalid key"))
-//  }
-//
-//
-//  test("key Validation") {
-//    Keys.$ops.validate(DObject("nested" -> DObject("values" := 1))) shouldBe Vector.empty
-//    Keys.$ops.validate(DObject("nested" -> DObject("123" := 3))) shouldBe f(Path("nested", "123") -> "Invalid key")
-//  }
-//
-//  object Appending extends Contract {
-//    val map = \?[Map[String, String]](Validators.noKeyRemoval)
-//  }
-//
-//  test("No key removal only") {
-//    val obj = DObject("map" := Map("Key" := "value") )
-//    Appending.$ops.validate(DObject("map" := ("Key" := "Value2")), obj) shouldBe Vector.empty
-//    Appending.$ops.validate(DObject("map" := ("Key2" := "Value2")), obj) shouldBe Vector.empty
-//    Appending.$ops.validate(DObject("map" := ("Key" := DNull)), obj) should not be Vector.empty
-//    Appending.$ops.validate(DObject("map" := ("Key2" := DNull)), obj) shouldBe Vector.empty
-//  }
-//
-//  object Closed extends Contract with ClosedFields {
-//    val internalClosed = new \\? with ClosedFields {
-//      val one = \[String]
-//      val two = \?[Boolean]
-//    }
-//    val internalOpen = new \\? {
-//      val one = \[String]
-//    }
-//  }
-//
-//  test("Closing an objects key options") {
-//    Closed.$ops.validate(DObject.empty) shouldBe Vector.empty
-//    Closed.$ops.validate(DObject("unexpected" := 2)) shouldBe f(Path.empty -> "Additional key 'unexpected' not allowed.")
-//    Closed.$ops.validate(DObject("internalClosed" ::= ("one" := "value"))) shouldBe Vector.empty
-//    Closed.$ops.validate(DObject("internalOpen" ::= ("one" := "value", "three" := 3))) shouldBe Vector.empty
-//    Closed.$ops.validate(DObject("internalClosed" ::= ("one" := "value", "three" := 3))) shouldBe f(Path("internalClosed") -> "Additional key 'three' not allowed.")
-//  }
-//
-//  object ReservedAndInternal extends Contract {
-//    val internalP = \?[String](Validators.internal)
-//
-//    val reservedP = \?[Boolean](Validators.reserved)
-//  }
-//
-//  test("Reserved and internal") {
-//    ReservedAndInternal.$ops.validate(DObject.empty) shouldBe Vector.empty
-//    ReservedAndInternal.$ops.validate(DObject("internalP" := "internal")) shouldBe f(Path("internalP") -> "Value is reserved and cannot be provided.")
-//    ReservedAndInternal.$ops.validate(DObject("reservedP" := false)) shouldBe f(Path("reservedP") -> "Value is reserved and cannot be provided.")
-//  }
 
 }
