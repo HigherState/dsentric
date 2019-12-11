@@ -39,19 +39,20 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct { self 
     }
 
   def injectDefaults(d: D): DObject = {
-    val dataToInject: Map[String, Data] =
-      _fields.collect[Option[(String, Data)], Vector[Option[(String, Data)]]]{
+    val raw = d.value
+    val dataToInject: Map[String, Any] =
+      _fields.collect{
         case (n, p:Default[D, _]@unchecked) =>
           val trueName = p._nameOverride.getOrElse(n)
-          Some(trueName -> ForceWrapper.data(d.get(trueName).flatMap{_.decode(p._codec)}.getOrElse(p._default)))
+          Some(trueName -> raw.get(trueName).getOrElse(p._codec.apply(p._default).value))
         case (n, p:SubContractFor[_]@unchecked) =>
           val trueName = p._nameOverride.getOrElse(n)
           p.injectDefaults(d.get(trueName).getOrElse(DObject.empty).asInstanceOf[p.Out]) match {
             case DObject.empty => None
-            case x => Some(trueName -> x)
+            case x => Some(trueName -> x.value)
           }
       }.flatten.toMap
-    d ++ dataToInject
+    d.internalWrap(raw ++ dataToInject)
   }
 
   def _keys:Set[String] = _fields.map(_._1).toSet
