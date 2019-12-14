@@ -463,7 +463,7 @@ class ContractValidationTests extends FunSpec with Matchers {
           LengthObjects.$ops.validate(
             DObject("objects" := Vector(DObject("exp" := 2))),
             DObject("objects" := Vector(DObject("exp" := 5), DObject("exp" := 7, "maybe" := "value")))
-          ) should contain (NumericalFailure(LengthObjects, LengthObjects.objects._path \ 0 \ "exp", 3, 2, "greater than"))
+          ) should contain (NumericalFailure(LengthObjects, LengthObjects.objects._path \ 0 \ "exp", 2, 3, "greater than"))
         }
         it("Should succeed if content succeeds") {
           LengthObjects.$ops.validate(
@@ -475,6 +475,47 @@ class ContractValidationTests extends FunSpec with Matchers {
     }
   }
 
-  describe("Object map validation") {}
+  describe("Map objects validation") {
+    object ObjectContract extends Contract {
+      val exp = \[Int](Validators.>(3))
+      val maybe = \?[String](Validators.nonEmptyOrWhiteSpace)
+    }
+    object LengthMapObjects extends Contract {
+
+      val objects = \->(ObjectContract, Validators.nonEmpty)
+    }
+    object ReservedMapObjects extends Contract {
+      val objects = \->(ObjectContract, Validators.reserved)
+    }
+    it("Should return validation failure if objects validation is invalid") {
+      LengthMapObjects.$ops.validate(DObject.empty) should contain (MinimumLengthFailure(LengthMapObjects, LengthMapObjects.objects._path, 1, 0))
+      LengthMapObjects.$ops.validate(DObject("objects" := Map.empty[String, DObject])) should contain (MinimumLengthFailure(LengthMapObjects, LengthMapObjects.objects._path, 1, 0))
+    }
+    it("Should return reserved failure") {
+      ReservedMapObjects.$ops.validate(DObject("objects" := Map("one" -> DObject("exp" := 5)))) should contain(ReservedFailure(ReservedMapObjects, ReservedMapObjects.objects._path))
+    }
+    it("Should return validation failures for objects") {
+      val base = DObject("objects" := Map("one" -> DObject("exp" := 3, "maybe" := "\t")))
+      val failures = LengthMapObjects.$ops.validate(base)
+      failures should contain (NumericalFailure(LengthMapObjects, LengthMapObjects.objects._path \ "one" \ "exp", 3, 3, "greater than"))
+      failures should contain (NonEmptyOrWhitespaceFailure(LengthMapObjects, LengthMapObjects.objects._path \ "one" \ "maybe"))
+    }
+
+    describe("With deltas") {
+      it("Should fail if contents fail") {
+        LengthMapObjects.$ops.validate(
+          DObject("objects" := Map("one" -> DObject("exp" := 2))),
+          DObject("objects" := Map("one" -> DObject("exp" := 5), "two" -> DObject("exp" := 7, "maybe" := "value")))
+        ) should contain (NumericalFailure(LengthMapObjects, LengthMapObjects.objects._path \ "one" \ "exp", 2, 3, "greater than"))
+      }
+      it("Should succeed if content succeeds") {
+        LengthMapObjects.$ops.validate(
+          DObject("objects" := Map("one" -> DObject("exp" := 5), "two" -> DObject("exp" := 7, "maybe" := "value"))),
+          DObject("objects" := Map("one" -> DObject("exp" := 2)))
+        ) shouldBe ValidationFailures.empty
+      }
+    }
+
+  }
 
 }

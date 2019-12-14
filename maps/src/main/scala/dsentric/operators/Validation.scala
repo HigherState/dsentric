@@ -36,7 +36,7 @@ object Validation {
 
     @inline
     def validateMapObjectsProperty[K, D2 <: DObject, D3 <: DObject](field:String, property:MapObjectsProperty[D2, K, D3], value:RawObject, maybeCurrentState:Option[RawObject]):ValidationFailures =
-      value.getOrElse(field, RawObject) match {
+      value.getOrElse(field, RawObject.empty) match {
         case map: RawObject@unchecked =>
           val (failures, maybeMap) =
             map.foldRight((ValidationFailures.empty, Option(Map.empty[K, D3]))){
