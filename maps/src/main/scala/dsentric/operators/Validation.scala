@@ -116,7 +116,7 @@ object Validation {
     def validateClosed[D2 <: DObject](baseContract:BaseContract[D], value:RawObject, maybeCurrentState:Option[RawObject]): ValidationFailures =
       if (baseContract.isInstanceOf[ClosedFields])
         //DNull value in a delta context will either remove an invalid value or flatten to empty so it is allowed
-        //Techically so would empty object but thats a bit of a challenge
+        //Technically so would empty object but thats a bit of a challenge
         value.filterNot(kv => baseContract._fields.keySet(kv._1) || (kv._2 == DNull && maybeCurrentState.nonEmpty))
           .map { kv =>
             baseContract match {

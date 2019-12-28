@@ -2,7 +2,7 @@ package dsentric.contracts
 
 import dsentric.operators.DataOperationOps
 import dsentric._
-import dsentric.failure.{EmptyOnIncorrectTypeBehaviour, FailOnIncorrectTypeBehaviour, IncorrectTypeBehaviour}
+import dsentric.failure.{EmptyOnIncorrectTypeBehaviour, FailOnIncorrectTypeBehaviour, IncorrectTypeBehaviour, ValidResult}
 
 trait SubContractFor[D <: DObject]
   extends BaseContract[D]
@@ -41,6 +41,8 @@ trait SubContract extends SubContractFor[DObject]
 
 trait Contract extends ContractFor[DObject] {
   def $create(f:this.type => DObject => DObject):DObject =
+    f(this)(DObject.empty)
+  def $createValid(f:this.type => ValidPathSetter[DObject]):ValidResult[DObject] =
     f(this)(DObject.empty)
 }
 

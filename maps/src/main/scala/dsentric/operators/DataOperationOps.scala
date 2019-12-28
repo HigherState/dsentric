@@ -12,6 +12,7 @@ class DataOperationOps[D <: DObject](contract:BaseContract[D]) {
   def validate(value:DObject, currentState:D):ValidationFailures =
     Validation.validateContract(contract, value.value, Some(currentState.value))
 
-  //include validateAndReduce so we get a minimumDelta
-
+  def sanitize(value:D):D =
+    Sanitization.sanitizeContract(contract, value.value)
+      .fold[D](value)(value.internalWrap(_).asInstanceOf[D])
 }

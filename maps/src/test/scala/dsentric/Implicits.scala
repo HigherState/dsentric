@@ -2,7 +2,6 @@ package dsentric
 
 import cats.data.NonEmptyList
 import org.scalatest.enablers.{Aggregating, Containing}
-
 import scala.collection.GenTraversable
 
 object Implicits {

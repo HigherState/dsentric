@@ -52,8 +52,7 @@ trait ContextTransform[C, +T] extends DataOperator[T] {
 
 trait Sanitizer[+T] extends DataOperator[T] {
 
-  /* First option is successfull decoding */
-  def sanitize[S >: T]:Function[ValidResult[S], Option[Data]]
+  def sanitize(value:Option[Raw]):Option[Raw]
 }
 
 
