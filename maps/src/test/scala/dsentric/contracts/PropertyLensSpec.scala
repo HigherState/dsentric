@@ -4,7 +4,7 @@ import dsentric._
 import dsentric.failure.{ExpectedFailure, IncorrectTypeFailure}
 import org.scalatest.{EitherValues, FunSpec, Matchers}
 
-class PropertyLensTests extends FunSpec with Matchers with EitherValues {
+class PropertyLensSpec extends FunSpec with Matchers with EitherValues {
 
   import Dsentric._
   import PessimisticCodecs._

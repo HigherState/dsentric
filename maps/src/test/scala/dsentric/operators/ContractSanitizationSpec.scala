@@ -3,7 +3,7 @@ package dsentric.operators
 import dsentric._
 import org.scalatest.{FunSpec, Matchers}
 
-class ContractSanitizationTests extends FunSpec with Matchers {
+class ContractSanitizationSpec extends FunSpec with Matchers {
 
   import Dsentric._
   import PessimisticCodecs._

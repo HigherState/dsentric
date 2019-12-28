@@ -5,22 +5,13 @@ import dsentric.failure.{ValidResult, ValidationFailures}
 import dsentric.{DObject, Data, Path, Raw}
 import dsentric.schema.{ObjectDefinition, TypeDefinition}
 
-sealed trait DataOperator[+T]
-
-sealed trait Validator[+T] extends DataOperator[T]{
-
-  def apply[A <: TypeDefinition](t:A, objDefs:Vector[ObjectDefinition], forceNested:Boolean):(A, Vector[ObjectDefinition]) =
-    withObjsDefinition(forceNested).lift(t -> objDefs).getOrElse(t -> objDefs).asInstanceOf[(A, Vector[ObjectDefinition])]
-
-  def withObjsDefinition(forceNested:Boolean):PartialFunction[(TypeDefinition, Vector[ObjectDefinition]), (TypeDefinition, Vector[ObjectDefinition])] = {
-    case (t, o) if definition.isDefinedAt(t) => definition(t) -> o
-  }
-
+sealed trait DataOperator[+T] {
   def definition:PartialFunction[TypeDefinition, TypeDefinition] = {
     case t => t
   }
-
 }
+
+sealed trait Validator[+T] extends DataOperator[T]
 
 trait RawValidator[+T] extends Validator[T] {
 

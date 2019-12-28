@@ -2,7 +2,6 @@ package dsentric.schema
 
 import scala.collection.mutable
 
-
 class MsonSchema(tab:String, newLine:String) {
   import dsentric.Dsentric._
   import dsentric.PessimisticCodecs._
@@ -13,7 +12,7 @@ class MsonSchema(tab:String, newLine:String) {
     sb.toString()
   }
 
-  def convertObjectDatastructures(objectDefinitions:(ObjectDefinition, Schema.Definitions)):String = {
+  def convertObjectDatastructures(objectDefinitions:(ObjectDefinition, Definition.Definitions)):String = {
     val sb = new mutable.StringBuilder()
     val combined = objectDefinitions._1 +: objectDefinitions._2
     combined.foreach{o =>

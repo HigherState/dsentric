@@ -4,17 +4,18 @@ import dsentric.failure._
 import dsentric._
 import dsentric.contracts.ContractFor
 
+object Internal extends RawValidator[Option[Nothing]] with Sanitizer[Option[Nothing]]{
+
+  def apply[D <: DObject](contract:ContractFor[D], path:Path, value:Option[Raw], currentState:Option[Raw]): ValidationFailures =
+    value.fold(ValidationFailures.empty)(_ => ValidationFailures(ReservedFailure(contract, path)))
+
+  def sanitize(value: Option[Raw]): Option[Raw] = None
+}
+
 trait ValidatorSanitizers {
 
   //Shouldnt be used in an And or Or validator
-  val internal: RawValidator[Option[Nothing]] with Sanitizer[Option[Nothing]] =
-    new RawValidator[Option[Nothing]] with Sanitizer[Option[Nothing]]{
-
-      def apply[D <: DObject](contract:ContractFor[D], path:Path, value:Option[Raw], currentState:Option[Raw]): ValidationFailures =
-        value.fold(ValidationFailures.empty)(_ => ValidationFailures(ReservedFailure(contract, path)))
-
-      def sanitize(value: Option[Raw]): Option[Raw] = None
-    }
+  val internal: Internal.type = Internal
 
   def mask[T](mask:T)(implicit D:DCodec[T]):RawValidator[Optionable[Nothing]] with Sanitizer[Optionable[Nothing]] =
     new RawValidator[Optionable[Nothing]] with Sanitizer[Optionable[Nothing]] {

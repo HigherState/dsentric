@@ -1,7 +1,6 @@
 package dsentric.schema
 
 import dsentric.{DObject, ForceWrapper}
-
 import scala.collection.mutable
 
 object JsonSchema {
@@ -11,7 +10,7 @@ object JsonSchema {
   def convertObjectDefinition(objectDefinition:ObjectDefinition):DObject =
     ForceWrapper.dObject(convertTypeDefinition(objectDefinition).toMap + $SCHEMA)
 
-  def convertObjectDefinitions(objectDefinitions:(ObjectDefinition, Schema.Definitions)):DObject =
+  def convertObjectDefinitions(objectDefinitions:(ObjectDefinition, Definition.Definitions)):DObject =
     if (objectDefinitions._2.isEmpty)
       convertObjectDefinition(objectDefinitions._1)
     else

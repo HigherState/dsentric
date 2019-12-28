@@ -2,16 +2,18 @@ package dsentric.schema
 
 import dsentric.contracts.{BaseContract, Property}
 
+import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
 case object IgnoreExample
 case class Type(typeName:String) extends scala.annotation.StaticAnnotation
-case class Title(title:String)extends scala.annotation.StaticAnnotation
+case class Title(title:String) extends scala.annotation.StaticAnnotation
 case class Nested() extends scala.annotation.StaticAnnotation
 case class Examples(example:Any, example2:Any = IgnoreExample, example3:Any = IgnoreExample, example4:Any = IgnoreExample, example5:Any = IgnoreExample) extends scala.annotation.StaticAnnotation
 case class Description(text:String) extends scala.annotation.StaticAnnotation
 
 case class ContractInfo(fullName:String,
+                        isClosed:Boolean,
                         displayName:Option[String],
                         schemaAnnotations: SchemaAnnotations,
                         inherits:Vector[ContractInfo],
@@ -37,13 +39,24 @@ object SchemaReflection {
   private val ExampleTpe = typeOf[Examples]
   private val DescriptionTpe = typeOf[Description]
 
+  private val objectRegex = "\\$(\\w*)\\$.*".r
+
 
   def getDisplayName(contract:BaseContract[_]):String = {
     val mirror = scala.reflect.runtime.universe.runtimeMirror(contract.getClass.getClassLoader)
     val t = mirror.classSymbol(contract.getClass)
     val schema = getSchemaAnnotation(t.annotations)
-    schema.typeName.getOrElse(t.name.toString)
+    schema.typeName.getOrElse(getDisplayName(t))
   }
+
+  private def getDisplayName(t:ClassSymbol):String =
+    t.name.toString match {
+      case objectRegex(name) =>
+        name
+      case name =>
+        name
+    }
+
 
   def getContractInfo(contract:BaseContract[_], current:Vector[ContractInfo] = Vector.empty):(ContractInfo, Vector[ContractInfo]) = {
     val mirror = scala.reflect.runtime.universe.runtimeMirror(contract.getClass.getClassLoader)
@@ -51,7 +64,7 @@ object SchemaReflection {
     getContractInfo(t, current)
   }
 
-  def getContractInfo(t:ClassSymbol, current:Vector[ContractInfo]):(ContractInfo, Vector[ContractInfo]) = {
+  private def getContractInfo(t:ClassSymbol, current:Vector[ContractInfo]):(ContractInfo, Vector[ContractInfo]) = {
     val fullName = t.fullName
     current.find(_.fullName == fullName) match {
       case Some(ci) =>
@@ -59,6 +72,7 @@ object SchemaReflection {
       case None =>
         //val schemas = getSchemaAnnotation(t.annotations) :: t.baseClasses.map(c => getSchemaAnnotation(c.annotations))
         val schema = getSchemaAnnotation(t.annotations)
+        val isClosed = isClosedField(t)
         val bc = getBaseClasses(t)
         val (inherited, newCurrent) =
           bc.foldLeft(Vector.empty[ContractInfo] -> current) {
@@ -75,28 +89,31 @@ object SchemaReflection {
               else
                 None
             else
-              Some(t.name.toString)
+              Some(getDisplayName(t))
           }
         val foldedInherited = inherited.filterNot(i => inherited.exists(i2 => i2 != i && i2.isSubClass(i)))
 
         val contractInfo =
-          ContractInfo(fullName, displayName, schema, foldedInherited, fields)
+          ContractInfo(fullName, isClosed, displayName, schema, foldedInherited, fields)
 
         contractInfo -> (newCurrent :+ contractInfo)
     }
   }
 
-  private val baseContractType =
+  private val baseContractType: universe.Symbol =
     typeOf[BaseContract[_]].typeSymbol
 
-  def getBaseClasses(t:ClassSymbol):List[Symbol] =
+  private def isClosedField(t:ClassSymbol):Boolean =
+    t.baseClasses.exists(_.fullName == "dsentric.contracts.ClosedFields")
+
+  private def getBaseClasses(t:ClassSymbol):List[Symbol] =
     t.baseClasses.filter { c =>
       c != t &&
       !c.fullName.startsWith("dsentric.") &&
       c.asClass.baseClasses.contains(baseContractType)
     }
 
-  private val propertyType =
+  private val propertyType: universe.Symbol =
     typeOf[Property[_, _]].typeSymbol
 
   def getFieldsSchemaAnnotations(t:ClassSymbol):Map[String, SchemaAnnotations] = {

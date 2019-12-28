@@ -129,7 +129,5 @@ class SchemaReflectionTests extends FunSuite with Matchers {
 
     val anotherNestedI = inherited.inherits.find(_.displayName.contains("AnotherNested")).get
     anotherNestedI.fields.get("prop") shouldBe Some(SchemaAnnotations(None, None, false, Nil, Some("Another nested prop")))
-    implicit def r =  SimpleRenderer
-    println(JsonSchema.convertObjectDefinitions(Schema.contractObjectDefinitions(Query1)).render)
   }
 }

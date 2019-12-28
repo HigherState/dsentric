@@ -68,8 +68,7 @@ trait Validators extends ValidatorOps {
       } yield NumericalFailure(contract, path, b, a, "greater than")
 
     override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-      case n:IntegerDefinition => n.copy(exclusiveMaximum = Some(x))
-      case n:NumberDefinition => n.copy(exclusiveMaximum = Some(x))
+      case n:IntegerDefinition => n.copy(exclusiveMinimum = Some(x), minimum = None)
       case m:MultipleTypeDefinition => m.remap(definition)
     }
   }
@@ -84,7 +83,7 @@ trait Validators extends ValidatorOps {
         } yield NumericalFailure(contract, path, b, a, "greater than")
 
       override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-        case n:NumberDefinition => n.copy(exclusiveMaximum = Some(x))
+        case n:NumberDefinition => n.copy(exclusiveMinimum = Some(x), minimum = None)
         case m:MultipleTypeDefinition => m.remap(definition)
       }
     }
@@ -99,8 +98,7 @@ trait Validators extends ValidatorOps {
         } yield NumericalFailure(contract, path, b, a, "greater than or equal to")
 
       override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-        case n:IntegerDefinition => n.copy(maximum = Some(x))
-        case n:NumberDefinition => n.copy(maximum = Some(x))
+        case n:IntegerDefinition => n.copy(minimum = Some(x), exclusiveMinimum = None)
         case m:MultipleTypeDefinition => m.remap(definition)
       }
 
@@ -116,7 +114,7 @@ trait Validators extends ValidatorOps {
         } yield NumericalFailure(contract, path, b, a, "greater than or equal to")
 
       override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-        case n:NumberDefinition => n.copy(maximum = Some(x))
+        case n:NumberDefinition => n.copy(minimum = Some(x), exclusiveMinimum = None)
         case m:MultipleTypeDefinition => m.remap(definition)
       }
 
@@ -132,8 +130,7 @@ trait Validators extends ValidatorOps {
         } yield NumericalFailure(contract, path, b, a, "less than")
 
       override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-        case n:IntegerDefinition => n.copy(exclusiveMinimum = Some(x))
-        case n:NumberDefinition => n.copy(exclusiveMinimum = Some(x))
+        case n:IntegerDefinition => n.copy(exclusiveMaximum = Some(x), maximum = None)
         case m:MultipleTypeDefinition => m.remap(definition)
       }
 
@@ -149,7 +146,7 @@ trait Validators extends ValidatorOps {
         } yield NumericalFailure(contract, path, b, a, "less than")
 
       override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-        case n:NumberDefinition => n.copy(exclusiveMinimum = Some(x))
+        case n:NumberDefinition => n.copy(exclusiveMaximum = Some(x), maximum = None)
         case m:MultipleTypeDefinition => m.remap(definition)
       }
     }
@@ -164,8 +161,7 @@ trait Validators extends ValidatorOps {
         } yield NumericalFailure(contract, path, b, a, "less than or equal to")
 
       override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-        case n:IntegerDefinition => n.copy(minimum = Some(x))
-        case n:NumberDefinition => n.copy(minimum = Some(x))
+        case n:IntegerDefinition => n.copy(maximum = Some(x), exclusiveMaximum = None)
         case m:MultipleTypeDefinition => m.remap(definition)
       }
     }
@@ -180,7 +176,7 @@ trait Validators extends ValidatorOps {
         } yield NumericalFailure(contract, path, b, a, "less than or equal to")
 
       override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-        case n:NumberDefinition => n.copy(minimum = Some(x))
+        case n:NumberDefinition => n.copy(maximum = Some(x), exclusiveMaximum = None)
         case m:MultipleTypeDefinition => m.remap(definition)
       }
     }

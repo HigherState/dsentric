@@ -4,7 +4,7 @@ import dsentric.failure.{ClosedContractFailure, ExpectedFailure, IncorrectTypeFa
 import dsentric.{DObject, Data, Dsentric, Path, PessimisticCodecs}
 import org.scalatest.{EitherValues, FunSpec, Matchers}
 
-class PropertyObjectLensTests extends FunSpec with Matchers with EitherValues {
+class PropertyObjectLensSpec extends FunSpec with Matchers with EitherValues {
   import Dsentric._
   import PessimisticCodecs._
   import dsentric.Implicits._

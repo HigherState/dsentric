@@ -5,7 +5,7 @@ import dsentric.contracts.ClosedFields
 import dsentric.failure._
 import org.scalatest.{FunSpec, Matchers}
 
-class ContractValidationTests extends FunSpec with Matchers {
+class ContractValidationSpec extends FunSpec with Matchers {
 
   import Dsentric._
   import PessimisticCodecs._
