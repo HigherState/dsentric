@@ -63,22 +63,10 @@ object Definition {
           a
         //Nested, display all properties
         case ((p, infos0, defs0), (name, b:BaseContract[D]@unchecked with Property[D, _], schema)) if schema.nested || forceNested =>
-          val (bInfo, infos1) = SchemaReflection.getContractInfo(b, infos0)
-          val subProperties = findPropertyAnnotations(b._fields, bInfo, true)
-          val (subPropertyDefs, infos2, defs1) = contractPropertyDefinitions(subProperties, infos1, defs0, forceNested)
-          val objectDefinition =
-            ObjectDefinition(
-              schema.typeName,
-              schema.title,
-              schema.description,
-              Vector.empty,
-              subPropertyDefs,
-              Left(!bInfo.isClosed)
-            )
+          val (objectDefinition, infos1, defs1) = resolveNestedContract(b, infos0, defs0, forceNested, Some(schema))
           val resolvedDefinition = resolveDataOperators(b, objectDefinition)
-
           val property = PropertyDefinition(name, resolvedDefinition, schema.examples, getDefault(b), isRequired(b), schema.description)
-          (p + property, infos2, defs1)
+          (p + property, infos1, defs1)
 
         case ((p, infos0, defs0), (name, b:BaseContract[D]@unchecked with Property[D ,_], schema)) =>
           val (bInfo, infos1) = SchemaReflection.getContractInfo(b, infos0)
@@ -108,15 +96,42 @@ object Definition {
             (p + property, infos3, defs2)
           }
 
+        case ((p, infos0, defs0), (name, prop:ObjectsProperty[D, _], schema)) if schema.nested || forceNested =>
+          val (objectDefinition, infos1, defs1) = resolveNestedContract(prop._contract, infos0, defs0, forceNested, None)
+          val arrayDefinition = ArrayDefinition(Vector(objectDefinition))
+          val resolvedDefinition = resolveDataOperators(prop, arrayDefinition)
+          val required = resolvedDefinition.minLength.exists(_ > 0)
+          val property = PropertyDefinition(name, resolvedDefinition, schema.examples, None, required, schema.description)
+          (p + property, infos1, defs1)
+
+        case ((p, infos0, defs0), (name, prop:ObjectsProperty[D, _], schema)) =>
+          ???
+          
         case ((p, infos, defs), (name, prop, schema)) =>
           val resolvedDefinition = resolveDataOperators(prop, prop._codec.typeDefinition)
           val property = PropertyDefinition(name, resolvedDefinition, schema.examples, getDefault(prop), isRequired(prop), schema.description)
           (p + property, infos, defs)
     }
   }
+  //TODO work out schema override
+  private def resolveNestedContract[D <: DObject](contract:BaseContract[D], infos: Infos, defs:Definitions, forceNested:Boolean, schemaOverride:Option[SchemaAnnotations]): (ObjectDefinition, Infos, Definitions) = {
+    val (bInfo, infos1) = SchemaReflection.getContractInfo(contract, infos)
+    val subProperties = findPropertyAnnotations(contract._fields, bInfo, true)
+    val (subPropertyDefs, infos2, defs1) = contractPropertyDefinitions(subProperties, infos1, defs, forceNested)
+    val objectDefinition =
+      ObjectDefinition(
+        bInfo.schemaAnnotations.typeName,
+        bInfo.schemaAnnotations.title,
+        bInfo.schemaAnnotations.description,
+        Vector.empty,
+        subPropertyDefs,
+        Left(!bInfo.isClosed)
+      )
+    (objectDefinition, infos2, defs1)
+  }
 
-  private def resolveDataOperators[D <: DObject](property:Property[D, _], typeDef:TypeDefinition):TypeDefinition =
-    property._dataOperators.foldLeft[TypeDefinition](typeDef)((a, d) => d.definition.lift(a).getOrElse(a))
+  private def resolveDataOperators[D <: DObject, T <: TypeDefinition](property:Property[D, _], typeDef:T):T =
+    property._dataOperators.foldLeft(typeDef)((a, d) => d.definition.lift(a).getOrElse(a))
 
   private def getDefault[D <: DObject](p:Property[D, _]): Option[Any] =
     p match {

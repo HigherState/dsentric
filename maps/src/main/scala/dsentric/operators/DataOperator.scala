@@ -6,7 +6,7 @@ import dsentric.{DObject, Data, Path, Raw}
 import dsentric.schema.{ObjectDefinition, TypeDefinition}
 
 sealed trait DataOperator[+T] {
-  def definition:PartialFunction[TypeDefinition, TypeDefinition] = {
+  def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
     case t => t
   }
 }

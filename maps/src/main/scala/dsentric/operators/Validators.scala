@@ -67,9 +67,11 @@ trait Validators extends ValidatorOps {
         if r >= 0
       } yield NumericalFailure(contract, path, b, a, "greater than")
 
-    override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-      case n:IntegerDefinition => n.copy(exclusiveMinimum = Some(x), minimum = None)
-      case m:MultipleTypeDefinition => m.remap(definition)
+    override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
+      case n:IntegerDefinition =>
+        n.copy(exclusiveMinimum = Some(x), minimum = None).asInstanceOf[D]
+      case m:MultipleTypeDefinition => 
+        m.remap(definition).asInstanceOf[D]
     }
   }
 
@@ -82,9 +84,11 @@ trait Validators extends ValidatorOps {
           if r >= 0
         } yield NumericalFailure(contract, path, b, a, "greater than")
 
-      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-        case n:NumberDefinition => n.copy(exclusiveMinimum = Some(x), minimum = None)
-        case m:MultipleTypeDefinition => m.remap(definition)
+      override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
+        case n:NumberDefinition => 
+          n.copy(exclusiveMinimum = Some(x), minimum = None).asInstanceOf[D]
+        case m:MultipleTypeDefinition =>
+          m.remap(definition).asInstanceOf[D]
       }
     }
 
@@ -97,9 +101,9 @@ trait Validators extends ValidatorOps {
           if r > 0
         } yield NumericalFailure(contract, path, b, a, "greater than or equal to")
 
-      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-        case n:IntegerDefinition => n.copy(minimum = Some(x), exclusiveMinimum = None)
-        case m:MultipleTypeDefinition => m.remap(definition)
+      override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
+        case n:IntegerDefinition => n.copy(minimum = Some(x), exclusiveMinimum = None).asInstanceOf[D]
+        case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
       }
 
     }
@@ -113,9 +117,9 @@ trait Validators extends ValidatorOps {
           if r > 0
         } yield NumericalFailure(contract, path, b, a, "greater than or equal to")
 
-      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-        case n:NumberDefinition => n.copy(minimum = Some(x), exclusiveMinimum = None)
-        case m:MultipleTypeDefinition => m.remap(definition)
+      override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
+        case n:NumberDefinition => n.copy(minimum = Some(x), exclusiveMinimum = None).asInstanceOf[D]
+        case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
       }
 
     }
@@ -129,9 +133,9 @@ trait Validators extends ValidatorOps {
           if r <= 0
         } yield NumericalFailure(contract, path, b, a, "less than")
 
-      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-        case n:IntegerDefinition => n.copy(exclusiveMaximum = Some(x), maximum = None)
-        case m:MultipleTypeDefinition => m.remap(definition)
+      override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
+        case n:IntegerDefinition => n.copy(exclusiveMaximum = Some(x), maximum = None).asInstanceOf[D]
+        case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
       }
 
     }
@@ -145,9 +149,9 @@ trait Validators extends ValidatorOps {
           if r <= 0
         } yield NumericalFailure(contract, path, b, a, "less than")
 
-      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-        case n:NumberDefinition => n.copy(exclusiveMaximum = Some(x), maximum = None)
-        case m:MultipleTypeDefinition => m.remap(definition)
+      override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
+        case n:NumberDefinition => n.copy(exclusiveMaximum = Some(x), maximum = None).asInstanceOf[D]
+        case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
       }
     }
 
@@ -160,9 +164,9 @@ trait Validators extends ValidatorOps {
           if r < 0
         } yield NumericalFailure(contract, path, b, a, "less than or equal to")
 
-      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-        case n:IntegerDefinition => n.copy(maximum = Some(x), exclusiveMaximum = None)
-        case m:MultipleTypeDefinition => m.remap(definition)
+      override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
+        case n:IntegerDefinition => n.copy(maximum = Some(x), exclusiveMaximum = None).asInstanceOf[D]
+        case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
       }
     }
 
@@ -175,9 +179,9 @@ trait Validators extends ValidatorOps {
           if r < 0
         } yield NumericalFailure(contract, path, b, a, "less than or equal to")
 
-      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-        case n:NumberDefinition => n.copy(maximum = Some(x), exclusiveMaximum = None)
-        case m:MultipleTypeDefinition => m.remap(definition)
+      override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
+        case n:NumberDefinition => n.copy(maximum = Some(x), exclusiveMaximum = None).asInstanceOf[D]
+        case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
       }
     }
 
@@ -208,11 +212,11 @@ trait Validators extends ValidatorOps {
         }
 
 
-      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-        case n:StringDefinition => n.copy(minLength = Some(x))
-        case n:ArrayDefinition => n.copy(minLength = Some(x))
-        case o:ObjectDefinition => o.copy(minProperties = Some(x))
-        case m:MultipleTypeDefinition => m.remap(definition)
+      override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
+        case n:StringDefinition => n.copy(minLength = Some(x)).asInstanceOf[D]
+        case n:ArrayDefinition => n.copy(minLength = Some(x)).asInstanceOf[D]
+        case o:ObjectDefinition => o.copy(minProperties = Some(x)).asInstanceOf[D]
+        case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
       }
 
     }
@@ -241,26 +245,26 @@ trait Validators extends ValidatorOps {
             } yield MaximumLengthFailure(contract, path, x, l)
         }
 
-      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-        case n:StringDefinition => n.copy(maxLength = Some(x))
-        case n:ArrayDefinition => n.copy(maxLength = Some(x))
-        case o:ObjectDefinition => o.copy(maxProperties = Some(x))
-        case m:MultipleTypeDefinition => m.remap(definition)
+      override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
+        case n:StringDefinition => n.copy(maxLength = Some(x)).asInstanceOf[D]
+        case n:ArrayDefinition => n.copy(maxLength = Some(x)).asInstanceOf[D]
+        case o:ObjectDefinition => o.copy(maxProperties = Some(x)).asInstanceOf[D]
+        case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
       }
     }
 
   def in[T](values:T*)(implicit codec:DCodec[T]): ValueValidator[Optionable[T]] =
     new ValueValidator[Optionable[T]] {
 
-      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+      override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
         case n:StringDefinition =>
-          n.copy(values.map(codec.apply).map(_.value).toList)
+          n.copy(values.map(codec.apply).map(_.value).toList).asInstanceOf[D]
         case n:IntegerDefinition =>
-          n.copy(values.map(codec.apply).map(_.value).toList)
+          n.copy(values.map(codec.apply).map(_.value).toList).asInstanceOf[D]
         case n:NumberDefinition =>
-          n.copy(values.map(codec.apply).map(_.value).toList)
+          n.copy(values.map(codec.apply).map(_.value).toList).asInstanceOf[D]
         case m:MultipleTypeDefinition =>
-          m.remap(definition)
+          m.remap(definition).asInstanceOf[D]
       }
 
     def apply[S >: Optionable[T], D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
@@ -286,9 +290,9 @@ trait Validators extends ValidatorOps {
   def inCaseInsensitive(values:String*): ValueValidator[Optionable[String]] =
     new ValueValidator[Optionable[String]] {
 
-      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
-        case n:StringDefinition => n.copy(values.toList)
-        case m:MultipleTypeDefinition => m.remap(definition)
+      override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
+        case n:StringDefinition => n.copy(values.toList).asInstanceOf[D]
+        case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
       }
 
       def apply[S >: Optionable[String], D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
@@ -316,10 +320,10 @@ trait Validators extends ValidatorOps {
   val nonEmptyOrWhiteSpace: ValueValidator[Optionable[String]] =
     new ValueValidator[Optionable[String]] {
 
-      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+      override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
         case s:StringDefinition =>
-          s.copy(minLength = s.minLength.orElse(Some(1)), pattern = s.pattern.orElse(Some("[^\\s]")))
-        case m:MultipleTypeDefinition => m.remap(definition)
+          s.copy(minLength = s.minLength.orElse(Some(1)), pattern = s.pattern.orElse(Some("[^\\s]"))).asInstanceOf[D]
+        case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
       }
 
       def apply[S >: Optionable[String], D <: DObject](contract:ContractFor[D], path: Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
@@ -347,10 +351,10 @@ trait Validators extends ValidatorOps {
   def regex(r:Regex, message:String => String):ValueValidator[Optionable[String]] =
     new ValueValidator[Optionable[String]] {
 
-      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+      override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
         case s:StringDefinition =>
-          s.copy(pattern = Some(r.pattern.pattern()))
-        case m:MultipleTypeDefinition => m.remap(definition)
+          s.copy(pattern = Some(r.pattern.pattern())).asInstanceOf[D]
+        case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
       }
 
       def apply[S >: Optionable[String], D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
@@ -396,10 +400,10 @@ trait Validators extends ValidatorOps {
   def keyValidator(r:Regex, message:String):ValueValidator[Optionable[Keyable]] =
     new ValueValidator[Optionable[Keyable]] {
 
-      override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
+      override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
         case s:ObjectDefinition =>
-          s.copy(propertyNames = Some(StringDefinition(pattern = Some(r.pattern.pattern()))))
-        case m:MultipleTypeDefinition => m.remap(definition)
+          s.copy(propertyNames = Some(StringDefinition(pattern = Some(r.pattern.pattern())))).asInstanceOf[D]
+        case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
       }
 
       def apply[S >: Optionable[Keyable], D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =

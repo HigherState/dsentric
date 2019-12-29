@@ -1,6 +1,5 @@
 package dsentric.schema
 
-import dsentric.Dsentric.Contract
 import dsentric.contracts.{ClosedFields, Contract}
 import dsentric.operators.{Sanitizers, Validators}
 import org.scalatest.{FunSpec, Matchers}
@@ -9,14 +8,25 @@ import dsentric.PessimisticCodecs._
 
 
 //Annotations cant be resolved if nested in test
-@Description("Test description")
-@Title("Test title")
-object Annotated extends Contract {
+//TODO annotation specific tests
 
-  @Description("Test property description")
-  @Examples("First example", "Second example")
-  val stringProp = \[String]
-}
+//@Description("Test description")
+//@Title("Test title")
+//object Annotated extends Contract {
+//
+//  @Description("Test property description")
+//  @Examples("First example", "Second example")
+//  val stringProp = \[String]
+//}
+//
+//it("Should include any annotations") {
+//val stringProp = PropertyDefinition("stringProp", StringDefinition(), List("First example", "Second example"), None, true, Some("Test property description"))
+//val result =
+//ObjectDefinition(Some("Annotated"), Some("Test title"), Some("Test description"), Vector.empty, Set(stringProp), Left(true))
+//
+//Definition.nestedContractObjectDefinition(Annotated) shouldBe result
+//}
+
 
 
 class DefinitionSpec extends FunSpec with Matchers {
@@ -54,19 +64,69 @@ class DefinitionSpec extends FunSpec with Matchers {
 
       Definition.nestedContractObjectDefinition(Properties) shouldBe result
     }
-    it("Should include any annotations") {
-      val stringProp = PropertyDefinition("stringProp", StringDefinition(), List("First example", "Second example"), None, true, Some("Test property description"))
-      val result =
-        ObjectDefinition(Some("Annotated"), Some("Test title"), Some("Test description"), Vector.empty, Set(stringProp), Left(true))
 
-      Definition.nestedContractObjectDefinition(Annotated) shouldBe result
-    }
     it("Should exclude internal properties") {
        object WithInternal extends Contract {
          val int = \?[Int](Sanitizers.internal)
        }
 
       Definition.nestedContractObjectDefinition(WithInternal) shouldBe ObjectDefinition(Some("WithInternal"), None, None, Vector.empty, Set.empty, Left(true))
+    }
+    it("Should define expected object properties") {
+      object WithExpected extends Contract {
+        val exp = new \\ with ClosedFields {
+          val prop = \?[String]
+        }
+      }
+      val expDefinition =
+        ObjectDefinition(properties = Set(PropertyDefinition("prop", StringDefinition(), Nil, None, false, None)), additionalProperties = Left(false))
+
+      Definition.nestedContractObjectDefinition(WithExpected) shouldBe
+        ObjectDefinition(Some("WithExpected"), None, None, Vector.empty, Set(PropertyDefinition("exp", expDefinition, Nil, None, true, None)), Left(true))
+    }
+    it("Should define expected object properties with sub Contract") {
+      sealed trait ExpectedSub extends SubContract {
+        val prop = \?[String]
+      }
+      object WithExpected extends Contract {
+        val exp = new \\ with ClosedFields with ExpectedSub
+      }
+      val expDefinition =
+        ObjectDefinition(properties = Set(PropertyDefinition("prop", StringDefinition(), Nil, None, false, None)), additionalProperties = Left(false))
+
+      Definition.nestedContractObjectDefinition(WithExpected) shouldBe
+        ObjectDefinition(Some("WithExpected"), None, None, Vector.empty, Set(PropertyDefinition("exp", expDefinition, Nil, None, true, None)), Left(true))
+    }
+    it("Should define maybe object properties") {
+      object WithMaybe extends Contract with ClosedFields {
+        val maybe = new \\? {
+          val prop = \![Boolean](false)
+        }
+      }
+      val maybeDefinition =
+        ObjectDefinition(properties = Set(PropertyDefinition("prop", BooleanDefinition, Nil, Some(false), false, None)), additionalProperties = Left(true))
+
+      Definition.nestedContractObjectDefinition(WithMaybe) shouldBe
+        ObjectDefinition(Some("WithMaybe"), None, None, Vector.empty, Set(PropertyDefinition("maybe", maybeDefinition, Nil, None, false, None)), Left(false))
+    }
+    it("Should define array properties") {
+      object ArrayContract extends Contract with ClosedFields {
+        val prop1 = \?[Int](Validators.>(0), Validators.<(12))
+        val prop2 = \![String]("one", Validators.in("one", "two", "three"))
+      }
+      object WithArray extends Contract {
+        val array = \::(ArrayContract, Validators.minLength(2))
+      }
+      val arrayContractDef =
+        ObjectDefinition(properties = Set(
+          PropertyDefinition("prop1", IntegerDefinition(exclusiveMinimum = Some(0), exclusiveMaximum = Some(12)), Nil, None, false, None),
+          PropertyDefinition("prop2", StringDefinition(List("one", "two", "three")), Nil, Some("one"), false, None)
+        ), additionalProperties = Left(false))
+      val arrayDef =
+        ArrayDefinition(Vector(arrayContractDef), Some(2), None, false)
+
+      Definition.nestedContractObjectDefinition(WithArray) shouldBe
+        ObjectDefinition(Some("WithArray"), None, None, Vector.empty, Set(PropertyDefinition("array", arrayDef, Nil, None, true, None)))
     }
   }
 
