@@ -106,7 +106,7 @@ object Definition {
 
         case ((p, infos0, defs0), (name, prop:ObjectsProperty[D, _], schema)) =>
           ???
-          
+
         case ((p, infos, defs), (name, prop, schema)) =>
           val resolvedDefinition = resolveDataOperators(prop, prop._codec.typeDefinition)
           val property = PropertyDefinition(name, resolvedDefinition, schema.examples, getDefault(prop), isRequired(prop), schema.description)
