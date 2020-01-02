@@ -2,9 +2,10 @@ package dsentric.schema
 
 import dsentric.contracts.{ClosedFields, Contract}
 import dsentric.operators.{Sanitizers, Validators}
-import org.scalatest.{FunSpec, Matchers}
 import dsentric.Dsentric._
 import dsentric.PessimisticCodecs._
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
 
 //Annotations cant be resolved if nested in test
@@ -29,7 +30,7 @@ import dsentric.PessimisticCodecs._
 
 
 
-class DefinitionSpec extends FunSpec with Matchers {
+class DefinitionSpec extends AnyFunSpec with Matchers {
 
 
   describe("Nested Contract Object Definition") {

@@ -4,10 +4,11 @@ import dsentric.PessimisticCodecs._
 import dsentric._
 import dsentric.contracts.Contract
 import dsentric.failure.{MaximumLengthFailure, MinimumLengthFailure, ValidationFailures}
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class ValidationTests extends FunSuite with Matchers {
-  
+class ValidationTests extends AnyFunSuite with Matchers {
+
   object TestContract extends Contract
 
   test("Numeric validators") {

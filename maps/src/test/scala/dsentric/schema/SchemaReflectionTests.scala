@@ -4,7 +4,8 @@ import dsentric.Dsentric._
 import dsentric.PessimisticCodecs._
 import dsentric._
 import namespaced.{AnotherNested, AnotherNested2, InheritedNested}
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 @Type("Renamed")
 trait NestedNamed extends SubContract {
@@ -53,7 +54,7 @@ object Query3 extends Contract with InheritedNested {
   val field = \[String]
 }
 
-class SchemaReflectionTests extends FunSuite with Matchers {
+class SchemaReflectionTests extends AnyFunSuite with Matchers {
   test("field annotations") {
     val (contractInfo, _) = SchemaReflection.getContractInfo(Query1)
     contractInfo.fields("field") shouldBe SchemaAnnotations(None, None, false, List(123, "Pants"), None)

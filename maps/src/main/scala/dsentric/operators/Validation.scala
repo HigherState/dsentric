@@ -134,7 +134,7 @@ object Validation {
         case (None | Some(DNull), None) =>
           value + (field -> RawObject.empty)
         case (Some(DNull), Some(state)) =>
-          value + (field -> state.mapValues(_ => DNull))
+          value + (field -> state.view.mapValues(_ => DNull).toMap)
         case _ =>
           value
     }

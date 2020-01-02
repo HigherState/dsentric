@@ -3,9 +3,10 @@ package dsentric.operators
 import dsentric._
 import dsentric.contracts.ClosedFields
 import dsentric.failure._
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-class ContractValidationSpec extends FunSpec with Matchers {
+class ContractValidationSpec extends AnyFunSpec with Matchers {
 
   import Dsentric._
   import PessimisticCodecs._

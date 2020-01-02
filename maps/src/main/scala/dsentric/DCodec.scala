@@ -225,7 +225,7 @@ trait DefaultCodecs {
         TypeDefinition.anyDefinition
     }
 
-  def dObjectLikeCodec[T <: DObjectLike[T] with DObject](wrap:Map[String, Any] => T):DObjectCodec[T] =
+  def dObjectOpsCodec[T <: DObjectOps[T] with DObject](wrap:Map[String, Any] => T):DObjectCodec[T] =
     new DObjectCodec[T] {
 
       def apply(t: T):DObject =
@@ -352,7 +352,7 @@ trait PessimisticCodecs extends DefaultCodecs {
       def unapply(a:Raw): Option[List[T]] =
         a match {
           case s:RawArray@unchecked =>
-            s.toIterator.map(C.unapply).foldLeft[Option[ListBuffer[T]]](Some(new ListBuffer[T])){
+            s.iterator.map(C.unapply).foldLeft[Option[ListBuffer[T]]](Some(new ListBuffer[T])){
               case (Some(lb), Some(t)) => Some(lb += t)
               case _ => None
             }.map(_.result())
@@ -377,7 +377,7 @@ trait PessimisticCodecs extends DefaultCodecs {
       def unapply(a:Raw): Option[Vector[T]] =
         a match {
           case s:RawArray@unchecked =>
-            s.toIterator.map(C.unapply).foldLeft[Option[VectorBuilder[T]]](Some(new VectorBuilder[T])){
+            s.iterator.map(C.unapply).foldLeft[Option[VectorBuilder[T]]](Some(new VectorBuilder[T])){
               case (Some(vb), Some(t)) => Some(vb += t)
               case _ => None
             }.map(_.result())
@@ -414,7 +414,7 @@ trait PessimisticCodecs extends DefaultCodecs {
           toMapT(a)(D)
 
         def apply(t: Map[String, T]): DObject =
-          new DObjectInst(t.mapValues(D(_).value))
+          new DObjectInst(t.view.mapValues(D(_).value).toMap)
 
         def typeDefinition:TypeDefinition =
           ObjectDefinition(additionalProperties = Right(D.typeDefinition))
@@ -430,7 +430,7 @@ trait PessimisticCodecs extends DefaultCodecs {
       def unapply(a:Raw): Option[Map[K, T]] =
         a match {
           case a:RawObject@unchecked =>
-            a.toIterator.foldLeft(Option(Map.newBuilder[K, T])){
+            a.iterator.foldLeft(Option(Map.newBuilder[K, T])){
               case (Some(m), (K(k), D(v))) =>
                 Some(m += (k -> v))
               case (Some(m), (_, DNull)) => //dont want deltas to break conversion
@@ -461,7 +461,7 @@ trait PessimisticCodecs extends DefaultCodecs {
   private def toMapT[T](a:Any)(implicit D:DCodec[T]): Option[Map[String, T]] =
     a match {
       case a:RawObject@unchecked =>
-        a.toIterator.foldLeft(Option(Map.newBuilder[String, T])){
+        a.iterator.foldLeft(Option(Map.newBuilder[String, T])){
           case (Some(m), (k, D(v))) =>
             Some(m += (k -> v))
           case (Some(m), (_, DNull)) => //dont want deltas to break conversion
@@ -604,7 +604,7 @@ trait OptimisticCodecs extends DefaultCodecs {
       def unapply(a:Raw): Option[List[T]] =
         a match {
           case s:RawArray@unchecked =>
-            Some(s.toIterator.flatMap(C.unapply).toList)
+            Some(s.iterator.flatMap(C.unapply).toList)
           case _ =>
             None
         }
@@ -661,7 +661,7 @@ trait OptimisticCodecs extends DefaultCodecs {
           toMapT(a)
 
         def apply(t: Map[String, T]): DObject =
-          new DObjectInst(t.mapValues(D(_).value))
+          new DObjectInst(t.view.mapValues(D(_).value).toMap)
 
         def typeDefinition:TypeDefinition =
           ObjectDefinition(additionalProperties = Right(D.typeDefinition))

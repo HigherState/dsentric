@@ -23,7 +23,7 @@ case class ContractInfo(fullName:String,
     contractInfo == this || inherits.exists(_.isSubClass(contractInfo))
 
   def getInheritedFieldAnnotation(name:String):Option[SchemaAnnotations] =
-    fields.get(name).orElse(inherits.toStream.flatMap(_.getInheritedFieldAnnotation(name)).headOption)
+    fields.get(name).orElse(inherits.iterator.flatMap(_.getInheritedFieldAnnotation(name)).nextOption())
 }
 
 case class SchemaAnnotations(typeName:Option[String], title:Option[String], nested:Boolean, examples:List[Any], description:Option[String])

@@ -318,7 +318,7 @@ private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends Pr
             }
           }
         else {
-          val validResults = rawObj.toIterator.map{p =>
+          val validResults = rawObj.iterator.map{p =>
             _valueCodec.unapply(p._2)
               .fold[ValidResult[(K, T)]](ValidResult.failure(IncorrectTypeFailure(_contract, Path.empty, _valueCodec, p._2))){t =>
                 _contract.$get(t)

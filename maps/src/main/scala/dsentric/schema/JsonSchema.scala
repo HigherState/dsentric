@@ -73,21 +73,21 @@ object JsonSchema {
       case BooleanDefinition =>
 
       case n:NumberDefinition =>
-        n.exclusiveMaximum.foreach(p => m + "exclusiveMaximum" -> p)
-        n.maximum.foreach(p => m + "maximum" -> p)
-        n.exclusiveMinimum.foreach(p => m + "exclusiveMinimum" -> p)
-        n.minimum.foreach(p => m + "minimum" -> p)
-        n.multipleOf.foreach(p => m + "multipleOf" -> p)
+        n.exclusiveMaximum.foreach(p => m += "exclusiveMaximum" -> p)
+        n.maximum.foreach(p => m += "maximum" -> p)
+        n.exclusiveMinimum.foreach(p => m += "exclusiveMinimum" -> p)
+        n.minimum.foreach(p => m += "minimum" -> p)
+        n.multipleOf.foreach(p => m += "multipleOf" -> p)
 
       case n:IntegerDefinition =>
-        n.exclusiveMaximum.foreach(p => m + "exclusiveMaximum" -> p)
-        n.maximum.foreach(p => m + "maximum" -> p)
-        n.exclusiveMinimum.foreach(p => m + "exclusiveMinimum" -> p)
-        n.minimum.foreach(p => m + "minimum" -> p)
-        n.multipleOf.foreach(p => m + "multipleOf" -> p)
+        n.exclusiveMaximum.foreach(p => m += "exclusiveMaximum" -> p)
+        n.maximum.foreach(p => m += "maximum" -> p)
+        n.exclusiveMinimum.foreach(p => m += "exclusiveMinimum" -> p)
+        n.minimum.foreach(p => m += "minimum" -> p)
+        n.multipleOf.foreach(p => m += "multipleOf" -> p)
 
       case a:ArrayDefinition =>
-        a.minLength.foreach(p => m + "minLength" -> p)
+        a.minLength.foreach(p => m += "minLength" -> p)
         a.maxLength.foreach(p => m += "maxLength" -> p)
         if (a.uniqueness) m += "uniqueness" -> true
         if (a.items.nonEmpty) m += "items" -> a.items.map(convertTypeDefinition(_).toMap)
@@ -110,7 +110,7 @@ object JsonSchema {
         }
 
         o.propertyNames.foreach(p => m += "propertyNames" -> p)
-        if (o.patternProperties.nonEmpty) m += "patternProperties" -> o.patternProperties.mapValues(convertTypeDefinition(_).toMap)
+        if (o.patternProperties.nonEmpty) m += "patternProperties" -> o.patternProperties.view.mapValues(convertTypeDefinition(_).toMap).toMap
 
       case o:ObjectDefinition =>
         val removedObj = o.copy(referencedDefinitions = Vector.empty)

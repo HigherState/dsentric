@@ -2,9 +2,12 @@ package dsentric.contracts
 
 import dsentric._
 import dsentric.failure.{ExpectedFailure, IncorrectTypeFailure}
-import org.scalatest.{EitherValues, FunSpec, Matchers}
+import org.scalatest.EitherValues
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-class PropertyLensSpec extends FunSpec with Matchers with EitherValues {
+@deprecated("Update when EitherValues is updated and undeprecate.", "")
+class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
 
   import Dsentric._
   import PessimisticCodecs._

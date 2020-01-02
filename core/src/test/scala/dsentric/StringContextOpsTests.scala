@@ -1,8 +1,9 @@
 package dsentric
 
-import org.scalatest.{Matchers, FunSuite}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class StringContextOpsTests extends FunSuite with Matchers {
+class StringContextOpsTests extends AnyFunSuite with Matchers {
 
   import dsentric.util.ToStringContextOps._
 

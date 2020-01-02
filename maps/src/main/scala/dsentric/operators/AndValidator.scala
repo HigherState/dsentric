@@ -10,5 +10,5 @@ case class AndValidator[+T, A <: T, B <: T](left:ValueValidator[A], right:ValueV
     left(contract, path, value, currentState) ++ right(contract, path, value, currentState)
 
   override def definition[D <: TypeDefinition]:PartialFunction[D, D] =
-    left.definition.andThen(right.definition)
+    left.definition[D].andThen(right.definition[D])
 }

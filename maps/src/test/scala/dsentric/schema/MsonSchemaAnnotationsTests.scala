@@ -4,7 +4,8 @@ import dsentric.Dsentric._
 import dsentric.PessimisticCodecs._
 import dsentric._
 import namespaced.{AnotherNested, AnotherNested2}
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 
 object MsonQuery1 extends Contract {
@@ -23,7 +24,7 @@ object MsonQuery1 extends Contract {
   val nested3 = new \\? with AnotherNested2
 }
 
-class MsonSchemaAnnotationsTests extends FunSuite with Matchers {
+class MsonSchemaAnnotationsTests extends AnyFunSuite with Matchers {
   test("Existance/nonexistance of field") {
 
     //println(MsonSchema.contractRecords(MsonQuery1, Vector.empty).mkString("\n"))
