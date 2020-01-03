@@ -10,7 +10,7 @@ trait ContractLens[D <: DObject] { this:ContractFor[D] =>
 
   //includes any default values and checks expected values and types
   def $get(obj:D):ValidResult[D] = {
-    val properties = ObjectLens.propertyApplicator(this, Path.empty, _fields, obj)
+    val properties = ObjectLens.propertyApplicator(_fields, obj)
     val closed = ObjectLens.closedFailures(this.isInstanceOf[ClosedFields], this, Path.empty, _fields.keySet, obj.keySet)
 
     properties -> closed match {
@@ -24,7 +24,7 @@ trait ContractLens[D <: DObject] { this:ContractFor[D] =>
   }
 
   def $verify(obj:D):List[StructuralFailure] =
-    ObjectLens.propertyVerifier(this, Path.empty, _fields, obj) ++
+    ObjectLens.propertyVerifier(_fields, obj) ++
     ObjectLens.closedFailures(this.isInstanceOf[ClosedFields], this, Path.empty, _fields.keySet, obj.keySet)
 
   def $modify(f:this.type => D => D):D => D =

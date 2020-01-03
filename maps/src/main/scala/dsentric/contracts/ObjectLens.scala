@@ -25,11 +25,11 @@ private[dsentric] sealed trait ObjectLens[D <: DObject] extends PropertyLens[D, 
         case _ =>
           Nil
       }
-    failures ++ ObjectLens.propertyVerifier(_root, _path, _fields, obj)
+    failures ++ ObjectLens.propertyVerifier(_fields, obj)
   }
 
   private def verifyResult(d:DObject) = (obj:D) =>
-      ObjectLens.propertyVerifier(_root, _path, _fields, obj) ++
+      ObjectLens.propertyVerifier(_fields, obj) ++
       ObjectLens.closedFailures(this.isInstanceOf[ClosedFields], _root, _path, _fields.keySet, d.keySet)
 
   //Dynamic object so validation is against root contract
@@ -43,7 +43,7 @@ private[dsentric] sealed trait ObjectLens[D <: DObject] extends PropertyLens[D, 
 
   private[dsentric] def __get(obj:D):ValidResult[Option[DObject]] =
     for {
-      d <- ObjectLens.propertyApplicator(_root, _path, _fields, obj)
+      d <- ObjectLens.propertyApplicator(_fields, obj)
       l <- __incorrectTypeBehaviour.traverse(d.value, this)
       r <- l.map(v => ObjectLens.closedResult(this.isInstanceOf[ClosedFields], _root, _path, _fields.keySet, v).map(Some.apply)).getOrElse(Right(None))
     } yield r
@@ -82,8 +82,6 @@ private[dsentric] trait MaybeObjectLens[D <: DObject] extends ObjectLens[D] {
 private[dsentric] object ObjectLens {
 
   def propertyApplicator[D <: DObject](
-                                        contract:ContractFor[D],
-                                        path:Path,
                                         fields: Map[String, Property[D, _]],
                                         obj:D):ValidResult[D] =
     fields.foldLeft[ValidResult[D]](Right(obj)){
@@ -101,8 +99,7 @@ private[dsentric] object ObjectLens {
           .toOption.fold(l)(f => Left(l.value ++ f.toList))
     }
 
-  def propertyVerifier[D <: DObject](contract:ContractFor[D],
-                                     path:Path,
+  def propertyVerifier[D <: DObject](
                                      fields: Map[String, Property[D, _]],
                                      obj:D):List[StructuralFailure] =
     fields.flatMap{
