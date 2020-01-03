@@ -49,6 +49,8 @@ private[dsentric] trait BaseContract[D <: DObject] extends WithIncorrectTypeBeha
 
   final def $$(paths:Path*):DProjection =
     DProjection(paths:_*).nest(this._path)
+
+  def $additionalProperties:AdditionalProperties = OpenProperties
 }
 
 trait ClosedFields
