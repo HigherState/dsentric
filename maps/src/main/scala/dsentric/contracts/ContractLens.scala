@@ -9,7 +9,7 @@ trait ContractLens[D <: DObject] { this:ContractFor[D] =>
   def _fields: Map[String, Property[D, _]]
 
   //includes any default values and checks expected values and types
-  def $get(obj:D):ValidResult[D] = {
+  final def $get(obj:D):ValidResult[D] = {
     val properties = ObjectLens.propertyApplicator(_fields, obj)
     val closed = ObjectLens.closedFailures(this.isInstanceOf[ClosedFields], this, Path.empty, _fields.keySet, obj.keySet)
 
@@ -23,18 +23,16 @@ trait ContractLens[D <: DObject] { this:ContractFor[D] =>
     }
   }
 
-  def $verify(obj:D):List[StructuralFailure] =
+  final def $verify(obj:D):List[StructuralFailure] =
     ObjectLens.propertyVerifier(_fields, obj) ++
     ObjectLens.closedFailures(this.isInstanceOf[ClosedFields], this, Path.empty, _fields.keySet, obj.keySet)
 
-  def $modify(f:this.type => D => D):D => D =
+  final def $modify(f:this.type => D => D):D => D =
     f(this)
 
-  def $validModify(f:this.type => D => ValidResult[D]):D => ValidResult[D] =
+  final def $validModify(f:this.type => D => ValidResult[D]):D => ValidResult[D] =
     f(this)
 
-  def $delta(f:this.type => DObject => DObject):DObject =
+  final def $delta(f:this.type => DObject => DObject):DObject =
     f(this)(DObject.empty)
-
-
 }
