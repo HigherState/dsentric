@@ -292,6 +292,26 @@ trait PessimisticCodecs extends DefaultCodecs {
         TypeDefinition.nullable(D.typeDefinition)
     }
 
+  implicit def eitherCodec[L, R](implicit DL: DCodec[L], DR: DCodec[R]): DCodec[Either[L, R]] =
+    new DCodec[Either[L, R]] {
+      def apply(t: Either[L, R]): Data =
+        t.fold(DL(_), DR(_))
+
+      def unapply(a: Any): Option[Either[L, R]] =
+        a match {
+          case DL(l) => Some(Left(l))
+          case DR(r) => Some(Right(r))
+          case _ => None
+        }
+
+      def typeDefinition: MultipleTypeDefinition = (DL.typeDefinition, DR.typeDefinition) match {
+        case (l: SingleTypeDefinition, r: SingleTypeDefinition) => MultipleTypeDefinition(l, r)
+        case (l: SingleTypeDefinition, MultipleTypeDefinition(rs)) => MultipleTypeDefinition(l +: rs)
+        case (MultipleTypeDefinition(ls), r: SingleTypeDefinition) => MultipleTypeDefinition(ls :+ r)
+        case (MultipleTypeDefinition(ls), MultipleTypeDefinition(rs)) => MultipleTypeDefinition(ls ++ rs)
+      }
+    }
+
   implicit def listCodec[T](implicit C:DCodec[T]):DArrayCodec[List[T]] =
     new DArrayCodec[List[T]] {
       def apply(t: List[T]): DArray =
@@ -517,6 +537,26 @@ trait OptimisticCodecs extends DefaultCodecs {
         }
       def typeDefinition:TypeDefinition =
         TypeDefinition.nullable(D.typeDefinition)
+    }
+
+  implicit def eitherCodec[L, R](implicit DL: DCodec[L], DR: DCodec[R]): DCodec[Either[L, R]] =
+    new DCodec[Either[L, R]] {
+      def apply(t: Either[L, R]): Data =
+        t.fold(DL(_), DR(_))
+
+      def unapply(a: Any): Option[Either[L, R]] =
+        a match {
+          case DL(l) => Some(Left(l))
+          case DR(r) => Some(Right(r))
+          case _ => None
+        }
+
+      def typeDefinition: MultipleTypeDefinition = (DL.typeDefinition, DR.typeDefinition) match {
+        case (l: SingleTypeDefinition, r: SingleTypeDefinition) => MultipleTypeDefinition(l, r)
+        case (l: SingleTypeDefinition, MultipleTypeDefinition(rs)) => MultipleTypeDefinition(l +: rs)
+        case (MultipleTypeDefinition(ls), r: SingleTypeDefinition) => MultipleTypeDefinition(ls :+ r)
+        case (MultipleTypeDefinition(ls), MultipleTypeDefinition(rs)) => MultipleTypeDefinition(ls ++ rs)
+      }
     }
 
   implicit def listCodec[T](implicit C:DCodec[T]):DArrayCodec[List[T]] =
