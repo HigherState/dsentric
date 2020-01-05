@@ -1,7 +1,6 @@
 package dsentric.operators
 
 import dsentric._
-import dsentric.contracts.ClosedFields
 import dsentric.failure._
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
@@ -22,22 +21,6 @@ class ContractValidationSpec extends AnyFunSpec with Matchers {
       it("Should validate deltas") {
         Empty.$ops.validate(DObject("key" := "value"), DObject("key" := 123)) shouldBe ValidationFailures.empty
         Empty.$ops.validate(DObject("key" := DNull), DObject("key" := 123)) shouldBe ValidationFailures.empty
-      }
-    }
-    describe("Closed contract structure") {
-      object EmptyClosed extends Contract with ClosedFields
-
-      it("Should validate an empty contract") {
-        EmptyClosed.$ops.validate(DObject.empty) shouldBe ValidationFailures.empty
-      }
-      it("Should fail on any other field") {
-        EmptyClosed.$ops.validate(DObject("field" := false)) should contain (ClosedContractFailure(EmptyClosed, Path.empty, "field"))
-      }
-      it("Should fail on delta value") {
-        EmptyClosed.$ops.validate(DObject("field" := false), DObject.empty) should contain (ClosedContractFailure(EmptyClosed, Path.empty, "field"))
-      }
-      it("Should succeed on removing a field") {
-        EmptyClosed.$ops.validate(DObject("field" := DNull), DObject("field" := true)) shouldBe ValidationFailures.empty
       }
     }
   }
@@ -223,11 +206,6 @@ class ContractValidationSpec extends AnyFunSpec with Matchers {
           val myb = \?[String]
         }
       }
-      object ExpectedClosed extends Contract {
-        val nested = new \\ with ClosedFields {
-          val myb = \?[String]
-        }
-      }
       it("Should be valid if object is empty and no expected properties") {
         ExpectedEmpty.$ops.validate(DObject.empty) shouldBe ValidationFailures.empty
       }
@@ -239,12 +217,6 @@ class ContractValidationSpec extends AnyFunSpec with Matchers {
       }
       it("Should fail if object is not an object") {
         ExpectedExpected.$ops.validate(DObject("nested" := 123)) should contain(IncorrectTypeFailure(ExpectedExpected.nested, 123))
-      }
-      it("Should fail if closed and has extra properties") {
-        ExpectedClosed.$ops.validate(DObject("nested" ::= ("extra" := 123))) should contain(ClosedContractFailure(ExpectedClosed, ExpectedClosed.nested._path, "extra"))
-      }
-      it("Should be valid if closed and contains only included valid properties") {
-        ExpectedClosed.$ops.validate(DObject("nested" ::= ("myb" := "value"))) shouldBe ValidationFailures.empty
       }
       describe("with deltas") {
         it("Should succeed if nested is null and object has no expected properties") {
@@ -313,11 +285,6 @@ class ContractValidationSpec extends AnyFunSpec with Matchers {
           val myb = \?[String]
         }
       }
-      object MaybeClosed extends Contract {
-        val nested = new \\? with ClosedFields {
-          val myb = \?[String]
-        }
-      }
       it("Should be valid if object is empty and no expected properties") {
         MaybeEmpty.$ops.validate(DObject.empty) shouldBe ValidationFailures.empty
       }
@@ -329,12 +296,6 @@ class ContractValidationSpec extends AnyFunSpec with Matchers {
       }
       it("Should fail if object is not an object") {
         MaybeExpected.$ops.validate(DObject("nested" := 123)) should contain(IncorrectTypeFailure(MaybeExpected.nested, 123))
-      }
-      it("Should fail if closed and has extra properties") {
-        MaybeClosed.$ops.validate(DObject("nested" ::= ("extra" := 123))) should contain(ClosedContractFailure(MaybeClosed, MaybeClosed.nested._path, "extra"))
-      }
-      it("Should be valid if closed and contains only included valid properties") {
-        MaybeClosed.$ops.validate(DObject("nested" ::= ("myb" := "value"))) shouldBe ValidationFailures.empty
       }
       describe("with deltas") {
         it("Should succeed if nested is null and object has no expected properties") {
@@ -394,7 +355,7 @@ class ContractValidationSpec extends AnyFunSpec with Matchers {
 
   describe("Objects validation") {
     describe("Objects structure") {
-      object ObjectContract extends Contract with ClosedFields {
+      object ObjectContract extends Contract{
         val exp = \[Int]
       }
       object Objects extends Contract {

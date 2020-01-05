@@ -37,22 +37,20 @@ trait Validators extends ValidatorOps {
 
   val increment: ValueValidator[Numeric] =
     new ValueValidator[Numeric] {
-      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
         for {
-          v <- value.toList
-          c <- currentState
-          (r, a, b) <- resolve(c, v)
+          c <- currentState.toList
+          (r, a, b) <- resolve(c, value)
           if r > 0
         } yield NumericalFailure(contract, path, a, b, "greater than or equal to")
     }
 
   val decrement: ValueValidator[Numeric] =
     new ValueValidator[Numeric] {
-      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
         for {
-          v <- value.toList
-          c <- currentState
-          (r, a, b) <- resolve(c,v)
+          c <- currentState.toList
+          (r, a, b) <- resolve(c, value)
           if r < 0
         } yield NumericalFailure(contract, path, a, b, "less than or equal to")
 
@@ -60,10 +58,9 @@ trait Validators extends ValidatorOps {
 
   def >(x:Long): ValueValidator[Numeric] =
     new ValueValidator[Numeric] {
-    def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path: Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+    def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path: Path, value: S, currentState: => Option[S]): ValidationFailures =
       for {
-        v <- value.toList
-        (r, a, b) <- compare(x, v)
+        (r, a, b) <- compare(x, value).toList
         if r >= 0
       } yield NumericalFailure(contract, path, b, a, "greater than")
 
@@ -77,10 +74,9 @@ trait Validators extends ValidatorOps {
 
   def >(x:Double): ValueValidator[Numeric] =
     new ValueValidator[Numeric] {
-      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
         for {
-          v <- value.toList
-          (r, a, b) <- compare(x, v)
+          (r, a, b) <- compare(x, value).toList
           if r >= 0
         } yield NumericalFailure(contract, path, b, a, "greater than")
 
@@ -94,10 +90,9 @@ trait Validators extends ValidatorOps {
 
   def >=(x:Long): ValueValidator[Numeric] =
     new ValueValidator[Numeric] {
-      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
         for {
-          v <- value.toList
-          (r, a, b) <- compare(x, v)
+          (r, a, b) <- compare(x, value).toList
           if r > 0
         } yield NumericalFailure(contract, path, b, a, "greater than or equal to")
 
@@ -110,10 +105,9 @@ trait Validators extends ValidatorOps {
 
   def >=(x:Double): ValueValidator[Numeric] =
     new ValueValidator[Numeric] {
-      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
         for {
-          v <- value.toList
-          (r, a, b) <- compare(x, v)
+          (r, a, b) <- compare(x, value).toList
           if r > 0
         } yield NumericalFailure(contract, path, b, a, "greater than or equal to")
 
@@ -126,10 +120,9 @@ trait Validators extends ValidatorOps {
 
   def <(x:Long): ValueValidator[Numeric] =
     new ValueValidator[Numeric] {
-      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
         for {
-          v <- value.toList
-          (r, a, b) <- compare(x, v)
+          (r, a, b) <- compare(x, value).toList
           if r <= 0
         } yield NumericalFailure(contract, path, b, a, "less than")
 
@@ -142,10 +135,9 @@ trait Validators extends ValidatorOps {
 
   def <(x:Double): ValueValidator[Numeric] =
     new ValueValidator[Numeric] {
-      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
         for {
-          v <- value.toList
-          (r, a, b) <- compare(x, v)
+          (r, a, b) <- compare(x, value).toList
           if r <= 0
         } yield NumericalFailure(contract, path, b, a, "less than")
 
@@ -157,10 +149,9 @@ trait Validators extends ValidatorOps {
 
   def <=(x:Long): ValueValidator[Numeric] =
     new ValueValidator[Numeric] {
-      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
         for {
-          v <- value.toList
-          (r, a, b) <- compare(x, v)
+          (r, a, b) <- compare(x, value).toList
           if r < 0
         } yield NumericalFailure(contract, path, b, a, "less than or equal to")
 
@@ -172,10 +163,9 @@ trait Validators extends ValidatorOps {
 
   def <=(x:Double): ValueValidator[Numeric] =
     new ValueValidator[Numeric] {
-      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
         for {
-          v <- value.toList
-          (r, a, b) <- compare(x, v)
+          (r, a, b) <- compare(x, value).toList
           if r < 0
         } yield NumericalFailure(contract, path, b, a, "less than or equal to")
 
@@ -187,15 +177,15 @@ trait Validators extends ValidatorOps {
 
   def minLength(x: Int): ValueValidator[Optionable[Length]] =
     new ValueValidator[Optionable[Length]] {
-      def apply[S >: Optionable[Length], D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Optionable[Length], D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
         value -> currentState match {
-          case (Some(c:DObject), Some(s:DObject)) =>
+          case (c:DObject, Some(s:DObject)) =>
             val l = getLengthDif(c.value, s.value)
             if (l < x)
               List(MinimumLengthFailure(contract, path, x, l))
             else
               ValidationFailures.empty
-          case (Some(c:Map[String, Nothing]@unchecked), Some(s:Map[String, Nothing]@unchecked)) =>
+          case (c:Map[String, Nothing]@unchecked, Some(s:Map[String, Nothing]@unchecked)) =>
             val l = getLengthDif(c, s)
             if (l < x)
               List(MinimumLengthFailure(contract, path, x, l))
@@ -203,8 +193,7 @@ trait Validators extends ValidatorOps {
               ValidationFailures.empty
           case (c, _) =>
             for {
-              v <- c.toList
-              l <- getLength(v)
+              l <- getLength(c).toList
               if l < x
             } yield MinimumLengthFailure(contract, path, x, l)
 
@@ -223,15 +212,15 @@ trait Validators extends ValidatorOps {
 
   def maxLength(x: Int): ValueValidator[Optionable[Length]] =
     new ValueValidator[Optionable[Length]] {
-      def apply[S >: Optionable[Length], D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Optionable[Length], D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
         value -> currentState match {
-          case (Some(c: DObject), Some(s: DObject)) =>
+          case (c: DObject, Some(s: DObject)) =>
             val l = getLengthDif(c.value, s.value)
             if (l > x)
               List(MaximumLengthFailure(contract, path, x, l))
             else
               ValidationFailures.empty
-          case (Some(c: Map[String, Nothing]@unchecked), Some(s: Map[String, Nothing]@unchecked)) =>
+          case (c: Map[String, Nothing]@unchecked, Some(s: Map[String, Nothing]@unchecked)) =>
             val l = getLengthDif(c, s)
             if (l > x)
               List(MaximumLengthFailure(contract, path, x, l))
@@ -239,8 +228,7 @@ trait Validators extends ValidatorOps {
               ValidationFailures.empty
           case (c, _) =>
             for {
-              v <- c.toList
-              l <- getLength(v)
+              l <- getLength(c).toList
               if l > x
             } yield MaximumLengthFailure(contract, path, x, l)
         }
@@ -267,10 +255,9 @@ trait Validators extends ValidatorOps {
           m.remap(definition).asInstanceOf[D]
       }
 
-    def apply[S >: Optionable[T], D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+    def apply[S >: Optionable[T], D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
       for {
-        s <- value.toList
-        t <- getT[T, S](s)
+        t <- getT[T, S](value).toList
         if !values.contains(t)
       } yield InvalidValueFailure(contract, path, t)
   }
@@ -278,10 +265,9 @@ trait Validators extends ValidatorOps {
   def nin[T](values:T*)(implicit codec:DCodec[T]): ValueValidator[Optionable[T]] =
     new ValueValidator[Optionable[T]] {
 
-      def apply[S >: Optionable[T], D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Optionable[T], D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
         for {
-          s <- value.toList
-          t <- getT[T, S](s)
+          t <- getT[T, S](value).toList
           if values.contains(t)
         } yield InvalidValueFailure(contract, path, t)
     }
@@ -295,10 +281,9 @@ trait Validators extends ValidatorOps {
         case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
       }
 
-      def apply[S >: Optionable[String], D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Optionable[String], D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
         for {
-          s <- value.toList
-          t <- getString(s)
+          t <- getString(value).toList
           if !values.exists(_.equalsIgnoreCase(t))
         } yield InvalidValueFailure(contract, path, t)
   }
@@ -306,10 +291,9 @@ trait Validators extends ValidatorOps {
   def ninCaseInsensitive(values:String*): ValueValidator[Optionable[String]] =
     new ValueValidator[Optionable[String]] {
 
-      def apply[S >: Optionable[String], D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Optionable[String], D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
         for {
-          s <- value.toList
-          t <- getString(s)
+          t <- getString(value).toList
           if values.exists(_.equalsIgnoreCase(t))
         } yield InvalidValueFailure(contract, path, t)
     }
@@ -326,10 +310,9 @@ trait Validators extends ValidatorOps {
         case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
       }
 
-      def apply[S >: Optionable[String], D <: DObject](contract:ContractFor[D], path: Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Optionable[String], D <: DObject](contract:ContractFor[D], path: Path, value: S, currentState: => Option[S]): ValidationFailures =
         for {
-          s <- value.toList
-          t <- getString(s)
+          t <- getString(value).toList
           if t.trim().isEmpty
         } yield NonEmptyOrWhitespaceFailure(contract, path)
     }
@@ -337,10 +320,9 @@ trait Validators extends ValidatorOps {
   def custom[T](f: T => Boolean, message:T => String): ValueValidator[Optionable[T]] =
     new ValueValidator[Optionable[T]] {
 
-      def apply[S >: Optionable[T], D <: DObject](contract:ContractFor[D], path: Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Optionable[T], D <: DObject](contract:ContractFor[D], path: Path, value: S, currentState: => Option[S]): ValidationFailures =
         for {
-          s <- value.toList
-          t <- getT[T, S](s)
+          t <- getT[T, S](value).toList
           if !f(t)
         } yield CustomValidationFailure(contract, path, t, message(t))
     }
@@ -357,10 +339,9 @@ trait Validators extends ValidatorOps {
         case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
       }
 
-      def apply[S >: Optionable[String], D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Optionable[String], D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
         for {
-          s <- value.toList
-          t <- getString(s)
+          t <- getString(value).toList
           if !r.pattern.matcher(t).matches
         } yield RegexFailure(contract, path, r, t, message(t))
     }
@@ -397,6 +378,40 @@ trait Validators extends ValidatorOps {
       }
     }
 
+  def valueValidator[K, V](validators:Validator[V]*)(implicit CV:DCodec[V]):RawValidator[Optionable[Map[K, V]]] =
+    new RawValidator[Optionable[Map[K, V]]] {
+      override def apply[D <: DObject](contract: ContractFor[D], path: Path, value: Option[Raw], currentState: Option[Raw]): ValidationFailures = {
+        val maybeCurrentState = currentState.collect{ case r:RawObject@unchecked => r}
+        value.fold(ValidationFailures.empty){
+          case r:RawObject@unchecked =>
+            validators.flatMap {
+              case validator:ValueValidator[V]@unchecked =>
+                r.flatMap {
+                  case (k, CV(v)) =>
+                    validator(contract, path \ k, v, maybeCurrentState.flatMap(_.get(k)).flatMap(CV.unapply))
+                  case _ =>
+                    ValidationFailures.empty
+                }
+              case validator:RawValidator[V]@unchecked =>
+                r.flatMap { case (k, v) =>
+                  validator(contract, path \ k, Some(v), maybeCurrentState.flatMap(_.get(k)))
+                }
+            }.toList
+          case _ =>
+            Nil
+        }
+      }
+
+      override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
+        case s:ObjectDefinition =>
+          val newAdditionalProperties = s.additionalProperties.map{td =>
+            validators.foldLeft(td)((a, e) => e.definition.lift(a).getOrElse(a))
+          }
+          s.copy(additionalProperties = newAdditionalProperties).asInstanceOf[D]
+        case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
+      }
+    }
+
   def keyValidator(r:Regex, message:String):ValueValidator[Optionable[Keyable]] =
     new ValueValidator[Optionable[Keyable]] {
 
@@ -406,13 +421,13 @@ trait Validators extends ValidatorOps {
         case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
       }
 
-      def apply[S >: Optionable[Keyable], D <: DObject](contract:ContractFor[D], path:Path, value: Option[S], currentState: => Option[S]): ValidationFailures =
+      def apply[S >: Optionable[Keyable], D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
         for {
-          co <- value.toList
-          ct <- getKeyable(co).toList
+          ct <- getKeyable(value).toList
           key <- ct.keys.toList if !r.pattern.matcher(key).matches()
         } yield RegexFailure(contract, path, r, key, message)
     }
+
 }
 
 trait ValidatorOps {

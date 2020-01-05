@@ -107,27 +107,42 @@ object Validation {
     def validatePropertyOperators[D2 <: DObject, T](field:String, property:Property[D2, T], maybeValue:Option[Raw], maybeT:Option[T], maybeCurrentState:Option[RawObject]):ValidationFailures =
       property._dataOperators.collect{
         case validator:ValueValidator[T]@unchecked =>
-          validator(property._root, property._path, maybeT, maybeCurrentState.flatMap(_.get(field)).flatMap(property._codec.unapply))
+          maybeT.fold(ValidationFailures.empty) { t =>
+            validator(property._root, property._path, t, maybeCurrentState.flatMap(_.get(field)).flatMap(property._codec.unapply))
+          }
         case validator:RawValidator[T]@unchecked =>
           validator(property._root, property._path, maybeValue, maybeCurrentState.flatMap(_.get(field)))
       }.flatten
 
     @inline
-    def validateClosed[D2 <: DObject](baseContract:BaseContract[D], value:RawObject, maybeCurrentState:Option[RawObject]): ValidationFailures =
-      if (baseContract.isInstanceOf[ClosedFields])
-        //DNull value in a delta context will either remove an invalid value or flatten to empty so it is allowed
-        //Technically so would empty object but thats a bit of a challenge
-        value.filterNot(kv => baseContract._fields.keySet(kv._1) || (kv._2 == DNull && maybeCurrentState.nonEmpty))
-          .map { kv =>
-            baseContract match {
-              case p: Property[D2, _]@unchecked =>
-                ClosedContractFailure(p._root, p._path, kv._1)
-              case b: ContractFor[D] =>
-                ClosedContractFailure(b, Path.empty, kv._1)
-            }
-          }.toList
-      else
-        ValidationFailures.empty
+    def validateAdditionalProperties[D2 <: DObject](baseContract:BaseContract[D], value:RawObject, maybeCurrentState:Option[RawObject]): ValidationFailures = {
+      lazy val additionalProperties:RawObject = value -- baseContract._fields.keys
+      lazy val additionalPropertiesState:Option[RawObject] = maybeCurrentState.map(_ -- baseContract._fields.keys)
+      baseContract.$additionalProperties match {
+        case OpenProperties =>
+          ValidationFailures.empty
+        case ClosedProperties =>
+          additionalProperties.filterNot(kv => baseContract._fields.keySet(kv._1) || (kv._2 == DNull && maybeCurrentState.nonEmpty))
+            .map { kv =>
+              baseContract match {
+                case p: Property[D2, _]@unchecked =>
+                  ClosedContractFailure(p._root, p._path, kv._1)
+                case b: ContractFor[D] =>
+                  ClosedContractFailure(b, Path.empty, kv._1)
+              }
+            }.toList
+        case p:PatternProperties[_]@unchecked => ???
+        case _ => ???
+//          lazy val t = additionalProperties.map{ case (p.keyCodec(k), p) =>
+//            p.data
+//          }
+//          value.
+//          ._codec.keyCodec.unapply(key).fold[(ValidationFailures, Option[K])]{
+//            (IncorrectKeyTypeFailure(property._root, property._path, property._codec.keyCodec, key) :: failures) -> None
+//          }{k => failures -> Some(k)}
+
+      }
+    }
 
     def convertExpectedObjectBehaviour(field:String, value:RawObject, maybeCurrentState:Option[RawObject]):RawObject =
       value.get(field) -> maybeCurrentState.flatMap(_.get(field).collect{case rs:RawObject@unchecked => rs}) match {
@@ -139,7 +154,7 @@ object Validation {
           value
     }
 
-    validateClosed(contract, value, maybeCurrentState) ++
+    validateAdditionalProperties(contract, value, maybeCurrentState) ++
     contract._fields.foldLeft(ValidationFailures.empty){
       case (failures, (field, property:BaseContract[DObject]@unchecked with ExpectedObjectProperty[D])) =>
         val newValue = convertExpectedObjectBehaviour(field, value, maybeCurrentState)

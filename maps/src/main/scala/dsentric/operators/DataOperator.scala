@@ -20,7 +20,7 @@ trait RawValidator[+T] extends Validator[T] {
 
 trait ValueValidator[+T] extends Validator[T] {
 
-  def apply[S >: T, D <: DObject](contract:ContractFor[D], path:Path, value:Option[S], currentState: => Option[S]): ValidationFailures
+  def apply[S >: T, D <: DObject](contract:ContractFor[D], path:Path, value:S, currentState: => Option[S]): ValidationFailures
 
   def &&[S >: T] (v:ValueValidator[S]):ValueValidator[S] =
     AndValidator(this, v)

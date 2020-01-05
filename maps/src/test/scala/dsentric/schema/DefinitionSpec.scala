@@ -1,6 +1,6 @@
 package dsentric.schema
 
-import dsentric.contracts.{ClosedFields, Contract}
+import dsentric.contracts.{AdditionalProperties, ClosedProperties, Contract}
 import dsentric.operators.{Sanitizers, Validators}
 import dsentric.Dsentric._
 import dsentric.PessimisticCodecs._
@@ -40,7 +40,9 @@ class DefinitionSpec extends AnyFunSpec with Matchers {
       Definition.nestedContractObjectDefinition(Empty) shouldBe ObjectDefinition(Some("Empty"))
     }
     it("Should mark additional properties if contract is closed") {
-      object Closed extends Contract with ClosedFields
+      object Closed extends Contract {
+        override def $additionalProperties: AdditionalProperties = ClosedProperties
+      }
       Definition.nestedContractObjectDefinition(Closed) shouldBe ObjectDefinition(Some("Closed"), None, None, Vector.empty, Set.empty, Left(false))
     }
     it("Should include properties with validation") {
@@ -75,8 +77,10 @@ class DefinitionSpec extends AnyFunSpec with Matchers {
     }
     it("Should define expected object properties") {
       object WithExpected extends Contract {
-        val exp = new \\ with ClosedFields {
+        val exp = new \\ {
           val prop = \?[String]
+
+          override def $additionalProperties: AdditionalProperties = ClosedProperties
         }
       }
       val expDefinition =
@@ -90,7 +94,9 @@ class DefinitionSpec extends AnyFunSpec with Matchers {
         val prop = \?[String]
       }
       object WithExpected extends Contract {
-        val exp = new \\ with ClosedFields with ExpectedSub
+        val exp = new \\ with ExpectedSub {
+          override def $additionalProperties: AdditionalProperties = ClosedProperties
+        }
       }
       val expDefinition =
         ObjectDefinition(properties = Set(PropertyDefinition("prop", StringDefinition(), Nil, None, false, None)), additionalProperties = Left(false))
@@ -99,10 +105,11 @@ class DefinitionSpec extends AnyFunSpec with Matchers {
         ObjectDefinition(Some("WithExpected"), None, None, Vector.empty, Set(PropertyDefinition("exp", expDefinition, Nil, None, true, None)), Left(true))
     }
     it("Should define maybe object properties") {
-      object WithMaybe extends Contract with ClosedFields {
+      object WithMaybe extends Contract{
         val maybe = new \\? {
           val prop = \![Boolean](false)
         }
+        override def $additionalProperties: AdditionalProperties = ClosedProperties
       }
       val maybeDefinition =
         ObjectDefinition(properties = Set(PropertyDefinition("prop", BooleanDefinition, Nil, Some(false), false, None)), additionalProperties = Left(true))
@@ -111,9 +118,11 @@ class DefinitionSpec extends AnyFunSpec with Matchers {
         ObjectDefinition(Some("WithMaybe"), None, None, Vector.empty, Set(PropertyDefinition("maybe", maybeDefinition, Nil, None, false, None)), Left(false))
     }
     it("Should define array properties") {
-      object ArrayContract extends Contract with ClosedFields {
+      object ArrayContract extends Contract {
         val prop1 = \?[Int](Validators.>(0), Validators.<(12))
         val prop2 = \![String]("one", Validators.in("one", "two", "three"))
+
+        override def $additionalProperties: AdditionalProperties = ClosedProperties
       }
       object WithArray extends Contract {
         val array = \::(ArrayContract, Validators.minLength(2))

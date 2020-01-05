@@ -30,6 +30,8 @@ trait StringCodec[T] extends DCodec[T] {
   def toString(t:T):String
 
   def fromString(s:String):T
+
+  def typeDefinition:StringDefinition
 }
 
 trait DObjectCodec[T] extends DCodec[T] {
@@ -221,8 +223,8 @@ trait DefaultCodecs {
       def fromString(s: String): Path =
         Path.fromString(s)
 
-      def typeDefinition:TypeDefinition =
-        TypeDefinition.anyDefinition
+      def typeDefinition:StringDefinition =
+        StringDefinition.empty
     }
 
   def dObjectOpsCodec[T <: DObjectOps[T] with DObject](wrap:Map[String, Any] => T):DObjectCodec[T] =
@@ -252,7 +254,7 @@ trait PessimisticCodecs extends DefaultCodecs {
 
       def fromString(s: String): String = s
 
-      def typeDefinition:TypeDefinition =
+      def typeDefinition:StringDefinition =
         StringDefinition.empty
     }
   implicit val booleanCodec:DValueCodec[Boolean] =
@@ -486,7 +488,7 @@ trait OptimisticCodecs extends DefaultCodecs {
 
       def fromString(s: String): String = s
 
-      def typeDefinition:TypeDefinition =
+      def typeDefinition:StringDefinition =
         StringDefinition.empty
     }
 

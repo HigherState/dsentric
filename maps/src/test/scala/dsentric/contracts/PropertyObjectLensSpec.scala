@@ -34,9 +34,6 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
           val property = \![String]("default")
         }
       }
-      val closed = new \\ with ClosedFields {
-        val maybe = \?[Int]
-      }
     }
 
     describe("$get") {
@@ -111,14 +108,6 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
         val base3 = DObject("nestedDefault" ::= ("nested" := DObject.empty))
         ExpectedObject.nestedDefault.$get(base3).right.value shouldBe result
       }
-      it("Should succeed if nested object is closed and only has closed properties") {
-        val base = DObject("closed" ::= ("maybe" := 123))
-        ExpectedObject.closed.$get(base).right.value shouldBe DObject("maybe" := 123)
-      }
-      it("Should fail if nested object is closed and contains additional properties") {
-        val base = DObject("closed" ::= ("maybe" := 123, "additional" := "fail"))
-        ExpectedObject.closed.$get(base).left.value should contain (ClosedContractFailure(ExpectedObject.closed, "additional"))
-      }
     }
     describe("$set") {
       it("Should fail if object would fail") {
@@ -130,12 +119,6 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
         ExpectedObject.expected.$set(DObject("property" := 1))(DObject.empty).right.value shouldBe DObject("expected" := DObject("property" := 1))
         ExpectedObject.maybe.$set(DObject.empty)(DObject.empty).right.value shouldBe DObject("maybe" := DObject.empty)
         ExpectedObject.default.$set(DObject.empty)(DObject.empty).right.value shouldBe DObject("default" := DObject.empty)
-      }
-      it("Should succeed if object is closed and contains additional properties") {
-        ExpectedObject.closed.$set(DObject("maybe" := 123))(DObject.empty).right.value shouldBe DObject("closed" ::= ("maybe" := 123))
-      }
-      it("Should fail if object is closed and contains additional properties") {
-        ExpectedObject.closed.$set(DObject("maybe" := 123, "additional" := "fail"))(DObject.empty).left.value should contain (ClosedContractFailure(ExpectedObject.closed, "additional"))
       }
     }
   }
@@ -157,9 +140,6 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
           val property = \![String]("default")
         }
       }
-      val closed = new \\ with ClosedFields {
-        val property = \[Boolean]
-      }
     }
 
     describe("$get") {
@@ -170,9 +150,6 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
       it("Should fail if nested expected property is of wrong type with expected failure") {
         val base = DObject("expected" ::= ("property" := "value"))
         EmptyExpectedObject.expected.$get(base).left.value should contain(ExpectedFailure(EmptyExpectedObject.expected.property))
-      }
-      it("Should fail if nested object is closed and contains additional properties") {
-        EmptyExpectedObject.closed.$get(DObject("closed" ::= ("property" := false, "additional" := 123))).left.value should contain (ClosedContractFailure(EmptyExpectedObject.closed, "additional"))
       }
       it("Should succeed if nested maybe property is of wrong type") {
         val base = DObject("maybe" ::= ("property" := "value"))
@@ -199,9 +176,6 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
       it("should fail if default property of wrong type") {
         EmptyExpectedObject.default.$set(DObject("property" := 123))(DObject.empty).left.value should contain (IncorrectTypeFailure(EmptyExpectedObject.default.property, 123))
       }
-      it("Should fail if object is closed and set object contains additional properties") {
-        EmptyExpectedObject.closed.$set(DObject("property" := false, "additional" := 123))(DObject.empty).left.value should contain (ClosedContractFailure(EmptyExpectedObject.closed, "additional"))
-      }
     }
   }
 
@@ -217,9 +191,6 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
       }
       val default = new \\? {
         val property = \![String]("default")
-      }
-      val closed = new \\? with ClosedFields {
-        val property = \?[Int]
       }
     }
     describe("$get") {
@@ -277,14 +248,6 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
         val base = DObject("default" := DObject.empty)
         MaybeObject.default.$get(base).right.value shouldBe Some(DObject("property" := "default"))
       }
-      it("Should succeed if nested object is closed and only has closed properties") {
-        val base = DObject("closed" ::= ("property" := 123))
-        MaybeObject.closed.$get(base).right.value shouldBe Some(DObject("property" := 123))
-      }
-      it("Should fail if nested object is closed and contains additional properties") {
-        val base = DObject("closed" ::= ("property" := 123, "additional" := "fail"))
-        MaybeObject.closed.$get(base).left.value should contain (ClosedContractFailure(MaybeObject.closed, "additional"))
-      }
     }
     describe("$maybeSet") {
       it("Should fail if object would fail") {
@@ -295,9 +258,6 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
         MaybeObject.expected.$maybeSet(Some(DObject("property" := 1)))(DObject.empty).right.value shouldBe DObject("expected" := DObject("property" := 1))
         MaybeObject.maybe.$maybeSet(Some(DObject.empty))(DObject.empty).right.value shouldBe DObject("maybe" := DObject.empty)
         MaybeObject.default.$maybeSet(Some(DObject.empty))(DObject.empty).right.value shouldBe DObject("default" := DObject.empty)
-      }
-      it("Should fail if object is closed and contains additional properties") {
-        MaybeObject.closed.$maybeSet(Some(DObject("property" := 123, "additional" := "fail")))(DObject.empty).left.value should contain (ClosedContractFailure(MaybeObject.closed, "additional"))
       }
     }
   }

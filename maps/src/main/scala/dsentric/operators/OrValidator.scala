@@ -5,7 +5,7 @@ import dsentric.failure.ValidationFailures
 import dsentric.{DObject, Path}
 
 case class OrValidator[+T, A <: T, B <: T](left:ValueValidator[A], right:ValueValidator[B]) extends ValueValidator[T] {
-  def apply[S >: T, D <: DObject](contract: ContractFor[D], path:Path, value:Option[S], currentState: => Option[S]):ValidationFailures =
+  def apply[S >: T, D <: DObject](contract: ContractFor[D], path:Path, value:S, currentState: => Option[S]):ValidationFailures =
     left(contract, path, value, currentState) match {
       case ValidationFailures.empty =>
         ValidationFailures.empty

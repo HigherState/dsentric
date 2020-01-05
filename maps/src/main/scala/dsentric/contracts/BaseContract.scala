@@ -52,5 +52,3 @@ private[dsentric] trait BaseContract[D <: DObject] extends WithIncorrectTypeBeha
 
   def $additionalProperties:AdditionalProperties = OpenProperties
 }
-
-trait ClosedFields
