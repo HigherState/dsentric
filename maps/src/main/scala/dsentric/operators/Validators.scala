@@ -177,28 +177,12 @@ trait Validators extends ValidatorOps {
 
   def minLength(x: Int): ValueValidator[Optionable[Length]] =
     new ValueValidator[Optionable[Length]] {
-      def apply[S >: Optionable[Length], D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
-        value -> currentState match {
-          case (c:DObject, Some(s:DObject)) =>
-            val l = getLengthDif(c.value, s.value)
-            if (l < x)
-              List(MinimumLengthFailure(contract, path, x, l))
-            else
-              ValidationFailures.empty
-          case (c:Map[String, Nothing]@unchecked, Some(s:Map[String, Nothing]@unchecked)) =>
-            val l = getLengthDif(c, s)
-            if (l < x)
-              List(MinimumLengthFailure(contract, path, x, l))
-            else
-              ValidationFailures.empty
-          case (c, _) =>
-            for {
-              l <- getLength(c).toList
-              if l < x
-            } yield MinimumLengthFailure(contract, path, x, l)
-
-
-        }
+      def apply[S >: Optionable[Length], D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures = {
+        getLength(value, currentState)
+          .filter(_ < x)
+          .map(length => MinimumLengthFailure(contract, path, x, length))
+          .toList
+      }
 
 
       override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
@@ -213,25 +197,10 @@ trait Validators extends ValidatorOps {
   def maxLength(x: Int): ValueValidator[Optionable[Length]] =
     new ValueValidator[Optionable[Length]] {
       def apply[S >: Optionable[Length], D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =
-        value -> currentState match {
-          case (c: DObject, Some(s: DObject)) =>
-            val l = getLengthDif(c.value, s.value)
-            if (l > x)
-              List(MaximumLengthFailure(contract, path, x, l))
-            else
-              ValidationFailures.empty
-          case (c: Map[String, Nothing]@unchecked, Some(s: Map[String, Nothing]@unchecked)) =>
-            val l = getLengthDif(c, s)
-            if (l > x)
-              List(MaximumLengthFailure(contract, path, x, l))
-            else
-              ValidationFailures.empty
-          case (c, _) =>
-            for {
-              l <- getLength(c).toList
-              if l > x
-            } yield MaximumLengthFailure(contract, path, x, l)
-        }
+        getLength(value, currentState)
+          .filter(_ > x)
+          .map(length => MaximumLengthFailure(contract, path, x, length))
+          .toList
 
       override def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
         case n:StringDefinition => n.copy(maxLength = Some(x)).asInstanceOf[D]
@@ -432,22 +401,35 @@ trait Validators extends ValidatorOps {
 
 trait ValidatorOps {
 
-  protected def getLength[S >: Optionable[Length]](x:S): Option[Int] =
+  protected def getLength[S >: Optionable[Length]](x:S, state:Option[S]): Option[Int] =
     x match {
-      case s:Seq[Any] @unchecked =>
-        Some(s.size)
-      case a:Iterable[_] =>
-        Some(a.size)
-      case s:String =>
-        Some(s.size)
-      case d:DObject =>
-        Some(d.size)
-      case d:DArray =>
-        Some(d.value.size)
-      case Some(s) =>
-        getLength(s)
-      case _ =>
+      case Some(v) =>
+        getLength(v, state)
+      case None =>
         None
+      case v =>
+        getKeyable(v) match {
+          case Some(c) =>
+            Some {
+              state.flatMap(getKeyable)
+                .fold(c.keys.size)(s => getLengthDif(c, s))
+            }
+          case None =>
+            x match {
+              case s: Seq[Any]@unchecked =>
+                Some(s.size)
+              case a: Iterable[_] =>
+                Some(a.size)
+              case s: String =>
+                Some(s.size)
+              case d: DObject =>
+                Some(d.size)
+              case d: DArray =>
+                Some(d.value.size)
+              case _ =>
+                None
+            }
+        }
     }
 
   protected def getLengthDif[T](c:Map[String, T], v:Map[String, T]):Int = {
@@ -481,6 +463,8 @@ trait ValidatorOps {
         Some(s)
       case d:DObject =>
         Some(d.value)
+      case _ =>
+        None
     }
 
   protected def resolve[S >: Numeric](value:S, target:S):Option[(Int, Number, Number)] =
