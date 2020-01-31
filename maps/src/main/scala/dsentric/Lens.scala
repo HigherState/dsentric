@@ -17,10 +17,23 @@ private case class ValueSetter[T, D <: DObject](path:Path, value:Any) extends Pa
 
 }
 
+private case class ValueIfEmptySetter[T, D <: DObject](path:Path, value:Any) extends PathSetter[D] {
+
+  def set:DObject => DObject =
+    v1 => PathLensOps.setIfEmpty(v1.value, path, value).fold(v1)(v1.internalWrap)
+
+}
+
 private case class MaybeValueSetter[T, D <: DObject](path:Path, value:Option[Any]) extends PathSetter[D] {
 
   def set:DObject => DObject =
     v1 => value.fold(v1)(v => v1.internalWrap(PathLensOps.set(v1.value, path, v)))
+}
+
+private case class MaybeValueIfEmptySetter[T, D <: DObject](path:Path, value:Option[Any]) extends PathSetter[D] {
+
+  def set:DObject => DObject =
+    v1 => value.fold(v1)(v => PathLensOps.setIfEmpty(v1.value, path, v).fold(v1)(v1.internalWrap))
 }
 
 private case class ValueDrop[D <: DObject](path:Path) extends PathSetter[D] {
@@ -63,8 +76,14 @@ sealed trait PropertyLens[D <: DObject, T] {
   def $set(value:T):PathSetter[D] =
     ValueSetter(_path, _codec(value).value)
 
+  def $setIfEmpty(value:T):PathSetter[D] =
+    ValueIfEmptySetter(_path, _codec(value).value)
+
   def $maybeSet(value:Option[T]):PathSetter[D] =
     MaybeValueSetter(_path, value.map(_codec(_).value))
+
+  def $maybeSetIfEmpty(value:Option[T]):PathSetter[D] =
+    MaybeValueIfEmptySetter(_path, value.map(_codec(_).value))
 }
 
 trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens[D, T] {

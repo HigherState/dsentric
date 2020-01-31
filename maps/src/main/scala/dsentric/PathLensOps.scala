@@ -32,6 +32,22 @@ object PathLensOps {
       case _ =>
         map
     }
+  //Should handle wrong type - remember for Dsentric1
+  private[dsentric] def setIfEmpty(map:Map[String, Any], path:Path, value:Any):Option[Map[String, Any]] =
+    path match {
+      case PathKey(head, PathEnd) =>
+        if (map.contains(head)) None
+        else Some(map + (head -> value))
+
+      case PathKey(head, tail@PathKey(_, _)) =>
+        map
+          .get(head)
+          .collect{case m:Map[String, Any]@unchecked => m}
+          .flatMap(setIfEmpty(_, tail, value))
+          .map(t => map + (head -> t))
+      case _ =>
+        None
+    }
 
   /*
   Returns None if no change
