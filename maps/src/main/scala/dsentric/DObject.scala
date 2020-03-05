@@ -132,6 +132,13 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
   def get(path: Path):Option[Data] =
     PathLensOps.traverse(value, path).map(ForceWrapper.data)
 
+  def keyProduct[A](target:DObject)(f:(String, Option[Data], Option[Data]) => A):Iterable[A] = {
+    val k = keys ++ target.keys
+    k.map{key =>
+      f(key, get(key), target.get(key))
+    }
+  }
+
   override def size:Int =
     value.size
 
@@ -274,6 +281,7 @@ final class DProjection private[dsentric](val value:RawObject) extends AnyVal wi
   def &(key:String): DProjection =
     wrap(value + (key -> 1))
 
+  //TODO BUG should concat not replace.
   def &(path:Path): DProjection =
     wrap(value ++ PathLensOps.pathToMap(path, 1))
 
