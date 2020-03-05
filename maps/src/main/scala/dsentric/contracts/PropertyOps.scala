@@ -7,6 +7,7 @@ trait PropertyOps[D <: DObject] {
 
   protected def __self:BaseContract[D] = null
 
+
   def \[T](implicit codec:DCodec[T]):ExpectedProperty[D, T] =
     new ExpectedProperty[D, T](None, __self, codec, PropertyOps.requiredS)
 

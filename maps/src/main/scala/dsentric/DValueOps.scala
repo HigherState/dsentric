@@ -11,7 +11,7 @@ trait DValueOps {
 
   private[dsentric] def order:PartialFunction[(Raw, Raw), Int] = {
     case (x:Double, y:Double) =>
-      Ordering.Double.compare(x, y)
+      Ordering.Double.TotalOrdering.compare(x, y)
     case (x:Long, y:Long) =>
       Ordering.Long.compare(x, y)
     case (x:String, y:String) =>
@@ -19,9 +19,9 @@ trait DValueOps {
     case (x:Boolean, y:Boolean) =>
       Ordering.Boolean.compare(x, y)
     case (x:Double, y:Long) =>
-      Ordering.Double.compare(x, y)
+      Ordering.Double.TotalOrdering.compare(x, y)
     case (x:Long, y:Double) =>
-      Ordering.Double.compare(x, y)
+      Ordering.Double.TotalOrdering.compare(x, y)
   }
 }
 
@@ -49,7 +49,7 @@ trait DataOps {
       case a@D1(v) =>
         pf.lift(v).map(D2(_).value).getOrElse(a)
       case m:RawObject@unchecked =>
-        m.mapValues(nestedValueMap(_,pf))
+        m.view.mapValues(nestedValueMap(_,pf)).toMap
       case v:RawArray@unchecked =>
         v.map(nestedValueMap(_,pf))
       case v =>

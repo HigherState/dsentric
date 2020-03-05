@@ -1,9 +1,10 @@
 package dsentric
 
 import dsentric._
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class IsNullTests extends FunSuite with Matchers {
+class IsNullTests extends AnyFunSuite with Matchers {
   import Dsentric._
   import PessimisticCodecs._
 

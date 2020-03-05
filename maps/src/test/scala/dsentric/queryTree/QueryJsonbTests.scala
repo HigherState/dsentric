@@ -2,13 +2,14 @@ package dsentric.queryTree
 
 import dsentric._
 import Dsentric._
-import org.scalatest.{FunSuite, Matchers}
 import dsentric.PessimisticCodecs._
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 /**
   * Created by jamie.pullar on 05/07/2016.
   */
-class QueryJsonbTests extends FunSuite with Matchers {
+class QueryJsonbTests extends AnyFunSuite with Matchers {
   implicit def r:Renderer = SimpleRenderer
 
   val queryParser = QueryJsonb(_.replace("'","''"))

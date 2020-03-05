@@ -124,6 +124,6 @@ class MsonSchema(tab:String, newLine:String) {
 
   private val unsafeChars = Seq(':', '(',')', '<', '>', '{', '}', '[', ']', '_', '*', '-', '+', '`', '\'')
   private def escape(name:String):String =
-    if (name.intersect(unsafeChars).nonEmpty) "`" + name.replace("`","``") + "`"
+    if (name.toSeq.intersect(unsafeChars).nonEmpty) "`" + name.replace("`","``") + "`"
     else name
 }

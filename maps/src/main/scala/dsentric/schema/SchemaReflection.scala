@@ -13,7 +13,6 @@ case class Examples(example:Any, example2:Any = IgnoreExample, example3:Any = Ig
 case class Description(text:String) extends scala.annotation.StaticAnnotation
 
 case class ContractInfo(fullName:String,
-                        isClosed:Boolean,
                         displayName:Option[String],
                         schemaAnnotations: SchemaAnnotations,
                         inherits:Vector[ContractInfo],
@@ -23,7 +22,7 @@ case class ContractInfo(fullName:String,
     contractInfo == this || inherits.exists(_.isSubClass(contractInfo))
 
   def getInheritedFieldAnnotation(name:String):Option[SchemaAnnotations] =
-    fields.get(name).orElse(inherits.toStream.flatMap(_.getInheritedFieldAnnotation(name)).headOption)
+    fields.get(name).orElse(inherits.iterator.flatMap(_.getInheritedFieldAnnotation(name)).nextOption())
 }
 
 case class SchemaAnnotations(typeName:Option[String], title:Option[String], nested:Boolean, examples:List[Any], description:Option[String])
@@ -72,7 +71,6 @@ object SchemaReflection {
       case None =>
         //val schemas = getSchemaAnnotation(t.annotations) :: t.baseClasses.map(c => getSchemaAnnotation(c.annotations))
         val schema = getSchemaAnnotation(t.annotations)
-        val isClosed = isClosedField(t)
         val bc = getBaseClasses(t)
         val (inherited, newCurrent) =
           bc.foldLeft(Vector.empty[ContractInfo] -> current) {
@@ -94,7 +92,7 @@ object SchemaReflection {
         val foldedInherited = inherited.filterNot(i => inherited.exists(i2 => i2 != i && i2.isSubClass(i)))
 
         val contractInfo =
-          ContractInfo(fullName, isClosed, displayName, schema, foldedInherited, fields)
+          ContractInfo(fullName, displayName, schema, foldedInherited, fields)
 
         contractInfo -> (newCurrent :+ contractInfo)
     }
@@ -103,8 +101,6 @@ object SchemaReflection {
   private val baseContractType: universe.Symbol =
     typeOf[BaseContract[_]].typeSymbol
 
-  private def isClosedField(t:ClassSymbol):Boolean =
-    t.baseClasses.exists(_.fullName == "dsentric.contracts.ClosedFields")
 
   private def getBaseClasses(t:ClassSymbol):List[Symbol] =
     t.baseClasses.filter { c =>

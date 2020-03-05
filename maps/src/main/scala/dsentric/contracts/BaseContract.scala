@@ -1,13 +1,11 @@
 package dsentric.contracts
 
-import dsentric.failure.{FailOnIncorrectTypeBehaviour, IncorrectTypeBehaviour}
+import dsentric.failure.IncorrectTypeBehaviour
 import dsentric.{DCodec, DObject, DProjection, Path}
 
 private[dsentric] trait WithIncorrectTypeBehaviour {
   private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour
 }
-
-trait ClosedFields
 
 private[dsentric] trait BaseContract[D <: DObject] extends WithIncorrectTypeBehaviour {
 
@@ -21,7 +19,7 @@ private[dsentric] trait BaseContract[D <: DObject] extends WithIncorrectTypeBeha
 
   def _path:Path
 
-  def _fields: Map[String, Property[D, _]] =
+  final def _fields: Map[String, Property[D, _]] =
     if (_bitmap0) __fields
     else {
       this.synchronized{
@@ -40,15 +38,17 @@ private[dsentric] trait BaseContract[D <: DObject] extends WithIncorrectTypeBeha
       }
       __fields
     }
-  def _keys:Set[String] =
+  final def _keys:Set[String] =
     _fields.keySet
 
-  def $dynamic[T](field:String)(implicit codec:DCodec[T]):MaybeProperty[D, T] =
+  final def $dynamic[T](field:String)(implicit codec:DCodec[T]):MaybeProperty[D, T] =
     new MaybeProperty[D, T](Some(field), this, codec, List.empty)
 
-  def $$(projection:DProjection):DProjection =
+  final def $$(projection:DProjection):DProjection =
     projection.nest(this._path)
 
-  def $$(paths:Path*):DProjection =
+  final def $$(paths:Path*):DProjection =
     DProjection(paths:_*).nest(this._path)
+
+  def $additionalProperties:AdditionalProperties = OpenProperties
 }

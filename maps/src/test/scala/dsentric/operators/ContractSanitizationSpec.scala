@@ -1,9 +1,12 @@
 package dsentric.operators
 
 import dsentric._
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.EitherValues
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-class ContractSanitizationSpec extends FunSpec with Matchers {
+@deprecated("Update when EitherValues is updated and undeprecate.", "")
+class ContractSanitizationSpec extends AnyFunSpec with Matchers with EitherValues {
 
   import Dsentric._
   import PessimisticCodecs._
@@ -118,7 +121,7 @@ class ContractSanitizationSpec extends FunSpec with Matchers {
           val ob1 = DObject("value" := 3)
           val ob2 = DObject("value" := 5)
           val ob3 = DObject("another" := false)
-          val obj = EmptyObjectsSanitize.$createValid(_.objects.$set(Vector(ob1, ob2, ob3))).right.get
+          val obj = EmptyObjectsSanitize.$createValid(_.objects.$set(Vector(ob1, ob2, ob3))).right.value
 
           EmptyObjectsSanitize.$ops.sanitize(obj) shouldBe obj
         }
@@ -126,7 +129,7 @@ class ContractSanitizationSpec extends FunSpec with Matchers {
           val ob1 = DObject("value" := 3)
           val ob2 = DObject("value" := 5)
           val ob3 = DObject("another" := false)
-          val obj = EmptyObjectsSanitize.$createValid(_.objectsMask.$set(Vector(ob1, ob2, ob3))).right.get
+          val obj = EmptyObjectsSanitize.$createValid(_.objectsMask.$set(Vector(ob1, ob2, ob3))).right.value
           EmptyObjectsSanitize.$ops.sanitize(obj) shouldBe DObject("objectsMask" := "***")
         }
       }

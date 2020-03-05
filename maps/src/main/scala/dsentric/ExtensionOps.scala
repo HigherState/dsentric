@@ -1,7 +1,7 @@
 package dsentric
 
 import cats.data.NonEmptyList
-import dsentric.contracts.{PathSetter, ValidPathSetter}
+import dsentric.contracts.ValidPathSetter
 import dsentric.failure.{Failure, ValidResult}
 
 final class StringOps(val self:String) extends AnyVal {
@@ -32,7 +32,7 @@ final class PathOps(val self:Path) extends AnyVal {
 
 }
 
-final class FunctionOps[D <: DObjectLike[D] with DObject](val f:D => D) extends AnyVal with LensCompositor[D] {
+final class FunctionOps[D <: DObjectOps[D] with DObject](val f:D => D) extends AnyVal with LensCompositor[D] {
   def ~+(kv:(String, Data)):D => D =
     f andThen (_ + kv)
 
@@ -40,7 +40,7 @@ final class FunctionOps[D <: DObjectLike[D] with DObject](val f:D => D) extends 
     f andThen (_ ++ kv)
 }
 
-final class ValidFunctionOps[D <: DObjectLike[D] with DObject](val f:D => ValidResult[D]) extends AnyVal  {
+final class ValidFunctionOps[D <: DObjectOps[D] with DObject](val f:D => ValidResult[D]) extends AnyVal  {
   def ~+(kv:(String, Data)):D => ValidResult[D] =
     f andThen (_.map(_ + kv))
 
@@ -74,18 +74,18 @@ trait ToExtensionOps {
   implicit def toIntOps(i: Int): IntOps =
     new IntOps(i)
 
-  implicit def toFunctionOps[D <: DObjectLike[D] with DObject](f: D => D): FunctionOps[D] =
+  implicit def toFunctionOps[D <: DObjectOps[D] with DObject](f: D => D): FunctionOps[D] =
     new FunctionOps[D](f)
 
-  implicit def toValidFunctionOps[D <: DObjectLike[D] with DObject](f: D => ValidResult[D]): ValidFunctionOps[D] =
+  implicit def toValidFunctionOps[D <: DObjectOps[D] with DObject](f: D => ValidResult[D]): ValidFunctionOps[D] =
     new ValidFunctionOps[D](f)
 
   implicit def pathOps(p:Path): PathOps =
     new PathOps(p)
 
-  def ~+[D <: DObjectLike[D] with DObject](kv:(String, Data)):D => D =
+  def ~+[D <: DObjectOps[D] with DObject](kv:(String, Data)):D => D =
     _ + kv
 
-  def ~++[D <: DObjectLike[D] with DObject](kv:Seq[(String, Data)]):D => D =
+  def ~++[D <: DObjectOps[D] with DObject](kv:Seq[(String, Data)]):D => D =
     _ ++ kv
 }

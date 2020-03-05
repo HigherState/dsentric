@@ -4,17 +4,18 @@ import dsentric.PessimisticCodecs._
 import dsentric._
 import dsentric.contracts.Contract
 import dsentric.failure.{MaximumLengthFailure, MinimumLengthFailure, ValidationFailures}
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class ValidationTests extends FunSuite with Matchers {
-  
+class ValidationTests extends AnyFunSuite with Matchers {
+
   object TestContract extends Contract
 
   test("Numeric validators") {
-    Validators.>(4)(TestContract, Path.empty, Some(5), None) should be (ValidationFailures.empty)
-    Validators.>(4)(TestContract, Path.empty, Some(4), None) should not be ValidationFailures.empty
-    Validators.>(4)(TestContract, Path.empty, Some(3.5), None) should not be ValidationFailures.empty
-    Validators.>(4)(TestContract, Path.empty, Some(Some(12.5)), None) should be (ValidationFailures.empty)
+    Validators.>(4)(TestContract, Path.empty, 5, None) should be (ValidationFailures.empty)
+    Validators.>(4)(TestContract, Path.empty, 4, None) should not be ValidationFailures.empty
+    Validators.>(4)(TestContract, Path.empty, 3.5, None) should not be ValidationFailures.empty
+    Validators.>(4)(TestContract, Path.empty, 12.5, None) should be (ValidationFailures.empty)
 
     Validators.<(-2)(TestContract, Path.empty, Some(-4), None) should be (ValidationFailures.empty)
     Validators.<(-2)(TestContract, Path.empty, Some(-2), None) should not be ValidationFailures.empty
@@ -62,7 +63,7 @@ class ValidationTests extends FunSuite with Matchers {
 
   test("in/nin validators") {
     Validators.in("one", "two", "three").apply(TestContract, Path.empty, Some("one"), None) should be (ValidationFailures.empty)
-    Validators.in("one", "two", "three").apply(TestContract, Path.empty, Some(Some("two")), None) should be (ValidationFailures.empty)
+    Validators.in("one", "two", "three").apply(TestContract, Path.empty, "two", None) should be (ValidationFailures.empty)
     Validators.in("one", "two", "three").apply(TestContract, Path.empty, Some("four"), None) should not be ValidationFailures.empty
     Validators.nin(1,2,3).apply(TestContract, Path.empty, Some(4), None) should be (ValidationFailures.empty)
     Validators.nin(1,2,3).apply(TestContract, Path.empty, Some(2), None) should not be ValidationFailures.empty
@@ -71,7 +72,7 @@ class ValidationTests extends FunSuite with Matchers {
   test("regex validator") {
     Validators.regex("abc".r)(TestContract, Path.empty, Some("abc"), None) should be (ValidationFailures.empty)
     Validators.regex("abc".r)(TestContract, Path.empty, Some("def"), None) should not be ValidationFailures.empty
-    Validators.regex("abc".r)(TestContract, Path.empty, Some(Some("def")), None) should not be ValidationFailures.empty
+    Validators.regex("abc".r)(TestContract, Path.empty, "def", None) should not be ValidationFailures.empty
   }
 
   test("immutable validator") {
