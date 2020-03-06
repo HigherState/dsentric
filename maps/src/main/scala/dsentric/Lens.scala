@@ -7,6 +7,9 @@ sealed trait PathSetter[D <: DObject] extends Function[D, D] {
   def apply(v1: D): D =
     set(v1).asInstanceOf[D]
 
+  def applyAs[G <: D](v1:G): G =
+    set(v1).asInstanceOf[G]
+
   def set:DObject => DObject
 }
 
