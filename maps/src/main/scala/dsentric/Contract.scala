@@ -38,7 +38,7 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct { self 
       __fields
     }
 
-  def $applyDefaults:PathSetter[D] = {
+  lazy val $applyDefaults:PathSetter[D] = {
     _fields.foldLeft[PathSetter[D]](PathSetter.identity[D]) {
       case (f, (_, prop:Default[D, _]@unchecked)) =>
         f.compose(ValueIfEmptySetter(prop._path, prop._codec.apply(prop._default).value))
