@@ -38,21 +38,15 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct { self 
       __fields
     }
 
-  def injectDefaults(d: D): DObject = {
-    val raw = d.value
-    val dataToInject: Map[String, Any] =
-      _fields.collect{
-        case (n, p:Default[D, _]@unchecked) =>
-          val trueName = p._nameOverride.getOrElse(n)
-          Some(trueName -> raw.get(trueName).getOrElse(p._codec.apply(p._default).value))
-        case (n, p:SubContractFor[_]@unchecked) =>
-          val trueName = p._nameOverride.getOrElse(n)
-          p.injectDefaults(d.get(trueName).getOrElse(DObject.empty).asInstanceOf[p.Out]) match {
-            case DObject.empty => None
-            case x => Some(trueName -> x.value)
-          }
-      }.flatten.toMap
-    d.internalWrap(raw ++ dataToInject)
+  def $applyDefaults:PathSetter[D] = {
+    _fields.foldLeft[PathSetter[D]](PathSetter.identity[D]) {
+      case (f, (_, prop:Default[D, _]@unchecked)) =>
+        f.compose(ValueIfEmptySetter(prop._path, prop._codec.apply(prop._default).value))
+      case (f, (_, prop:BaseContract[D]@unchecked)) =>
+        CompositeSetter(f, prop.$applyDefaults)
+      case (f, _) =>
+        f
+    }
   }
 
   def _keys:Set[String] = _fields.map(_._1).toSet
@@ -136,22 +130,18 @@ private[dsentric] sealed trait BaseContract[D <: DObject] extends Struct { self 
     }
 
 
-  lazy val $sanitize:D => D =
-    _fields.foldLeft[D => D](Predef.identity[D]) {
+  lazy val $sanitize:PathSetter[D] =
+    _fields.foldLeft[PathSetter[D]](PathSetter.identity[D]) {
       case (f, (_, prop:Maybe[D, _]@unchecked)) if prop._pathValidator.mask.nonEmpty =>
-        d:D =>
-          if (d.contains(prop._path))
-            d.+\(prop._path -> ForceWrapper.data(prop._pathValidator.mask.get)).asInstanceOf[D]
-          else
-            d
+        f.compose(ValueIfNonEmptySetter(prop._path, prop._pathValidator.mask.get))
       case (f, (_, prop:Expected[D, _]@unchecked)) if prop._pathValidator.mask.nonEmpty =>
-        d:D => d.+\(prop._path -> ForceWrapper.data(prop._pathValidator.mask.get)).asInstanceOf[D]
+        f.compose(ValueSetter(prop._path, prop._pathValidator.mask.get))
       case (f, (_, prop:Default[D, _]@unchecked)) if prop._pathValidator.mask.nonEmpty =>
-        d:D => d.+\(prop._path -> ForceWrapper.data(prop._pathValidator.mask.get)).asInstanceOf[D]
+        f.compose(ValueSetter(prop._path, prop._pathValidator.mask.get))
       case (f, (_, prop:Maybe[D, _]@unchecked)) if prop._pathValidator.isInternal =>
-        prop.$drop.compose(f)
+        f.compose(ValueDrop(prop._path))
       case (f, (_, prop:BaseContract[D]@unchecked)) =>
-        prop.$sanitize.compose(f)
+        CompositeSetter(f, prop.$sanitize)
       case (f, _) =>
         f
     }

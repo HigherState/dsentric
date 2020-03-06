@@ -42,9 +42,33 @@ object PathLensOps {
       case PathKey(head, tail@PathKey(_, _)) =>
         map
           .get(head)
-          .collect{case m:Map[String, Any]@unchecked => m}
-          .flatMap(setIfEmpty(_, tail, value))
-          .map(t => map + (head -> t))
+          .collect{case m:Map[String, Any]@unchecked => m} match {
+            case None =>
+              Some(map + (head -> set(Map.empty, tail, value)))
+            case Some(m) =>
+              setIfEmpty(m, tail, value)
+                .map(t => map + (head -> t))
+          }
+      case _ =>
+        None
+    }
+
+  private[dsentric] def setIfNonEmpty(map:Map[String, Any], path:Path, value:Any):Option[Map[String, Any]] =
+    path match {
+      case PathKey(head, PathEnd) =>
+        if (!map.contains(head)) None
+        else Some(map + (head -> value))
+
+      case PathKey(head, tail@PathKey(_, _)) =>
+        map
+          .get(head)
+          .flatMap {
+            case m: Map[String, Any]@unchecked =>
+              setIfNonEmpty(m, tail, value)
+                .map(t => map + (head -> t))
+            case _ =>
+              None
+          }
       case _ =>
         None
     }

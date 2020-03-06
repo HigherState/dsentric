@@ -93,4 +93,11 @@ class DObjectLikeTests extends FunSuite with Matchers {
     v shouldBe Vector("one" := 1, "two" := "string")
   }
 
+  test("Diff a delta") {
+    val original = DObject("key1" := 1, "key2" := DObject("key3" := 4, "key5" := 5, "key6" := 6), "key7" := 7, "key8" := 8)
+    val delta = DObject("key2" := DObject("key3" := 4, "key5" := DNull, "key6" := 10), "key7" := 7, "key8" := 9)
+
+    original.diff(delta) shouldBe DObject("key2" := DObject("key5" := DNull, "key6" := 10),  "key8" := 9)
+  }
+
 }
