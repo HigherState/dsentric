@@ -162,6 +162,13 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
   def intersects(obj:DObject):Boolean =
     DObjectOps.intersects(value, obj.value, false)
 
+  def keyProduct[A](target:DObject)(f:(String, Option[Data], Option[Data]) => A):Iterable[A] = {
+    val k = keys ++ target.keys
+    k.map{key =>
+      f(key, get(key), target.get(key))
+    }
+  }
+
   /*
   Value on the left hand side is the selection by the projection, the value on the right has the values exluded
    */
