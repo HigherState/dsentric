@@ -4,7 +4,7 @@ import dsentric.{DObject, Path, Query}
 
 import scala.util.matching.Regex
 
-sealed trait Tree {
+sealed trait Tree extends Product with Serializable {
 
   def isMatch(j:DObject, valueNotFoundAsNull:Boolean = false):Boolean =
     Query.apply(j.value, this, valueNotFoundAsNull)

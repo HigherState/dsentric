@@ -12,6 +12,9 @@ sealed trait PathSetter[D <: DObject] extends Function[D, D] {
 
   def set:DObject => DObject
 
+  def toDelta:DObject =
+    set(DObject.empty)
+
   def compose(p:PathSetter[D]):PathSetter[D] =
     CompositeSetter(p, this)
 }
