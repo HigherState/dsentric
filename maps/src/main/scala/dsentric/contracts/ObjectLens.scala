@@ -30,6 +30,10 @@ private[dsentric] sealed trait ObjectLens[D <: DObject] extends PropertyLens[D, 
     failures ++ ObjectLens.propertyVerifier(_fields, obj)
   }
 
+  final def $add(d:(String, Data)):ValidPathSetter[D] = ???
+
+  final def $addMany(d:Iterable[(String, Data)]):ValidPathSetter[D] = ???
+
   private def verifyResult(objectBeingSet:DObject): D => List[StructuralFailure] = (obj:D) =>
     ObjectLens.propertyVerifier(_fields, obj) ++
     $additionalProperties.verify(_root, _path, objectBeingSet.value -- _fields.keySet)
