@@ -253,9 +253,23 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     Masking.$sanitize(obj2) shouldBe DObject("value2" := 3)
   }
 
+  object WithSet extends Contract {
+
+    implicit def d:DCodec[Set[String]] = ???
+    val set = \?[Set[String]](Validators.nonEmpty[String])
+    val list = \?[List[String]](Validators.nonEmpty[String])
+    val map = \?[Map[String, Int]](Validators.maxLength[String](5))
+    val string = \?[String](Validators.nonEmpty)
+  }
+
+
+
+
+
   object DMap extends Contract {
     val map = \?[Map[String, DObject]]
   }
+
 
   test("Validate a map of DObjects") {
     val map = Map("one" -> DObject("one" := 1))

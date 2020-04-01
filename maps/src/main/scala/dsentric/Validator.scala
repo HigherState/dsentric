@@ -273,8 +273,8 @@ trait Validators extends ValidatorOps{
     }
   }
 
-  def minLength(x: Int) = new Validator[Optionable[Length]] {
-    def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
+  def minLength[T](x: Int) = new Validator[Optionable[Length[T]]] {
+    def apply[S >: Optionable[Length[T]]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value.flatMap(getLength)
         .filter(_ < x)
         .map(v => path -> s"Value must have a length of at least $x.")
@@ -289,8 +289,8 @@ trait Validators extends ValidatorOps{
 
   }
 
-  def maxLength(x: Int) = new Validator[Optionable[Length]] {
-    def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
+  def maxLength[T](x: Int) = new Validator[Optionable[Length[T]]] {
+    def apply[S >: Optionable[Length[T]]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value.flatMap(getLength)
         .filter(_ > x)
         .map(v => path -> s"Value must have a length of at most $x.")
@@ -366,8 +366,8 @@ trait Validators extends ValidatorOps{
   }
 
   // TODO: Rewrite as regex?
-  val nonEmpty =
-    new Validator[Optionable[Length]] {
+  def nonEmpty[T]: Validator[Optionable[Length[T]]] =
+    new Validator[Optionable[Length[T]]] {
 
       val message = "Value must not be empty."
       override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
@@ -376,7 +376,7 @@ trait Validators extends ValidatorOps{
         case m:MultipleTypeDefinition => m.remap(definition)
       }
 
-      def apply[S >: Optionable[Length]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
+      def apply[S >: Optionable[Length[T]]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
         value
           .flatMap(getLength)
           .filter(_ == 0)
@@ -534,7 +534,7 @@ trait Validators extends ValidatorOps{
 
 trait ValidatorOps {
 
-  protected def getLength[S >: Optionable[Length]](x:S) =
+  protected def getLength[T, S >: Optionable[Length[T]]](x:S) =
     x match {
       case s:Seq[Any] @unchecked =>
         Some(s.size)
