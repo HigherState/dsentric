@@ -1,5 +1,7 @@
 package dsentric
 
+
+//TODO remove DObject referencing methods
 trait RawObjectOps {
 
   def concat(x :DObject, y:DObject):DObject =
