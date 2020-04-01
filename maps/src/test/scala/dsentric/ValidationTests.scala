@@ -46,6 +46,9 @@ class ValidationTests extends FunSuite with Matchers {
     Validators.in("one", "two", "three").apply(Path.empty, Some(Some("two")), None) should be (Vector.empty)
     Validators.in("one", "two", "three").apply(Path.empty, Some("four"), None) should not be Vector.empty
 
+    Validators.in("one", "two", "three").apply(Path.empty, Some(Set("one", "three")), None) shouldBe Vector.empty
+    Validators.in("one", "two", "three").apply(Path.empty, Some(Set("two", "four")), None) should not be Vector.empty
+
     Validators.nin(1,2,3).apply(Path.empty, Some(4), None) should be (Vector.empty)
     Validators.nin(1,2,3).apply(Path.empty, Some(2), None) should not be Vector.empty
   }

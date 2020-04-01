@@ -304,7 +304,7 @@ trait Validators extends ValidatorOps{
     }
   }
 
-  def in[T](values:T*)(implicit codec:DCodec[T]) = new Validator[Optionable[T]] {
+  def in[T](values:T*)(implicit codec:DCodec[T]) = new Validator[Collectable[T]] {
 
     override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
       case n:StringDefinition =>
@@ -317,45 +317,49 @@ trait Validators extends ValidatorOps{
         m.remap(definition)
     }
 
-    def apply[S >: Optionable[T]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
+    def apply[S >: Collectable[T]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value
-        .flatMap(getT[T, S])
+        .toIterable
+        .flatMap(getI[T, S])
         .filterNot(values.contains)
         .map(v => path -> s"'$v' is not an allowed value.")
         .toVector
   }
 
-  def nin[T](values:T*)(implicit codec:DCodec[T]) = new Validator[Optionable[T]] {
+  def nin[T](values:T*)(implicit codec:DCodec[T]) = new Validator[Collectable[T]] {
 
-    def apply[S >: Optionable[T]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
+    def apply[S >: Collectable[T]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value
-        .flatMap(getT[T, S])
+        .toIterable
+        .flatMap(getI[T, S])
         .filter(values.contains)
         .map(v => path -> s"'$v' is not an allowed value.")
         .toVector
   }
 
   //maybe change to generic equality
-  def inCaseInsensitive(values:String*) = new Validator[Optionable[String]] {
+  def inCaseInsensitive(values:String*) = new Validator[Collectable[String]] {
 
     override def definition: PartialFunction[TypeDefinition, TypeDefinition] = {
       case n:StringDefinition => n.copy(values.toList)
       case m:MultipleTypeDefinition => m.remap(definition)
     }
 
-    def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
+    def apply[S >: Collectable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value
-        .flatMap(getString)
+        .toIterable
+        .flatMap(getStringI)
         .filterNot(v => values.exists(_.equalsIgnoreCase(v.toString)))
         .map(v => path -> s"'$v' is not an allowed value.")
         .toVector
   }
 
-  def ninCaseInsensitive(values:String*) = new Validator[Optionable[String]] {
+  def ninCaseInsensitive(values:String*) = new Validator[Collectable[String]] {
 
-    def apply[S >: Optionable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
+    def apply[S >: Collectable[String]](path:Path, value: Option[S], currentState: => Option[S]): Failures =
       value
-        .flatMap(getString)
+        .toIterable
+        .flatMap(getStringI)
         .filter(v => values.exists(_.equalsIgnoreCase(v.toString)))
         .map(v => path -> s"'$v' is not an allowed value.")
         .toVector
@@ -555,9 +559,26 @@ trait ValidatorOps {
       case _ =>  None
     }
 
+  protected def getStringI[S >: Collectable[String]](x:S):Iterable[String] =
+    x match {
+      case s:String => Some(s)
+      case s:Iterable[String@unchecked] => s
+      case Some(s:String) => Some(s)
+      case _ =>  None
+    }
+
   protected def getT[T, S >: Optionable[T]](t:S):Option[T] =
     t match {
       case Some(s: T@unchecked) => Some(s)
+      case None => None
+      case s: T@unchecked => Some(s)
+    }
+
+  protected def getI[T, S >: Collectable[T]](t:S):Iterable[T] =
+    t match {
+      case s:String => Some(s.asInstanceOf[T])
+      case s:Iterable[T@unchecked] => s
+      case Some(s:T@unchecked) => Some(s)
       case None => None
       case s: T@unchecked => Some(s)
     }

@@ -253,4 +253,22 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
     Masking.$sanitize(obj2) shouldBe DObject("value2" := 3)
   }
 
+  object DMap extends Contract {
+    val map = \?[Map[String, DObject]]
+  }
+
+  test("Validate a map of DObjects") {
+    val map = Map("one" -> DObject("one" := 1))
+    val obj = DMap.$create(_.map.$set(map))
+    DMap.$validate(obj).isRight shouldBe true
+
+    DMap.$validate(DObject("map" -> DObject("two" -> DObject("one" := 1))), obj).isRight shouldBe true
+
+    DMap.$validate(DObject("map" -> DObject("one" := DNull)), obj).isRight shouldBe true
+
+    DMap.$validate(DObject("map" -> DNull), obj).isRight shouldBe true
+
+    DMap.$validate(DObject("map" -> DObject("one" := 123)), obj).isRight shouldBe false
+  }
+
 }
