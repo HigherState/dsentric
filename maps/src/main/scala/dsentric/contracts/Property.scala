@@ -7,7 +7,7 @@ import dsentric.operators.DataOperator
 sealed trait Property[D <: DObject, T <: Any] extends PropertyLens[D, T] {
 
   private var __path: Path = _
-  private var __localPath: Path = _
+  private var __key: String = _
   @volatile
   private var _bitmap1:Boolean = false
 
@@ -21,6 +21,12 @@ sealed trait Property[D <: DObject, T <: Any] extends PropertyLens[D, T] {
   def _codec: DCodec[T]
   def _parent: BaseContract[D]
   def _root: ContractFor[D] = _parent._root
+  def _key:String =
+    if (_bitmap1) __key
+    else {
+      sync()
+      __key
+    }
   def _path:Path =
     if (_bitmap1) __path
     else {
@@ -28,28 +34,19 @@ sealed trait Property[D <: DObject, T <: Any] extends PropertyLens[D, T] {
       __path
     }
 
-
-  def _localPath:Path =
-    if (_bitmap1) __localPath
-    else {
-      sync()
-      __localPath
-    }
-
-
   def $:DProjection =
     new DProjection(PathLensOps.pathToMap(_path, 1))
 
 
   private def sync(): Unit =
     this.synchronized{
-      __localPath =
-        Path(__nameOverride.getOrElse {
+      __key =
+        __nameOverride.getOrElse {
           _parent._fields.find(p => p._2 == this).getOrElse{
             throw UninitializedFieldError(s"Unable to initialize property field from fields: ${_parent._fields.keys.mkString(",")}")
           }._1
-        })
-      __path = _parent._path ++ __localPath
+        }
+      __path = _parent._path ++ Path(__key)
       _bitmap1 = true
     }
 }
