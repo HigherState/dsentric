@@ -177,6 +177,28 @@ trait DefaultCodecs {
         TypeDefinition.anyDefinition
     }
 
+  implicit def setCodec[V](implicit D: DCodec[V]): DCodec[Set[V]] =
+    new DCodec[Set[V]] {
+      def apply(t: Set[V]): Data =
+        new DObjectInst(t.map(D(_).value.toString -> 1).toMap)
+
+      def unapply(a: Any): Option[Set[V]] =
+        a match {
+          case m: Map[String, Any] @unchecked =>
+            m.foldLeft(Option(Set.empty[V])) {
+              case (Some(a), (key, 1 | DNull)) => //Hack Support for delta
+                D.unapply(key).map(a + _)
+              case _ =>
+                None
+            }
+          case _ =>
+            None
+        }
+
+      def typeDefinition: TypeDefinition =
+        ObjectDefinition(additionalProperties = Right(IntegerDefinition(List(1))))
+    }
+
   def dObjectLikeCodec[T <: DObjectLike[T] with DObject](wrap:Map[String, Any] => T):DCodec[T] =
     new DCodec[T] {
       def apply(t: T):T = t

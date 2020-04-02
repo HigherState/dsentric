@@ -254,12 +254,20 @@ class ContractValidationTests extends FunSuite with Matchers with FailureMatcher
   }
 
   object WithSet extends Contract {
-
-    implicit def d:DCodec[Set[String]] = ???
-    val set = \?[Set[String]](Validators.nonEmpty[String])
+    val set = \?[Set[String]](Validators.minLength[String](2))
     val list = \?[List[String]](Validators.nonEmpty[String])
     val map = \?[Map[String, Int]](Validators.maxLength[String](5))
     val string = \?[String](Validators.nonEmpty)
+  }
+
+  test("validate a set") {
+    val withSet = WithSet.$create(_.set.$set(Set("a", "b", "c")))
+    val delta1 = DObject("set" := Map("b" := DNull, "d" := 1))
+    val delta2 = DObject("set" := Map("b" := DNull, "c" := DNull))
+    WithSet.$validate(withSet) shouldBe Right(DObject("set" := Map("a" := 1, "b" := 1, "c" := 1)))
+    WithSet.$validate(delta1, withSet) shouldBe Right(delta1)
+    withSet.applyDelta(delta1) shouldBe DObject("set" := Map("a" := 1, "c" := 1, "d" := 1))
+    WithSet.$validate(delta2, withSet) shouldBe Right(delta2)
   }
 
 

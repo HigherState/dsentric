@@ -312,16 +312,16 @@ final class DProjection private[dsentric](val value:Map[String, Any]) extends An
 
 class DArray(val value:Vector[Any]) extends AnyVal with Data {
 
-  def toObjects:Vector[DObject] =
-    value.collect {
+  def toObjects:Iterator[DObject] =
+    value.toIterator.collect {
       case m:Map[String, Any]@unchecked =>
         new DObjectInst(m)
     }
 
-  def toValues[T](implicit D:DCodec[T]):Vector[T] =
-    value.flatMap(D.unapply)
+  def toValues[T](implicit D:DCodec[T]):Iterator[T] =
+    value.toIterator.flatMap(D.unapply)
 
-  def toDataValues:Vector[Data] =
+  def toDataValues:Iterator[Data] =
     toValues(DefaultCodecs.dataCodec)
 
   override def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):DArray =

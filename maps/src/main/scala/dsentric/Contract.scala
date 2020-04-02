@@ -337,22 +337,37 @@ trait ContractFor[D <: DObject] extends BaseContract[D] { self =>
         Right(value)
     }
 
-  def $validate(value:DObject, currentState:D):NonEmptyList[(Path, String)] Either DObject =
-    _validateFields(Path.empty, value.value, Some(currentState.value)) match {
+  def $validate(delta:DObject, currentState:D):NonEmptyList[(Path, String)] Either DObject =
+    _validateFields(Path.empty, delta.value, Some(currentState.value)) match {
       case head +: tail =>
         Left(NonEmptyList(head, tail.toList))
       case _ =>
-        Right(value)
+        Right(delta)
     }
 
-  def $validate(value:D, maybeState:Option[D]):NonEmptyList[(Path, String)] Either D =
-    _validateFields(Path.empty, value.value, maybeState.map(_.value)) match {
+  def $validate(valueOrDelta:D, maybeState:Option[D]):NonEmptyList[(Path, String)] Either D =
+    _validateFields(Path.empty, valueOrDelta.value, maybeState.map(_.value)) match {
       case head +: tail =>
         Left(NonEmptyList(head, tail.toList))
       case _ =>
-        Right(value)
+        Right(valueOrDelta)
     }
 
+  def $validateAndReduce(value:D):NonEmptyList[(Path, String)] Either Option[D] =
+    _validateFields(Path.empty, value.value, None) match {
+      case head +: tail =>
+        Left(NonEmptyList(head, tail.toList))
+      case _ =>
+        Right(value.reduce.asInstanceOf[Option[D]]) //Needs tidying
+    }
+
+  def $validateAndReduce(delta:DObject, currentState:D):NonEmptyList[(Path, String)] Either Option[DObject] =
+    _validateFields(Path.empty, delta.value, Some(currentState.value)) match {
+      case head +: tail =>
+        Left(NonEmptyList(head, tail.toList))
+      case _ =>
+        Right(DObjectOps.rightDifferenceMap(currentState.value -> delta.value).map(new DObjectInst(_)))
+    }
 }
 
 trait SubContract extends SubContractFor[DObject]
