@@ -174,7 +174,7 @@ trait Validators extends ValidatorOps {
         case m:MultipleTypeDefinition => m.remap(definition).asInstanceOf[D]
       }
     }
-
+  //TODO Doesnt handle delta removal or addition
   def minLength(x: Int): ValueValidator[Optionable[Length]] =
     new ValueValidator[Optionable[Length]] {
       def apply[S >: Optionable[Length], D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures = {
