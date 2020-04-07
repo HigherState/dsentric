@@ -4,7 +4,10 @@ import dsentric.Dsentric._
 import dsentric.PessimisticCodecs._
 import dsentric._
 import dsentric.queryTree._
+import org.scalactic.Equality
 import org.scalatest.{FunSuite, Matchers}
+
+import scala.util.matching.Regex
 
 /**
   * Created by jamie.pullar on 05/07/2016.
@@ -52,6 +55,36 @@ class QueryTreeTests extends FunSuite with Matchers {
     query.partition(Set(Path("a"))) should be (None -> Some(!!(In(Path.empty,Map("a" -> true, "b" -> 3)))))
     query.partition(Set(Path("b"))) should be (None -> Some(!!(In(Path.empty,Map("a" -> true, "b" -> 3)))))
     query.partition(Set(Path("a"), Path("b"))) should be (Some(!!(In(Path.empty,Map("a" -> true, "b" -> 3)))) -> None)
+  }
+
+  test("field regex queryTree") {
+    implicit val regexEquality: Equality[Regex] = (a: Regex, b: Any) =>
+      b match {
+        case b: String => a.pattern.toString == b
+        case b: Regex  => a.pattern.toString == b.pattern.toString
+      }
+
+    implicit def regexFieldEquality(implicit regexEq: Equality[Regex], treeEq: Equality[Tree]): Equality[Tree] =
+      (a: Tree, b: Any) =>
+        (a, b) match {
+          case ($(regexA, treeA), $(regexB, treeB)) => regexEq.areEqual(regexA, regexB) && treeEq.areEqual(treeA, treeB)
+          case (a, b)              => treeEq.areEqual(a, b)
+        }
+
+    val subQuery = Map("$or" -> Vector(Map("a" -> 1, "b" -> false), Map("b" -> Map("$ne" -> false))))
+    val query    = ForceWrapper.dQuery(Map("$/^test$/" -> subQuery))
+    QueryTree(query) shouldEqual $("^test$".r, |(List(In(Path.empty,Map("a" -> 1, "b" -> false)), ?(Path("b"),"$ne",false))))
+  }
+
+  test("field regex partition") {
+    val subQuery =
+      Map("$or" -> Vector(Map("a" -> 1, "b" -> 4), Map("b" -> 2, "c" -> 3), Map("b" -> 4), Map("b" -> 0, "d" -> 5)))
+    val query = QueryTree(ForceWrapper.dQuery(Map("$/^test$/" -> subQuery)))
+
+    query.partition(Set(Path("a"))) shouldBe QueryTree(ForceWrapper.dQuery(subQuery)).partition(Set(Path("a")))
+    query.partition(Set(Path("b"))) shouldBe QueryTree(ForceWrapper.dQuery(subQuery)).partition(Set(Path("b")))
+    query.partition(Set(Path("c"))) shouldBe QueryTree(ForceWrapper.dQuery(subQuery)).partition(Set(Path("c")))
+    query.partition(Set(Path("d"))) shouldBe QueryTree(ForceWrapper.dQuery(subQuery)).partition(Set(Path("d")))
   }
 
 }

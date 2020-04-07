@@ -7,18 +7,19 @@ import dsentric._
 Experimental feature for converting from mongo db style query to a PostGres jsonb query
 Uses the jdbc ?? escape for ?
  */
-case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
+case class QueryJsonb(escapeString: String => String)(implicit R: Renderer) {
 
   type JbValid = NonEmptyList[(String, Path)] Either String
 
-  def apply(field:String, query:DQuery): JbValid =
+  def apply(field: String, query: DQuery): JbValid =
     treeToPostgres(field)(QueryTree(query) -> false).map(_.mkString)
 
-  def apply(field:String, query:Tree): JbValid =
+  def apply(field: String, query: Tree): JbValid =
     treeToPostgres(field)(query -> false).map(_.mkString)
 
-
-  private def treeToPostgres(field:String):Function[(Tree, Boolean), NonEmptyList[(String, Path)] Either Vector[String]] = {
+  private def treeToPostgres(
+    field: String
+  ): Function[(Tree, Boolean), NonEmptyList[(String, Path)] Either Vector[String]] = {
     case (&(Seq(value)), g) =>
       treeToPostgres(field)(value -> false).map(_ ++ (if (g) Some(")") else None))
     case (|(Seq(value)), g) =>
@@ -35,22 +36,31 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
       }
     case (!!(tree), g) =>
       treeToPostgres(field)(tree -> false).map(v => "NOT (" +: v :+ ")")
+    case ($(regex, tree), _) =>
+      treeToPostgres(field)(tree -> false).map { subQuery =>
+        val innerSubQuery = subQuery.map {
+          case s if s.contains(field) => s.replace(field, "value") // need to change field to value as it's the JSON under `key` from jsonb_each
+          case s       => s
+        }
+
+        "EXISTS ( SELECT key, value FROM jsonb_each(" +: field +: ") WHERE key ~ '" +: escape(regex.toString) +: "' AND ( " +: innerSubQuery :+ " ) )"
+      }
     //TODO empty Path
     case (/(path, regex), _) =>
       Right("(" +: field +: " #>> '" +: toPath(path) +: "') ~ '" +: escape(regex.toString) +: Vector("'"))
     case (%(path, like, _), _) =>
       Right("(" +: field +: " #>> '" +: toPath(path) +: "') ILIKE '" +: like +: Vector("'"))
     case (In(path, map), _) =>
-      Right(field +: " @> '" +: toObject(path, map, R)  :+ "'::jsonb")
+      Right(field +: " @> '" +: toObject(path, map, R) :+ "'::jsonb")
     case (?(path, "$eq", value), _) =>
-      Right(field +: " @> '" +: toObject(path, value, R)  :+ "'::jsonb")
+      Right(field +: " @> '" +: toObject(path, value, R) :+ "'::jsonb")
     case (?(path, "$ne", value), _) =>
-      Right("NOT " +: field +: " @> '" +: toObject(path, value, R)  :+ "'::jsonb")
-    case (?(path, "$in", value:Vector[Any]@unchecked), _) =>
+      Right("NOT " +: field +: " @> '" +: toObject(path, value, R) :+ "'::jsonb")
+    case (?(path, "$in", value: Vector[Any] @unchecked), _) =>
       Right(Vector(field, " #> '", toPath(path), "' <@ '", escape(R.print(value)), "'::jsonb"))
-    case (?(path, "$nin", value:Vector[Any]@unchecked), _) =>
+    case (?(path, "$nin", value: Vector[Any] @unchecked), _) =>
       Right(Vector("NOT ", field, " #> '", toPath(path), "' <@ '", escape(R.print(value)), "'::jsonb"))
-    case (?(path, o@("$nin" | "$in"), _), _) =>
+    case (?(path, o @ ("$nin" | "$in"), _), _) =>
       Left(NonEmptyList(s"Operation $o expected an array" -> path, Nil))
     case (?(path, "$exists", true), _) =>
       Right(field +: toSearch(path))
@@ -64,28 +74,27 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
       //TODO: use applicative builder..
       for {
         v <- serialize(value -> path)
-        c <- getCast(value -> path)
-        t <- getType(value -> path)
-      } yield Vector(
-        "(",
-        s"jsonb_typeof($field #> '$p') = '$t'",
-        " AND ",
-        s"($field #>> '$p') :: $c $op $v",
-        s")")
+        c <- getCast(value   -> path)
+        t <- getType(value   -> path)
+      } yield Vector("(", s"jsonb_typeof($field #> '$p') = '$t'", " AND ", s"($field #>> '$p') :: $c $op $v", s")")
 
     case (Exists(path, ?(Path.empty, "$eq", value)), _) =>
       Right(field +: toElement(path) +: " @> '" +: R.print(value) +: Vector("'"))
     case (Exists(path, /(Path.empty, regex)), _) =>
-      Right("EXISTS (SELECT * FROM jsonb_array_elements_text(" +: field +: toElement(path) +: ") many(elem) WHERE elem ~ '" +: escape(regex.toString) +: Vector("')"))
+      Right(
+        "EXISTS (SELECT * FROM jsonb_array_elements_text(" +: field +: toElement(path) +: ") many(elem) WHERE elem ~ '" +: escape(
+          regex.toString
+        ) +: Vector("')")
+      )
     case (Exists(path, ?(subPath, "$eq", value)), _) =>
-      Right(field +: toElement(path) +: " @> " +: "'["  +: toObject(subPath, value, R) :+ "]'")
+      Right(field +: toElement(path) +: " @> " +: "'[" +: toObject(subPath, value, R) :+ "]'")
     case (Exists(path, _), _) =>
       Left(NonEmptyList("Currently only equality is supported in element match." -> path, Nil))
     case (?(path, op, _), _) =>
       Left(NonEmptyList(s"Unable to parse query operation $op." -> path, Nil))
   }
 
-  private def toObject(path:Path, value:Any, R:Renderer):Vector[String] =
+  private def toObject(path: Path, value: Any, R: Renderer): Vector[String] =
     path match {
       case PathKey(key, tail) =>
         "{\"" +: escape(key) +: "\":" +: toObject(tail, value, R) :+ "}"
@@ -95,24 +104,24 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
         Vector(escape(R.print(value)))
     }
 
-  private def serialize:Function[(Any, Path), JbValid] = {
-    case (s:String, _) => Right(escape(s))
-    case (true, _) => Right("true")
-    case (false, _) => Right("false")
-    case (l:Long, _) => Right(l.toString)
-    case (d:Double, _) => Right(d.toString)
-    case (DNull, _) => Right("null")
+  private def serialize: Function[(Any, Path), JbValid] = {
+    case (s: String, _) => Right(escape(s))
+    case (true, _)      => Right("true")
+    case (false, _)     => Right("false")
+    case (l: Long, _)   => Right(l.toString)
+    case (d: Double, _) => Right(d.toString)
+    case (DNull, _)     => Right("null")
     case (_, path) =>
       Left(NonEmptyList("Unsupported type" -> path, Nil))
   }
 
-  private def escape(s:Either[Int, String]):String =
+  private def escape(s: Either[Int, String]): String =
     escape(s.merge.toString)
-  private def escape(s:String):String =
+  private def escape(s: String): String =
     escapeString(s)
-  private def toPath(path:Path) =
+  private def toPath(path: Path) =
     path.toList.map(escape).mkString("{", ",", "}")
-  private def toSearch:Function[Path, Vector[String]] = {
+  private def toSearch: Function[Path, Vector[String]] = {
     case PathKey(key, PathEnd) =>
       Vector(" ?? '", escape(key), "'")
     case PathKey(key, tail) =>
@@ -125,27 +134,27 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
       Vector.empty
   }
 
-  private def toElement(path:Path):String =
+  private def toElement(path: Path): String =
     path.toList.map(escape).map(s => s" -> '$s'").mkString("")
 
-  private def getType:Function[(Any, Path), JbValid] = {
-    case (_:Long,_) => Right("number")
-    case (_:Double,_) => Right("number")
-    case (_:String,_) => Right("string")
-    case (_:Boolean,_) => Right("boolean")
-    case (_:Map[String, Any]@unchecked,_) => Right("object")
-    case (_:Vector[Any]@unchecked,_) => Right("array")
-    case (DNull,_) => Right("null")
+  private def getType: Function[(Any, Path), JbValid] = {
+    case (_: Long, _)                        => Right("number")
+    case (_: Double, _)                      => Right("number")
+    case (_: String, _)                      => Right("string")
+    case (_: Boolean, _)                     => Right("boolean")
+    case (_: Map[String, Any] @unchecked, _) => Right("object")
+    case (_: Vector[Any] @unchecked, _)      => Right("array")
+    case (DNull, _)                          => Right("null")
     case (_, path) =>
       Left(NonEmptyList("Unsupported type" -> path, Nil))
   }
 
-  private def getCast:Function[(Any, Path), JbValid] = {
-    case (_:Number,_) =>
+  private def getCast: Function[(Any, Path), JbValid] = {
+    case (_: Number, _) =>
       Right("NUMERIC")
-    case (_:String,_) =>
+    case (_: String, _) =>
       Right("TEXT")
-    case (_:Boolean,_) =>
+    case (_: Boolean, _) =>
       Right("BOOLEAN")
     case (_, path) =>
       Left(NonEmptyList("Unsupported type" -> path, Nil))
@@ -154,26 +163,26 @@ case class QueryJsonb(escapeString:String => String)(implicit R:Renderer) {
   object Op {
     def unapply(op: String): Option[String] =
       op match {
-        case "$lt" => Some("<")
+        case "$lt"  => Some("<")
         case "$lte" => Some("<=")
-        case "$gt" => Some(">")
+        case "$gt"  => Some(">")
         case "$gte" => Some(">=")
-        case _ => None
+        case _      => None
       }
   }
 
-  private def builder[T](left:NonEmptyList[(String, Path)] Either Vector[String],
-                         right:NonEmptyList[(String, Path)] Either Vector[String])
-                        (f:(Vector[String], Vector[String]) => T):NonEmptyList[(String, Path)] Either T = {
+  private def builder[T](
+    left: NonEmptyList[(String, Path)] Either Vector[String],
+    right: NonEmptyList[(String, Path)] Either Vector[String]
+  )(f: (Vector[String], Vector[String]) => T): NonEmptyList[(String, Path)] Either T =
     (left, right) match {
       case (Right(l), Right(r)) =>
-        Right(f(l,r))
-      case (Left(NonEmptyList(h,t)), Left(NonEmptyList(h2, t2))) =>
+        Right(f(l, r))
+      case (Left(NonEmptyList(h, t)), Left(NonEmptyList(h2, t2))) =>
         Left(NonEmptyList(h, t ++ (h2 :: t2)))
       case (_, Left(r)) =>
         Left(r)
       case (Left(l), _) =>
         Left(l)
     }
-  }
 }

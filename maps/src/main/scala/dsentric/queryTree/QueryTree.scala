@@ -3,6 +3,8 @@ package dsentric.queryTree
 import dsentric._
 import Dsentric._
 
+import scala.util.matching.Regex
+
 object QueryTree {
 
   def apply(query:DQuery):Tree = {
@@ -34,6 +36,7 @@ object QueryTree {
 
 
   private def treeNodes(query:Map[String, Any], path:Path):Seq[Tree] = {
+    val fieldRegex = """^\$\/(.*)\/$""".r
     query.flatMap{
       case ("$and", values:Vector[Any]@unchecked) =>
         Some(&(values.collect { case m:Map[String,Any]@unchecked => buildTree(m, path)}.toList))
@@ -54,6 +57,8 @@ object QueryTree {
         Some(%(path, s, ("(?i)" + s.replace("%", ".*")).r))
       case ("$options", _) =>
         None
+      case (fieldRegex(regex), value: Map[String, Any]@unchecked) =>
+        Some($(new Regex(regex), buildTree(value, path)))
       case (key, value:Map[String,Any]@unchecked) =>
         val p:Path = path \ key
         Some(buildTree(value, p))
@@ -63,7 +68,19 @@ object QueryTree {
   }
 
 
-
+  /**
+   * Partitions the tree based on whether the query can be executed on the database using the indexes.
+   * The left-hand side contains the tree that can be executed on the database indexes and the right-hand side
+   * contains the tree that will be executed after the first results are in.
+   *
+   * @note There can be paths that will be included in both parts. That is used for the application of partial queries
+   *       on existing indexes.
+   *
+   * @param tree The original tree
+   * @param paths The paths (ie indexes) by which to partition
+   * @return A tuple of optional trees, the left being the queryTree to be executed against the queries and the right
+   *         being the queryTree to be executed subsequently on the results.
+   */
   def partition(tree:Tree, paths:Set[Path]):(Option[Tree], Option[Tree]) = {
     tree match {
       case |(trees) =>
@@ -93,6 +110,9 @@ object QueryTree {
           case s => Some(&(s))
         }
         lv -> rv
+
+      case $(_, tree) =>
+        partition(tree, paths)
 
       case In(path, values) =>
         val (l,r) = values.partition{
@@ -124,6 +144,11 @@ object QueryTree {
     }
   }
 
+  /**
+   * Applies De Morgan's laws to the partition in case there is a negation operator.
+   *
+   * @see [[partition]]
+   */
   private def negPartition(tree:Tree, paths:Set[Path]):(Option[Tree], Option[Tree]) = {
     tree match {
       case |(trees) =>
@@ -149,6 +174,10 @@ object QueryTree {
           else
             lm -> Some(tree)
         }
+
+      case $(_, tree) =>
+        negPartition(tree, paths)
+
       case t@In(path, values) =>
         if (values.forall(kv => paths.exists((path \ kv._1).hasSubPath)))
           Some(t) -> None
