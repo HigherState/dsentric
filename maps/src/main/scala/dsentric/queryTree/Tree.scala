@@ -113,14 +113,14 @@ final case class $(regex: Regex, tree: Tree) extends TreeLogical {
   override def children: Seq[Tree] = List(tree)
 }
 
-/**
- * Further reductions to add
- * |(A, &(A, B))       => A
- * &(A, |(A, B))       => A
- * &(A, |(!!A, B))     => &(A, B)
- * |(&(A, B), &(A, C)) => &(A, |(B, C))
- * &(|(A, B), |(A, C)) => \(A, &(B, C))
- */
+//
+// Further reductions to add
+// |(A, &(A, B))       => A
+// &(A, |(A, B))       => A
+// &(A, |(!!A, B))     => &(A, B)
+// |(&(A, B), &(A, C)) => &(A, |(B, C))
+// &(|(A, B), |(A, C)) => \(A, &(B, C))
+//
 object | {
   def apply(tree1:Tree, tree2:Tree, trees:Tree*): | =
     |(flatten(tree1 +: tree2 +: trees).distinct)
