@@ -111,8 +111,9 @@ object QueryTree {
         }
         lv -> rv
 
+      //Cannot be partitioned
       case $(_, tree) =>
-        partition(tree, paths)
+        None -> Option(tree)
 
       case In(path, values) =>
         val (l,r) = values.partition{
@@ -175,8 +176,9 @@ object QueryTree {
             lm -> Some(tree)
         }
 
+      //Cannot be partitioned
       case $(_, tree) =>
-        negPartition(tree, paths)
+        None -> Option(tree)
 
       case t@In(path, values) =>
         if (values.forall(kv => paths.exists((path \ kv._1).hasSubPath)))
