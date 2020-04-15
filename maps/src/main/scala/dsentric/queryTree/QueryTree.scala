@@ -57,8 +57,11 @@ object QueryTree {
         Some(%(path, s, ("(?i)" + s.replace("%", ".*")).r))
       case ("$options", _) =>
         None
+//      To review the pathing isnt going to work.
       case (fieldRegex(regex), value: Map[String, Any]@unchecked) =>
         Some($(new Regex(regex), buildTree(value, path)))
+      case (fieldRegex(regex), value: Any@unchecked) =>
+        Some($(new Regex(regex), ?(Path.empty, "$eq", value)))
       case (key, value:Map[String,Any]@unchecked) =>
         val p:Path = path \ key
         Some(buildTree(value, p))

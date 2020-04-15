@@ -31,6 +31,11 @@ class QueryTreeTests extends FunSuite with Matchers {
     val query = ForceWrapper.dQuery(Map("$or" -> Vector(Map("a" -> 1, "b" -> false), Map("b" -> Map("$ne" -> false)))))
     QueryTree(query) should be (|(List(In(Path.empty,Map("a" -> 1, "b" -> false)), ?(Path("b"),"$ne",false))))
   }
+  test("key path regex") {
+    pending
+//    val query = ForceWrapper.dQuery(Map("$/.*/" -> 4))
+//    QueryTree(query) shouldBe $(".*".r,?(PathEnd,"$eq",4))
+  }
 
   test("simple partition") {
     val query = QueryTree(ForceWrapper.dQuery(Map("value" -> true)))
@@ -57,6 +62,8 @@ class QueryTreeTests extends FunSuite with Matchers {
     query.partition(Set(Path("a"), Path("b"))) should be (Some(!!(In(Path.empty,Map("a" -> true, "b" -> 3)))) -> None)
   }
 
+
+
   test("field regex queryTree") {
     implicit val regexEquality: Equality[Regex] = (a: Regex, b: Any) =>
       b match {
@@ -76,15 +83,15 @@ class QueryTreeTests extends FunSuite with Matchers {
     QueryTree(query) shouldEqual $("^test$".r, |(List(In(Path.empty,Map("a" -> 1, "b" -> false)), ?(Path("b"),"$ne",false))))
   }
 
-  test("field regex partition") {
-    val subQuery =
-      Map("$or" -> Vector(Map("a" -> 1, "b" -> 4), Map("b" -> 2, "c" -> 3), Map("b" -> 4), Map("b" -> 0, "d" -> 5)))
-    val query = QueryTree(ForceWrapper.dQuery(Map("$/^test$/" -> subQuery)))
-
-    query.partition(Set(Path("a"))) shouldBe QueryTree(ForceWrapper.dQuery(subQuery)).partition(Set(Path("a")))
-    query.partition(Set(Path("b"))) shouldBe QueryTree(ForceWrapper.dQuery(subQuery)).partition(Set(Path("b")))
-    query.partition(Set(Path("c"))) shouldBe QueryTree(ForceWrapper.dQuery(subQuery)).partition(Set(Path("c")))
-    query.partition(Set(Path("d"))) shouldBe QueryTree(ForceWrapper.dQuery(subQuery)).partition(Set(Path("d")))
-  }
+//  test("field regex partition") {
+//    val query =
+//      Map("$and" -> Vector(Map("a" -> 1, "b" -> 4), Map("b" -> Map("$/^test$/" -> 2), "c" -> 3), Map("b" -> 4), Map("b" -> 0, "d" -> 5)))
+//    val tree = QueryTree(ForceWrapper.dQuery(query))
+//
+//    tree.partition(Set(Path("a"))) shouldBe "bob" ///Some(In(PathEnd,Map("a" -> 1)) -> Some(&(In(PathEnd,Map("b" -> 4)), &(?(Path("b"),$("^test$".,$eq,2),?(Path("c"),"$eq",3)),?(Path("b"),"$eq",4),In(PathEnd,Map("b" -> 0, "d" -> 5))))))
+//    tree.partition(Set(Path("b"))) shouldBe "bob"
+//    tree.partition(Set(Path("c"))) shouldBe "bob"
+//    tree.partition(Set(Path("d"))) shouldBe "bob"
+//  }
 
 }
