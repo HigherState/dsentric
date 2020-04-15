@@ -140,7 +140,7 @@ object QueryTree {
 
       case !!(t) =>
         val (l, r) = negPartition(t, paths)
-        l.map(!!) -> r.map(!!)
+        l.map(!!.apply) -> r.map(!!.apply)
     }
   }
 
@@ -202,7 +202,7 @@ object QueryTree {
 
       case !!(t) =>
         val (l, r) = partition(t, paths)
-        l.map(!!) -> r.map(!!)
+        l.map(!!.apply) -> r.map(!!.apply)
     }
   }
 }
