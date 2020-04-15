@@ -63,7 +63,15 @@ object QueryTree {
   }
 
 
-
+  /**
+   * Tries to separate out the boolean operators in the query into those purely within the paths (Left Side)
+   * and those not within, or in combination (Right side)
+   *
+   * A purely right handside response means no partitioning was found or was possible.
+   * @param tree
+   * @param paths
+   * @return
+   */
   def partition(tree:Tree, paths:Set[Path]):(Option[Tree], Option[Tree]) = {
     tree match {
       case |(trees) =>
@@ -120,7 +128,7 @@ object QueryTree {
 
       case !!(t) =>
         val (l, r) = negPartition(t, paths)
-        l.map(!!) -> r.map(!!)
+        l.map(!!.apply) -> r.map(!!.apply)
     }
   }
 
@@ -173,7 +181,7 @@ object QueryTree {
 
       case !!(t) =>
         val (l, r) = partition(t, paths)
-        l.map(!!) -> r.map(!!)
+        l.map(!!.apply) -> r.map(!!.apply)
     }
   }
 }
