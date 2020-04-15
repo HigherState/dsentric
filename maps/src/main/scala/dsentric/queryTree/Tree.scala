@@ -109,6 +109,10 @@ object & {
   }
 }
 
+final case class $(regex: Regex, tree: Tree) extends TreeLogical {
+  override def children: Seq[Tree] = List(tree)
+}
+
 /**
  * Further reductions to add
  * |(A, &(A, B))       => A
@@ -139,4 +143,3 @@ object !! {
   def unapply(not: !!):Option[Tree] =
     Some(not.tree)
 }
-
