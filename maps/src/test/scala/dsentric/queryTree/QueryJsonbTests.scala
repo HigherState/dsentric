@@ -61,4 +61,12 @@ class QueryJsonbTests extends AnyFunSuite with Matchers {
     psql shouldBe Right("""(Indexed @> '{"a":1}'::jsonb OR Indexed @> '{"c":1}'::jsonb OR Indexed @> '{"e":1}'::jsonb OR Indexed @> '{"g":1}'::jsonb)""")
   }
 
+  test("regex field query") {
+    val query = DQuery(
+      "$/^test/" -> DObject("$/^level2/" := DObject("element" := DObject("$gte" := 4)))
+    ).getOrElse(???)
+    val psql = queryParser("Indexed", query)
+    psql shouldBe Right("""EXISTS ( SELECT key, value FROM jsonb_each(Indexed) WHERE key ~ '^test' AND ( EXISTS ( SELECT key, value FROM jsonb_each(value) WHERE key ~ '^level2' AND ( (jsonb_typeof(value #> '{element}') = 'number' AND (value #>> '{element}') :: NUMERIC >= 4) ) ) ) )""")
+  }
+
 }

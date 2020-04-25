@@ -135,13 +135,6 @@ trait DObjectOps[+C <: DObjectOps[C] with DObject]
   def get(path: Path):Option[Data] =
     PathLensOps.traverse(value, path).map(ForceWrapper.data)
 
-  def keyProduct[A](target:DObject)(f:(String, Option[Data], Option[Data]) => A):Iterable[A] = {
-    val k = keys ++ target.keys
-    k.map{key =>
-      f(key, get(key), target.get(key))
-    }
-  }
-
   override def size:Int =
     value.size
 
@@ -178,6 +171,14 @@ trait DObjectOps[+C <: DObjectOps[C] with DObject]
 
   def modify[D >: C <: DObject](f:ValidPathSetter[D]):ValidResult[C] =
     f(this.asInstanceOf[D]).map(d => internalWrap(d.asInstanceOf[DObject].value))
+
+  def keyProduct[A](target:DObject)(f:(String, Option[Data], Option[Data]) => A):Iterable[A] = {
+    val k = keys ++ target.keys
+    k.map{key =>
+      f(key, get(key), target.get(key))
+    }
+  }
+
   /*
   Value on the left hand side is the selection by the projection, the value on the right has the values exluded
    */
@@ -326,14 +327,15 @@ class DArray(val value:RawArray) extends AnyVal with Data {
 
   def toObjects:Iterator[DObject] =
     value
-      .toIterator
+      .iterator
       .collect {
         case m:RawObject@unchecked =>
           new DObjectInst(m)
       }
 
+
   def toValues[T](implicit D:DCodec[T]):Iterator[T] =
-    value.toIterator.flatMap(D.unapply)
+    value.iterator.flatMap(D.unapply)
 
   def toDataValues:Iterator[Data] =
     toValues(DefaultCodecs.dataCodec)

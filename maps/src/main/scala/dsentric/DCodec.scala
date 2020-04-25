@@ -243,6 +243,28 @@ trait DefaultCodecs {
       def typeDefinition:TypeDefinition =
         ObjectDefinition.empty
     }
+
+  implicit def setCodec[V](implicit D: DCodec[V]): DCodec[Set[V]] =
+    new DCodec[Set[V]] {
+      def apply(t: Set[V]): Data =
+        new DObjectInst(t.map(D(_).value.toString -> 1).toMap)
+
+      def unapply(a: Any): Option[Set[V]] =
+        a match {
+          case m: Map[String, Any] @unchecked =>
+            m.foldLeft(Option(Set.empty[V])) {
+              case (Some(a), (key, 1 | DNull)) => //Hack Support for delta
+                D.unapply(key).map(a + _)
+              case _ =>
+                None
+            }
+          case _ =>
+            None
+        }
+
+      def typeDefinition: TypeDefinition =
+        ObjectDefinition(additionalProperties = Right(IntegerDefinition(List(1))))
+    }
 }
 
 trait PessimisticCodecs extends DefaultCodecs {
@@ -366,6 +388,26 @@ trait PessimisticCodecs extends DefaultCodecs {
 
       def typeDefinition:TypeDefinition =
         ArrayDefinition(Vector(C.typeDefinition))
+    }
+
+  implicit def eitherCodec[L, R](implicit DL: DCodec[L], DR: DCodec[R]): DCodec[Either[L, R]] =
+    new DCodec[Either[L, R]] {
+      def apply(t: Either[L, R]): Data =
+        t.fold(DL(_), DR(_))
+
+      def unapply(a: Any): Option[Either[L, R]] =
+        a match {
+          case DL(l) => Some(Left(l))
+          case DR(r) => Some(Right(r))
+          case _ => None
+        }
+
+      def typeDefinition: MultipleTypeDefinition = (DL.typeDefinition, DR.typeDefinition) match {
+        case (l: SingleTypeDefinition, r: SingleTypeDefinition) => MultipleTypeDefinition(l, r)
+        case (l: SingleTypeDefinition, MultipleTypeDefinition(rs)) => MultipleTypeDefinition(l +: rs)
+        case (MultipleTypeDefinition(ls), r: SingleTypeDefinition) => MultipleTypeDefinition(ls :+ r)
+        case (MultipleTypeDefinition(ls), MultipleTypeDefinition(rs)) => MultipleTypeDefinition(ls ++ rs)
+      }
     }
 
   implicit def vectorCodec[T](implicit C:DCodec[T]):DArrayCodec[T, Vector[T]] =
@@ -616,6 +658,26 @@ trait OptimisticCodecs extends DefaultCodecs {
 
       def typeDefinition:TypeDefinition =
         ArrayDefinition(Vector(C.typeDefinition))
+    }
+
+  implicit def eitherCodec[L, R](implicit DL: DCodec[L], DR: DCodec[R]): DCodec[Either[L, R]] =
+    new DCodec[Either[L, R]] {
+      def apply(t: Either[L, R]): Data =
+        t.fold(DL(_), DR(_))
+
+      def unapply(a: Any): Option[Either[L, R]] =
+        a match {
+          case DL(l) => Some(Left(l))
+          case DR(r) => Some(Right(r))
+          case _ => None
+        }
+
+      def typeDefinition: MultipleTypeDefinition = (DL.typeDefinition, DR.typeDefinition) match {
+        case (l: SingleTypeDefinition, r: SingleTypeDefinition) => MultipleTypeDefinition(l, r)
+        case (l: SingleTypeDefinition, MultipleTypeDefinition(rs)) => MultipleTypeDefinition(l +: rs)
+        case (MultipleTypeDefinition(ls), r: SingleTypeDefinition) => MultipleTypeDefinition(ls :+ r)
+        case (MultipleTypeDefinition(ls), MultipleTypeDefinition(rs)) => MultipleTypeDefinition(ls ++ rs)
+      }
     }
 
   implicit def vectorCodec[T](implicit C:DCodec[T]):DArrayCodec[T, Vector[T]] =
