@@ -120,4 +120,12 @@ trait PropertyObjectOps[D <: DObject] { __internal:BaseContract[D] =>
     def _parent: BaseContract[D] = __internal
   }
 
+  class \-\[K] extends AddProps[K, D] with SubContractFor[D] {
+    def _root: ContractFor[D] = ???
+
+    def _path: Path = ???
+
+    private[dsentric] def __incorrectTypeBehaviour: IncorrectTypeBehaviour = ???
+  }
+
 }

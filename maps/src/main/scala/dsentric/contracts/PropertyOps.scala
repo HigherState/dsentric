@@ -43,7 +43,7 @@ trait PropertyOps[D <: DObject] {
     new ObjectsProperty[D, T](Some(name), contract, __self, codec, dataOperators.toList)
 
 
-
+  //TODO remove
   def \->[K, T <: DObject](contract:ContractFor[T], dataOperators: DataOperator[Option[Map[K, T]]]*)(implicit keyCodec:StringCodec[K], valueCodec:DObjectCodec[T]):MapObjectsProperty[D, K, T] =
     new MapObjectsProperty[D, K, T](None, contract, __self, keyCodec, valueCodec, dataOperators.toList)
 
