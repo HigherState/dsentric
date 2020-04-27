@@ -193,7 +193,7 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
 
   //Returns the minimal delta object. Removed duplicate changes and unnecessary nulls and empty objects
   def deltaDiff(delta:DObject):Option[DObject] =
-    DObjectOps.rightDifferenceReduceMap(this.value, delta.value).map(new DObjectInst(_))
+    DObjectOps.rightDifferenceReduceMap(this.value -> delta.value).map(new DObjectInst(_))
 
   def toQuery:NonEmptyList[(String, Path)] Either DQuery =
     DQuery(value)

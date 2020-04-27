@@ -80,26 +80,23 @@ trait DObjectOps {
       None
     case (s, d) =>
       val r = d.flatMap { kvp =>
-        s.get(kvp._1) match {
-          case Some(m:Map[String, Any]@unchecked) =>
-            kvp._2 match {
-              case m2:Map[String, Any]@unchecked =>
-                rightDifferenceMap(m -> m2).map(kvp._1 -> _)
-              case _ =>
-                Some(kvp)
-            }
-          case Some(v) if v == kvp._2 =>
+        s.get(kvp._1) -> kvp._2 match {
+          case (Some(v), dv) if v == dv =>
             None
+          case (Some(m:Map[String, Any]@unchecked), dm:Map[String, Any]@unchecked) =>
+            rightDifferenceReduceMap(m -> dm).map(kvp._1 -> _)
+          case (Some(_:Map[String, Any]@unchecked), _) =>
+            Some(kvp)
+          //Can end up replacing value with an empty map
+          case (Some(_), dm:Map[String, Any]@unchecked) =>
+            Some(kvp._1 -> reduceMap(dm).getOrElse(Map.empty))
           // Drop if delta remove doesnt remove anything
-          case None if kvp._2 == DNull || kvp._2 == Map.empty =>
+          case (None, DNull) =>
             None
+          case (None, dm:Map[String, Any]@unchecked) =>
+            reduceMap(dm).map(kvp._1 -> _)
           case _ =>
-            kvp._2 match {
-              case m2:Map[String, Any]@unchecked =>
-                reduceMap(m2).map(kvp._1 -> _)
-              case _ =>
-                Some(kvp)
-            }
+            Some(kvp)
         }
       }
       if (r.nonEmpty) Some(r)
