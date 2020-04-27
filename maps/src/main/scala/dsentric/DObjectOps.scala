@@ -18,7 +18,6 @@ trait DObjectOps {
         acc + (k -> v)
     }
 
-  //Nulls and Empty object will reduce out when applied from the right
   def rightReduceConcat(x: DObject, y: DObject): DObject =
     new DObjectInst(rightReduceConcatMap(x.value, y.value))
 
@@ -26,8 +25,6 @@ trait DObjectOps {
   private[dsentric] def rightReduceConcatMap(x: Map[String, Any], y: Map[String, Any]): Map[String, Any] =
     y.foldLeft(x){
       case (acc, (k, DNull)) =>
-        acc - k
-      case (acc, (k, EMPTY_MAP)) =>
         acc - k
       case (acc, (k, v:Map[String, Any]@unchecked)) =>
         acc.get(k) match {
@@ -40,7 +37,9 @@ trait DObjectOps {
             }
           case _ =>
             //need to reduce delta values in case there are more nulls or empty objects in the delta
-            reduceMap(v).foldLeft(acc)((a,vr) => a + (k -> vr))
+            //if empty, we just remove the key
+            val m = reduceMap(v)
+              m.fold(acc - k)(vr => acc + (k -> vr))
         }
       case (acc, (k, v)) =>
         acc + (k -> v)
@@ -187,7 +186,7 @@ trait DObjectOps {
 
   private[dsentric] def reduceMap(target:Map[String, Any]):Option[Map[String, Any]] = {
     val reducedMap = target.flatMap {
-      case (k, DNull) =>
+      case (_, DNull) =>
         None
       case (k, m: Map[String, Any]@unchecked) =>
         reduceMap(m).map(k -> _)
