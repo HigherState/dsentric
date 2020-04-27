@@ -201,6 +201,10 @@ trait DObjectOps[+C <: DObjectOps[C] with DObject]
   def diff(compare:DObject):DObject =
     RawObjectOps.rightDifferenceMap(value -> compare.value).fold(DObject.empty)(new DObjectInst(_))
 
+  //Returns the minimal delta object. Removed duplicate changes and unnecessary nulls and empty objects
+  def deltaDiff(delta:DObject):Option[DObject] =
+    RawObjectOps.rightDifferenceReduceMap(this.value, delta.value).map(new DObjectInst(_))
+
   def toQuery:NonEmptyList[(String, Path)] Either DQuery =
     DQuery(value)
 
