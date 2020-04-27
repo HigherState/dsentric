@@ -30,8 +30,8 @@ trait DObjectOps {
       case (acc, (k, EMPTY_MAP)) =>
         acc - k
       case (acc, (k, v:Map[String, Any]@unchecked)) =>
-        acc.get(k).fold(acc + (k -> v)) {
-          case c: Map[String, Any]@unchecked =>
+        acc.get(k) match {
+          case Some(c: Map[String, Any]@unchecked) =>
             rightReduceConcatMap(c, v) match {
               case EMPTY_MAP =>
                 acc - k
@@ -39,7 +39,8 @@ trait DObjectOps {
                 acc + (k -> d)
             }
           case _ =>
-            acc + (k -> v)
+            //need to reduce delta values in case there are more nulls or empty objects in the delta
+            reduceMap(v).foldLeft(acc)((a,vr) => a + (k -> vr))
         }
       case (acc, (k, v)) =>
         acc + (k -> v)
@@ -70,6 +71,40 @@ trait DObjectOps {
       if (r.nonEmpty) Some(r)
       else None
     }
+
+  def rightDifferenceReduce(x: DObject, y: DObject): Option[DObject] =
+    rightDifferenceReduceMap(x.value -> y.value).map(new DObjectInst(_))
+
+  private[dsentric] def rightDifferenceReduceMap:Function[(Map[String, Any],Map[String, Any]),Option[Map[String, Any]]] = {
+    case (s, d) if d == s =>
+      None
+    case (s, d) =>
+      val r = d.flatMap { kvp =>
+        s.get(kvp._1) match {
+          case Some(m:Map[String, Any]@unchecked) =>
+            kvp._2 match {
+              case m2:Map[String, Any]@unchecked =>
+                rightDifferenceMap(m -> m2).map(kvp._1 -> _)
+              case _ =>
+                Some(kvp)
+            }
+          case Some(v) if v == kvp._2 =>
+            None
+          // Drop if delta remove doesnt remove anything
+          case None if kvp._2 == DNull || kvp._2 == Map.empty =>
+            None
+          case _ =>
+            kvp._2 match {
+              case m2:Map[String, Any]@unchecked =>
+                reduceMap(m2).map(kvp._1 -> _)
+              case _ =>
+                Some(kvp)
+            }
+        }
+      }
+      if (r.nonEmpty) Some(r)
+      else None
+  }
 
   def select(target:DObject, projection:DProjection):DObject =
     new DObjectInst(selectMap(target.value, projection.value))

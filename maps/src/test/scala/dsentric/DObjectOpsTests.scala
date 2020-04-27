@@ -38,6 +38,13 @@ class DObjectOpsTests extends FunSuite with Matchers {
     DObjectOps.rightReduceConcat(obj, DObject("obj" := DObject("six" := "vi"))) should equal (DObject("one" := 1, "obj" := DObject("two" := false, "three" := List(1,2,3,4), "four" := DObject("five" := 5), "six" := "vi")))
   }
 
+  test("Apply nested delta object with nulls shouldnt include nulls") {
+    val delta =
+      DObject("head" := DObject("next" := DObject("has" := "Value", "set" := DObject("one" := DNull, "two" := 1))))
+
+    DObject.empty.applyDelta(delta) shouldBe DObject("head" := DObject("next" := DObject("has" := "Value", "set" := DObject("two" := 1))))
+  }
+
   test("Get difference") {
     val obj = DObject("one" := 1, "obj" := DObject("two" := false, "three" := List(1,2,3,4), "four" := DObject("five" := 5)))
     DObjectOps.rightDifference(obj, obj) should be (DObject.empty)
