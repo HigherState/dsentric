@@ -68,4 +68,20 @@ class QueryJsonbTests extends FunSuite with Matchers {
     psql shouldBe Right("""EXISTS ( SELECT key, value FROM jsonb_each(Indexed) WHERE key ~ '^test' AND ( EXISTS ( SELECT key, value FROM jsonb_each(value) WHERE key ~ '^level2' AND ( (jsonb_typeof(value #> '{element}') = 'number' AND (value #>> '{element}') :: NUMERIC >= 4) ) ) ) )""")
   }
 
+  test("empty operators") {
+    val orQuery = ForceWrapper.dQuery(Map("$or" -> Vector()))
+    val orPsql = queryParser("Indexed", orQuery)
+    orPsql shouldBe Right("true")
+
+    val andQuery = ForceWrapper.dQuery(Map("$and" -> Vector()))
+    val andPsql = queryParser("Indexed", andQuery)
+    andPsql shouldBe Right("true")
+
+    val orAndQuery = ForceWrapper.dQuery(Map("$or" -> Vector(Map("$and" -> Vector()), Map("$or" -> Vector()))))
+    val orAndPsql = queryParser("Indexed", orAndQuery)
+    orAndPsql shouldBe Right("true OR true")
+  }
+
+
+
 }
