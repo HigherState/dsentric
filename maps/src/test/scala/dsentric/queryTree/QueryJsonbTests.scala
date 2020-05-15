@@ -11,7 +11,7 @@ import dsentric.PessimisticCodecs._
 class QueryJsonbTests extends FunSuite with Matchers {
   implicit def r:Renderer = SimpleRenderer
 
-  val queryParser = QueryJsonb(_.replace("'","''"))
+  val queryParser: QueryJsonb = QueryJsonb(_.replace("'","''"))
   //not an actual test as of yet
   test("Generate query") {
     val query = DQuery("Owner" -> DObject("$elemMatch" -> DObject("$regex" := "^jamie.*"))).toOption.get
@@ -71,7 +71,7 @@ class QueryJsonbTests extends FunSuite with Matchers {
   test("empty operators") {
     val orQuery = ForceWrapper.dQuery(Map("$or" -> Vector()))
     val orPsql = queryParser("Indexed", orQuery)
-    orPsql shouldBe Right("true")
+    orPsql shouldBe Right("false")
 
     val andQuery = ForceWrapper.dQuery(Map("$and" -> Vector()))
     val andPsql = queryParser("Indexed", andQuery)
@@ -79,9 +79,6 @@ class QueryJsonbTests extends FunSuite with Matchers {
 
     val orAndQuery = ForceWrapper.dQuery(Map("$or" -> Vector(Map("$and" -> Vector()), Map("$or" -> Vector()))))
     val orAndPsql = queryParser("Indexed", orAndQuery)
-    orAndPsql shouldBe Right("true OR true")
+    orAndPsql shouldBe Right("(true OR false)")
   }
-
-
-
 }
