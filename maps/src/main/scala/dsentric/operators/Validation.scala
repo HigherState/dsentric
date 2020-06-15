@@ -43,7 +43,7 @@ object Validation {
               case ((key, obj:RawObject@unchecked), (failures, maybeMap)) =>
                 val (failures2, maybeKey) =
                   property._codec.keyCodec.unapply(key).fold[(ValidationFailures, Option[K])]{
-                    (IncorrectKeyTypeFailure(property._root, property._path, property._codec.keyCodec, key) :: failures) -> None
+                    (IncorrectKeyTypeFailure(property._root, property._path \ key, property._codec.keyCodec) :: failures) -> None
                   }{k => failures -> Some(k)}
 
                 property._valueCodec.unapply(obj).fold[(ValidationFailures, Option[Map[K, D3]])]{
@@ -66,7 +66,7 @@ object Validation {
               case ((key, raw), (failures, _)) =>
                 val failures2 =
                   if (property._codec.keyCodec.unapply(key).isEmpty)
-                    IncorrectKeyTypeFailure(property._root, property._path, property._codec.keyCodec, key) :: failures
+                    IncorrectKeyTypeFailure(property._root, property._path \ key, property._codec.keyCodec) :: failures
                   else failures
                 val failures3 =
                   IncorrectTypeFailure(property._root, property._path \ key, property._codec.valueCodec, raw) :: failures2

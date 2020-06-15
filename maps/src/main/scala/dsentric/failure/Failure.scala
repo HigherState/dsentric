@@ -31,6 +31,13 @@ final case class IncorrectTypeFailure[D <: DObject, T](contract: ContractFor[D],
   def message = s"Type '${codec.typeDefinition.name} was expected, type ${foundRaw.getClass.getSimpleName} was found."
 }
 
+final case class IncorrectKeyTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T]) extends StructuralFailure {
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  IncorrectKeyTypeFailure[G, T] =
+    copy(contract = rootContract, path = rootPath ++ path)
+
+  def message = s"Type '${codec.typeDefinition.name} was expected for additional properties key."
+}
+
 final case class ClosedContractFailure[D <: DObject](contract: ContractFor[D], path:Path, field:String) extends StructuralFailure {
   def message: String = s"Contract is closed and cannot have value for field '$field'."
 
@@ -124,13 +131,6 @@ final case class KeyRemovalFailure[D <: DObject, T](contract: ContractFor[D], pa
 
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): KeyRemovalFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
-}
-
-final case class IncorrectKeyTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:StringCodec[T], foundRaw:Raw) extends Failure {
-  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): IncorrectKeyTypeFailure[G, T] =
-    copy(contract = rootContract, path = rootPath ++ path)
-
-  def message = s"Type '${codec.typeDefinition.name} was expected for the key, type ${foundRaw.getClass.getSimpleName} was found."
 }
 
 final case class MaskFailure[D <: DObject, T](contract: ContractFor[D], path:Path, mask:T) extends ValidationFailure {

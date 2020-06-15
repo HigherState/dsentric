@@ -1,19 +1,22 @@
 package dsentric.contracts
 
+import dsentric.{Dsentric, PessimisticCodecs}
+
 
 /**
  * Completely dynamic
  * Partially dynamic
  */
-class AdditionalPropertiesContract extends Contract {
+class AdditionalValuePropertiesContract extends Contract with AdditionalProperties {
+  import Dsentric._
+  import PessimisticCodecs._
+  import dsentric.Implicits._
 
-  val internal = new \\{
+  val internal = new \\ {
     val bob = \[String]
 
-    override def $additionalProperties =
-      new \-\[String] {
-      val
-    }
+    val $additionalProperties =
+      new ValueProperties[String, Int]()
   }
 }
 

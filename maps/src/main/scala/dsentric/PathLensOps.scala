@@ -104,7 +104,7 @@ object PathLensOps {
       case PathEnd =>
         value match {
           case m:RawObject@unchecked => m
-          case _ => Map.empty
+          case _ => RawObject.empty
         }
       case PathKey(last, PathEnd) =>
         Map(last -> value)

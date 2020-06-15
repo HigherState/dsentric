@@ -1,6 +1,5 @@
 package dsentric
 
-import dsentric._
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
@@ -70,15 +69,15 @@ class RawObjectOpsTests extends AnyFunSuite with Matchers {
       case ("change1", a) => Some("changed" -> a)
     }
     c1 shouldBe DObject("changed" := 1, "array" := Vector(DObject("change2" := true, "two" := "test"), DObject("three" := 3, "change3" := "string")))
-    val c2 = obj.nestedKeyValueMap[Boolean, Boolean]{
+    obj.nestedKeyValueMap[Boolean, Boolean]{
       case ("change2", a) => Some("changed" -> !a)
     } shouldBe DObject("change1" := 1, "array" := Vector(DObject("changed" := false, "two" := "test"), DObject("three" := 3, "change3" := "string")))
 
-    val c3 = obj.nestedKeyValueMap[Long, Long]{
+    obj.nestedKeyValueMap[Long, Long]{
       case ("change3", a) => Some("changed" -> (a + 4))
     } shouldBe obj
 
-    val c4 = obj.nestedKeyValueMap[Any, Any]{
+    obj.nestedKeyValueMap[Any, Any]{
       case ("change3", _) => None
       case ("change1", _) => None
     } shouldBe DObject("array" := Vector(DObject("change2" := true, "two" := "test"), DObject("three" := 3)))
@@ -90,11 +89,11 @@ class RawObjectOpsTests extends AnyFunSuite with Matchers {
       case "change1" => Some("changed")
     }
     c1 shouldBe DObject("changed" := 1, "array" := Vector(DObject("change2" := true, "two" := "test"), DObject("three" := 3, "change3" := "string")))
-    val c2 = obj.nestedKeyMap{
+    obj.nestedKeyMap{
       case "change2" => Some("changed")
     } shouldBe DObject("change1" := 1, "array" := Vector(DObject("changed" := true, "two" := "test"), DObject("three" := 3, "change3" := "string")))
 
-    val c4 = obj.nestedKeyMap{
+    obj.nestedKeyMap{
       case "change3" => None
       case "change1" => None
     } shouldBe DObject("array" := Vector(DObject("change2" := true, "two" := "test"), DObject("three" := 3)))

@@ -203,11 +203,7 @@ trait DObjectOps[+C <: DObjectOps[C] with DObject]
 
   //Returns the minimal delta object. Removed duplicate changes and unnecessary nulls and empty objects
   def deltaDiff(delta:DObject):Option[DObject] =
-<<<<<<< HEAD
     RawObjectOps.rightDifferenceReduceMap(this.value, delta.value).map(new DObjectInst(_))
-=======
-    DObjectOps.rightDifferenceReduceMap(this.value -> delta.value).map(new DObjectInst(_))
->>>>>>> master
 
   def toQuery:NonEmptyList[(String, Path)] Either DQuery =
     DQuery(value)

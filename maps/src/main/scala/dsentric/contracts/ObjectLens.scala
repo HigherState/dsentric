@@ -35,8 +35,7 @@ private[dsentric] sealed trait ObjectLens[D <: DObject] extends PropertyLens[D, 
   final def $addMany(d:Iterable[(String, Data)]):ValidPathSetter[D] = ???
 
   private def verifyResult(objectBeingSet:DObject): D => List[StructuralFailure] = (obj:D) =>
-    ObjectLens.propertyVerifier(_fields, obj) ++
-    $additionalProperties.verify(_root, _path, objectBeingSet.value -- _fields.keySet)
+    ObjectLens.propertyVerifier(_fields, obj)
 
   //Dynamic object so validation is against root contract
   final def $set(d:DObject):ValidPathSetter[D] =
@@ -51,11 +50,7 @@ private[dsentric] sealed trait ObjectLens[D <: DObject] extends PropertyLens[D, 
     for {
       d <- ObjectLens.propertyApplicator(_fields, obj)
       l <- __incorrectTypeBehaviour.traverse(d.value, this)
-      r <- l.map { v =>
-        $additionalProperties.applicator(_root, _path, v.value -- _fields.keys)
-          .map(ap => Some(new DObjectInst(v.value ++ ap)))
-        }.getOrElse(Right(None))
-    } yield r
+    } yield l
 
 }
 
@@ -420,31 +415,146 @@ private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends Pr
 
 private[dsentric] object ObjectLens {
 
-  def propertyApplicator[D <: DObject](
+  protected def propertyApplicator[D <: DObject](
                                         fields: Map[String, Property[D, _]],
-                                        obj:D):ValidResult[D] =
-    fields.foldLeft[ValidResult[D]](Right(obj)){
-      //TODO Optimise
-      case (Right(d), (_, p:Property[D, Any]@unchecked)) =>
-        p.__get(obj).map{
-          case None =>
-            d.-\(p._path).asInstanceOf[D]
-          case Some(r) =>
-            p.__set(d, r)
-        }
-      case (l:Left[NonEmptyList[Failure], D], (_, p:Property[D, Any]@unchecked)) =>
-        p.__get(obj)
-          .swap
-          .toOption.fold(l)(f => Left(l.value ++ f.toList))
+                                        additionalProperties:AdditionalProperties[D],
+                                        obj:D):ValidResult[D] = {
+    val propertyObject =
+      fields.foldLeft[ValidResult[D]](Right(obj)){
+        case (Right(d), (_, p:Property[D, Any]@unchecked)) =>
+          p.__apply(d)
+        case (l:Left[NonEmptyList[Failure], D], (_, p:Property[D, Any]@unchecked)) =>
+          p.__get(obj)
+            .swap
+            .toOption.fold(l)(f => Left(l.value ++ f.toList))
+      }
+    propertyObject match {
+      case Left(failures) =>
+        Left(failures ++ additionPropertyVerifier(fields.keySet, additionalProperties, contract, path, obj))
+      case Right(newObj) =>
+        additionalPropertyApplicator(fields.keySet, additionalProperties, contract, path, newObj)
     }
 
-  def propertyVerifier[D <: DObject](
+  }
+
+  protected def propertyVerifier[D <: DObject](
                                       fields: Map[String, Property[D, _]],
+                                      additionalProperties:AdditionalProperties[D],
                                       obj:D):List[StructuralFailure] =
     fields.flatMap{
       case (_, p:Property[D, Any]@unchecked) =>
         p.$verify(obj)
     }.toList
+
+
+  private def additionalPropertyApplicator[D <: DObject](exclude:Set[String],
+                                                         additionalProperties:AdditionalProperties[D],
+                                                         obj:D):ValidResult[D] = {
+    import cats.implicits._
+    additionalProperties match {
+      case _:OpenForAdditionalProperties[D] =>
+        Right(obj)
+      case ClosedForAdditionalProperties(root, path) =>
+        PathLensOps
+          .pathToMap(path, obj.value)
+          .keys
+          .filterNot(exclude)
+          .map(k => ClosedContractFailure(root, path, k))
+          .toList match {
+          case Nil =>
+            Right(obj)
+          case head :: tail =>
+            Left(NonEmptyList(head, tail))
+        }
+      case ValuesForAdditionalProperties(root, path, keyCodec, valueCodec, typeBehaviour, _) =>
+        ValidResult.parSequence {
+          PathLensOps
+            .pathToMap(path, obj.value)
+            .filter(p => !exclude.contains(p._1))
+            .toVector
+            .flatMap { kv =>
+              typeBehaviour.applyKey(kv._1, root, path, keyCodec) match {
+                case Left(f) => Some(Left(f))
+                case Right(None) => None
+                case Right(Some(_)) =>
+                  typeBehaviour(kv._2, root, path, valueCodec) match {
+                    case Left(f) => Some(Left(f))
+                    case Right(None) => None
+                    case Right(Some(value)) =>
+                      Some(Right(kv._1 -> valueCodec(value)))
+                  }
+                }
+            }
+        }.map(pairs => obj ++ pairs)
+      case ObjectsForAdditionalProperties(root, path, keyCodec, valueCodec, contract, typeBehaviour, _) =>
+        ValidResult.parSequence {
+          PathLensOps
+            .pathToMap(path, obj.value)
+            .filter(p => !exclude.contains(p._1))
+            .toVector
+            .flatMap { kv =>
+              typeBehaviour.applyKey(kv._1, root, path, keyCodec) match {
+                case Left(f) => Some(Left(f))
+                case Right(None) => None
+                case Right(Some(_)) =>
+                  typeBehaviour(kv._2, root, path, valueCodec) match {
+                    case Left(f) => Some(Left(f))
+                    case Right(None) => None
+                    case Right(Some(value)) =>
+                      Some {
+                        contract.$get(value)
+                          .left.map(_.map(_.rebase(root, path)))
+                          .map(d2 => kv._1 -> valueCodec.apply(d2))
+                      }
+                  }
+              }
+            }
+        }.map(pairs => obj ++ pairs)
+    }
+  }
+
+  private def additionPropertyVerifier[D <: DObject](
+                                                      exclude:Set[String],
+                                                      additionalProperties:AdditionalProperties[D],
+                                                      obj:D
+                                                    ):List[StructuralFailure]  ={
+    additionalProperties match {
+      case _:OpenForAdditionalProperties[D] =>
+        Nil
+      case ClosedForAdditionalProperties(root, path) =>
+        PathLensOps
+          .pathToMap(path, obj.value)
+          .keys
+          .filterNot(exclude)
+          .map(k => ClosedContractFailure(root, path, k))
+          .toList
+      case ValuesForAdditionalProperties(root, path, keyCodec, valueCodec, _, _) =>
+        PathLensOps
+          .pathToMap(path, obj.value)
+          .filter(p => !exclude.contains(p._1))
+          .toList
+          .flatMap { kv =>
+            FailOnIncorrectTypeBehaviour.verifyKey(kv._1, root, path, keyCodec) ++
+            FailOnIncorrectTypeBehaviour.verify(kv._2, root, path \ kv._1, valueCodec)
+          }
+      case ObjectsForAdditionalProperties(root, path, keyCodec, valueCodec, contract, _, _) =>
+        PathLensOps
+          .pathToMap(path, obj.value)
+          .filter(p => !exclude.contains(p._1))
+          .toList
+          .flatMap { kv =>
+            FailOnIncorrectTypeBehaviour.verifyKey(kv._1, root, path, keyCodec) ++
+            (FailOnIncorrectTypeBehaviour.apply(kv._2, root, path \ kv._1, valueCodec) match {
+              case Left(f) => f.toList
+              case Right(None) => Nil
+              case Right(Some(v)) =>
+                contract.$verify(v).map(_.rebase(root, path))
+            })
+          }
+    }
+  }
+
+
 
 }
 

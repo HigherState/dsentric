@@ -5,7 +5,7 @@ import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 
-@deprecated("Update when EitherValues is updated and undeprecate.", "")
+@deprecated("Update when EitherValues is updated and undeprecated.", "")
 class ContractSanitizationSpec extends AnyFunSpec with Matchers with EitherValues {
 
   import Dsentric._
@@ -16,7 +16,7 @@ class ContractSanitizationSpec extends AnyFunSpec with Matchers with EitherValue
     describe("When empty") {
       object Empty extends Contract
 
-      it("Shuld leave empty empty") {
+      it("Should leave empty empty") {
         Empty.$ops.sanitize(DObject.empty) shouldBe DObject.empty
       }
       it("Should leave unsanitized property values alone") {

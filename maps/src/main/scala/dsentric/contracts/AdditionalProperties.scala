@@ -4,57 +4,44 @@ import dsentric.operators.DataOperator
 import dsentric._
 import dsentric.failure.{IncorrectTypeBehaviour, StructuralFailure, ValidResult}
 
-sealed trait AdditionalProperties[D <: DObject] {
+/**
+ * Marker trait to identify that the Contract is closed for any additionalProperties
+ * By default contracts ignore any additional properties
+ */
+trait Closed
 
-  def verify(
-              rootContract:ContractFor[D],
-              path:Path,
-              additionalProperties:RawObject
-            ):List[StructuralFailure] = ???
-
-  def applicator(rootContract:ContractFor[D],
-                               path:Path,
-                               additionalProperties:RawObject):ValidResult[RawObject] = ???
-
-}
-
-trait AdditionalPropertiesOps[D <: DObject] {__internal: BaseContract[D] =>
-
-  def openProperties = OpenProperties()
-}
-//mixin?
-class OpenProperties[D <: DObject](val _parent:BaseContract[D]) extends AdditionalProperties[D] {
-  def apply(key:String):OpenPropertiesLens[D] =
-    new OpenPropertiesLens[D](_parent._path \ key, _parent)
-}
-class OpenPropertiesLens[D <: DObject](val _path:Path, val _parent:BaseContract[D]) extends MaybeLens[D, Data] {
-  private[dsentric] def __incorrectTypeBehaviour: IncorrectTypeBehaviour = ???
-
-  def _codec: DCodec[Data] = ???
-
-  def _root: ContractFor[D] = _parent._root
-}
+/**
+ * Trait to identify that the contract has defined additional properties
+ */
 
 
-//Default to Closed as there is no point have $additionalProperties in contract if closed.
-//case object ClosedProperties extends AdditionalProperties
+sealed trait AdditionalProperties[D <: DObject]
 
-case class PatternProperties[K](dataOperators:List[DataOperator[Option[Map[K, Data]]]] = Nil)(implicit val keyCodec:StringCodec[K])
-  extends AdditionalProperties {
-}
+final case class OpenForAdditionalProperties[D <: DObject]()
+  extends AdditionalProperties[D]
 
-case class TypedProperties[K, V](dataOperators:List[DataOperator[Option[Map[K, V]]]] = Nil)(implicit val keyCodec:StringCodec[K], val valueCodec:DCodec[V])
-  extends AdditionalProperties
+final case class ClosedForAdditionalProperties[D <: DObject](_root: ContractFor[D], _path:Path)
+  extends AdditionalProperties[D]
 
-case class ContractProperties[K, D <: DObject](
-  contract:ContractFor[D],
-  dataOperators:List[DataOperator[Option[Map[K, D]]]] = Nil)(implicit val keyCodec:StringCodec[K])
-  extends AdditionalProperties
 
-//
-//abstract class NestedProperties[K:StringCodec](dataOperators:List[DataOperator[Option[Map[K, DObject]]]] = Nil)
-//  extends BaseContract[DObject]
+sealed trait DefinedForAdditionalProperties
 
-trait AddProps[K, D <: DObject] extends AdditionalProperties {
+final case class ValuesForAdditionalProperties[D <: DObject, K, V](
+  _root: ContractFor[D],
+  _path:Path,
+  _keyCodec:StringCodec[K],
+  _valueCode:DCodec[V],
+  __incorrectTypeBehaviour:IncorrectTypeBehaviour,
+  dataOperators:List[DataOperator[Option[Map[K, V]]]])
+  extends DefinedForAdditionalProperties with AdditionalProperties[D]
 
-}
+final case class ObjectsForAdditionalProperties[D <: DObject, K, D2 <: DObject](
+  _root: ContractFor[D],
+  _path:Path,
+  _keyCodec:StringCodec[K],
+  _valueCode:DCodec[D2],
+  contract:ContractFor[D2],
+  __incorrectTypeBehaviour:IncorrectTypeBehaviour,
+  dataOperators:List[DataOperator[Option[Map[K, D2]]]])
+  extends DefinedForAdditionalProperties with AdditionalProperties[D]
+

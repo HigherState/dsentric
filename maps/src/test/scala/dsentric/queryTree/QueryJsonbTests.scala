@@ -12,7 +12,7 @@ import org.scalatest.matchers.should.Matchers
 class QueryJsonbTests extends AnyFunSuite with Matchers {
   implicit def r:Renderer = SimpleRenderer
 
-  val queryParser = QueryJsonb(_.replace("'","''"))
+  val queryParser: QueryJsonb = QueryJsonb(_.replace("'","''"))
   //not an actual test as of yet
   test("Generate query") {
     val query = DQuery("Owner" -> DObject("$elemMatch" -> DObject("$regex" := "^jamie.*"))).toOption.get
@@ -69,4 +69,17 @@ class QueryJsonbTests extends AnyFunSuite with Matchers {
     psql shouldBe Right("""EXISTS ( SELECT key, value FROM jsonb_each(Indexed) WHERE key ~ '^test' AND ( EXISTS ( SELECT key, value FROM jsonb_each(value) WHERE key ~ '^level2' AND ( (jsonb_typeof(value #> '{element}') = 'number' AND (value #>> '{element}') :: NUMERIC >= 4) ) ) ) )""")
   }
 
+  test("empty operators") {
+    val orQuery = ForceWrapper.dQuery(Map("$or" -> Vector()))
+    val orPsql = queryParser("Indexed", orQuery)
+    orPsql shouldBe Right("false")
+
+    val andQuery = ForceWrapper.dQuery(Map("$and" -> Vector()))
+    val andPsql = queryParser("Indexed", andQuery)
+    andPsql shouldBe Right("true")
+
+    val orAndQuery = ForceWrapper.dQuery(Map("$or" -> Vector(Map("$and" -> Vector()), Map("$or" -> Vector()))))
+    val orAndPsql = queryParser("Indexed", orAndQuery)
+    orAndPsql shouldBe Right("(true OR false)")
+  }
 }

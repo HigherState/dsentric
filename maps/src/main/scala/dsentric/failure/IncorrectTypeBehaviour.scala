@@ -23,6 +23,13 @@ sealed trait IncorrectTypeBehaviour {
 
   def apply[D <: DObject, T](value:Raw, contract:ContractFor[D], path:Path, codec:DCodec[T]):Either[NonEmptyList[StructuralFailure], Option[T]]
 
+  def applyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):Either[NonEmptyList[StructuralFailure], Option[T]]
+
+  def verify[D <: DObject, T](value:Raw, contract:ContractFor[D], path:Path, codec:DCodec[T]):List[StructuralFailure]
+
+  def verifyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):List[StructuralFailure]
+
+
   def matcher[D <: DObject, T](value:Raw, property:PropertyLens[D, T]):Option[Option[T]] =
     matcher(value, property._root, property._path, property._codec)
 
@@ -40,10 +47,13 @@ sealed trait IncorrectTypeBehaviour {
   def traverseMatcher[D <: DObject, T](value:RawObject, contract:ContractFor[D], path:Path, codec:DCodec[T]):Option[Option[T]] =
     PathLensOps.traverse(value, path).fold(none[T])(matcher(_, contract, path, codec))
 
-  def verify[D <: DObject, T](value:RawObject, property:PropertyLens[D, T], expected:Boolean):List[StructuralFailure] =
-    verify(value, property._root, property._path, property._codec, expected)
+  def traverseVerify[D <: DObject, T](value:RawObject, property:PropertyLens[D, T], expected:Boolean):List[StructuralFailure] =
+    traverseVerify(value, property._root, property._path, property._codec, expected)
 
-  def verify[D <: DObject, T](value:RawObject, contract:ContractFor[D], path:Path, codec:DCodec[T], expected:Boolean):List[StructuralFailure]
+  def traverseVerify[D <: DObject, T](value:RawObject, contract:ContractFor[D], path:Path, codec:DCodec[T], expected:Boolean):List[StructuralFailure]
+
+
+
 }
 
 /*
@@ -53,14 +63,23 @@ object EmptyOnIncorrectTypeBehaviour extends IncorrectTypeBehaviour {
   def apply[D <: DObject, T](value:Raw, contract:ContractFor[D], path:Path, codec:DCodec[T]):Either[NonEmptyList[StructuralFailure], Option[T]] =
     codec.unapply(value).fold(empty[T])(t => Right(Some(t)))
 
+  def applyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):Either[NonEmptyList[StructuralFailure], Option[T]] =
+    keyCodec.unapply(value).fold(empty[T])(t => Right(Some(t)))
+
+  def verify[D <: DObject, T](value: Raw, contract: ContractFor[D], path: Path, codec: DCodec[T]): List[StructuralFailure] =
+    Nil
+
   def matcher[D <: DObject, T](value:Raw, contract:ContractFor[D], path:Path, codec:DCodec[T]):Option[Option[T]] =
     Some(codec.unapply(value).fold(Option.empty[T])(t => Some(t)))
 
-  def verify[D <: DObject, T](value: RawObject, contract: ContractFor[D], path: Path, codec: DCodec[T], expected: Boolean): List[StructuralFailure] =
+  def traverseVerify[D <: DObject, T](value: RawObject, contract: ContractFor[D], path: Path, codec: DCodec[T], expected: Boolean): List[StructuralFailure] =
     if (expected && PathLensOps.traverse(value, path).isEmpty)
       List(ExpectedFailure(contract, path))
     else
       Nil
+
+  def verifyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):List[StructuralFailure] =
+    Nil
 }
 
 /*
@@ -72,10 +91,22 @@ object FailOnIncorrectTypeBehaviour extends IncorrectTypeBehaviour {
       Left(NonEmptyList(IncorrectTypeFailure(contract, path, codec, value), Nil))
     }{t:T => Right(Some(t))}
 
+  def applyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):Either[NonEmptyList[StructuralFailure], Option[T]] =
+    keyCodec.unapply(value).fold[Either[NonEmptyList[StructuralFailure], Option[T]]] {
+      Left(NonEmptyList(IncorrectKeyTypeFailure(contract, path \ value, keyCodec), Nil))
+    }{t:T => Right(Some(t))}
+
+
+  def verify[D <: DObject, T](value: Raw, contract: ContractFor[D], path: Path, codec: DCodec[T]): List[StructuralFailure] =
+    if (codec.unapply(value).isEmpty)
+      List(IncorrectTypeFailure(contract, path, codec, value))
+    else
+      Nil
+
   def matcher[D <: DObject, T](value:Raw, contract:ContractFor[D], path:Path, codec:DCodec[T]):Option[Option[T]] =
     codec.unapply(value).fold(Option.empty[Option[T]])(t => Some(Some(t)))
 
-  def verify[D <: DObject, T](value: RawObject, contract: ContractFor[D], path: Path, codec: DCodec[T], expected: Boolean): List[StructuralFailure] =
+  def traverseVerify[D <: DObject, T](value: RawObject, contract: ContractFor[D], path: Path, codec: DCodec[T], expected: Boolean): List[StructuralFailure] =
     PathLensOps.traverse(value, path) match {
       case None if expected =>
         List(ExpectedFailure(contract, path))
@@ -84,4 +115,10 @@ object FailOnIncorrectTypeBehaviour extends IncorrectTypeBehaviour {
       case Some(v) =>
         List(IncorrectTypeFailure(contract, path, codec, v))
     }
+
+  def verifyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):List[StructuralFailure] =
+    if (keyCodec.unapply(value).isEmpty)
+      List(IncorrectKeyTypeFailure(contract, path \ value, keyCodec))
+    else
+      Nil
 }

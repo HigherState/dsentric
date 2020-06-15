@@ -11,6 +11,9 @@ sealed trait PathSetter[D <: DObject] extends Function[D, D] {
   def ~(pathSetter:ValidPathSetter[D]):ValidPathSetter[D] =
     CompositeValidSetter(LiftedSetter(this), pathSetter)
 
+  def ~(f:Function[D, D]):Function[D, D] =
+    this.andThen(f)
+
   def apply(v1: D): D
 
   @inline

@@ -34,6 +34,8 @@ case class QueryJsonb(escapeString: String => String)(implicit R: Renderer) {
       builder(treeToPostgres(field)(head -> false), treeToPostgres(field)(|(tail) -> true)) { (h, t) =>
         ((if (!g) Some("(") else None) ++: h :+ " OR ") ++ t
       }
+    case (|(_), g) =>
+      Right(Vector("false") ++ (if (g) Some(")") else None))
     case (!!(tree), g) =>
       treeToPostgres(field)(tree -> false).map(v => "NOT (" +: v :+ ")")
     case ($(regex, tree), _) =>
