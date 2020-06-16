@@ -2,8 +2,26 @@ package dsentric
 
 import scala.util.Try
 
+/**
+ * this is a cons style datastructure where the beginning of the path
+ * is the first element
+ * It is optimised for traversals to a point.
+ *
+ * For Example
+ *
+ *  first\2\third
+ *  would read
+ *  PathKey(first, PathIndex(2, PathKey(third, PathEnd) ) )
+ *
+ */
 sealed trait Path {
   def isEmpty:Boolean
+
+  /**
+   * Returns true if all path members are expected
+   * @return
+   */
+  def isExpected: Boolean
   def ::(key:String):Path =
     PathKey(key, this)
   def ::(index:Int):Path =
@@ -12,6 +30,8 @@ sealed trait Path {
     this match {
       case PathEnd =>
         path
+      case ExpectedPathKey(key, tail) =>
+        ExpectedPathKey(key, tail ++ path)
       case PathKey(key, tail) =>
         PathKey(key, tail ++ path)
       case PathIndex(index, tail) =>
@@ -21,6 +41,8 @@ sealed trait Path {
     this match {
       case PathEnd =>
         PathKey(key, PathEnd)
+      case ExpectedPathKey(key2, tail) =>
+        ExpectedPathKey(key2, tail \ key)
       case PathKey(key2, tail) =>
         PathKey(key2, tail \ key)
       case PathIndex(index, tail) =>
@@ -30,6 +52,8 @@ sealed trait Path {
     this match {
       case PathEnd =>
         PathIndex(index, PathEnd)
+      case ExpectedPathKey(key2, tail) =>
+        ExpectedPathKey(key2, tail \ index)
       case PathKey(key, tail) =>
         PathKey(key, tail \ index)
       case PathIndex(index2, tail) =>
@@ -74,14 +98,34 @@ sealed trait Path {
 
 case object PathEnd extends Path {
   def isEmpty: Boolean = true
+  def isExpected: Boolean = true
 }
 
-case class PathKey(key:String, next:Path) extends Path {
+
+sealed case class PathKey(key:String, next:Path) extends Path {
   def isEmpty:Boolean = false
+
+  def isExpected: Boolean = false
 }
 
-case class PathIndex(index:Int, next:Path) extends Path {
+private[dsentric] final class ExpectedPathKey(override val key:String, override val next:Path) extends PathKey(key, next) {
+  override def isExpected: Boolean = next.isExpected
+}
+
+final case class PathIndex(index:Int, next:Path) extends Path {
   def isEmpty:Boolean = false
+
+  def isExpected: Boolean = false
+}
+
+object ExpectedPathKey{
+  def apply(key:String, next:Path):ExpectedPathKey =
+    new ExpectedPathKey(key, next)
+  def unapply(path:Path):Option[(String, Path)] =
+    path match {
+      case p:ExpectedPathKey => Some(p.key -> p.next)
+      case _ => None
+    }
 }
 
 object Path {

@@ -46,17 +46,22 @@ sealed trait Property[D <: DObject, T <: Any] extends PropertyLens[D, T] {
             throw UninitializedFieldError(s"Unable to initialize property field from fields: ${_parent._fields.keys.mkString(",")}")
           }._1
         }
-      __path = _parent._path ++ Path(__key)
+      //Do we need to mark the path as expected
+      if (this.isInstanceOf[Expected])
+        __path = _parent._path ++ ExpectedPathKey(__key, PathEnd)
+      else
+        __path = _parent._path \ __key
       _bitmap1 = true
     }
 }
+sealed trait Expected
 
 class ExpectedProperty[D <: DObject, T] private[contracts]
   (private[contracts] val __nameOverride:Option[String],
    val _parent:BaseContract[D],
    val _codec:DCodec[T],
    val _dataOperators:List[DataOperator[T]])
-  extends Property[D, T] with ExpectedLens[D, T]
+  extends Property[D, T] with Expected with ExpectedLens[D, T]
 
 class MaybeProperty[D <: DObject, T] private[contracts]
   (private[contracts] val __nameOverride:Option[String],
@@ -89,7 +94,7 @@ class MapObjectsProperty[D <: DObject, K, T <: DObject](private[contracts] val _
                                                        val _dataOperators:List[DataOperator[Option[Map[K, T]]]]
                                                       ) extends Property[D, Map[K, T]] with MapObjectsLens[D, K, T]
 
-sealed trait ExpectedObjectProperty[D <: DObject] extends Property[D, DObject] with ExpectedObjectLens[D] with SubContractFor[D]
+sealed trait ExpectedObjectProperty[D <: DObject] extends Property[D, DObject] with Expected with ExpectedObjectLens[D] with SubContractFor[D]
 sealed trait MaybeObjectProperty[D <: DObject] extends Property[D, DObject] with MaybeObjectLens[D] with SubContractFor[D]
 
 trait PropertyObjectOps[D <: DObject] { __internal:BaseContract[D] =>

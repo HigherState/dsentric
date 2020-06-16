@@ -27,6 +27,24 @@ object PathLensOps {
         Some(map)
     }
 
+  @tailrec
+  private[dsentric] final def traverseObject(map:RawObject, path:Path):Option[RawObject] =
+    path match {
+      case PathEnd =>
+        Some(map)
+      case PathKey(head, tail) =>
+        map
+          .get(head)
+          .collect{case m:RawObject@unchecked => m} match {
+            case Some(m) =>
+              traverseObject(m, tail)
+            case _ =>
+              None
+          }
+      case _ =>
+        Some(map)
+    }
+
   /**
    * Set value at end of traversal, will create objects as required to
    * instantiate path if path not complete.
@@ -119,6 +137,19 @@ object PathLensOps {
         None
     }
 
+  /**
+   * converts a path to a set of nested maps with the inner most map
+   * ending with the passed value
+   *
+   * For example
+   *  first\second\third, 1
+   *
+   *  Map(first -> Map(second, Map(third -> 1) ) )
+   *
+   * @param path
+   * @param value
+   * @return
+   */
   private[dsentric] def pathToMap(path:Path, value:Raw):RawObject = {
     path match {
       case PathEnd =>

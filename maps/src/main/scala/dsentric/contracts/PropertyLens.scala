@@ -10,6 +10,12 @@ private[dsentric] trait PropertyLens[D <: DObject, T] {
   def _root:ContractFor[D]
   private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour
 
+  /**
+   * Does the object satisfy all the type and expectation constraints.
+   * Returns list of possible failures.
+   * @param obj
+   * @return
+   */
   def $verify(obj:D):List[StructuralFailure]
 
   /**
@@ -33,14 +39,14 @@ private[dsentric] trait PropertyLens[D <: DObject, T] {
   private[contracts] def __set(obj:D, value:T):D =
     obj.internalWrap(PathLensOps.set(obj.value, _path, _codec(value).value)).asInstanceOf[D]
 
-  private[contracts] def __expected(obj:D):ValidResult[T] =
-    __get(obj)
-      .flatMap{
-        case None =>
-          ValidResult.failure[T](ExpectedFailure(this))
-        case Some(t) =>
-          Right(t)
-      }
+//  private[contracts] def __expected(obj:D):ValidResult[T] =
+//    __get(obj)
+//      .flatMap{
+//        case None =>
+//          ValidResult.failure[T](ExpectedFailure(this))
+//        case Some(t) =>
+//          Right(t)
+//      }
 }
 
 private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens[D, T] {
@@ -48,23 +54,30 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
   private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour
 
   private[contracts] def __get(data:D):ValidResult[Option[T]] =
-    expectedResult(__incorrectTypeBehaviour.traverse(data.value, this), this)
+    __incorrectTypeBehaviour.traverse(data.value, this)
 
   private[contracts] def __apply(obj: D): ValidResult[D] =
-    expectedResult(__incorrectTypeBehaviour.traverse(obj.value, this), this)
+    __incorrectTypeBehaviour.traverse(obj.value, this)
       .map(_ => obj)
 
-  private def expectedResult(v:ValidResult[Option[T]], p:PropertyLens[D, T]): ValidResult[Option[T]] =
-    v.flatMap{
-      case None => ValidResult.failure(ExpectedFailure(p))
-      case _ => v
-    }
-
+  /**
+   * When verifying an incorrect type always returns a failure, even if
+   * incorrect type behaviour is set to ignore
+   * @param obj
+   * @return
+   */
   final def $verify(obj:D):List[StructuralFailure] =
-    FailOnIncorrectTypeBehaviour.traverseVerify(obj.value, this, true)
+    FailOnIncorrectTypeBehaviour.traverseVerify(obj.value, this)
 
-  final def $get(obj:D):ValidResult[T] =
-    __expected(obj)
+  /**
+   * Returns object if found and of correct type
+   * Returns failure if object not found
+   * Returns None if there is a path with Maybes objects that have no values
+   * @param obj
+   * @return
+   */
+  final def $get(obj:D):ValidResult[Option[T]] =
+    __get(obj)
 
   final def $set(value:T):PathSetter[D] =
     ValueSetter(_path, _codec(value).value)
@@ -77,9 +90,15 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
   final def $modify(f:T => T):ValidPathSetter[D] =
     ModifySetter(__get, f, __set)
 
-  //When copying a maybe property with no value, then the copy does nothing
+  /**
+   * Copying from an existing property, if that property is
+   * an Empty value on a Maybe Property, it will ignore the copy operation.
+   * If its an Expected property it will fail if empty
+   * @param p
+   * @return
+   */
   final def $copy(p:PropertyLens[D, T]):ValidPathSetter[D] =
-    ModifySetter(d => expectedResult(p.__get(d), p), identity[T], __set)
+    ModifySetter(d => p.__get(d), identity[T], __set)
 
   final lazy val $delta:ExpectedDelta[D, T] =
     new ExpectedDelta(this)
@@ -119,8 +138,14 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
   final def $getOrElse(obj:D, default: => T):ValidResult[T] =
     __get(obj).map(_.getOrElse(default))
 
+  /**
+   * When verifying an incorrect type always returns a failure, even if
+   * incorrect type behaviour is set to ignore
+   * @param obj
+   * @return
+   */
   final def $verify(obj:D):List[StructuralFailure] =
-    FailOnIncorrectTypeBehaviour.traverseVerify(obj.value, this, false)
+    FailOnIncorrectTypeBehaviour.traverseVerify(obj.value, this)
 
   final def $drop: PathSetter[D] =
     ValueDrop(_path)
@@ -178,8 +203,14 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
       ValueSetter(_path, _codec(v).value)
     }
 
+  /**
+   * When verifying an incorrect type always returns a failure, even if
+   * incorrect type behaviour is set to ignore
+   * @param obj
+   * @return
+   */
   final def $verify(obj:D):List[StructuralFailure] =
-    FailOnIncorrectTypeBehaviour.traverseVerify(obj.value, this, false)
+    FailOnIncorrectTypeBehaviour.traverseVerify(obj.value, this)
 
   final def $restore: PathSetter[D] =
     ValueDrop(_path)

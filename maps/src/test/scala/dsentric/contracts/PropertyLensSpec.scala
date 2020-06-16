@@ -25,6 +25,16 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
     }
   }
 
+  object ExpectedStructure extends Contract {
+    val field = \[String]
+    val expected = new \\ {
+      val field = \[String]
+    }
+    val maybe = new \\? {
+      val field = \[String]
+    }
+  }
+
   object EmptyExpectedField extends Contract with EmptyOnIncorrectType {
     val field = \[String]
     val copy = \[String]
@@ -32,6 +42,78 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
   }
 
   describe("expected lens") {
+    describe("$verify") {
+      it("Should return empty list if valid value and valid values in path") {
+        val base = DObject("field" := "value")
+        ExpectedStructure.field.$verify(base) shouldBe Nil
+      }
+      it("Should return Type failure if wrong type") {
+        val base = DObject("field" := 1234)
+        ExpectedStructure.field.$verify(base) should contain (IncorrectTypeFailure(ExpectedStructure.field, 1234))
+      }
+      it("Should return Expected failure if wrong type in path") {
+        val base = DObject("expected" ::= ("field" := 1234), "maybe" ::= ("field" := 5678))
+        ExpectedStructure.maybe.$verify(base) should contain (IncorrectTypeFailure(ExpectedStructure.maybe.field, 5678))
+        ExpectedStructure.expected.$verify(base) should contain (IncorrectTypeFailure(ExpectedStructure.expected.field, 1234))
+      }
+      it("Should return Expected failure if value not found") {
+        val base = DObject.empty
+        ExpectedStructure.field.$verify(base) should contain (ExpectedFailure(ExpectedStructure.field))
+      }
+      it("Should return Expected failure if expected path not found") {
+        val base = DObject.empty
+        ExpectedStructure.expected.$verify(base) should contain (ExpectedFailure(ExpectedStructure.expected.field))
+      }
+      it("Should return empty list if non-expected path not found") {
+        val base = DObject.empty
+        ExpectedStructure.maybe.$verify(base) shouldBe empty
+      }
+      it("Should return Type failure if incorrect type even if typeBehaviour is empty") {
+        val base = DObject("field" := "value", "copy" := 1234)
+        EmptyExpectedField.copy.$verify(base) should contain (ExpectedFailure(EmptyExpectedField.copy))
+      }
+    }
+    describe("$get") {
+      it("Should empty fail if empty value") {
+        ExpectedField.field.$get(DObject.empty).left.value should contain (ExpectedFailure(ExpectedField.field))
+      }
+      it("Should incorrect type  if null value") {
+        ExpectedField.field.$get(DObject("field" := DNull)).left.value should contain (IncorrectTypeFailure(ExpectedField.field, DNull))
+      }
+      it("Should incorrect type  if value is of the wrong type") {
+        ExpectedField.field.$get(DObject("field" := false)).left.value should contain (IncorrectTypeFailure(ExpectedField.field, false))
+      }
+      it("Should empty if null value and EmptyOnIncorrectType") {
+        EmptyExpectedField.field.$get(DObject("field" := DNull)).left.value should contain (ExpectedFailure(EmptyExpectedField.field))
+      }
+      it("Should empty if wrong type and EmptyOnIncorrectType") {
+        EmptyExpectedField.field.$get(DObject("field" := false)).left.value should contain (ExpectedFailure(EmptyExpectedField.field))
+      }
+      it("Should return value if set") {
+        ExpectedField.field.$get(DObject("field" := "test")).right.value shouldBe Some("test")
+      }
+      it("Should return nested field value") {
+        ExpectedField.nested.nestedField.$get(DObject("nested" ::= ("nestedField" := "value"))).right.value shouldBe Some("value")
+      }
+      it("Should incorrect type if nullable empty") {
+        ExpectedField.nulled.$get(DObject.empty).left.value should contain (ExpectedFailure(ExpectedField.nulled))
+      }
+      it("Should incorrect type if nullable wrong type") {
+        ExpectedField.nulled.$get(DObject("nulled" := "wrong")).left.value should contain (IncorrectTypeFailure(ExpectedField.nulled, "wrong"))
+      }
+      it("Should return null if nullable null") {
+        ExpectedField.nulled.$get(DObject("nulled" := DNull)).right.value shouldBe Some(DNull)
+      }
+      it("Should return DSome Value if nullable set") {
+        ExpectedField.nulled.$get(DObject("nulled" := 123)).right.value shouldBe Some(DSome(123))
+      }
+      it("Should return Expected Failure if nested property on Expected object not found") {
+        ExpectedStructure.expected.field.$get(DObject.empty).left.value should contain (ExpectedFailure(ExpectedStructure.expected.field))
+      }
+      it("Should return None if nested property on Maybe object not found") {
+        ExpectedStructure.maybe.field.$get(DObject.empty).right.value shouldBe None
+      }
+    }
     describe("$set") {
       it("should set an empty field") {
         val base = DObject.empty
@@ -78,41 +160,6 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
       it("Should set null over value ") {
         val base = DObject("nulled" := 123)
         ExpectedField.nulled.$set(DNull)(base) shouldBe DObject("nulled" := DNull)
-      }
-    }
-    describe("$get") {
-      it("Should empty fail if empty value") {
-        ExpectedField.field.$get(DObject.empty).left.value should contain (ExpectedFailure(ExpectedField.field))
-      }
-      it("Should incorrect type  if null value") {
-        ExpectedField.field.$get(DObject("field" := DNull)).left.value should contain (IncorrectTypeFailure(ExpectedField.field, DNull))
-      }
-      it("Should incorrect type  if value is of the wrong type") {
-        ExpectedField.field.$get(DObject("field" := false)).left.value should contain (IncorrectTypeFailure(ExpectedField.field, false))
-      }
-      it("Should empty if null value and EmptyOnIncorrectType") {
-        EmptyExpectedField.field.$get(DObject("field" := DNull)).left.value should contain (ExpectedFailure(EmptyExpectedField.field))
-      }
-      it("Should empty if wrong type and EmptyOnIncorrectType") {
-        EmptyExpectedField.field.$get(DObject("field" := false)).left.value should contain (ExpectedFailure(EmptyExpectedField.field))
-      }
-      it("Should return value if set") {
-        ExpectedField.field.$get(DObject("field" := "test")).right.value shouldBe ("test")
-      }
-      it("Should return nested field value") {
-        ExpectedField.nested.nestedField.$get(DObject("nested" ::= ("nestedField" := "value"))).right.value shouldBe "value"
-      }
-      it("Should incorrect type if nullable empty") {
-        ExpectedField.nulled.$get(DObject.empty).left.value should contain (ExpectedFailure(ExpectedField.nulled))
-      }
-      it("Should incorrect type  if nullable wrong type") {
-        ExpectedField.nulled.$get(DObject("nulled" := "wrong")).left.value should contain (IncorrectTypeFailure(ExpectedField.nulled, "wrong"))
-      }
-      it("Should return null if nullable null") {
-        ExpectedField.nulled.$get(DObject("nulled" := DNull)).right.value shouldBe DNull
-      }
-      it("Should return DSome Value if nullable set") {
-        ExpectedField.nulled.$get(DObject("nulled" := 123)).right.value shouldBe DSome(123)
       }
     }
     describe("$maybeSet") {
@@ -212,6 +259,9 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
         val base = DObject("nested" ::= ("nestedField2" := "value"))
         ExpectedField.nested.nestedField.$modify(_ + "2")(base).left.value should contain (ExpectedFailure(ExpectedField.nested.nestedField))
       }
+      it("Should do nothing if nested value not found and is on a Maybe object") {
+        ExpectedStructure.maybe.field.$modify(_ + "2")(DObject.empty).right.value shouldBe DObject.empty
+      }
       it("Should modify a null value") {
         val base = DObject("nulled" := DNull)
         ExpectedField.nulled.$modify{case DNull => DSome(0); case DSome(x) => DSome(x + 1)}(base).right.value shouldBe DObject("nulled" := 0)
@@ -268,9 +318,13 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
         val base = DObject("maybeCopied" := "test2")
         ExpectedField.copy.$copy(ExpectedField.maybeCopied)(base).right.value shouldBe DObject("maybeCopied" := "test2", "copy" := "test2")
       }
-      it("Copying an empty maybe field will fail with expected type") {
+      it("Copying an empty maybe field will do nothing") {
         val base = DObject("copy" := "test")
-        ExpectedField.copy.$copy(ExpectedField.maybeCopied)(base).left.value should contain (ExpectedFailure(ExpectedField.copy))
+        ExpectedField.copy.$copy(ExpectedField.maybeCopied)(base).right.value shouldBe base
+      }
+      it("Copying an empty expected field in a maybe object will do nothing") {
+        val base = DObject("expected" ::= ("field" := "value"))
+        ExpectedStructure.expected.field.$copy(ExpectedStructure.maybe.field)(base).right.value shouldBe base
       }
       it("Copying an empty default value should set as default") {
         val base = DObject.empty

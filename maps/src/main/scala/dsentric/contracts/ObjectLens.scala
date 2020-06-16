@@ -36,9 +36,15 @@ private[dsentric] sealed trait ObjectLens[D <: DObject]
 
 }
 
+/**
+ * An Expected object doesnt necessarily have to be present if none of its properties
+ * are expected.
+ * @tparam D
+ */
 private[dsentric] trait ExpectedObjectLens[D <: DObject] extends ObjectLens[D]{
 
   def _fields: Map[String, Property[D, _]]
+
 
   def $get(obj:D):ValidResult[DObject] =
     __get(obj).map(_.getOrElse(DObject.empty))
@@ -452,50 +458,54 @@ private[dsentric] object ObjectLens {
         Right(obj)
 
       case a:AdditionalPropertyValues[Any, Any]@unchecked =>
-        ValidResult.parSequence {
-          PathLensOps
-            .pathToMap(baseContract._path, obj.value)
-            .filter(p => !exclude.contains(p._1))
-            .toVector
-            .flatMap { kv =>
-              baseContract.__incorrectTypeBehaviour.applyKey(kv._1, baseContract._root, baseContract._path, a._additionalKeyCodec) match {
-                case Left(f) => Some(Left(f))
-                case Right(None) => None
-                case Right(Some(_)) =>
-                  baseContract.__incorrectTypeBehaviour(kv._2, baseContract._root, baseContract._path, a._additionalValueCodec) match {
+        PathLensOps
+          .traverseObject(obj.value, baseContract._path)
+          .fold[ValidResult[D]](Right(obj)) { map =>
+            ValidResult.parSequence {
+              map.filter(p => !exclude.contains(p._1))
+                .toVector
+                .flatMap { kv =>
+                  baseContract.__incorrectTypeBehaviour.applyKey(kv._1, baseContract._root, baseContract._path, a._additionalKeyCodec) match {
                     case Left(f) => Some(Left(f))
                     case Right(None) => None
-                    case Right(Some(value)) =>
-                      Some(Right(kv._1 -> a._additionalValueCodec(value).value))
-                  }
-                }
-            }
-        }.map(pairs => obj.internalWrap(obj.value ++ pairs).asInstanceOf[D])
-
-      case a:AdditionalPropertyObjects[Any, DObject]@unchecked =>
-        ValidResult.parSequence {
-          PathLensOps
-            .pathToMap(baseContract._path, obj.value)
-            .filter(p => !exclude.contains(p._1))
-            .toVector
-            .flatMap { kv =>
-              baseContract.__incorrectTypeBehaviour.applyKey(kv._1, baseContract._root, baseContract._path, a._additionalKeyCodec) match {
-                case Left(f) => Some(Left(f))
-                case Right(None) => None
-                case Right(Some(_)) =>
-                  baseContract.__incorrectTypeBehaviour(kv._2, baseContract._root, baseContract._path, a._additionalValueCodec) match {
-                    case Left(f) => Some(Left(f))
-                    case Right(None) => None
-                    case Right(Some(value)) =>
-                      Some {
-                        a._additionalContract.$get(value)
-                          .left.map(_.map(_.rebase(baseContract._root, baseContract._path)))
-                          .map(d2 => kv._1 -> a._additionalValueCodec.apply(d2).value)
+                    case Right(Some(_)) =>
+                      baseContract.__incorrectTypeBehaviour(kv._2, baseContract._root, baseContract._path, a._additionalValueCodec) match {
+                        case Left(f) => Some(Left(f))
+                        case Right(None) => None
+                        case Right(Some(value)) =>
+                          Some(Right(kv._1 -> a._additionalValueCodec(value).value))
                       }
                   }
-              }
-            }
-        }.map(pairs => obj.internalWrap(obj.value ++ pairs).asInstanceOf[D])
+                }
+            }.map(pairs => obj.internalWrap(obj.value ++ pairs).asInstanceOf[D])
+          }
+
+      case a:AdditionalPropertyObjects[Any, DObject]@unchecked =>
+        PathLensOps
+          .traverseObject(obj.value, baseContract._path)
+          .fold[ValidResult[D]](Right(obj)) { map =>
+            ValidResult.parSequence {
+              map.filter(p => !exclude.contains(p._1))
+                .toVector
+                .flatMap { kv =>
+                  baseContract.__incorrectTypeBehaviour.applyKey(kv._1, baseContract._root, baseContract._path, a._additionalKeyCodec) match {
+                    case Left(f) => Some(Left(f))
+                    case Right(None) => None
+                    case Right(Some(_)) =>
+                      baseContract.__incorrectTypeBehaviour(kv._2, baseContract._root, baseContract._path, a._additionalValueCodec) match {
+                        case Left(f) => Some(Left(f))
+                        case Right(None) => None
+                        case Right(Some(value)) =>
+                          Some {
+                            a._additionalContract.$get(value)
+                              .left.map(_.map(_.rebase(baseContract._root, baseContract._path)))
+                              .map(d2 => kv._1 -> a._additionalValueCodec.apply(d2).value)
+                          }
+                      }
+                  }
+                }
+            }.map(pairs => obj.internalWrap(obj.value ++ pairs).asInstanceOf[D])
+          }
 
       case _ =>
         PathLensOps
@@ -522,7 +532,8 @@ private[dsentric] object ObjectLens {
         Nil
       case a:AdditionalPropertyValues[Any, Any]@unchecked =>
         PathLensOps
-          .pathToMap(baseContract._path, obj.value)
+          .traverseObject(obj.value, baseContract._path)
+          .getOrElse(Map.empty)
           .filter(p => !exclude.contains(p._1))
           .toList
           .flatMap { kv =>
@@ -531,7 +542,8 @@ private[dsentric] object ObjectLens {
           }
       case a:AdditionalPropertyObjects[Any, DObject]@unchecked =>
         PathLensOps
-          .pathToMap(baseContract._path, obj.value)
+          .traverseObject(obj.value, baseContract._path)
+          .getOrElse(Map.empty)
           .filter(p => !exclude.contains(p._1))
           .toList
           .flatMap { kv =>
@@ -545,7 +557,8 @@ private[dsentric] object ObjectLens {
           }
       case _ =>
         PathLensOps
-          .pathToMap(baseContract._path, obj.value)
+          .traverseObject(obj.value, baseContract._path)
+          .getOrElse(Map.empty)
           .keys
           .filterNot(exclude)
           .map(k => ClosedContractFailure(baseContract._root, baseContract._path, k))
