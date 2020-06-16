@@ -101,6 +101,7 @@ trait PropertyObjectOps[D <: DObject] { __internal:BaseContract[D] =>
 
     def this(dataOperators: DataOperator[DObject]*)(implicit codec:DCodec[DObject]) =
       this(None, codec, dataOperators.toList)
+
     def this(name:String, dataOperators: DataOperator[DObject]*)(implicit codec:DCodec[DObject]) =
       this(Some(name), codec, dataOperators.toList)
 
@@ -114,8 +115,87 @@ trait PropertyObjectOps[D <: DObject] { __internal:BaseContract[D] =>
 
     def this(dataOperators: DataOperator[Option[DObject]]*)(implicit codec:DCodec[DObject]) =
       this(None, codec, dataOperators.toList)
+
     def this(name:String, dataOperators: DataOperator[Option[DObject]]*)(implicit codec:DCodec[DObject]) =
       this(Some(name), codec, dataOperators.toList)
+
+    def _parent: BaseContract[D] = __internal
+  }
+
+  class \\\[K, V] private(override private[contracts] val __nameOverride:Option[String],
+                          override val _codec:DCodec[DObject],
+                          override val _dataOperators:List[DataOperator[DObject]],
+                          val _additionalDataOperators:List[DataOperator[Option[Map[K, V]]]],
+                          val _additionalKeyCodec:StringCodec[K],
+                          val _additionalValueCodec:DCodec[V]
+                         ) extends AdditionalPropertyValues[K, V] with ExpectedObjectProperty[D] {
+
+    def this(dataOperators: DataOperator[DObject]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
+            (implicit codec:DCodec[DObject], keyCodec:StringCodec[K], valueCodec:DCodec[V]) =
+      this(None, codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
+
+    def this(name:String, dataOperators: DataOperator[DObject]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
+            (implicit codec:DCodec[DObject], keyCodec:StringCodec[K], valueCodec:DCodec[V]) =
+      this(Some(name), codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
+
+    def _parent: BaseContract[D] = __internal
+  }
+
+  class \\\?[K, V] private(override private[contracts] val __nameOverride:Option[String],
+                           override val _codec:DCodec[DObject],
+                           override val _dataOperators:List[DataOperator[DObject]],
+                           val _additionalDataOperators:List[DataOperator[Option[Map[K, V]]]],
+                           val _additionalKeyCodec:StringCodec[K],
+                           val _additionalValueCodec:DCodec[V]
+                          ) extends AdditionalPropertyValues[K, V] with MaybeObjectProperty[D] {
+
+    def this(dataOperators: DataOperator[DObject]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
+            (implicit codec:DCodec[DObject], keyCodec:StringCodec[K], valueCodec:DCodec[V]) =
+      this(None, codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
+
+    def this(name:String, dataOperators: DataOperator[DObject]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
+            (implicit codec:DCodec[DObject], keyCodec:StringCodec[K], valueCodec:DCodec[V]) =
+      this(Some(name), codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
+
+    def _parent: BaseContract[D] = __internal
+  }
+
+  class \\\\[K, D2 <: DObject] private(override private[contracts] val __nameOverride:Option[String],
+                                       val _codec:DCodec[DObject],
+                                       val _dataOperators:List[DataOperator[DObject]],
+                                       val _additionalDataOperators:List[DataOperator[Option[Map[K, D2]]]],
+                                       val _additionalKeyCodec:StringCodec[K],
+                                       val _additionalValueCodec:DCodec[D2],
+                                       val _additionalContract:ContractFor[D2]
+                                      ) extends AdditionalPropertyObjects[K, D2] with ExpectedObjectProperty[D] {
+
+    def this(dataOperators: DataOperator[DObject]*)(contract:ContractFor[D2], additionalPropertyDataOperators:DataOperator[Option[Map[K, D2]]]*)
+            (implicit codec:DCodec[DObject], keyCodec:StringCodec[K], valueCodec:DCodec[D2]) =
+      this(None, codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec, contract)
+
+    def this(name:String, dataOperators: DataOperator[DObject]*)(contract:ContractFor[D2], additionalPropertyDataOperators:DataOperator[Option[Map[K, D2]]]*)
+            (implicit codec:DCodec[DObject], keyCodec:StringCodec[K], valueCodec:DCodec[D2]) =
+      this(Some(name), codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec, contract)
+
+    def _parent: BaseContract[D] = __internal
+  }
+
+  class \\\\?[K, D2 <: DObject] private(override private[contracts] val __nameOverride:Option[String],
+                                        val _codec:DCodec[DObject],
+                                        val _dataOperators:List[DataOperator[DObject]],
+                                        val _additionalDataOperators:List[DataOperator[Option[Map[K, D2]]]],
+                                        val _additionalKeyCodec:StringCodec[K],
+                                        val _additionalValueCodec:DCodec[D2],
+                                        val _additionalContract:ContractFor[D2]
+                                       ) extends AdditionalPropertyObjects[K, D2] with MaybeObjectProperty[D] {
+
+    def this(dataOperators: DataOperator[DObject]*)(contract:ContractFor[D2], additionalPropertyDataOperators:DataOperator[Option[Map[K, D2]]]*)
+            (implicit codec:DCodec[DObject], keyCodec:StringCodec[K], valueCodec:DCodec[D2]) =
+      this(None, codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec, contract)
+
+    def this(name:String, dataOperators: DataOperator[DObject]*)(contract:ContractFor[D2], additionalPropertyDataOperators:DataOperator[Option[Map[K, D2]]]*)
+            (implicit codec:DCodec[DObject], keyCodec:StringCodec[K], valueCodec:DCodec[D2]) =
+      this(Some(name), codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec, contract)
 
     def _parent: BaseContract[D] = __internal
   }

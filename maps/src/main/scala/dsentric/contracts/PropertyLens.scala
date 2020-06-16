@@ -48,11 +48,15 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
   private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour
 
   private[contracts] def __get(data:D):ValidResult[Option[T]] =
-    expectedResult(__incorrectTypeBehaviour.traverse(data.value, this), _path)
+    expectedResult(__incorrectTypeBehaviour.traverse(data.value, this), this)
 
-  private def expectedResult(v:ValidResult[Option[T]], path:Path): ValidResult[Option[T]] =
+  private[contracts] def __apply(obj: D): ValidResult[D] =
+    expectedResult(__incorrectTypeBehaviour.traverse(obj.value, this), this)
+      .map(_ => obj)
+
+  private def expectedResult(v:ValidResult[Option[T]], p:PropertyLens[D, T]): ValidResult[Option[T]] =
     v.flatMap{
-      case None => ValidResult.failure(ExpectedFailure(this))
+      case None => ValidResult.failure(ExpectedFailure(p))
       case _ => v
     }
 
@@ -75,7 +79,7 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
 
   //When copying a maybe property with no value, then the copy does nothing
   final def $copy(p:PropertyLens[D, T]):ValidPathSetter[D] =
-    ModifySetter(d => expectedResult(p.__get(d), p._path), identity[T], __set)
+    ModifySetter(d => expectedResult(p.__get(d), p), identity[T], __set)
 
   final lazy val $delta:ExpectedDelta[D, T] =
     new ExpectedDelta(this)
@@ -91,6 +95,15 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
 
   private[contracts] def __get(obj:D):ValidResult[Option[T]] =
     __incorrectTypeBehaviour.traverse(obj.value, this)
+
+  private[contracts] def __apply(obj: D): ValidResult[D] =
+    PathLensOps.transform(obj.value, _path){
+      case None =>
+        ValidResult.none
+      case Some(a) =>
+        __incorrectTypeBehaviour.apply(a, this).map(_.map(_ => a))
+    }.map(_.fold(obj)(v => obj.internalWrap(v).asInstanceOf[D]))
+
 
   final def $get(obj:D):ValidResult[Option[T]] =
     __get(obj)
@@ -141,6 +154,17 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
     __incorrectTypeBehaviour.traverse(obj.value,this)
       .map(_.orElse(Some(_default)))
 
+  private[contracts] def __apply(obj: D): ValidResult[D] =
+    PathLensOps.transform(obj.value, _path){
+      case None =>
+        ValidResult.none
+      case Some(a) =>
+        __incorrectTypeBehaviour.apply(a, this).map {
+          case None => Some(_codec(_default))
+          case Some(_) => Some(a)
+        }
+    }.map(_.fold(obj)(v => obj.internalWrap(v).asInstanceOf[D]))
+
   //Behaviour is default on incorrect type
   final def $get(obj:D):ValidResult[T] =
     __incorrectTypeBehaviour.traverse(obj.value, this)
@@ -180,59 +204,59 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
 
 
 final class ExpectedDelta[D <: DObject, T] private[dsentric](property:ExpectedLens[D, T]) {
-  final def $get(delta:DObject):ValidResult[Option[T]] =
+  def $get(delta:DObject):ValidResult[Option[T]] =
     property.__incorrectTypeBehaviour.traverse(delta.value, property)
 
-  final def $set(value:T):PathSetter[DObject] =
+  def $set(value:T):PathSetter[DObject] =
     ValueSetter[DObject](property._path, property._codec(value).value)
 
-  final def $setOrDrop(value:Option[T]):PathSetter[DObject] =
+  def $setOrDrop(value:Option[T]):PathSetter[DObject] =
     value.fold[PathSetter[DObject]](ValueDrop(property._path))(v => ValueSetter(property._path, property._codec(v).value))
 
-  final def $modify(f:Option[T] => T):ValidPathSetter[DObject] =
+  def $modify(f:Option[T] => T):ValidPathSetter[DObject] =
     MaybeModifySetter[DObject, T](obj => property.__incorrectTypeBehaviour.traverse(obj.value, property), f, (d, t) =>  $set(t)(d))
 
-  final def $modifyOrDrop(f:Option[T] => Option[T]):ValidPathSetter[DObject] =
+  def $modifyOrDrop(f:Option[T] => Option[T]):ValidPathSetter[DObject] =
     ModifyOrDropSetter[DObject, T](obj => property.__incorrectTypeBehaviour.traverse(obj.value, property), f, (d, mt) => $setOrDrop(mt)(d))
 
-  final def $drop:PathSetter[DObject] =
+  def $drop:PathSetter[DObject] =
     ValueDrop[DObject](property._path)
 
-  final def unapply(delta:DObject):Option[Option[T]] =
+  def unapply(delta:DObject):Option[Option[T]] =
     property.__incorrectTypeBehaviour.matcher(delta.value, property)
 }
 
 final class MaybeDelta[D <: DObject, T] private[dsentric](property:PropertyLens[D, T]) {
   private val _deltaCodec = PessimisticCodecs.dNullableCodec[T](property._codec)
 
-  final def $get(delta:DObject):ValidResult[Option[DNullable[T]]] =
+  def $get(delta:DObject):ValidResult[Option[DNullable[T]]] =
     property.__incorrectTypeBehaviour.traverse(delta.value, property._root, property._path, _deltaCodec)
 
-  final def $set(value:T):PathSetter[DObject] =
+  def $set(value:T):PathSetter[DObject] =
     ValueSetter[DObject](property._path, property._codec(value).value)
 
-  final def $drop:PathSetter[DObject] =
+  def $drop:PathSetter[DObject] =
     ValueDrop[DObject](property._path)
 
-  final def $setOrDrop(value:Option[T]):PathSetter[DObject] =
+  def $setOrDrop(value:Option[T]):PathSetter[DObject] =
     value.fold[PathSetter[DObject]](ValueDrop(property._path))(v => ValueSetter(property._path, property._codec(v).value))
 
-  final def $setNull:PathSetter[DObject] =
+  def $setNull:PathSetter[DObject] =
     ValueSetter[DObject](property._path, DNull)
 
-  final def $setOrNull(value:Option[DNullable[T]]):PathSetter[DObject] =
+  def $setOrNull(value:Option[DNullable[T]]):PathSetter[DObject] =
     value.fold[PathSetter[DObject]](ValueDrop(property._path))(v => ValueSetter(property._path, _deltaCodec(v).value))
 
-  final def $modify(f:Option[T] => T):ValidPathSetter[DObject] =
+  def $modify(f:Option[T] => T):ValidPathSetter[DObject] =
     MaybeModifySetter[DObject, T](obj => property.__incorrectTypeBehaviour.traverse(obj.value, property), f, (d, t) => $set(t)(d))
 
-  final def $modifyOrDrop(f:Option[T] => Option[T]):ValidPathSetter[DObject] =
+  def $modifyOrDrop(f:Option[T] => Option[T]):ValidPathSetter[DObject] =
     ModifyOrDropSetter[DObject, T](obj => property.__incorrectTypeBehaviour.traverse(obj.value, property), f, (d, mt) => $setOrDrop(mt)(d))
 
-  final def $modifyOrNull(f:Option[DNullable[T]] => Option[DNullable[T]]):ValidPathSetter[DObject] =
+  def $modifyOrNull(f:Option[DNullable[T]] => Option[DNullable[T]]):ValidPathSetter[DObject] =
     ModifyOrDropSetter[DObject, DNullable[T]](obj => property.__incorrectTypeBehaviour.traverse(obj.value, property._root, property._path, _deltaCodec), f, (d, mt) => $setOrNull(mt)(d))
 
-  final def unapply(delta:DObject):Option[Option[DNullable[T]]] =
+  def unapply(delta:DObject):Option[Option[DNullable[T]]] =
     property.__incorrectTypeBehaviour.matcher(delta.value, property._root, property._path, _deltaCodec)
 }
 

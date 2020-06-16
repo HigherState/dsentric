@@ -13,6 +13,8 @@ object ValidResult {
   def success[T](t:T):ValidResult[T] =
     Right(t)
 
+  val none: ValidResult[None.type] = ValidResult.success(None)
+
   //TODO replace when cats 2.0.0 comes
   def parSequence[T](v:Vector[ValidResult[T]]):ValidResult[Vector[T]] = {
     val lb = new ListBuffer[Failure]

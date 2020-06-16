@@ -16,10 +16,6 @@ private[dsentric] sealed trait ObjectLens[D <: DObject]
   final def $verify(obj:D):List[StructuralFailure] =
     ObjectLens.propertyVerifier(this, obj)
 
-  final def $add(d:(String, Data)):ValidPathSetter[D] = ???
-
-  final def $addMany(d:Iterable[(String, Data)]):ValidPathSetter[D] = ???
-
   private def verifyResult(objectBeingSet:DObject): D => List[StructuralFailure] = (obj:D) =>
     ObjectLens.propertyVerifier(this, obj)
 
@@ -47,6 +43,8 @@ private[dsentric] trait ExpectedObjectLens[D <: DObject] extends ObjectLens[D]{
   def $get(obj:D):ValidResult[DObject] =
     __get(obj).map(_.getOrElse(DObject.empty))
 
+  private[contracts] def __apply(obj: D): ValidResult[D] = ???
+
   def unapply(obj:D):Option[DObject] =
     $get(obj).toOption //TODO Optimise
 }
@@ -57,6 +55,8 @@ private[dsentric] trait MaybeObjectLens[D <: DObject] extends ObjectLens[D] {
 
   def unapply(obj:D):Option[Option[DObject]] =
     $get(obj).toOption //TODO Optimise
+
+  private[contracts] def __apply(obj: D): ValidResult[D] = ???
 
   def $get(obj:D):ValidResult[Option[DObject]] =
     obj.get(_path) match {
@@ -112,6 +112,8 @@ private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends Property
         ValidResult.parSequence(validResults).map(Some.apply)
       }
     }
+
+  private[contracts] def __apply(obj: D): ValidResult[D] = ???
 
   private[contracts] def __map(obj: D, f:T => T): ValidResult[Option[RawArray]] = {
     __getRaw(obj)
@@ -259,6 +261,17 @@ private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends Pr
           ValidResult.parSequence(validResults).map(i => Some(i.toMap))
         }
       }
+
+
+  /**
+   * Applies the property value to the object.
+   * Can remove if value on failure if typeBehaviour is to empty.
+   * Will set default if value is not found or value is empty or invalid and type behaviour is empty.
+   *
+   * @param obj
+   * @return
+   */
+  private[contracts] def __apply(obj: D): ValidResult[D] = ???
 
   private[contracts] def __map(obj: D, f:T => T): ValidResult[Option[RawObject]] = {
     __getRaw(obj)
@@ -435,18 +448,9 @@ private[dsentric] object ObjectLens {
                                                          obj:D):ValidResult[D] = {
     val exclude = baseContract._fields.keySet
     baseContract match {
-      case _:AdditionalPropertyClosed =>
-        PathLensOps
-          .pathToMap(baseContract._path, obj.value)
-          .keys
-          .filterNot(exclude)
-          .map(k => ClosedContractFailure(baseContract._root, baseContract._path, k))
-          .toList match {
-          case Nil =>
-            Right(obj)
-          case head :: tail =>
-            Left(NonEmptyList(head, tail))
-        }
+      case _:AdditionalProperties =>
+        Right(obj)
+
       case a:AdditionalPropertyValues[Any, Any]@unchecked =>
         ValidResult.parSequence {
           PathLensOps
@@ -467,6 +471,7 @@ private[dsentric] object ObjectLens {
                 }
             }
         }.map(pairs => obj.internalWrap(obj.value ++ pairs).asInstanceOf[D])
+
       case a:AdditionalPropertyObjects[Any, DObject]@unchecked =>
         ValidResult.parSequence {
           PathLensOps
@@ -491,8 +496,19 @@ private[dsentric] object ObjectLens {
               }
             }
         }.map(pairs => obj.internalWrap(obj.value ++ pairs).asInstanceOf[D])
+
       case _ =>
-        Right(obj)
+        PathLensOps
+          .pathToMap(baseContract._path, obj.value)
+          .keys
+          .filterNot(exclude)
+          .map(k => ClosedContractFailure(baseContract._root, baseContract._path, k))
+          .toList match {
+          case Nil =>
+            Right(obj)
+          case head :: tail =>
+            Left(NonEmptyList(head, tail))
+        }
     }
   }
 
@@ -502,13 +518,8 @@ private[dsentric] object ObjectLens {
                                                     ):List[StructuralFailure] = {
     val exclude = baseContract._fields.keySet
     baseContract match {
-      case _:AdditionalPropertyClosed =>
-        PathLensOps
-          .pathToMap(baseContract._path, obj.value)
-          .keys
-          .filterNot(exclude)
-          .map(k => ClosedContractFailure(baseContract._root, baseContract._path, k))
-          .toList
+      case _:AdditionalProperties =>
+        Nil
       case a:AdditionalPropertyValues[Any, Any]@unchecked =>
         PathLensOps
           .pathToMap(baseContract._path, obj.value)
@@ -533,7 +544,12 @@ private[dsentric] object ObjectLens {
             })
           }
       case _ =>
-        Nil
+        PathLensOps
+          .pathToMap(baseContract._path, obj.value)
+          .keys
+          .filterNot(exclude)
+          .map(k => ClosedContractFailure(baseContract._root, baseContract._path, k))
+          .toList
     }
   }
 

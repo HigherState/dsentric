@@ -7,18 +7,18 @@ import dsentric.{Dsentric, PessimisticCodecs}
  * Completely dynamic
  * Partially dynamic
  */
-class AdditionalValuePropertiesContract extends Contract with AdditionalProperties {
-  import Dsentric._
-  import PessimisticCodecs._
-  import dsentric.Implicits._
-
-  val internal = new \\ {
-    val bob = \[String]
-
-    val $additionalProperties =
-      new ValueProperties[String, Int]()
-  }
-}
+//class AdditionalValuePropertiesContract extends Contract with AdditionalProperties {
+//  import Dsentric._
+//  import PessimisticCodecs._
+//  import dsentric.Implicits._
+//
+//  val internal = new \\ {
+//    val bob = \[String]
+//
+//    val $additionalProperties =
+//      new ValueProperties[String, Int]()
+//  }
+//}
 
 /**
  *  A Value
