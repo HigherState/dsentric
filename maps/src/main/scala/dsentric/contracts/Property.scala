@@ -119,5 +119,4 @@ trait PropertyObjectOps[D <: DObject] { __internal:BaseContract[D] =>
 
     def _parent: BaseContract[D] = __internal
   }
-
 }

@@ -1,7 +1,7 @@
 package dsentric.contracts
 
 import dsentric.failure.IncorrectTypeBehaviour
-import dsentric.{DCodec, DObject, DProjection, Path}
+import dsentric.{DCodec, DObject, DObjectOps, DProjection, Path}
 
 private[dsentric] trait WithIncorrectTypeBehaviour {
   private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour
