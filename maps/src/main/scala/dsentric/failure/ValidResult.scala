@@ -1,6 +1,8 @@
 package dsentric.failure
 
 import cats.data.NonEmptyList
+import dsentric.{DObject, Path}
+import dsentric.contracts.ContractFor
 
 import scala.collection.immutable.VectorBuilder
 import scala.collection.mutable.ListBuffer
@@ -14,6 +16,9 @@ object ValidResult {
     Right(t)
 
   val none: ValidResult[None.type] = ValidResult.success(None)
+
+  def rebase[T, D <: DObject](validResult:ValidResult[T], rootContract:ContractFor[D], rootPath:Path):ValidResult[T] =
+    validResult.left.map(_.map(_.rebase(rootContract, rootPath)))
 
   //TODO replace when cats 2.0.0 comes
   def parSequence[T](v:Vector[ValidResult[T]]):ValidResult[Vector[T]] = {

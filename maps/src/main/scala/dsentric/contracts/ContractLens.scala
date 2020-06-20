@@ -1,6 +1,6 @@
 package dsentric.contracts
 
-import dsentric.{DObject, Path}
+import dsentric.DObject
 import dsentric.failure.{StructuralFailure, ValidResult}
 
 trait ContractLens[D <: DObject] { this:ContractFor[D] =>
@@ -14,7 +14,8 @@ trait ContractLens[D <: DObject] { this:ContractFor[D] =>
    * @return
    */
   final def $get(obj:D):ValidResult[D] =
-    ObjectLens.propertyApplicator(this, obj)
+    ObjectLens.propertyApplicator(this, obj.value)
+      .map(v => obj.internalWrap(v).asInstanceOf[D])
 
 
   /**
@@ -23,7 +24,7 @@ trait ContractLens[D <: DObject] { this:ContractFor[D] =>
    * @return
    */
   final def $verify(obj:D):List[StructuralFailure] =
-    ObjectLens.propertyVerifier(this, obj)
+    ObjectLens.propertyVerifier(this, obj.value)
 
   final def $modify(f:this.type => D => D):D => D =
     f(this)

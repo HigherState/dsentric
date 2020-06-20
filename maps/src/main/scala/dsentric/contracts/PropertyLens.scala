@@ -5,6 +5,7 @@ import dsentric.failure._
 
 private[dsentric] trait PropertyLens[D <: DObject, T] {
 
+  def _key:String
   def _path:Path
   def _codec: DCodec[T]
   def _root:ContractFor[D]
@@ -28,25 +29,24 @@ private[dsentric] trait PropertyLens[D <: DObject, T] {
   private[contracts] def __get(obj:D):ValidResult[Option[T]]
 
   /**
-   * Applies the property value to the object.
+   * Applies the direct property value to the object.
    * Can remove if value on failure if typeBehaviour is to empty.
    * Will set default if value is not found or value is empty or invalid and type behaviour is empty.
    * @param obj
    * @return
    */
-  private[contracts] def __apply(obj:D):ValidResult[D]
+  private[contracts] def __applyTraversal(obj:RawObject):ValidResult[RawObject]
+
+  /**
+   * Verifies the direct property against the object.
+   * @param obj
+   * @return
+   */
+  private[contracts] def __verifyTraversal(obj:RawObject):List[StructuralFailure]
 
   private[contracts] def __set(obj:D, value:T):D =
     obj.internalWrap(PathLensOps.set(obj.value, _path, _codec(value).value)).asInstanceOf[D]
 
-//  private[contracts] def __expected(obj:D):ValidResult[T] =
-//    __get(obj)
-//      .flatMap{
-//        case None =>
-//          ValidResult.failure[T](ExpectedFailure(this))
-//        case Some(t) =>
-//          Right(t)
-//      }
 }
 
 private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens[D, T] {
@@ -56,13 +56,19 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
   private[contracts] def __get(data:D):ValidResult[Option[T]] =
     __incorrectTypeBehaviour.traverse(data.value, this)
 
-  private[contracts] def __apply(obj: D): ValidResult[D] =
-    __incorrectTypeBehaviour.traverse(obj.value, this)
+  private[contracts] def __applyTraversal(obj:RawObject):ValidResult[RawObject] =
+    __incorrectTypeBehaviour.property(obj, this)
       .map(_ => obj)
 
+  private[contracts] def __verifyTraversal(obj:RawObject):List[StructuralFailure] =
+    __incorrectTypeBehaviour.propertyVerify(obj, this)
+
+
   /**
+   * Verifies the Type of the value for the Property and its existence.
    * When verifying an incorrect type always returns a failure, even if
-   * incorrect type behaviour is set to ignore
+   * incorrect type behaviour is set to ignore.
+   * Returns failure if object not found, unless property has MaybeObject Ancestor
    * @param obj
    * @return
    */
@@ -71,22 +77,41 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
 
   /**
    * Returns object if found and of correct type
-   * Returns failure if object not found
-   * Returns None if there is a path with Maybes objects that have no values
+   * Returns ExpectedFailure if object not found, unless property has MaybeObject Property Ancestor
+   * Returns None if there is a path with Maybes Object Properties that have no values
    * @param obj
    * @return
    */
   final def $get(obj:D):ValidResult[Option[T]] =
     __get(obj)
 
+  /**
+   * Sets or Replaces the value for the Property.
+   * Will create object path to Property if objects dont exist.
+   * @param value
+   * @return
+   */
   final def $set(value:T):PathSetter[D] =
     ValueSetter(_path, _codec(value).value)
 
+  /**
+   * Sets or Replaces value for the Property.
+   * Does nothing if None is provided.
+   * Will create object path to Property if objects dont exist.
+   * @param value
+   * @return
+   */
   final def $maybeSet(value:Option[T]):PathSetter[D] =
     value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
       ValueSetter(_path, _codec(v).value)
     }
 
+  /**
+   * Modifies value for the property.
+   * Returns Failure if existing value is Empty or of wrong type.
+   * @param f
+   * @return
+   */
   final def $modify(f:T => T):ValidPathSetter[D] =
     ModifySetter(__get, f, __set)
 
@@ -94,6 +119,8 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
    * Copying from an existing property, if that property is
    * an Empty value on a Maybe Property, it will ignore the copy operation.
    * If its an Expected property it will fail if empty
+   * If the copied property is Empty but is a Default Property, it will
+   * copy the default value.
    * @param p
    * @return
    */
@@ -103,7 +130,11 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
   final lazy val $delta:ExpectedDelta[D, T] =
     new ExpectedDelta(this)
 
-
+  /**
+   * Unapply is only ever a simple prism to the value and its decoding
+   * @param obj
+   * @return
+   */
   final def unapply(obj:D):Option[T] =
     PathLensOps.traverse(obj.value, _path).flatMap(_codec.unapply)
 }
@@ -115,30 +146,62 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
   private[contracts] def __get(obj:D):ValidResult[Option[T]] =
     __incorrectTypeBehaviour.traverse(obj.value, this)
 
-  private[contracts] def __apply(obj: D): ValidResult[D] =
-    PathLensOps.transform(obj.value, _path){
+  private[contracts] def __applyTraversal(obj:RawObject):ValidResult[RawObject] =
+    obj.get(_key) match {
       case None =>
-        ValidResult.none
+        ValidResult.success(obj)
       case Some(a) =>
-        __incorrectTypeBehaviour.apply(a, this).map(_.map(_ => a))
-    }.map(_.fold(obj)(v => obj.internalWrap(v).asInstanceOf[D]))
+        __incorrectTypeBehaviour.apply(a, this).map { r =>
+          r.fold(obj - _key)(_ => obj)
+        }
+    }
 
+  private[contracts] def __verifyTraversal(obj:RawObject):List[StructuralFailure] =
+    __incorrectTypeBehaviour.propertyVerify(obj, this)
 
+  /**
+   * Gets value for the property if found in passed object.
+   * Returns failure if value is of unexpected type,
+   * unless incorrectTypeBehaviour is set to EmptyOnIncorrectType
+   * @param obj
+   * @return
+   */
   final def $get(obj:D):ValidResult[Option[T]] =
     __get(obj)
 
+  /**
+   * Sets or Replaces value for the Property.
+   * Will create object path to Property if objects dont exist.
+   * @param value
+   * @return
+   */
   final def $set(value:T):PathSetter[D] =
     ValueSetter(_path, _codec(value).value)
 
+  /**
+   * Sets or Replaces value for the Property.
+   * Does nothing if None is provided.
+   * Will create object path to Property if objects dont exist.
+   * @param value
+   * @return
+   */
   final def $maybeSet(value:Option[T]):PathSetter[D] =
     value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
       ValueSetter(_path, _codec(v).value)
     }
 
+  /**
+   * Gets value for the property if found in passed object, otherwise returns default.
+   * Returns failure if value is of unexpected type,
+   * unless incorrectTypeBehaviour is set to EmptyOnIncorrectType
+   * @param obj
+   * @return
+   */
   final def $getOrElse(obj:D, default: => T):ValidResult[T] =
     __get(obj).map(_.getOrElse(default))
 
   /**
+   * Verifies the Type of the value for the Property if it exists in the object.
    * When verifying an incorrect type always returns a failure, even if
    * incorrect type behaviour is set to ignore
    * @param obj
@@ -147,24 +210,80 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
   final def $verify(obj:D):List[StructuralFailure] =
     FailOnIncorrectTypeBehaviour.traverseVerify(obj.value, this)
 
+  /**
+   * Removes the property value from the object if it exists.
+   * If the removed property is contained in an otherwise empty nested object, it
+   * will remove the entire object, this is recursive.
+   * @return
+   */
   final def $drop: PathSetter[D] =
     ValueDrop(_path)
 
+  /**
+   * Sets or Replaces vale for the Property if provided
+   * Will create object path to Property if objects dont exist.
+   * If None is provided it will remove the property value from the object if it exists.
+   * If the removed property is contained in an otherwise empty nested object, it
+   * will remove the entire object, this is recursive.
+   *
+   * @param value
+   * @return
+   */
   final def $setOrDrop(value:Option[T]):PathSetter[D] =
     value.fold[PathSetter[D]](ValueDrop(_path))(v => ValueSetter(_path, _codec(v).value))
 
+  /**
+   * Modifies or sets the value if it doesnt exist.
+   * Will create object path to Property if objects dont exist.
+   * Returns failure if value is of the wrong type,
+   * unless incorrectTypeBehaviour is set to EmptyOnIncorrectType, in which case
+   * None will be passed as the argument into the function.
+   * @param f
+   * @return
+   */
   final def $modify(f:Option[T] => T):ValidPathSetter[D] =
     MaybeModifySetter(__get, f, __set)
 
+  /**
+   * Modifies or sets the value if it doesnt exist.
+   * Will create object path to Property if objects dont exist.
+   * If None is returned it will remove the property value from the object if it exists.
+   * If the removed property is contained in an otherwise empty nested object, it
+   * will remove the entire object, this is recursive.
+   * Returns failure if value is of the wrong type,
+   * unless incorrectTypeBehaviour is set to EmptyOnIncorrectType, in which case
+   * None will be passed as the argument into the function.
+   *
+   * @param f
+   * @return
+   */
   final def $modifyOrDrop(f:Option[T] => Option[T]):ValidPathSetter[D] =
     ModifyOrDropSetter[D, T](__get, f, (d, mt) => $setOrDrop(mt)(d))
 
+  /**
+   * Copying from an existing property, if that property is
+   * an Empty value on a Maybe Property, it will drop the value for this property.
+   * If its an Expected property it will fail if empty
+   * If the copied property is Empty but is a Default Property, it will
+   * copy the default value.
+   * If will fail if the source property is of the wrong type, unless the
+   * unless incorrectTypeBehaviour is set to EmptyOnIncorrectType, in which case
+   * The target property will be dropped.
+   * @param p
+   * @return
+   */
   final def $copy(p:PropertyLens[D, T]):ValidPathSetter[D] =
     ModifyOrDropSetter(p.__get, identity[Option[T]], (d:D, mt:Option[T]) => $setOrDrop(mt)(d))
 
   final lazy val $delta:MaybeDelta[D, T] =
     new MaybeDelta[D, T](this)
 
+  /**
+   * Unapply is only ever a simple prism to the value and its decoding
+   * Returns Some(None) if not found or type is incorrect and incorrectTypeBehaviour is Empty
+   * @param obj
+   * @return
+   */
   final def unapply(obj:D):Option[Option[T]] =
     __incorrectTypeBehaviour.traverseMatcher(obj.value, this)
 }
@@ -190,14 +309,57 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
         }
     }.map(_.fold(obj)(v => obj.internalWrap(v).asInstanceOf[D]))
 
-  //Behaviour is default on incorrect type
+  private[contracts] def __applyTraversal(obj:RawObject):ValidResult[RawObject] =
+    obj.get(_key) match {
+      case None =>
+        ValidResult.success(obj + (_key -> _codec(_default)))
+      case Some(a) =>
+        __incorrectTypeBehaviour.apply(a, this).map {
+          case None =>
+            obj + (_key -> _codec(_default))
+          case Some(_) =>
+            obj
+        }
+    }
+
+  private[contracts] def __verifyTraversal(obj:RawObject):List[StructuralFailure] =
+    __incorrectTypeBehaviour.propertyVerify(obj, this)
+
+  /**
+   * Gets value for the property if found in passed object.
+   * Otherwise returns the default value.
+   *
+   * Will return the default even if there is an Ancestor with a MaybeObject
+   * which has is empty.
+   *
+   * Returns fail if value found to be incorrect type unless
+   * incorrectTypeBehaviour is set to EmptyOnIncorrectType, in which case
+   * the default value is returned
+   * @param obj
+   * @return
+   */
   final def $get(obj:D):ValidResult[T] =
     __incorrectTypeBehaviour.traverse(obj.value, this)
       .map(_.getOrElse(_default))
 
+  /**
+   * Sets or Replaces the value for the Property.
+   * Will create object path to Property if objects dont exist.
+   * If you set a value which is the same as the default value,
+   * The value will get set in the object
+   * @param value
+   * @return
+   */
   final def $set(value:T):PathSetter[D] =
     ValueSetter(_path, _codec(value).value)
 
+  /**
+   * Sets or Replaces value for the Property.
+   * Does nothing if None is provided.
+   * Will create object path to Property if objects dont exist.
+   * @param value
+   * @return
+   */
   final def $maybeSet(value:Option[T]):PathSetter[D] =
     value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
       ValueSetter(_path, _codec(v).value)
@@ -212,21 +374,64 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
   final def $verify(obj:D):List[StructuralFailure] =
     FailOnIncorrectTypeBehaviour.traverseVerify(obj.value, this)
 
+  /**
+   * Removes the property value from the object if it exists.
+   * If the removed property is contained in an otherwise empty nested object, it
+   * will remove the entire object, this is recursive.
+   * @return
+   */
   final def $restore: PathSetter[D] =
     ValueDrop(_path)
 
+  /**
+   * Modifies or sets the value if it doesnt exist.
+   * Will create object path to Property if objects dont exist.
+   * Returns failure if value is of the wrong type,
+   * unless incorrectTypeBehaviour is set to EmptyOnIncorrectType, in which case
+   * None will be passed as the argument into the function.
+   * @param f
+   * @return
+   */
   final def $modify(f:T => T):ValidPathSetter[D] =
     ModifySetter(__get, f, __set)
 
+  /**
+   * Sets or Replaces vale for the Property if provided
+   * Will create object path to Property if objects dont exist.
+   * If None is provided it will remove the property value from the object if it exists.
+   * If the removed property is contained in an otherwise empty nested object, it
+   * will remove the entire object, this is recursive.
+   *
+   * @param value
+   * @return
+   */
   final def $setOrRestore(value:Option[T]):PathSetter[D] =
     value.fold[PathSetter[D]](ValueDrop(_path))(v => ValueSetter(_path, _codec(v).value))
 
+  /**
+   * Copying from an existing property, if that property is
+   * an Empty value on a Maybe Property, it will drop the value for this property.
+   * If its an Expected property it will fail if empty
+   * If the copied property is Empty but is a Default Property, it will
+   * copy the default value.
+   * If will fail if the source property is of the wrong type, unless the
+   * unless incorrectTypeBehaviour is set to EmptyOnIncorrectType, in which case
+   * The target property will be dropped.
+   * @param p
+   * @return
+   */
   final def $copy(p:PropertyLens[D, T]):ValidPathSetter[D] =
     ModifyOrDropSetter[D, T](p.__get, identity[Option[T]], (d, mt) => $setOrRestore(mt)(d))
 
   final lazy val $delta:MaybeDelta[D, T] =
     new MaybeDelta[D, T](this)
 
+  /**
+   * Unapply is only ever a simple prism to the value and its decoding
+   * Returns Some(default) if not found or type is incorrect and incorrectTypeBehaviour is Empty
+   * @param obj
+   * @return
+   */
   final def unapply(obj:D):Option[T] =
     __incorrectTypeBehaviour.traverseMatcher(obj.value, this)
     .map(_.getOrElse(_default))
@@ -288,7 +493,7 @@ final class MaybeDelta[D <: DObject, T] private[dsentric](property:PropertyLens[
     ModifyOrDropSetter[DObject, DNullable[T]](obj => property.__incorrectTypeBehaviour.traverse(obj.value, property._root, property._path, _deltaCodec), f, (d, mt) => $setOrNull(mt)(d))
 
   def unapply(delta:DObject):Option[Option[DNullable[T]]] =
-    property.__incorrectTypeBehaviour.matcher(delta.value, property._root, property._path, _deltaCodec)
+    property.__incorrectTypeBehaviour.matcher(delta.value, _deltaCodec)
 }
 
 

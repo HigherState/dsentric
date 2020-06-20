@@ -70,7 +70,7 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should return Type failure if incorrect type even if typeBehaviour is empty") {
         val base = DObject("field" := "value", "copy" := 1234)
-        EmptyExpectedField.copy.$verify(base) should contain (ExpectedFailure(EmptyExpectedField.copy))
+        EmptyExpectedField.copy.$verify(base) should contain (IncorrectTypeFailure(EmptyExpectedField.copy, 1234))
       }
     }
     describe("$get") {
@@ -243,7 +243,7 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
         val base = DObject("field" := 123)
         EmptyExpectedField.field.$modify(_ + "2")(base).left.value should contain (ExpectedFailure(EmptyExpectedField.field))
       }
-      it("Should expected fail on null type  with EmptyOnIncorrectType") {
+      it("Should expected fail on null type with EmptyOnIncorrectType") {
         val base = DObject("field" := DNull)
         EmptyExpectedField.field.$modify(_ + "2")(base).left.value should contain (ExpectedFailure(EmptyExpectedField.field))
       }

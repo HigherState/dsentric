@@ -39,7 +39,8 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
     describe("$get") {
       it("Should succeed with empty object if empty object is empty") {
         val base = DObject.empty
-        ExpectedObject.empty.$get(base).right.value shouldBe DObject.empty
+        val temp =ExpectedObject.empty.$get(base)
+          temp.right.value shouldBe DObject.empty
       }
       it("Should fail if empty object is wrong type") {
         val base = DObject("empty" := "wrongType")
@@ -107,6 +108,12 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
         ExpectedObject.nestedDefault.$get(base2).right.value shouldBe result
         val base3 = DObject("nestedDefault" ::= ("nested" := DObject.empty))
         ExpectedObject.nestedDefault.$get(base3).right.value shouldBe result
+      }
+      it("Should succeed if Maybe Expected nested property is empty and maybe object is empty") {
+
+      }
+      it("Should fail if Maybe Expected nested property is empty but expected object is present") {
+        
       }
     }
     describe("$set") {
