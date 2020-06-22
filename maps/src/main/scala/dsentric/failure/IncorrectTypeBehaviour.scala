@@ -1,23 +1,27 @@
 package dsentric.failure
 
-import cats.data.NonEmptyList
 import dsentric._
-import dsentric.contracts.{ContractFor, Expected, PropertyLens}
+import dsentric.contracts.{ContractFor, PropertyLens}
+import scala.annotation.tailrec
 
-object IncorrectTypeBehaviour {
-  private val empty = Right(None)
-  private val someNone = Some(None)
-}
+sealed trait Traversed[+T]
+sealed trait Available[+T] extends Traversed[T]
 
+case object PathEmptyMaybe extends Traversed[Nothing]
+
+case object NotFound extends Available[Nothing]
+
+final case class Found[+T](value:T) extends Available[T]
+
+final case class TypeFailed(typeFailure: TypeFailure) extends Available[Nothing]
+
+
+
+/**
+ * Handles resolving Incorrect type behaviours in traversing paths and resolving codec values.
+ * Expected path values that are not found will be treated as empty
+ */
 sealed trait IncorrectTypeBehaviour {
-
-  @inline
-  protected def empty[T]:Either[NonEmptyList[StructuralFailure], Option[T]] =
-    IncorrectTypeBehaviour.empty.asInstanceOf[Either[NonEmptyList[StructuralFailure], Option[T]]]
-
-  protected def someNone[T]:Option[Option[T]] =
-    IncorrectTypeBehaviour.someNone.asInstanceOf[Option[Option[T]]]
-
   /**
    * Try to convert value to type specified by the property
    * Returns IncorrectTypeFailure if codec cannot convert
@@ -27,7 +31,7 @@ sealed trait IncorrectTypeBehaviour {
    * @tparam T
    * @return
    */
-  def apply[D <: DObject, T](value:Raw, property:PropertyLens[D, T]):Either[NonEmptyList[StructuralFailure], Option[T]] =
+  def apply[D <: DObject, T](value:Raw, property:PropertyLens[D, T]):Available[T] =
     apply(value, property._root, property._path, property._codec)
 
   /**
@@ -41,7 +45,7 @@ sealed trait IncorrectTypeBehaviour {
    * @tparam T
    * @return
    */
-  def apply[D <: DObject, T](value:Raw, contract:ContractFor[D], path:Path, codec:DCodec[T]):Either[NonEmptyList[StructuralFailure], Option[T]]
+  def apply[D <: DObject, T](value:Raw, contract:ContractFor[D], path:Path, codec:DCodec[T]):Available[T]
 
   /**
    * Attempts to convert the raw object key string value to the key type.
@@ -54,7 +58,7 @@ sealed trait IncorrectTypeBehaviour {
    * @tparam T
    * @return
    */
-  def applyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):Either[NonEmptyList[StructuralFailure], Option[T]]
+  def applyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):Available[T]
 
   /**
    * Checks the type is correct for the codec,
@@ -67,7 +71,7 @@ sealed trait IncorrectTypeBehaviour {
    * @tparam T
    * @return
    */
-  def verify[D <: DObject, T](value:Raw, contract:ContractFor[D], path:Path, codec:DCodec[T]):List[StructuralFailure]
+  def verify[D <: DObject, T](value:Raw, contract:ContractFor[D], path:Path, codec:DCodec[T]):Option[TypeFailure]
 
   /**
    * Checks that the key type is correct for the codec
@@ -80,262 +84,191 @@ sealed trait IncorrectTypeBehaviour {
    * @tparam T
    * @return
    */
-  def verifyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):List[StructuralFailure]
-
-  /**
-   * Attempts to match the type of the value with the Property Codec
-   * On EmptyOnIncorrectTypeBehaviour type failure will return Some(None)
-   * On FailOnIncorrectTypeBehaviour type failure will return None
-   * @param value
-   * @param property
-   * @tparam D
-   * @tparam T
-   * @return
-   */
-  def matcher[D <: DObject, T](value:Raw, property:PropertyLens[D, T]):Option[Option[T]] =
-    matcher(value, property._codec)
-
-  /**
-   * Attempts to match the type of the value with the Codec
-   * On EmptyOnIncorrectTypeBehaviour type failure will return Some(None)
-   * On FailOnIncorrectTypeBehaviour type failure will return None
-   * @param value
-   * @param codec
-   * @tparam D
-   * @tparam T
-   * @return
-   */
-  def matcher[D <: DObject, T](value:Raw, codec:DCodec[T]):Option[Option[T]]
-
-  /**
-   * Extracts value from object following the Property Path.
-   * Returns IncorrectTypeFailure if incorrect type and FailOnIncorrectTypeBehaviour
-   * Otherwise only fails if Path is expected with ExpectedFailure
-   * @param value
-   * @param property
-   * @tparam D
-   * @tparam T
-   * @return
-   */
-  def traverse[D <: DObject, T](value:RawObject, property:PropertyLens[D, T]):Either[NonEmptyList[StructuralFailure], Option[T]] =
-    traverse(value, property._root, property._path, property._codec)
+  def verifyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):Option[TypeFailure]
 
   /**
    * Extracts value from object using the key value.
    * Returns IncorrectTypeFailure if incorrect type and FailOnIncorrectTypeBehaviour
-   * Otherwise only fails if Property is Expected with ExpectedFailure
    * @param value
    * @param property
    * @tparam D
    * @tparam T
    * @return
    */
-  def property[D <: DObject, T](value:RawObject, property:PropertyLens[D, T]):Either[NonEmptyList[StructuralFailure], Option[T]]
+  def property[D <: DObject, T](value:RawObject, property:PropertyLens[D, T]):Available[T]
+
+  /**
+   * Extracts value from object following the Property Path.
+   * Returns IncorrectTypeFailure if incorrect type and FailOnIncorrectTypeBehaviour
+   * @param value
+   * @param property
+   * @tparam D
+   * @tparam T
+   * @return First Option is for Path to object found, the second option is for property value found
+   */
+  def traverse[D <: DObject, T](value:RawObject, property:PropertyLens[D, T]):Traversed[T] =
+    traverse(value, property._root, property._path, property._codec)
 
   /**
    * Extracts value from object following the path.
    * Returns IncorrectTypeFailure if incorrect type and FailOnIncorrectTypeBehaviour
-   * Otherwise only fails if Path is expected with ExpectedFailure
    * @param value
    * @param contract
    * @param path
    * @param codec
    * @tparam D
    * @tparam T
-   * @return
+   * @return First Option is for Path to object found, the second option is for property value found
    */
-  def traverse[D <: DObject, T](value:RawObject, contract:ContractFor[D], path:Path, codec:DCodec[T]):Either[NonEmptyList[StructuralFailure], Option[T]]
-
-  /**
-   * Extracts value from object following the Property Path.
-   * Returns Some(None) if value not found in path
-   * On EmptyOnIncorrectTypeBehaviour type failure will return Some(None)
-   * On FailOnIncorrectTypeBehaviour type failure will return None
-   * @param value
-   * @param property
-   * @tparam D
-   * @tparam T
-   * @return
-   */
-  def traverseMatcher[D <: DObject, T](value:RawObject, property:PropertyLens[D, T]):Option[Option[T]] =
-    PathLensOps.traverse(value, property._path).fold(someNone[T])(matcher(_, property._codec))
-
-  /**
-   * Extracts value from object following the Path.
-   * Returns Some(None) if value not found in path
-   * On EmptyOnIncorrectTypeBehaviour type failure will return Some(None)
-   * On FailOnIncorrectTypeBehaviour type failure will return None
-   * @param value
-   * @param contract
-   * @param path
-   * @param codec
-   * @tparam D
-   * @tparam T
-   * @return
-   */
-  def traverseMatcher[D <: DObject, T](value:RawObject, contract:ContractFor[D], path:Path, codec:DCodec[T]):Option[Option[T]] =
-    PathLensOps.traverse(value, path).fold(someNone[T])(matcher(_, codec))
-
-  /**
-   * Verifies value for the property.
-   * Returns Empty if no failure
-   * Returns IncorrectTypeFailure if incorrect type and FailOnIncorrectTypeBehaviour
-   * Otherwise only fails if Path is expected with ExpectedFailure
-   * @param value
-   * @param property
-   * @tparam D
-   * @tparam T
-   * @return
-   */
-  def traverseVerify[D <: DObject, T](value:RawObject, property:PropertyLens[D, T]):List[StructuralFailure] =
-    traverseVerify(value, property._root, property._path, property._codec)
-
-  /**
-   * Verifies value for the path.
-   * Returns Empty if no failure
-   * Returns IncorrectTypeFailure if incorrect type and FailOnIncorrectTypeBehaviour
-   * Otherwise only fails if Path is expected with ExpectedFailure
-   * @param value
-   * @param contract
-   * @param path
-   * @param codec
-   * @tparam D
-   * @tparam T
-   * @return
-   */
-  def traverseVerify[D <: DObject, T](value:RawObject, contract:ContractFor[D], path:Path, codec:DCodec[T]):List[StructuralFailure]
-
-  /**
-   * Verifies value for the property using the key.
-   * Returns Empty if no failure
-   * Returns IncorrectTypeFailure if incorrect type and FailOnIncorrectTypeBehaviour
-   * Otherwise only fails if Path is expected with ExpectedFailure
-   * @param value
-   * @param property
-   * @tparam D
-   * @tparam T
-   * @return
-   */
-  def propertyVerify[D <: DObject, T](value:RawObject, property:PropertyLens[D, T]):List[StructuralFailure]
+  def traverse[D <: DObject, T](value:RawObject, contract:ContractFor[D], path:Path, codec:DCodec[T]):Traversed[T]
 }
 
 /*
   An incorrect type will return a match with None
  */
 object EmptyOnIncorrectTypeBehaviour extends IncorrectTypeBehaviour {
-  def apply[D <: DObject, T](value:Raw, contract:ContractFor[D], path:Path, codec:DCodec[T]):Either[NonEmptyList[StructuralFailure], Option[T]] =
-    codec.unapply(value).fold(empty[T])(t => Right(Some(t)))
+  def apply[D <: DObject, T](value:Raw, contract:ContractFor[D], path:Path, codec:DCodec[T]):Available[T] =
+    codec.unapply(value).fold[Available[T]](NotFound)(Found.apply)
 
-  def applyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):Either[NonEmptyList[StructuralFailure], Option[T]] =
-    keyCodec.unapply(value).fold(empty[T])(t => Right(Some(t)))
+  def applyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):Available[T] =
+    keyCodec.unapply(value).fold[Available[T]](NotFound)(Found.apply)
 
-  def verify[D <: DObject, T](value: Raw, contract: ContractFor[D], path: Path, codec: DCodec[T]): List[StructuralFailure] =
-    Nil
+  def verify[D <: DObject, T](value: Raw, contract: ContractFor[D], path: Path, codec: DCodec[T]): Option[TypeFailure] =
+    None
 
-  def matcher[D <: DObject, T](value:Raw, codec:DCodec[T]):Option[Option[T]] =
-    Some(codec.unapply(value).fold(Option.empty[T])(t => Some(t)))
-
-  def traverse[D <: DObject, T](value: RawObject, contract: ContractFor[D], path: Path, codec: DCodec[T]): Either[NonEmptyList[StructuralFailure], Option[T]] =
-    PathLensOps.traverse(value, path)
-      .flatMap(codec.unapply) match {
-      case None if path.isExpected =>
-        Left(NonEmptyList(ExpectedFailure(contract, path), Nil))
-      case value =>
-        Right(value)
+  def traverse[D <: DObject, T](value: RawObject, contract: ContractFor[D], path: Path, codec: DCodec[T]): Traversed[T] =
+    traverse(value, path) match {
+      case None =>
+        PathEmptyMaybe
+      case Some((rawObject, key)) =>
+        rawObject.get(key)
+          .flatMap(codec.unapply)
+          .fold[Available[T]](NotFound)(Found.apply)
     }
 
-  def property[D <: DObject, T](value:RawObject, property:PropertyLens[D, T]):Either[NonEmptyList[StructuralFailure], Option[T]] =
-    value.get(property._key).flatMap(property._codec.unapply) match {
-      case None if property.isInstanceOf[Expected] =>
-        Left(NonEmptyList(ExpectedFailure(property._root, property._path), Nil))
-      case value =>
-        Right(value)
+  def property[D <: DObject, T](value:RawObject, property:PropertyLens[D, T]):Available[T] =
+    value.get(property._key)
+      .flatMap(property._codec.unapply)
+      .fold[Available[T]](NotFound)(Found.apply)
+
+  def verifyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):Option[TypeFailure] =
+    None
+
+  /**
+   * Returns None only if maybe path element not found.
+   * Expected path object will default to empty object if not found.
+   * Expected or maybe path object will default to empty object if wrong type.
+   * @param map
+   * @param path
+   * @return
+   */
+  @tailrec
+  private def traverse(map:RawObject, path:Path):Option[(RawObject, String)] =
+    path match {
+      case PathKey(head, PathEnd) =>
+        Some(map -> head)
+      case ExpectedPathKey(head, tail) =>
+        map
+          .get(head) match {
+          case Some(m:RawObject@unchecked) =>
+            traverse(m, tail)
+          case _ =>
+            traverse(Map.empty, tail)
+        }
+      case PathKey(head, tail) =>
+        map
+          .get(head) match {
+            case Some(m:RawObject@unchecked) =>
+              traverse(m, tail)
+            case None =>
+              None
+            case _ =>
+              traverse(Map.empty, tail)
+          }
+      case PathEnd =>
+        None
     }
-
-  def traverseVerify[D <: DObject, T](value: RawObject, contract: ContractFor[D], path: Path, codec: DCodec[T]): List[StructuralFailure] =
-    if (path.isExpected && PathLensOps.traverse(value, path).flatMap(codec.unapply).isEmpty)
-      List(ExpectedFailure(contract, path))
-    else
-      Nil
-
-  def verifyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):List[StructuralFailure] =
-    Nil
-
-  def propertyVerify[D <: DObject, T](value: RawObject, property:PropertyLens[D, T]): List[StructuralFailure] =
-    if (property.isInstanceOf[Expected] && !value.contains(property._key))
-      List(ExpectedFailure(property._root, property._path))
-    else
-      Nil
 }
 
 /*
   An incorrect type will fail to return a match and copy or modify operations will fail
  */
 object FailOnIncorrectTypeBehaviour extends IncorrectTypeBehaviour {
-  def apply[D <: DObject, T](value:Raw, contract:ContractFor[D], path:Path, codec:DCodec[T]):Either[NonEmptyList[StructuralFailure], Option[T]] =
-    codec.unapply(value).fold[Either[NonEmptyList[StructuralFailure], Option[T]]] {
-      Left(NonEmptyList(IncorrectTypeFailure(contract, path, codec, value), Nil))
-    }{t:T => Right(Some(t))}
+  def apply[D <: DObject, T](value:Raw, contract:ContractFor[D], path:Path, codec:DCodec[T]):Available[T] =
+    codec.unapply(value).fold[Available[T]] {
+      TypeFailed(IncorrectTypeFailure(contract, path, codec, value))
+    }{t:T => Found(t)}
 
-  def applyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):Either[NonEmptyList[StructuralFailure], Option[T]] =
-    keyCodec.unapply(value).fold[Either[NonEmptyList[StructuralFailure], Option[T]]] {
-      Left(NonEmptyList(IncorrectKeyTypeFailure(contract, path \ value, keyCodec), Nil))
-    }{t:T => Right(Some(t))}
+  def applyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):Available[T] =
+    keyCodec.unapply(value).fold[Available[T]] {
+      TypeFailed(IncorrectKeyTypeFailure(contract, path \ value, keyCodec))
+    }{t:T => Found(t)}
 
-  def traverse[D <: DObject, T](value: RawObject, contract: ContractFor[D], path: Path, codec: DCodec[T]): Either[NonEmptyList[StructuralFailure], Option[T]] =
-    PathLensOps.traverse(value, path) match {
-      case None if path.isExpected =>
-        Left(NonEmptyList(ExpectedFailure(contract, path), Nil))
-      case None =>
-        empty
-      case Some(v) =>
-        apply(v, contract, path, codec)
+  def traverse[D <: DObject, T](value: RawObject, contract: ContractFor[D], path: Path, codec: DCodec[T]): Traversed[T] =
+    traverse(contract, path, 0, value, path) match {
+      case Left(failure) =>
+        TypeFailed(failure)
+      case Right(None) =>
+        PathEmptyMaybe
+      case Right(Some((rawObject, key))) =>
+        rawObject.get(key) match {
+          case None  =>
+            NotFound
+          case Some(v) =>
+            codec.unapply(v).fold[Available[T]] {
+              TypeFailed(IncorrectTypeFailure(contract, path, codec, v))
+            }{t:T => Found(t)}
+        }
     }
 
-  def property[D <: DObject, T](value:RawObject, property:PropertyLens[D, T]):Either[NonEmptyList[StructuralFailure], Option[T]] =
+  def property[D <: DObject, T](value:RawObject, property:PropertyLens[D, T]):Available[T] =
     value.get(property._key) match {
-      case None if property.isInstanceOf[Expected] =>
-        Left(NonEmptyList(ExpectedFailure(property._root, property._path), Nil))
       case None =>
-        empty
+        NotFound
       case Some(v) =>
         apply(v, property._root, property._path, property._codec)
     }
 
-  def verify[D <: DObject, T](value: Raw, contract: ContractFor[D], path: Path, codec: DCodec[T]): List[StructuralFailure] =
+  def verify[D <: DObject, T](value: Raw, contract: ContractFor[D], path: Path, codec: DCodec[T]): Option[TypeFailure] =
     if (codec.unapply(value).isEmpty)
-      List(IncorrectTypeFailure(contract, path, codec, value))
+      Some(IncorrectTypeFailure(contract, path, codec, value))
     else
-      Nil
+      None
 
-  def matcher[D <: DObject, T](value:Raw, codec:DCodec[T]):Option[Option[T]] =
-    codec.unapply(value).fold(Option.empty[Option[T]])(t => Some(Some(t)))
-
-  def traverseVerify[D <: DObject, T](value: RawObject, contract: ContractFor[D], path: Path, codec: DCodec[T]): List[StructuralFailure] =
-    PathLensOps.traverse(value, path) match {
-      case None if path.isExpected =>
-        List(ExpectedFailure(contract, path))
-      case Some(codec(_)) | None =>
-        Nil
-      case Some(v) =>
-        List(IncorrectTypeFailure(contract, path, codec, v))
-    }
-
-  def verifyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):List[StructuralFailure] =
+  def verifyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):Option[TypeFailure] =
     if (keyCodec.unapply(value).isEmpty)
-      List(IncorrectKeyTypeFailure(contract, path \ value, keyCodec))
+      Option(IncorrectKeyTypeFailure(contract, path \ value, keyCodec))
     else
-      Nil
+      None
 
-  def propertyVerify[D <: DObject, T](value: RawObject, property:PropertyLens[D, T]): List[StructuralFailure] = {
-    val CODEC = property._codec
-    value.get(property._key) match {
-      case None if property.isInstanceOf[Expected] =>
-        List(ExpectedFailure(property._root, property._path))
-      case Some(CODEC(_)) | None =>
-        Nil
-      case Some(v) =>
-        List(IncorrectTypeFailure(property._root, property._path, property._codec, v))
+
+  private val empty = Right(None)
+  @tailrec
+  private def traverse[D <: DObject](contract:ContractFor[D], path:Path, index:Int, map:RawObject, remainder:Path):Either[TypeFailure, Option[(RawObject, String)]] =
+    remainder match {
+      case PathKey(head, PathEnd) =>
+        Right(Some(map -> head))
+      case ExpectedPathKey(head, tail) =>
+        map
+          .get(head) match {
+          case Some(m:RawObject@unchecked) =>
+            traverse(contract, path, index + 1, m, tail)
+          case Some(v) =>
+            Left(IncorrectTypeFailure(contract, path.take(index + 1), PessimisticCodecs.dObjectCodec, v))
+          case None =>
+            traverse(contract, path, index + 1, Map.empty, tail)
+        }
+      case PathKey(head, tail) =>
+        map
+          .get(head) match {
+          case Some(m:RawObject@unchecked) =>
+            traverse(contract, path, index + 1, m, tail)
+          case Some(v) =>
+            Left(IncorrectTypeFailure(contract, path.take(index + 1), PessimisticCodecs.dObjectCodec, v))
+          case None =>
+            empty
+        }
+      case PathEnd =>
+        empty
     }
-  }
 }

@@ -1,7 +1,7 @@
 package dsentric.contracts
 
 import dsentric._
-import dsentric.failure._
+import dsentric.failure.{NotFound, _}
 import cats.data._
 
 private[dsentric] sealed trait ObjectLens[D <: DObject]
@@ -13,40 +13,20 @@ private[dsentric] sealed trait ObjectLens[D <: DObject]
    * @param obj
    * @return
    */
-  private[contracts] def __applyTraversal(obj: RawObject): ValidResult[RawObject] =
-    __incorrectTypeBehaviour.property(obj, this)
-      .map { r =>
-        r.fold(obj)(d => obj + (_key -> ObjectLens.propertyApplicator(this, d.value)))
-      }
+  private[contracts] def __applyTraversal(obj: RawObject): ValidResult[RawObject]
   /**
    * Verifies the direct property against the object.
    * @param obj
    * @return
    */
-  private[contracts] def __verifyTraversal(obj: RawObject): List[StructuralFailure] =
-    __incorrectTypeBehaviour.property(obj, this) match {
-      case Left(NonEmptyList(head, tail)) =>
-        head :: tail
-      case Right(Some(d)) =>
-        ObjectLens.propertyVerifier(this, d.value)
-      case _ =>
-        Nil
-    }
+  private[contracts] def __verifyTraversal(obj: RawObject): List[StructuralFailure]
 
   /**
    *
    * @param obj
    * @return
    */
-  private[dsentric] def __get(obj:D):ValidResult[Option[DObject]] = {
-    __incorrectTypeBehaviour.traverse(obj.value, this)
-      .flatMap{
-        case None => ValidResult.none
-        case Some(d) =>
-          ObjectLens.propertyApplicator(this, d.value)
-            .map(raw => Some(new DObjectInst(raw)))
-      }
-  }
+  private[dsentric] def __get(obj:D):ValidResult[Option[DObject]]
 
   /**
    * Apply object contract to modify the object
@@ -71,15 +51,7 @@ private[dsentric] sealed trait ObjectLens[D <: DObject]
    * @param obj
    * @return
    */
-  final def $verify(obj:D):List[StructuralFailure] =
-    __incorrectTypeBehaviour.traverse(obj.value, this) match {
-      case Left(NonEmptyList(head, tail)) =>
-        head :: tail
-      case Right(Some(d)) =>
-        ObjectLens.propertyVerifier(this, d.value)
-      case _ =>
-        Nil
-    }
+  def $verify(obj:D):List[StructuralFailure]
 
   /**
    * Sets the object content to the passed value.
@@ -100,9 +72,6 @@ private[dsentric] sealed trait ObjectLens[D <: DObject]
    *
    * Tricky expected missing on maybe when no object vs expected missing when there is an object....
    *
-   * An expected object that is missing is treated as an Empty object, so its properties and additional properties will get
-   * verified against the empty object, and the data operators will run against the empty object.
-   * However a None will be returned from the $get operation if no verification failures occur.
    *
    * @param obj
    * @return
@@ -136,7 +105,70 @@ private[dsentric] trait ExpectedObjectLens[D <: DObject] extends ObjectLens[D]{
   final def unapply(obj:D):Option[DObject] =
     PathLensOps.traverse(obj.value, _path).flatMap(_codec.unapply)
 
+  /**
+   * Applies the direct property value to the object.
+   * Will traverse all object properties and apply values
+   *
+   * @param obj
+   * @return
+   */
+  private[contracts] def __applyTraversal(obj: RawObject): ValidResult[RawObject] =
+    __incorrectTypeBehaviour.property(obj, this) match {
+      case NotFound => ObjectLens.propertyApplicator(this, Map.empty)
+      case TypeFailed(f) => ValidResult.failure(f)
+      case Found(v) => ObjectLens.propertyApplicator(this, v.value)
+    }
 
+  /**
+   * Verifies the direct property against the object.
+   *
+   * @param obj
+   * @return
+   */
+  private[contracts] def __verifyTraversal(obj:  RawObject): List[StructuralFailure] =
+    __incorrectTypeBehaviour.property(obj, this) match {
+      case NotFound => ObjectLens.propertyVerifier(this, Map.empty)
+      case TypeFailed(f) => List(f)
+      case Found(v) => ObjectLens.propertyVerifier(this, v.value)
+    }
+
+  /**
+   *
+   * @param obj
+   * @return
+   */
+  private[dsentric] def __get(obj: D): ValidResult[Option[DObject]] =
+    __incorrectTypeBehaviour.traverse(obj.value, this) match {
+      case PathEmptyMaybe =>
+        ValidResult.none
+      case NotFound =>
+        ObjectLens.propertyApplicator(this, Map.empty)
+          .map(r => Some(new DObjectInst(r)))
+      case TypeFailed(f) =>
+        ValidResult.failure(f)
+      case Found(v) =>
+        ObjectLens.propertyApplicator(this, v.value)
+          .map(r => Some(new DObjectInst(r)))
+    }
+
+  /**
+   * Verifies the structure of the object against its properties
+   * and additional property definition returning a list of possibly failures.
+   *
+   * @param obj
+   * @return
+   */
+  final def $verify(obj:  D): List[StructuralFailure] =
+    __incorrectTypeBehaviour.traverse(obj.value, this) match {
+      case PathEmptyMaybe =>
+        Nil
+      case NotFound =>
+        ObjectLens.propertyVerifier(this, Map.empty)
+      case TypeFailed(f) =>
+        List(f)
+      case Found(v) =>
+        ObjectLens.propertyVerifier(this, v.value)
+    }
 }
 
 /**
@@ -146,7 +178,76 @@ private[dsentric] trait ExpectedObjectLens[D <: DObject] extends ObjectLens[D]{
 private[dsentric] trait MaybeObjectLens[D <: DObject] extends ObjectLens[D] {
 
   final def unapply(obj:D):Option[Option[DObject]] =
-    __incorrectTypeBehaviour.traverseMatcher(obj.value, this)
+    __incorrectTypeBehaviour.traverse(obj.value, this) match {
+      case PathEmptyMaybe => Some(None)
+      case NotFound => Some(None)
+      case Found(t) => Some(Some(t))
+      case TypeFailed(f) => None
+    }
+
+  /**
+   * Applies the direct property value to the object.
+   * Will traverse all object properties and apply values
+   *
+   * @param obj
+   * @return
+   */
+  private[contracts] def __applyTraversal(obj: RawObject): ValidResult[RawObject] =
+    __incorrectTypeBehaviour.property(obj, this) match {
+      case NotFound => ValidResult.success(obj)
+      case TypeFailed(f) => ValidResult.failure(f)
+      case Found(v) => ObjectLens.propertyApplicator(this, v.value)
+    }
+
+  /**
+   * Verifies the direct property against the object.
+   *
+   * @param obj
+   * @return
+   */
+  private[contracts] def __verifyTraversal(obj: RawObject): List[StructuralFailure] =
+    __incorrectTypeBehaviour.property(obj, this) match {
+      case NotFound => Nil
+      case TypeFailed(f) => List(f)
+      case Found(v) => ObjectLens.propertyVerifier(this, v.value)
+    }
+
+  /**
+   *
+   * @param obj
+   * @return
+   */
+  private[dsentric] def __get(obj: D): ValidResult[Option[DObject]] =
+    __incorrectTypeBehaviour.traverse(obj.value, this) match {
+      case PathEmptyMaybe =>
+        ValidResult.none
+      case NotFound =>
+        ValidResult.none
+      case TypeFailed(f) =>
+        ValidResult.failure(f)
+      case Found(v) =>
+        ObjectLens.propertyApplicator(this, v.value)
+          .map(r => Some(new DObjectInst(r)))
+    }
+
+  /**
+   * Verifies the structure of the object against its properties
+   * and additional property definition returning a list of possibly failures.
+   *
+   * @param obj
+   * @return
+   */
+  final def $verify(obj: D): List[StructuralFailure] =
+    __incorrectTypeBehaviour.traverse(obj.value, this) match {
+      case PathEmptyMaybe =>
+        Nil
+      case NotFound =>
+        Nil
+      case TypeFailed(f) =>
+        List(f)
+      case Found(v) =>
+        ObjectLens.propertyVerifier(this, v.value)
+    }
 
 }
 
@@ -260,10 +361,14 @@ private[dsentric] trait ObjectsLens[D <: DObject, T <: DObject] extends Property
     __get(obj).map(_.getOrElse(Vector.empty))
 
   final def $verify(obj:D):List[StructuralFailure] =
-    __incorrectTypeBehaviour.traverse(obj.value, this)
-    .fold(_.toList, mv => mv.getOrElse(Vector.empty).toList.zipWithIndex.flatMap { e =>
-      _contract.$verify(e._1).map(_.rebase(_root, _path \ e._2))
-    })
+    __incorrectTypeBehaviour.traverse(obj.value, this) match {
+      case PathEmptyMaybe => Nil
+      case Found(v) => v.zipWithIndex.flatMap { e =>
+        _contract.$verify(e._1).map(_.rebase(_root, _path \ e._2))
+      }.toList
+      case NotFound => Nil
+      case TypeFailed(f) => List(f)
+    }
 
   final def $set(objs:Vector[T]):ValidPathSetter[D] = {
     val validRaw =
@@ -407,33 +512,34 @@ private[dsentric] trait MapObjectsLens[D <: DObject, K, T <: DObject] extends Pr
 
   private[contracts] def __verifyTraversal(obj:  RawObject): List[StructuralFailure] = ???
 
-  final def $verify(obj: D): List[StructuralFailure] =
-    __incorrectTypeBehaviour.traverse(obj.value, this)
-      .fold(_.toList, mv => mv.getOrElse(Vector.empty).toList.flatMap { e =>
-        _contract.$verify(e._2).map(_.rebase(_root, _path \ _keyCodec.toString(e._1)))
-      })
+  final def $verify(obj: D): List[StructuralFailure] = ???
+//    __incorrectTypeBehaviour.traverse(obj.value, this)
+//      .fold(_.toList, mv => mv.getOrElse(Vector.empty).toList.flatMap { e =>
+//        _contract.$verify(e._2).map(_.rebase(_root, _path \ _keyCodec.toString(e._1)))
+//      })
 
   final def $get(obj:D):ValidResult[Map[K, T]] =
     __get(obj).map(_.getOrElse(Map.empty))
 
-  final def $get(k:K)(obj:D):ValidResult[Option[T]] = {
-    val key = _keyCodec.toString(k)
-    __incorrectTypeBehaviour.traverse(obj.value, _root, _path \ key, _valueCodec)
-      .flatMap {
-        case None =>
-          Right(None)
-        case Some(t) =>
-          _contract.$get(t) match {
-            case Left(f) =>
-              if (__incorrectTypeBehaviour == EmptyOnIncorrectTypeBehaviour)
-                Right(None)
-              else
-                Left(f.map(_.rebase(_root, _path \ key)))
-            case Right(v) =>
-              Right(Some(v))
-          }
-      }
-  }
+  final def $get(k:K)(obj:D):ValidResult[Option[T]] = ???
+//  {
+//    val key = _keyCodec.toString(k)
+//    __incorrectTypeBehaviour.traverse(obj.value, _root, _path \ key, _valueCodec)
+//      .flatMap {
+//        case None =>
+//          Right(None)
+//        case Some(t) =>
+//          _contract.$get(t) match {
+//            case Left(f) =>
+//              if (__incorrectTypeBehaviour == EmptyOnIncorrectTypeBehaviour)
+//                Right(None)
+//              else
+//                Left(f.map(_.rebase(_root, _path \ key)))
+//            case Right(v) =>
+//              Right(Some(v))
+//          }
+//      }
+//  }
 
   final def $exists(k:K)(obj:D):ValidResult[Boolean] =
     __getRaw(obj).map(_.contains(_codec.keyCodec.toString(k)))
@@ -552,23 +658,23 @@ private[dsentric] object ObjectLens {
               val keyFailures = baseContract.__incorrectTypeBehaviour.verifyKey(kv._1, baseContract._root, baseContract._path, a._additionalKeyCodec)
               val validValue = baseContract.__incorrectTypeBehaviour(kv._2, baseContract._root, baseContract._path \ kv._1, a._additionalValueCodec)
               validValue -> keyFailures match {
-                case (Left(f), failures) =>
-                  Some(Left(f ++ failures))
-                case (Right(None), Nil) =>
+                case (TypeFailed(typeFailure), failures) =>
+                  Some(Left(NonEmptyList(typeFailure, failures.toList)))
+                case (NotFound, None) =>
                   None
-                case (Right(None), head :: tail) =>
-                  Some(Left(NonEmptyList(head, tail)))
-                case (Right(Some(value)), Nil) =>
+                case (NotFound, Some(failure)) =>
+                  Some(Left(NonEmptyList(failure, Nil)))
+                case (Found(value), None) =>
                   //Important to unapply the codec as there may be more structure involved in the type.
                   val traversed =
                     propertyApplicator(a._additionalContract, value.value)
                       .map(d2 => kv._1 -> a._additionalValueCodec.apply(value.internalWrap(d2)).value)
                   Some(ValidResult.rebase(traversed, baseContract._root, baseContract._path))
-                case (Right(Some(value)), head :: tail) =>
+                case (Found(value), Some(failure)) =>
                   val valueFailures =
                     propertyVerifier(a._additionalContract, value.value)
                       .map(_.rebase(baseContract._root, baseContract._path))
-                  Some(Left(NonEmptyList(head, tail ++ valueFailures)))
+                  Some(Left(NonEmptyList(failure, valueFailures)))
               }
             }
         }.map(pairs => obj ++ pairs)
@@ -612,9 +718,9 @@ private[dsentric] object ObjectLens {
           .flatMap { kv =>
             FailOnIncorrectTypeBehaviour.verifyKey(kv._1, baseContract._root, baseContract._path, a._additionalKeyCodec) ++
             (FailOnIncorrectTypeBehaviour.apply(kv._2, baseContract._root, baseContract._path \ kv._1, a._additionalValueCodec) match {
-              case Left(f) => f.toList
-              case Right(None) => Nil
-              case Right(Some(v)) =>
+              case TypeFailed(typeFailure) => List(typeFailure)
+              case NotFound => Nil
+              case Found(v) =>
                 propertyVerifier(a._additionalContract, v.value)
                   .map(_.rebase(baseContract._root, baseContract._path))
             })

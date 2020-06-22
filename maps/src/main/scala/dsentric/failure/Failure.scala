@@ -17,6 +17,8 @@ sealed trait StructuralFailure extends Failure {
   def rebase[G <: DObject](rootContract:ContractFor[G], rootPath:Path):StructuralFailure
 }
 
+sealed trait TypeFailure extends StructuralFailure
+
 final case class ExpectedFailure[D <: DObject](contract: ContractFor[D], path:Path) extends StructuralFailure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): ExpectedFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
@@ -24,14 +26,14 @@ final case class ExpectedFailure[D <: DObject](contract: ContractFor[D], path:Pa
   def message = "Expected value not found."
 }
 
-final case class IncorrectTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T], foundRaw:Raw) extends StructuralFailure {
+final case class IncorrectTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T], foundRaw:Raw) extends TypeFailure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  IncorrectTypeFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
 
   def message = s"Type '${codec.typeDefinition.name} was expected, type ${foundRaw.getClass.getSimpleName} was found."
 }
 
-final case class IncorrectKeyTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T]) extends StructuralFailure {
+final case class IncorrectKeyTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T]) extends TypeFailure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  IncorrectKeyTypeFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
 
