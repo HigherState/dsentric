@@ -33,7 +33,7 @@ private[dsentric] sealed trait ObjectLens[D <: DObject]
 
   /**
    * Apply object contract to modify the object where there are
-   * changes requiring validation
+   * changes requiring verification
    * @param f
    * @return
    */

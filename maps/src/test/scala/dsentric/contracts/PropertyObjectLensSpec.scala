@@ -1,6 +1,6 @@
 package dsentric.contracts
 
-import dsentric.failure.{ClosedContractFailure, ExpectedFailure, IncorrectTypeFailure}
+import dsentric.failure.{ExpectedFailure, IncorrectTypeFailure}
 import dsentric.{DObject, Data, Dsentric, Path, PessimisticCodecs}
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
@@ -13,151 +13,190 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
   import dsentric.Implicits._
 
   describe("Expected Object lens") {
-    object ExpectedObject extends Contract {
-      val empty = new \\{}
-      val expected = new \\ {
-        val property = \[Int]
+    object ExpectedStructure extends Contract {
+      val empty = new \\ with AdditionalProperties
+
+      val withoutExpected = new \\ with AdditionalProperties {
+        val default = \![Int](1)
+        val maybe = \?[String]
       }
-      val maybe = new \\ {
-        val property = \?[Boolean]
+
+      val withExpected = new \\ with AdditionalProperties {
+        val expected = \[String]
+        val default = \![Int](1)
+        val maybe = \?[String]
       }
-      val default = new \\ {
-        val property = \![String]("default")
-      }
-      //Returns failure if empty
-      val nestedExpected = new \\ {
-        //Returns failure if property is empty
-        val nested = new \\ {
-          val property = \[Int] //fails if any parent is empty
+
+      val expectedParent = new \\ with AdditionalProperties {
+        val expected = new \\ with AdditionalProperties {
+          val expected = \[String]
+          val default = \![Int](1)
+          val maybe = \?[String]
         }
       }
-      //Returns object with default if empty
-      val nestedDefault = new \\ {
-        val nested = new \\ {
-          val property = \![String]("default") // returns default if any parents empty
-        }
-      }
-      val maybeObject = new \\? {
-        val nested = new \\ {
-          val property = \[Int] // returns none if maybeObject is empty, failure if nested is empty
+      val maybeParent = new \\ with AdditionalProperties {
+        val expected = new \\ with AdditionalProperties {
+          val expected = \[String]
+          val default = \![Int](1)
+          val maybe = \?[String]
         }
       }
     }
 
     describe("$verify") {
-      it("Should return failure if empty object is empty") {
-        val base = DObject.empty
-        ExpectedObject.empty.$verify(base) should contain (ExpectedFailure(ExpectedObject.empty))
-      }
-      it("Should return failure if empty object is wrong type") {
-        val base = DObject("empty" := "wrongType")
-        ExpectedObject.empty.$verify(base) should contain (IncorrectTypeFailure(ExpectedObject.empty, "wrongType"))
-      }
-      it("Should return empty list if empty has additional values") {
-        val base = DObject("empty" ::= ("value" := 1))
-        ExpectedObject.empty.$verify(base) shouldBe empty
-      }
-      it("Should fail if nested expected property not found") {
-        val base = DObject("expected" := DObject.empty)
-        ExpectedObject.expected.$verify(base) should contain(ExpectedFailure(ExpectedObject.expected.property))
-        val base2 = DObject.empty
-        ExpectedObject.expected.$verify(base2) should contain(ExpectedFailure(ExpectedObject.expected))
-      }
-    }
+      describe("No Path") {
+        it("Should contain IncorrectTypeFailure if not an object") {
+          val base = DObject("empty" := 1)
+          ExpectedStructure.empty.$verify(base) should contain(IncorrectTypeFailure(ExpectedStructure.empty, 1))
+        }
+        it("Should return empty list if not present and no expected properties") {
+          val base = DObject.empty
+          ExpectedStructure.withoutExpected.$verify(base) shouldBe empty
+        }
+        it("Should return empty list if all expected present and all properties correct type") {
+          val base = DObject("withExpected" ::= ("expected" := "value", "default" := 2, "maybe" := "value"))
+          ExpectedStructure.withExpected.$verify(base) shouldBe empty
+        }
+        it("Should return ExpectedFailure for expected properties if not present") {
+          val base = DObject.empty
+          ExpectedStructure.withExpected.$verify(base) should contain (ExpectedFailure(ExpectedStructure.withExpected.expected))
+        }
+        it("Should return ExpectedFailure for expected properties if present but missing properties") {
+          val base = DObject("withExpected" ::= ("default" := 2, "maybe" := "value"))
+          ExpectedStructure.withExpected.$verify(base) should contain (ExpectedFailure(ExpectedStructure.withExpected.expected))
+        }
+        it("Should return IncorrectTypeFailure for any properties with incorrect types") {
+          val base = DObject("withExpected" ::= ("expected" := "value", "default" := "four", "maybe" := false))
+          ExpectedStructure.withExpected.$verify(base) should contain allOf (
+            IncorrectTypeFailure(ExpectedStructure.withExpected.default, "four"),
+            IncorrectTypeFailure(ExpectedStructure.withExpected.maybe, false),
+          )
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should return empty list if incorrect type and no expected properties") {
 
+          }
+          it("Should contain ExpectedFailure for expected properties if incorrect type") {
+
+          }
+          it("Should return empty list if properties incorrect type and not expected") {
+
+          }
+          it("Should contain ExpectedFailure for any expected properties of the wrong type") {
+
+          }
+        }
+      }
+      describe("In Expected Path") {
+        it("Should return ExpectedFailure for expected properties if parent not present") {
+
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should return ExpectedFailure for expected properties if parent is incorrect type") {
+
+          }
+        }
+      }
+      describe("In Maybe Path") {
+        it("Should return empty list if parent not present regardless of presents of Expected properties") {
+
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should return empty list if parent is incorrect type") {
+
+          }
+        }
+      }
+
+    }
     describe("$get") {
-      it("Should fail if empty object is not found") {
-        val base = DObject.empty
-        ExpectedObject.empty.$get(base).left.value should contain (ExpectedFailure(ExpectedObject.empty))
-      }
-      it("Should fail if empty object is wrong type") {
-        val base = DObject("empty" := "wrongType")
-        ExpectedObject.empty.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.empty, "wrongType"))
-      }
-      it("Should fail if nested expected property not found") {
-        val base = DObject("expected" := DObject.empty)
-        ExpectedObject.expected.$get(base).left.value should contain(ExpectedFailure(ExpectedObject.expected.property))
-        val base2 = DObject.empty
-        ExpectedObject.expected.$get(base2).left.value should contain(ExpectedFailure(ExpectedObject.expected))
-      }
-      it("Should fail if nested expected property is of wrong type") {
-        val base = DObject("expected" ::= ("property" := "value"))
-        ExpectedObject.expected.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.expected.property, "value"))
-      }
-      it("Should succeed if nested expected property is present") {
-        val base = DObject("expected" ::= ("property" := 123))
-        ExpectedObject.expected.$get(base).right.value shouldBe Some(DObject("property" := 123))
-      }
-      it("Should fail if nested maybe property is of wrong type") {
-        val base = DObject("maybe" ::= ("property" := "value"))
-        ExpectedObject.maybe.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.maybe.property, "value"))
-      }
-      it("Should succeed if nested maybe property is empty") {
-        val base = DObject("maybe" := DObject.empty)
-        ExpectedObject.maybe.$get(base).right.value shouldBe Some(DObject.empty)
-      }
-      it("Should fail if nested maybe is empty") {
-        val base = DObject.empty
-        ExpectedObject.maybe.$get(base).left.value should contain (ExpectedFailure(ExpectedObject.maybe))
-      }
-      it("Should succeed if nested maybe property is set") {
-        val base = DObject("maybe" ::= ("property" := false))
-        ExpectedObject.maybe.$get(base).right.value shouldBe Some(DObject("property" := false))
-      }
-      it("Should fail if nested default property is of wrong type") {
-        val base = DObject("default" ::= ("property" := 123))
-        ExpectedObject.default.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.default.property, 123))
-      }
-      it("Should succeed if nested default value is empty with default value") {
-        val base = DObject("default" := DObject.empty)
-        ExpectedObject.default.$get(base).right.value shouldBe Some(DObject("property" := "default"))
-      }
-      it("Should fail if nested default value object is empty") {
-        val base = DObject.empty
-        ExpectedObject.default.$get(base).left.value should contain(ExpectedFailure(ExpectedObject.default))
-      }
-      it("nested object should fail if nested expected value is missing") {
-        val base = DObject.empty
-        ExpectedObject.nestedExpected.$get(base).left.value should contain(ExpectedFailure(ExpectedObject.nestedExpected.nested.property))
-        val base2 = DObject("nestedExpected" := DObject.empty)
-        ExpectedObject.nestedExpected.$get(base2).left.value should contain(ExpectedFailure(ExpectedObject.nestedExpected.nested.property))
-        val base3 = DObject("nestedExpected" ::= ("nested" := DObject.empty))
-        ExpectedObject.nestedExpected.$get(base3).left.value should contain(ExpectedFailure(ExpectedObject.nestedExpected.nested.property))
-      }
-      it("nested object should succeed if nested expected value is set") {
-        val base = DObject("nestedExpected" ::= ("nested" := DObject("property" := 456)))
-        ExpectedObject.nestedExpected.$get(base).right.value shouldBe DObject("nested" := DObject("property" := 456))
-      }
-      it("nested object should succeed with with nested default value is missing") {
-        val base = DObject.empty
-        val result = DObject("nested" := DObject("property" := "default"))
-        ExpectedObject.nestedDefault.$get(base).right.value shouldBe result
-        val base2 = DObject("nestedDefault" := DObject.empty)
-        ExpectedObject.nestedDefault.$get(base2).right.value shouldBe result
-        val base3 = DObject("nestedDefault" ::= ("nested" := DObject.empty))
-        ExpectedObject.nestedDefault.$get(base3).right.value shouldBe result
-      }
-      it("Should succeed if Maybe Expected nested property if maybe object is empty with None") {
-        val base = DObject.empty
-        ExpectedObject.maybeObject.nested.$get(base).right.value shouldBe None
-      }
-      it("Should fail if Maybe Expected nested property is empty ") {
-        val base = DObject("maybeObject" := DObject.empty)
-        ExpectedObject.maybeObject.nested.$get(base).left.value should contain (ExpectedFailure(ExpectedObject.maybeObject.nested))
-      }
+//      it("Should fail if empty object is not found") {
+//        val base = DObject.empty
+//        ExpectedObject.empty.$get(base).left.value should contain (ExpectedFailure(ExpectedObject.empty))
+//      }
+//      it("Should fail if empty object is wrong type") {
+//        val base = DObject("empty" := "wrongType")
+//        ExpectedObject.empty.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.empty, "wrongType"))
+//      }
+//      it("Should fail if nested expected property not found") {
+//        val base = DObject("expected" := DObject.empty)
+//        ExpectedObject.expected.$get(base).left.value should contain(ExpectedFailure(ExpectedObject.expected.property))
+//        val base2 = DObject.empty
+//        ExpectedObject.expected.$get(base2).left.value should contain(ExpectedFailure(ExpectedObject.expected))
+//      }
+//      it("Should fail if nested expected property is of wrong type") {
+//        val base = DObject("expected" ::= ("property" := "value"))
+//        ExpectedObject.expected.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.expected.property, "value"))
+//      }
+//      it("Should succeed if nested expected property is present") {
+//        val base = DObject("expected" ::= ("property" := 123))
+//        ExpectedObject.expected.$get(base).right.value shouldBe Some(DObject("property" := 123))
+//      }
+//      it("Should fail if nested maybe property is of wrong type") {
+//        val base = DObject("maybe" ::= ("property" := "value"))
+//        ExpectedObject.maybe.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.maybe.property, "value"))
+//      }
+//      it("Should succeed if nested maybe property is empty") {
+//        val base = DObject("maybe" := DObject.empty)
+//        ExpectedObject.maybe.$get(base).right.value shouldBe Some(DObject.empty)
+//      }
+//      it("Should fail if nested maybe is empty") {
+//        val base = DObject.empty
+//        ExpectedObject.maybe.$get(base).left.value should contain (ExpectedFailure(ExpectedObject.maybe))
+//      }
+//      it("Should succeed if nested maybe property is set") {
+//        val base = DObject("maybe" ::= ("property" := false))
+//        ExpectedObject.maybe.$get(base).right.value shouldBe Some(DObject("property" := false))
+//      }
+//      it("Should fail if nested default property is of wrong type") {
+//        val base = DObject("default" ::= ("property" := 123))
+//        ExpectedObject.default.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.default.property, 123))
+//      }
+//      it("Should succeed if nested default value is empty with default value") {
+//        val base = DObject("default" := DObject.empty)
+//        ExpectedObject.default.$get(base).right.value shouldBe Some(DObject("property" := "default"))
+//      }
+//      it("Should fail if nested default value object is empty") {
+//        val base = DObject.empty
+//        ExpectedObject.default.$get(base).left.value should contain(ExpectedFailure(ExpectedObject.default))
+//      }
+//      it("nested object should fail if nested expected value is missing") {
+//        val base = DObject.empty
+//        ExpectedObject.nestedExpected.$get(base).left.value should contain(ExpectedFailure(ExpectedObject.nestedExpected.nested.property))
+//        val base2 = DObject("nestedExpected" := DObject.empty)
+//        ExpectedObject.nestedExpected.$get(base2).left.value should contain(ExpectedFailure(ExpectedObject.nestedExpected.nested.property))
+//        val base3 = DObject("nestedExpected" ::= ("nested" := DObject.empty))
+//        ExpectedObject.nestedExpected.$get(base3).left.value should contain(ExpectedFailure(ExpectedObject.nestedExpected.nested.property))
+//      }
+//      it("nested object should succeed if nested expected value is set") {
+//        val base = DObject("nestedExpected" ::= ("nested" := DObject("property" := 456)))
+//        ExpectedObject.nestedExpected.$get(base).right.value shouldBe DObject("nested" := DObject("property" := 456))
+//      }
+//      it("nested object should succeed with with nested default value is missing") {
+//        val base = DObject.empty
+//        val result = DObject("nested" := DObject("property" := "default"))
+//        ExpectedObject.nestedDefault.$get(base).right.value shouldBe result
+//        val base2 = DObject("nestedDefault" := DObject.empty)
+//        ExpectedObject.nestedDefault.$get(base2).right.value shouldBe result
+//        val base3 = DObject("nestedDefault" ::= ("nested" := DObject.empty))
+//        ExpectedObject.nestedDefault.$get(base3).right.value shouldBe result
+//      }
+//      it("Should succeed if Maybe Expected nested property if maybe object is empty with None") {
+//        val base = DObject.empty
+//        ExpectedObject.maybeObject.nested.$get(base).right.value shouldBe None
+//      }
+//      it("Should fail if Maybe Expected nested property is empty ") {
+//        val base = DObject("maybeObject" := DObject.empty)
+//        ExpectedObject.maybeObject.nested.$get(base).left.value should contain (ExpectedFailure(ExpectedObject.maybeObject.nested))
+//      }
     }
     describe("$set") {
-      it("Should fail if object would fail") {
-        ExpectedObject.expected.$set(DObject.empty)(DObject.empty).left.value should contain (ExpectedFailure(ExpectedObject.expected.property))
-        ExpectedObject.expected.$set(DObject("property" := "fail"))(DObject.empty).left.value should contain (IncorrectTypeFailure(ExpectedObject.expected.property, "fail"))
-        ExpectedObject.nestedExpected.$set(DObject.empty)(DObject.empty).left.value should contain (ExpectedFailure(ExpectedObject.nestedExpected.nested.property))
-      }
-      it("should succeed if object would succeed") {
-        ExpectedObject.expected.$set(DObject("property" := 1))(DObject.empty).right.value shouldBe DObject("expected" := DObject("property" := 1))
-        ExpectedObject.maybe.$set(DObject.empty)(DObject.empty).right.value shouldBe DObject("maybe" := DObject.empty)
-        ExpectedObject.default.$set(DObject.empty)(DObject.empty).right.value shouldBe DObject("default" := DObject.empty)
-      }
     }
+    describe("$maybeSet") {
+
+    }
+    describe("$modify") {}
+    describe("$verifyModify") {}
   }
 
   describe("Expected Object lens with EmptyOnIncorrectType") {
