@@ -4,16 +4,26 @@ import dsentric._
 import dsentric.contracts.{ContractFor, PropertyLens}
 import scala.annotation.tailrec
 
-sealed trait Traversed[+T]
+sealed trait Traversed[+T] {
+  def toValidOption:ValidResult[Option[T]]
+}
 sealed trait Available[+T] extends Traversed[T]
 
-case object PathEmptyMaybe extends Traversed[Nothing]
+case object PathEmptyMaybe extends Traversed[Nothing] {
+  def toValidOption: ValidResult[Option[Nothing]] = ValidResult.none
+}
 
-case object NotFound extends Available[Nothing]
+case object NotFound extends Available[Nothing] {
+  def toValidOption: ValidResult[Option[Nothing]] = ValidResult.none
+}
 
-final case class Found[+T](value:T) extends Available[T]
+final case class Found[+T](value:T) extends Available[T] {
+  def toValidOption: ValidResult[Option[T]] = ValidResult.success((Some(value)))
+}
 
-final case class TypeFailed(typeFailure: TypeFailure) extends Available[Nothing]
+final case class Failed(failure: StructuralFailure, tail: List[StructuralFailure] = Nil) extends Available[Nothing] {
+  def toValidOption: ValidResult[Option[Nothing]] = ValidResult.failure(failure, tail:_*)
+}
 
 
 
@@ -194,18 +204,18 @@ object EmptyOnIncorrectTypeBehaviour extends IncorrectTypeBehaviour {
 object FailOnIncorrectTypeBehaviour extends IncorrectTypeBehaviour {
   def apply[D <: DObject, T](value:Raw, contract:ContractFor[D], path:Path, codec:DCodec[T]):Available[T] =
     codec.unapply(value).fold[Available[T]] {
-      TypeFailed(IncorrectTypeFailure(contract, path, codec, value))
+      Failed(IncorrectTypeFailure(contract, path, codec, value))
     }{t:T => Found(t)}
 
   def applyKey[D <: DObject, T](value:String, contract:ContractFor[D], path:Path, keyCodec:StringCodec[T]):Available[T] =
     keyCodec.unapply(value).fold[Available[T]] {
-      TypeFailed(IncorrectKeyTypeFailure(contract, path \ value, keyCodec))
+      Failed(IncorrectKeyTypeFailure(contract, path \ value, keyCodec))
     }{t:T => Found(t)}
 
   def traverse[D <: DObject, T](value: RawObject, contract: ContractFor[D], path: Path, codec: DCodec[T]): Traversed[T] =
     traverse(contract, path, 0, value, path) match {
       case Left(failure) =>
-        TypeFailed(failure)
+        Failed(failure)
       case Right(None) =>
         PathEmptyMaybe
       case Right(Some((rawObject, key))) =>
@@ -214,7 +224,7 @@ object FailOnIncorrectTypeBehaviour extends IncorrectTypeBehaviour {
             NotFound
           case Some(v) =>
             codec.unapply(v).fold[Available[T]] {
-              TypeFailed(IncorrectTypeFailure(contract, path, codec, v))
+              Failed(IncorrectTypeFailure(contract, path, codec, v))
             }{t:T => Found(t)}
         }
     }

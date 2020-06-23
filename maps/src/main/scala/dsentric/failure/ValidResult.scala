@@ -17,12 +17,9 @@ object ValidResult {
 
   val none: ValidResult[None.type] = ValidResult.success(None)
 
-  def rebase[T, D <: DObject](validResult:ValidResult[T], rootContract:ContractFor[D], rootPath:Path):ValidResult[T] =
-    validResult.left.map(_.map(_.rebase(rootContract, rootPath)))
-
   //TODO replace when cats 2.0.0 comes
-  def parSequence[T](v:Vector[ValidResult[T]]):ValidResult[Vector[T]] = {
-    val lb = new ListBuffer[Failure]
+  def parSequence[F <: Failure, T](v:Vector[Either[NonEmptyList[F], T]]):Either[NonEmptyList[F], Vector[T]] = {
+    val lb = new ListBuffer[F]
     val vb = new VectorBuilder[T]
     v.foreach{
       case Right(e) =>
