@@ -1,7 +1,7 @@
 package dsentric.contracts
 
 import cats.data.NonEmptyList
-import dsentric.failure.{Failure, ValidResult}
+import dsentric.failure.{Failure, Found, NotFound, PathEmptyMaybe, Traversed, TypeFailed, ValidResult}
 import dsentric.{DObject, Path, PathLensOps, Raw, RawObject}
 
 sealed trait PathSetter[D <: DObject] extends Function[D, D] {
@@ -163,10 +163,15 @@ private final case class RawModifyDropOrIgnoreSetter[D <: DObject, T](modifier:D
 /*
 Option on f Raw result is case of codec failure
  */
-private final case class MaybeModifySetter[D <: DObject, T](getter:D => ValidResult[Option[T]], f:Option[T] => T, setter:(D, T) => D) extends ValidPathSetter[D] {
+private final case class TraversedModifySetter[D <: DObject, T](getter:D => Traversed[T], f:Option[T] => T, setter:(D, T) => D) extends ValidPathSetter[D] {
 
   def apply(v1: D): ValidResult[D] =
-    getter(v1).map(maybeT => setter(v1, f(maybeT)))
+    getter(v1) match {
+      case PathEmptyMaybe => ValidResult.success(v1)
+      case NotFound => ValidResult.success(setter(v1, f(None)))
+      case Found(t) => ValidResult.success(setter(v1, f(Some(t))))
+      case TypeFailed(f) => ValidResult.failure(f)
+    }
 }
 
 /*

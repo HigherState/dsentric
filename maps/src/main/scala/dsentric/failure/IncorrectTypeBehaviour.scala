@@ -157,7 +157,7 @@ object EmptyOnIncorrectTypeBehaviour extends IncorrectTypeBehaviour {
   /**
    * Returns None only if maybe path element not found.
    * Expected path object will default to empty object if not found.
-   * Expected or maybe path object will default to empty object if wrong type.
+   * Maybe path object will return None if wrong type
    * @param map
    * @param path
    * @return
@@ -180,10 +180,8 @@ object EmptyOnIncorrectTypeBehaviour extends IncorrectTypeBehaviour {
           .get(head) match {
             case Some(m:RawObject@unchecked) =>
               traverse(m, tail)
-            case None =>
-              None
             case _ =>
-              traverse(Map.empty, tail)
+              None
           }
       case PathEnd =>
         None

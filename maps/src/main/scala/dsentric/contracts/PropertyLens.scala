@@ -185,6 +185,19 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
     }
 
   /**
+   * Verifies the Type of the value for the Property if it exists in the object.
+   * When verifying an incorrect type always returns a failure, even if
+   * incorrect type behaviour is set to ignore
+   * @param obj
+   * @return
+   */
+  final def $verify(obj:D):List[StructuralFailure] =
+    FailOnIncorrectTypeBehaviour.traverse(obj.value, this) match {
+      case TypeFailed(f) => List(f)
+      case _ => Nil
+    }
+
+  /**
    * Gets value for the property if found in passed object.
    * Returns failure if value is of unexpected type,
    * unless incorrectTypeBehaviour is set to EmptyOnIncorrectType
@@ -193,6 +206,16 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
    */
   final def $get(obj:D):ValidResult[Option[T]] =
     __get(obj)
+
+  /**
+   * Gets value for the property if found in passed object, otherwise returns default.
+   * Returns failure if value is of unexpected type,
+   * unless incorrectTypeBehaviour is set to EmptyOnIncorrectType
+   * @param obj
+   * @return
+   */
+  final def $getOrElse(obj:D, default: => T):ValidResult[T] =
+    __get(obj).map(_.getOrElse(default))
 
   /**
    * Sets or Replaces value for the Property.
@@ -213,29 +236,6 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
   final def $maybeSet(value:Option[T]):PathSetter[D] =
     value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
       ValueSetter(_path, _codec(v).value)
-    }
-
-  /**
-   * Gets value for the property if found in passed object, otherwise returns default.
-   * Returns failure if value is of unexpected type,
-   * unless incorrectTypeBehaviour is set to EmptyOnIncorrectType
-   * @param obj
-   * @return
-   */
-  final def $getOrElse(obj:D, default: => T):ValidResult[T] =
-    __get(obj).map(_.getOrElse(default))
-
-  /**
-   * Verifies the Type of the value for the Property if it exists in the object.
-   * When verifying an incorrect type always returns a failure, even if
-   * incorrect type behaviour is set to ignore
-   * @param obj
-   * @return
-   */
-  final def $verify(obj:D):List[StructuralFailure] =
-    FailOnIncorrectTypeBehaviour.traverse(obj.value, this)match {
-      case TypeFailed(f) => List(f)
-      case _ => Nil
     }
 
   /**
@@ -262,7 +262,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
 
   /**
    * Modifies or sets the value if it doesnt exist.
-   * Will create object path to Property if objects dont exist.
+   * Will create object path to Property if objects dont exist and path is expected.
    * Returns failure if value is of the wrong type,
    * unless incorrectTypeBehaviour is set to EmptyOnIncorrectType, in which case
    * None will be passed as the argument into the function.
@@ -270,7 +270,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
    * @return
    */
   final def $modify(f:Option[T] => T):ValidPathSetter[D] =
-    MaybeModifySetter(__get, f, __set)
+    TraversedModifySetter(obj => __incorrectTypeBehaviour.traverse(obj.value, this), f, __set)
 
   /**
    * Modifies or sets the value if it doesnt exist.
