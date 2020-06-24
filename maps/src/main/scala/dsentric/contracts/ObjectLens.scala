@@ -21,6 +21,15 @@ private[dsentric] sealed trait ObjectLens[D <: DObject]
    */
   private[contracts] def __verifyTraversal(obj: RawObject): List[StructuralFailure]
 
+  /**
+   * Verifies the direct property against the object.
+   * Will remove from object if empty
+   * @param obj
+   * @return
+   */
+  private[contracts] def __verifyReduce(obj: RawObject):Either[NonEmptyList[StructuralFailure], RawObject]
+
+
   private[dsentric] def __get(obj:D):Traversed[DObject]
 
   /**
@@ -52,11 +61,13 @@ private[dsentric] sealed trait ObjectLens[D <: DObject]
    * Sets the object content to the passed value.
    * Verifies the object satisfies the property requirements
    * and additional properties definition.
+   * Will drop value if resulting object is empty
+   * TypeBehaviour is always to fail, cannot set bad data.
    * @param obj
    * @return
    */
   final def $set(obj:DObject):ValidPathSetter[D] =
-    VerifyValueSetter(_path, _codec.apply(obj), _ => ObjectLens.propertyVerifier(this, obj.value))
+    ValidObjectSetter(this._path, ObjectLens.verifyReduce(this, obj.value))
 
   /**
    * Returns object for this property.
@@ -121,10 +132,28 @@ private[dsentric] trait ExpectedObjectLens[D <: DObject] extends ObjectLens[D]{
    * @return
    */
   private[contracts] def __verifyTraversal(obj:  RawObject): List[StructuralFailure] =
-    __incorrectTypeBehaviour.property(obj, this) match {
+    FailOnIncorrectTypeBehaviour.property(obj, this) match {
       case NotFound => ObjectLens.propertyVerifier(this, Map.empty)
       case Failed(f, tail) => f :: tail
       case Found(v) => ObjectLens.propertyVerifier(this, v.value)
+    }
+
+  private[contracts] def __verifyReduce(obj: RawObject): Either[NonEmptyList[StructuralFailure], RawObject] =
+    FailOnIncorrectTypeBehaviour.property(obj, this) match {
+      case NotFound =>
+        ObjectLens.propertyVerifier(this, Map.empty) match {
+          case head :: tail => Left(NonEmptyList(head, tail))
+          case _ => Right(obj)
+        }
+      case Failed(f, tail) =>
+        Left(NonEmptyList(f, tail))
+      case Found(v) =>
+        ObjectLens.verifyReduce(this, v.value)
+          .map{propertyObject =>
+            if (propertyObject == v) obj
+            else if (propertyObject.isEmpty) obj - _key
+            else obj + (_key -> propertyObject)
+          }
     }
 
   private[dsentric] def __get(obj: D): Traversed[DObject] =
@@ -150,7 +179,7 @@ private[dsentric] trait ExpectedObjectLens[D <: DObject] extends ObjectLens[D]{
    * @return
    */
   final def $verify(obj:  D): List[StructuralFailure] =
-    __incorrectTypeBehaviour.traverse(obj.value, this) match {
+    FailOnIncorrectTypeBehaviour.traverse(obj.value, this) match {
       case PathEmptyMaybe =>
         Nil
       case NotFound =>
@@ -197,10 +226,25 @@ private[dsentric] trait MaybeObjectLens[D <: DObject] extends ObjectLens[D] {
    * @return
    */
   private[contracts] def __verifyTraversal(obj: RawObject): List[StructuralFailure] =
-    __incorrectTypeBehaviour.property(obj, this) match {
+    FailOnIncorrectTypeBehaviour.property(obj, this) match {
       case NotFound => Nil
       case Failed(f, tail) => f :: tail
       case Found(v) => ObjectLens.propertyVerifier(this, v.value)
+    }
+
+  private[contracts] def __verifyReduce(obj: RawObject): Either[NonEmptyList[StructuralFailure], RawObject] =
+    FailOnIncorrectTypeBehaviour.property(obj, this) match {
+      case NotFound =>
+        Right(obj)
+      case Failed(f, tail) =>
+        Left(NonEmptyList(f, tail))
+      case Found(v) =>
+        ObjectLens.verifyReduce(this, v.value)
+          .map{propertyObject =>
+            if (propertyObject == v) obj
+            else if (propertyObject.isEmpty) obj - _key
+            else obj + (_key -> propertyObject)
+          }
     }
 
   private[dsentric] def __get(obj: D): Traversed[DObject] =
@@ -221,7 +265,7 @@ private[dsentric] trait MaybeObjectLens[D <: DObject] extends ObjectLens[D] {
    * @return
    */
   final def $verify(obj: D): List[StructuralFailure] =
-    __incorrectTypeBehaviour.traverse(obj.value, this) match {
+    FailOnIncorrectTypeBehaviour.traverse(obj.value, this) match {
       case PathEmptyMaybe =>
         Nil
       case NotFound =>
@@ -588,11 +632,12 @@ private[dsentric] object ObjectLens {
         case (Right(d), (_, p:Property[D, Any]@unchecked)) =>
           p.__applyTraversal(d)
         case (l:Left[NonEmptyList[StructuralFailure], RawObject], (_, p:Property[D, Any]@unchecked)) =>
-          p.__verifyTraversal(obj) match {
-            case Nil =>
+          p.__applyTraversal(obj) match {
+            case Left(failures) =>
+              Left(failures ::: l.value)
+            case _ =>
               l
-            case head :: tail =>
-              Left(NonEmptyList(head, tail) ::: l.value)
+
           }
       }
     propertyObject match {
@@ -611,6 +656,37 @@ private[dsentric] object ObjectLens {
       case (_, p:Property[D, Any]@unchecked) =>
         p.__verifyTraversal(obj)
     }.toList ++ additionPropertyVerifier(baseContract, obj)
+
+  /**
+   * Reduces empty property fields
+   * */
+  def verifyReduce[D <: DObject](baseContract:BaseContract[D],
+                                    obj:RawObject):Either[NonEmptyList[StructuralFailure], RawObject] = {
+
+    val init = additionPropertyVerifier(baseContract, obj) match {
+      case head :: tail => Left(NonEmptyList(head, tail))
+      case _ => Right(obj)
+    }
+
+    baseContract._fields.foldLeft(init){
+      case (Right(d), (_, p:ObjectLens[D]@unchecked)) =>
+        p.__verifyReduce(d)
+      case (Right(d), (_, p:Property[D, Any]@unchecked)) =>
+        p.__verifyTraversal(d) match {
+          case Nil =>
+            Right(d)
+          case head :: tail =>
+            Left(NonEmptyList(head, tail))
+        }
+      case (l:Left[NonEmptyList[StructuralFailure], RawObject], (_, p:Property[D, Any]@unchecked)) =>
+        p.__verifyTraversal(obj) match {
+          case Nil =>
+            l
+          case head :: tail =>
+            Left(NonEmptyList(head, tail) ::: l.value)
+        }
+    }
+  }
 
 
   private def additionalPropertyApplicator[D <: DObject](baseContract:BaseContract[D],

@@ -13,7 +13,7 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
   import dsentric.Implicits._
 
   describe("Expected Object lens") {
-    object ExpectedStructure extends Contract {
+    trait ExpectedContract extends SubContract {
       val empty = new \\ with AdditionalProperties
 
       val withoutExpected = new \\ with AdditionalProperties {
@@ -34,7 +34,13 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
           val maybe = \?[String]
         }
       }
-      val maybeParent = new \\ with AdditionalProperties {
+      val expectedMaybeParent = new \\ with AdditionalProperties {
+        val maybe = new \\? with AdditionalProperties {
+          val default = \![Int](1)
+          val maybe = \?[String]
+        }
+      }
+      val maybeParent = new \\? with AdditionalProperties {
         val expected = new \\ with AdditionalProperties {
           val expected = \[String]
           val default = \![Int](1)
@@ -42,6 +48,10 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
         }
       }
     }
+
+    object ExpectedStructure extends Contract with ExpectedContract
+
+    object EmptyExpectedStructure extends Contract with ExpectedContract with EmptyOnIncorrectType
 
     describe("$verify") {
       describe("No Path") {
@@ -69,134 +79,314 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
           val base = DObject("withExpected" ::= ("expected" := "value", "default" := "four", "maybe" := false))
           ExpectedStructure.withExpected.$verify(base) should contain allOf (
             IncorrectTypeFailure(ExpectedStructure.withExpected.default, "four"),
-            IncorrectTypeFailure(ExpectedStructure.withExpected.maybe, false),
+            IncorrectTypeFailure(ExpectedStructure.withExpected.maybe, false)
           )
         }
         describe("With EmptyOnIncorrectType") {
-          it("Should return empty list if incorrect type and no expected properties") {
-
-          }
-          it("Should contain ExpectedFailure for expected properties if incorrect type") {
-
-          }
-          it("Should return empty list if properties incorrect type and not expected") {
-
-          }
-          it("Should contain ExpectedFailure for any expected properties of the wrong type") {
-
+          it("Should returns IncorrectTypeFailure if incorrect type") {
+            val base = DObject("empty" := 1)
+            EmptyExpectedStructure.empty.$verify(base) should contain (IncorrectTypeFailure(EmptyExpectedStructure.empty, 1))
           }
         }
       }
       describe("In Expected Path") {
         it("Should return ExpectedFailure for expected properties if parent not present") {
-
+          val base = DObject.empty
+          ExpectedStructure.expectedParent.expected.$verify(base) should contain (ExpectedFailure(ExpectedStructure.expectedParent.expected.expected))
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should return IncorrectTypeFailure for parent if parent is incorrect type") {
+            val base = DObject("expectedParent" := 1)
+            EmptyExpectedStructure.expectedParent.expected.$verify(base) should contain (IncorrectTypeFailure(EmptyExpectedStructure.expectedParent, 1))
+          }
+        }
+      }
+      describe("In Maybe Path") {
+        it("Should return empty list if parent not present regardless of requirements of Expected properties") {
+          val base = DObject.empty
+          ExpectedStructure.maybeParent.expected.$verify(base) shouldBe empty
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should return IncorrectTypeFailure for parent if parent is incorrect type") {
+            val base = DObject("maybeParent" := 1)
+            EmptyExpectedStructure.maybeParent.expected.$verify(base) should contain (IncorrectTypeFailure(EmptyExpectedStructure.maybeParent, 1))
+          }
+        }
+      }
+    }
+    describe("$get") {
+      describe("No Path") {
+        it("Should contain IncorrectTypeFailure if not an object") {
+          val base = DObject("empty" := 1)
+          ExpectedStructure.empty.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedStructure.empty, 1))
+        }
+        it("Should return empty object if not present and no expected properties") {
+          val base = DObject.empty
+          ExpectedStructure.empty.$get(base).right.value shouldBe Some(DObject.empty)
+        }
+        it("Should return object if all expected present and all properties correct type") {
+          val base = DObject("withExpected" ::= ("expected" := "value", "default" := 2, "maybe" := "value"))
+          ExpectedStructure.withExpected.$get(base).right.value shouldBe Some(DObject("expected" := "value", "default" := 2, "maybe" := "value"))
+        }
+        it("Should return ExpectedFailure for expected properties if not present") {
+          val base = DObject.empty
+          ExpectedStructure.withExpected.$get(base).left.value should contain (ExpectedFailure(ExpectedStructure.withExpected.expected))
+        }
+        it("Should return ExpectedFailure for expected properties if present but missing properties") {
+          val base = DObject("withExpected" ::= ("default" := 2, "maybe" := "value"))
+          ExpectedStructure.withExpected.$get(base).left.value should contain (ExpectedFailure(ExpectedStructure.withExpected.expected))
+        }
+        it("Should provide default values if not set") {
+          val base = DObject("withExpected" ::= ("expected" := "value", "maybe" := "value"))
+          ExpectedStructure.withExpected.$get(base).right.value shouldBe Some(DObject("expected" := "value", "default" := 1, "maybe" := "value"))
+        }
+        it("Should return IncorrectTypeFailure for any properties with incorrect types") {
+          val base = DObject("withExpected" ::= ("expected" := "value", "default" := "four", "maybe" := false))
+          ExpectedStructure.withExpected.$get(base).left.value should contain allOf (
+            IncorrectTypeFailure(ExpectedStructure.withExpected.default, "four"),
+            IncorrectTypeFailure(ExpectedStructure.withExpected.maybe, false)
+          )
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should returns empty object and no expected or default properties") {
+            val base = DObject("empty" := 1)
+            EmptyExpectedStructure.empty.$get(base).right.value shouldBe Some(DObject.empty)
+          }
+          it("Should returns object with defaults if incorrect type") {
+            val base = DObject("withoutExpected" := 1)
+            EmptyExpectedStructure.withoutExpected.$get(base).right.value shouldBe Some(DObject("default" := 1))
+          }
+          it("Should contain ExpectedFailure for expected properties if incorrect type") {
+            val base = DObject("withExpected" := 1)
+            EmptyExpectedStructure.withExpected.$get(base).left.value should contain (ExpectedFailure(EmptyExpectedStructure.withExpected.expected))
+          }
+          it("Should return object excluding maybe if maybe has incorrect type") {
+            val base = DObject("withoutExpected" ::= ("default" := 5, "maybe" := 123))
+            EmptyExpectedStructure.withoutExpected.$get(base).right.value shouldBe Some(DObject("default" := 5))
+          }
+          it("Should return object with default value applied if default has incorrect type") {
+            val base = DObject("withoutExpected" ::= ("default" := true))
+            EmptyExpectedStructure.withoutExpected.$get(base).right.value shouldBe Some(DObject("default" := 1))
+          }
+          it("Should contain ExpectedFailure for any expected properties of the wrong type") {
+            val base = DObject("withExpected" ::= ("expected" := 123))
+            EmptyExpectedStructure.withExpected.$get(base).left.value should contain (ExpectedFailure(EmptyExpectedStructure.withExpected.expected))
+          }
+        }
+      }
+      describe("In Expected Path") {
+        it("Should return ExpectedFailure for expected properties if parent not present") {
+          val base = DObject.empty
+          ExpectedStructure.expectedParent.expected.$get(base).left.value should contain (ExpectedFailure(ExpectedStructure.expectedParent.expected.expected))
         }
         describe("With EmptyOnIncorrectType") {
           it("Should return ExpectedFailure for expected properties if parent is incorrect type") {
-
+            val base = DObject("expectedParent" := 1)
+            EmptyExpectedStructure.expectedParent.expected.$get(base).left.value should contain (ExpectedFailure(EmptyExpectedStructure.expectedParent.expected.expected))
           }
         }
       }
       describe("In Maybe Path") {
         it("Should return empty list if parent not present regardless of presents of Expected properties") {
-
+          val base = DObject.empty
+          ExpectedStructure.maybeParent.expected.$get(base).right.value shouldBe None
         }
         describe("With EmptyOnIncorrectType") {
           it("Should return empty list if parent is incorrect type") {
-
+            val base = DObject("maybeParent" := 1)
+            EmptyExpectedStructure.maybeParent.expected.$get(base).right.value shouldBe None
           }
         }
       }
-
-    }
-    describe("$get") {
-//      it("Should fail if empty object is not found") {
-//        val base = DObject.empty
-//        ExpectedObject.empty.$get(base).left.value should contain (ExpectedFailure(ExpectedObject.empty))
-//      }
-//      it("Should fail if empty object is wrong type") {
-//        val base = DObject("empty" := "wrongType")
-//        ExpectedObject.empty.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.empty, "wrongType"))
-//      }
-//      it("Should fail if nested expected property not found") {
-//        val base = DObject("expected" := DObject.empty)
-//        ExpectedObject.expected.$get(base).left.value should contain(ExpectedFailure(ExpectedObject.expected.property))
-//        val base2 = DObject.empty
-//        ExpectedObject.expected.$get(base2).left.value should contain(ExpectedFailure(ExpectedObject.expected))
-//      }
-//      it("Should fail if nested expected property is of wrong type") {
-//        val base = DObject("expected" ::= ("property" := "value"))
-//        ExpectedObject.expected.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.expected.property, "value"))
-//      }
-//      it("Should succeed if nested expected property is present") {
-//        val base = DObject("expected" ::= ("property" := 123))
-//        ExpectedObject.expected.$get(base).right.value shouldBe Some(DObject("property" := 123))
-//      }
-//      it("Should fail if nested maybe property is of wrong type") {
-//        val base = DObject("maybe" ::= ("property" := "value"))
-//        ExpectedObject.maybe.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.maybe.property, "value"))
-//      }
-//      it("Should succeed if nested maybe property is empty") {
-//        val base = DObject("maybe" := DObject.empty)
-//        ExpectedObject.maybe.$get(base).right.value shouldBe Some(DObject.empty)
-//      }
-//      it("Should fail if nested maybe is empty") {
-//        val base = DObject.empty
-//        ExpectedObject.maybe.$get(base).left.value should contain (ExpectedFailure(ExpectedObject.maybe))
-//      }
-//      it("Should succeed if nested maybe property is set") {
-//        val base = DObject("maybe" ::= ("property" := false))
-//        ExpectedObject.maybe.$get(base).right.value shouldBe Some(DObject("property" := false))
-//      }
-//      it("Should fail if nested default property is of wrong type") {
-//        val base = DObject("default" ::= ("property" := 123))
-//        ExpectedObject.default.$get(base).left.value should contain(IncorrectTypeFailure(ExpectedObject.default.property, 123))
-//      }
-//      it("Should succeed if nested default value is empty with default value") {
-//        val base = DObject("default" := DObject.empty)
-//        ExpectedObject.default.$get(base).right.value shouldBe Some(DObject("property" := "default"))
-//      }
-//      it("Should fail if nested default value object is empty") {
-//        val base = DObject.empty
-//        ExpectedObject.default.$get(base).left.value should contain(ExpectedFailure(ExpectedObject.default))
-//      }
-//      it("nested object should fail if nested expected value is missing") {
-//        val base = DObject.empty
-//        ExpectedObject.nestedExpected.$get(base).left.value should contain(ExpectedFailure(ExpectedObject.nestedExpected.nested.property))
-//        val base2 = DObject("nestedExpected" := DObject.empty)
-//        ExpectedObject.nestedExpected.$get(base2).left.value should contain(ExpectedFailure(ExpectedObject.nestedExpected.nested.property))
-//        val base3 = DObject("nestedExpected" ::= ("nested" := DObject.empty))
-//        ExpectedObject.nestedExpected.$get(base3).left.value should contain(ExpectedFailure(ExpectedObject.nestedExpected.nested.property))
-//      }
-//      it("nested object should succeed if nested expected value is set") {
-//        val base = DObject("nestedExpected" ::= ("nested" := DObject("property" := 456)))
-//        ExpectedObject.nestedExpected.$get(base).right.value shouldBe DObject("nested" := DObject("property" := 456))
-//      }
-//      it("nested object should succeed with with nested default value is missing") {
-//        val base = DObject.empty
-//        val result = DObject("nested" := DObject("property" := "default"))
-//        ExpectedObject.nestedDefault.$get(base).right.value shouldBe result
-//        val base2 = DObject("nestedDefault" := DObject.empty)
-//        ExpectedObject.nestedDefault.$get(base2).right.value shouldBe result
-//        val base3 = DObject("nestedDefault" ::= ("nested" := DObject.empty))
-//        ExpectedObject.nestedDefault.$get(base3).right.value shouldBe result
-//      }
-//      it("Should succeed if Maybe Expected nested property if maybe object is empty with None") {
-//        val base = DObject.empty
-//        ExpectedObject.maybeObject.nested.$get(base).right.value shouldBe None
-//      }
-//      it("Should fail if Maybe Expected nested property is empty ") {
-//        val base = DObject("maybeObject" := DObject.empty)
-//        ExpectedObject.maybeObject.nested.$get(base).left.value should contain (ExpectedFailure(ExpectedObject.maybeObject.nested))
-//      }
     }
     describe("$set") {
+      describe("No path") {
+        it("Should make no changes if setting an empty object property to empty") {
+          val base = DObject.empty
+          ExpectedStructure.empty.$set(DObject.empty)(base).right.value shouldBe base
+        }
+        it("Should clear out the object if setting an object to empty") {
+          val base = DObject("empty" ::= ("field" := "value"))
+          ExpectedStructure.empty.$set(DObject.empty)(base).right.value shouldBe DObject.empty
+        }
+        it("Should set a valid object") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "default" := 5, "maybe" := "value")
+          ExpectedStructure.withExpected.$set(value)(base).right.value shouldBe DObject("withExpected" := value)
+        }
+        it("Should fail with ExpectedFailure if object doesn't contain expected properties") {
+          val base = DObject.empty
+          val value = DObject("default" := 4)
+          ExpectedStructure.withExpected.$set(value)(base).left.value should contain (ExpectedFailure(ExpectedStructure.withExpected.expected))
+        }
+        it("Should fail with IncorrectTypeFailure if object contains incorrect types") {
+          val base = DObject.empty
+          val value = DObject("default" := false, "maybe" := 123)
+          ExpectedStructure.withoutExpected.$set(value)(base).left.value should contain allOf(
+            IncorrectTypeFailure(ExpectedStructure.withoutExpected.default, false),
+            IncorrectTypeFailure(ExpectedStructure.withoutExpected.maybe, 123)
+          )
+        }
+        it("Should keep default value even if it matches the default property value") {
+          val base = DObject.empty
+          val value = DObject("default" := 1)
+          ExpectedStructure.withoutExpected.$set(value)(base).right.value shouldBe DObject("withoutExpected" := value)
+        }
+        it("Should removed empty child object property values if verified") {
+          val base = DObject.empty
+          val value = DObject("maybe" := DObject.empty)
+          ExpectedStructure.expectedMaybeParent.$set(value)(base).right.value shouldBe base
+        }
+        it("Should not remove empty other object values if verified") {
+          val base = DObject.empty
+          val value = DObject("maybe" := DObject.empty, "additional" := DObject.empty)
+          ExpectedStructure.expectedMaybeParent.$set(value)(base).right.value shouldBe DObject("expectedMaybeParent" ::= ("additional" := DObject.empty))
+          val value2 = DObject("maybe" := DObject("additional" := DObject.empty))
+          ExpectedStructure.expectedMaybeParent.$set(value2)(base).right.value shouldBe DObject("expectedMaybeParent" ::= ("maybe" ::= ("additional" := DObject.empty)))
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should fail with IncorrectTypeFailure as EmptyOnIncorrectType is irrelevant") {
+            val base = DObject.empty
+            val value = DObject("default" := false, "maybe" := 123)
+            EmptyExpectedStructure.withoutExpected.$set(value)(base).left.value should contain allOf(
+              IncorrectTypeFailure(EmptyExpectedStructure.withoutExpected.default, false),
+              IncorrectTypeFailure(EmptyExpectedStructure.withoutExpected.maybe, 123)
+            )
+          }
+        }
+      }
+      describe("In Expected Path") {
+        it("Should create parent object if not present when setting") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value")
+          ExpectedStructure.expectedParent.expected.$set(value)(base).right.value shouldBe DObject("expectedParent" ::= ("expected" := value))
+        }
+        it("Should replace parent object if not correct type when setting") {
+          val base = DObject("expectedParent" := 1)
+          val value = DObject("expected" := "value")
+          ExpectedStructure.expectedParent.expected.$set(value)(base).right.value shouldBe DObject("expectedParent" ::= ("expected" := value))
+        }
+        it("Should merge in with existing properties when setting if present") {
+          val base = DObject("expectedParent" ::= ("additional" := "value"))
+          val value = DObject("expected" := "value")
+          ExpectedStructure.expectedParent.expected.$set(value)(base).right.value shouldBe DObject("expectedParent" ::= ("additional" := "value", "expected" := value))
+        }
+      }
+      describe("In Maybe Path") {
+        it("Should create parent object if not present when setting") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value")
+          ExpectedStructure.maybeParent.expected.$set(value)(base).right.value shouldBe DObject("maybeParent" ::= ("expected" := value))
+        }
+        it("Should replace parent object if not correct type when setting") {
+          val base = DObject("maybeParent" := 1)
+          val value = DObject("expected" := "value")
+          ExpectedStructure.maybeParent.expected.$set(value)(base).right.value shouldBe DObject("maybeParent" ::= ("expected" := value))
+        }
+        it("Should merge in with existing properties when setting if present") {
+          val base = DObject("maybeParent" ::= ("additional" := "value"))
+          val value = DObject("expected" := "value")
+          ExpectedStructure.maybeParent.expected.$set(value)(base).right.value shouldBe DObject("maybeParent" ::= ("additional" := "value", "expected" := value))
+        }
+      }
     }
     describe("$maybeSet") {
+      describe("No path") {
+        it("Should make no changes if no value set") {
+          val base = DObject.empty
+          ExpectedStructure.empty.$maybeSet(None)(base).right.value shouldBe base
+        }
+        it("Should clear out the object if setting an object to empty") {
+          val base = DObject("empty" ::= ("field" := "value"))
+          ExpectedStructure.empty.$set(DObject.empty)(base).right.value shouldBe DObject.empty
+        }
+        it("Should set a valid object") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "default" := 5, "maybe" := "value")
+          ExpectedStructure.withExpected.$set(value)(base).right.value shouldBe DObject("withExpected" := value)
+        }
+        it("Should fail with ExpectedFailure if object doesn't contain expected properties") {
+          val base = DObject.empty
+          val value = DObject("default" := 4)
+          ExpectedStructure.withExpected.$set(value)(base).left.value should contain (ExpectedFailure(ExpectedStructure.withExpected.expected))
+        }
+        it("Should fail with IncorrectTypeFailure if object contains incorrect types") {
+          val base = DObject.empty
+          val value = DObject("default" := false, "maybe" := 123)
+          ExpectedStructure.withoutExpected.$set(value)(base).left.value should contain allOf(
+            IncorrectTypeFailure(ExpectedStructure.withoutExpected.default, false),
+            IncorrectTypeFailure(ExpectedStructure.withoutExpected.maybe, 123)
+          )
+        }
+        it("Should keep default value even if it matches the default property value") {
+          val base = DObject.empty
+          val value = DObject("default" := 1)
+          ExpectedStructure.withoutExpected.$set(value)(base).right.value shouldBe DObject("withoutExpected" := value)
+        }
+        it("Should removed empty child object property values if verified") {
+          val base = DObject.empty
+          val value = DObject("maybe" := DObject.empty)
+          ExpectedStructure.expectedMaybeParent.$set(value)(base).right.value shouldBe base
+        }
+        it("Should not remove empty other object values if verified") {
+          val base = DObject.empty
+          val value = DObject("maybe" := DObject.empty, "additional" := DObject.empty)
+          ExpectedStructure.expectedMaybeParent.$set(value)(base).right.value shouldBe DObject("expectedMaybeParent" ::= ("additional" := DObject.empty))
+          val value2 = DObject("maybe" := DObject("additional" := DObject.empty))
+          ExpectedStructure.expectedMaybeParent.$set(value2)(base).right.value shouldBe DObject("expectedMaybeParent" ::= ("maybe" ::= ("additional" := DObject.empty)))
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should fail with IncorrectTypeFailure as EmptyOnIncorrectType is irrelevant") {
+            val base = DObject.empty
+            val value = DObject("default" := false, "maybe" := 123)
+            EmptyExpectedStructure.withoutExpected.$set(value)(base).left.value should contain allOf(
+              IncorrectTypeFailure(EmptyExpectedStructure.withoutExpected.default, false),
+              IncorrectTypeFailure(EmptyExpectedStructure.withoutExpected.maybe, 123)
+            )
+          }
+        }
+      }
+      describe("In Expected Path") {
+        it("Should create parent object if not present when setting") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value")
+          ExpectedStructure.expectedParent.expected.$set(value)(base).right.value shouldBe DObject("expectedParent" ::= ("expected" := value))
+        }
+        it("Should replace parent object if not correct type when setting") {
+          val base = DObject("expectedParent" := 1)
+          val value = DObject("expected" := "value")
+          ExpectedStructure.expectedParent.expected.$set(value)(base).right.value shouldBe DObject("expectedParent" ::= ("expected" := value))
+        }
+        it("Should merge in with existing properties when setting if present") {
+          val base = DObject("expectedParent" ::= ("additional" := "value"))
+          val value = DObject("expected" := "value")
+          ExpectedStructure.expectedParent.expected.$set(value)(base).right.value shouldBe DObject("expectedParent" ::= ("additional" := "value", "expected" := value))
+        }
+      }
+      describe("In Maybe Path") {
+        it("Should create parent object if not present when setting") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value")
+          ExpectedStructure.maybeParent.expected.$set(value)(base).right.value shouldBe DObject("maybeParent" ::= ("expected" := value))
+        }
+        it("Should replace parent object if not correct type when setting") {
+          val base = DObject("maybeParent" := 1)
+          val value = DObject("expected" := "value")
+          ExpectedStructure.maybeParent.expected.$set(value)(base).right.value shouldBe DObject("maybeParent" ::= ("expected" := value))
+        }
+        it("Should merge in with existing properties when setting if present") {
+          val base = DObject("maybeParent" ::= ("additional" := "value"))
+          val value = DObject("expected" := "value")
+          ExpectedStructure.maybeParent.expected.$set(value)(base).right.value shouldBe DObject("maybeParent" ::= ("additional" := "value", "expected" := value))
+        }
+      }
+    }
+    describe("$modify") {
+      
+    }
+    describe("$verifyModify") {
 
     }
-    describe("$modify") {}
-    describe("$verifyModify") {}
   }
 
   describe("Expected Object lens with EmptyOnIncorrectType") {

@@ -68,7 +68,7 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
     }
 
   private[contracts] def __verifyTraversal(obj:RawObject):List[StructuralFailure] =
-    __incorrectTypeBehaviour.property(obj, this) match {
+    FailOnIncorrectTypeBehaviour.property(obj, this) match {
       case NotFound => List(ExpectedFailure(this))
       case Found(_) => Nil
       case Failed(f, tail) => f :: tail
@@ -168,12 +168,13 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
       case Some(a) =>
         __incorrectTypeBehaviour.apply(a, this) match {
           case Failed(f, tail) => Left(NonEmptyList(f, tail))
-          case _ =>  Right(obj)
+          case NotFound => Right(obj - _key)
+          case _ => Right(obj)
         }
     }
 
   private[contracts] def __verifyTraversal(obj:RawObject):List[StructuralFailure] =
-    __incorrectTypeBehaviour.property(obj, this) match {
+    FailOnIncorrectTypeBehaviour.property(obj, this) match {
       case Failed(f, tail) => f :: tail
       case _ => Nil
     }
@@ -343,7 +344,7 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
     }
 
   private[contracts] def __verifyTraversal(obj:RawObject):List[StructuralFailure] =
-    __incorrectTypeBehaviour.property(obj, this) match {
+    FailOnIncorrectTypeBehaviour.property(obj, this) match {
       case Failed(f, tail) => f :: tail
       case _ => Nil
     }

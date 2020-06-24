@@ -1,7 +1,6 @@
 package dsentric.contracts
 
-import cats.data.NonEmptyList
-import dsentric.failure.{Failure, Found, NotFound, PathEmptyMaybe, Traversed, Failed, ValidResult}
+import dsentric.failure.{Found, NotFound, PathEmptyMaybe, Traversed, Failed, ValidResult}
 import dsentric.{DObject, Path, PathLensOps, Raw, RawObject}
 
 sealed trait PathSetter[D <: DObject] extends Function[D, D] {
@@ -53,6 +52,7 @@ private final case class ValueSetter[D <: DObject](path:Path, value:Raw) extends
 
 }
 
+//TODO: Support lazy evaluation of validResult
 private final case class ValidValueSetter[D <: DObject](path:Path, value:ValidResult[Raw]) extends ValidPathSetter[D] {
 
   def apply(v1: D): ValidResult[D] =
@@ -60,17 +60,18 @@ private final case class ValidValueSetter[D <: DObject](path:Path, value:ValidRe
 
 }
 
-private final case class VerifyValueSetter[D <: DObject](path:Path, value:Raw, verify:D => List[Failure]) extends ValidPathSetter[D] {
+//If object is empty then drops the value
+private final case class ValidObjectSetter[D <: DObject](path:Path, value:ValidResult[RawObject]) extends ValidPathSetter[D] {
 
-  def apply(v1: D): ValidResult[D] = {
-    val r = asD(v1.internalWrap(PathLensOps.set(v1.value, path, value)))
-    verify(r) match {
-      case head :: tail =>
-        Left(NonEmptyList(head, tail))
-      case Nil =>
-        Right(r)
+  def apply(v1: D): ValidResult[D] =
+    value.map {
+      case r if r.isEmpty =>
+        PathLensOps.drop(v1.value, path).fold(v1){d =>
+          asD(v1.internalWrap(d))
+        }
+      case r =>
+        asD(v1.internalWrap(PathLensOps.set(v1.value, path, r)))
     }
-  }
 
 }
 

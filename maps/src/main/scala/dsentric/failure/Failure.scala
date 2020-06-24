@@ -1,6 +1,6 @@
 package dsentric.failure
 
-import dsentric.contracts.{ContractFor, PropertyLens}
+import dsentric.contracts.{ContractFor, Expected, PropertyLens}
 import dsentric.{DCodec, DObject, Path, Raw, StringCodec}
 
 import scala.util.matching.Regex
