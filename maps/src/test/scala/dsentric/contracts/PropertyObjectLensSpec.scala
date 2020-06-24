@@ -381,187 +381,266 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
         }
       }
     }
-    describe("$modify") {
-      
-    }
-    describe("$verifyModify") {
-
-    }
   }
 
-  describe("Expected Object lens with EmptyOnIncorrectType") {
-    object EmptyExpectedObject extends Contract with EmptyOnIncorrectType {
-      val empty = new \\{}
-      val expected = new \\ {
-        val property = \[Int]
+  describe("Maybe Object lens") {
+    trait MaybeContract extends SubContract {
+      val empty = new \\? with AdditionalProperties
+
+      val withExpected = new \\? with AdditionalProperties {
+        val expected = \[String]
+        val default = \![Int](1)
+        val maybe = \?[String]
       }
-      val maybe = new \\ {
-        val property = \?[Boolean]
+
+      val expectedParent = new \\ with AdditionalProperties {
+        val maybe = new \\? with AdditionalProperties {
+          val expected = \[String]
+          val default = \![Int](1)
+          val maybe = \?[String]
+        }
+        val maybeWithoutExpected = new \\? with AdditionalProperties {
+          val default = \![Int](1)
+          val maybe = \?[String]
+        }
       }
-      val default = new \\ {
-        val property = \![String]("default")
-      }
-      val nestedDefault = new \\ {
-        val nested = new \\ {
-          val property = \![String]("default")
+      val maybeParent = new \\? with AdditionalProperties {
+        val expected = new \\ with AdditionalProperties {
+          val expected = \[String]
+          val default = \![Int](1)
+          val maybe = \?[String]
         }
       }
     }
 
-    describe("$get") {
-      it("Should return empty object if object is of wrong type") {
-        val base = DObject("empty" := "wrongType")
-        EmptyExpectedObject.empty.$get(base).right.value shouldBe DObject.empty
+    object MaybeStructure extends Contract with MaybeContract
+
+    object EmptyMaybeStructure extends Contract with MaybeContract with EmptyOnIncorrectType
+
+    describe("$verify") {
+      describe("No Path") {
+        it("Should contain IncorrectTypeFailure if not an object") {
+          val base = DObject("empty" := 1)
+          MaybeStructure.empty.$verify(base) should contain(IncorrectTypeFailure(MaybeStructure.empty, 1))
+        }
+        it("Should return empty list if not present") {
+          val base = DObject.empty
+          MaybeStructure.withExpected.$verify(base) shouldBe empty
+        }
+        it("Should return empty list if all expected present and all properties correct type") {
+          val base = DObject("withExpected" ::= ("expected" := "value", "default" := 2, "maybe" := "value"))
+          MaybeStructure.withExpected.$verify(base) shouldBe empty
+        }
+        it("Should return ExpectedFailure for expected properties if present but missing properties") {
+          val base = DObject("withExpected" ::= ("default" := 2, "maybe" := "value"))
+          MaybeStructure.withExpected.$verify(base) should contain (ExpectedFailure(MaybeStructure.withExpected.expected))
+        }
+        it("Should return IncorrectTypeFailure for any properties with incorrect types") {
+          val base = DObject("withExpected" ::= ("expected" := "value", "default" := "four", "maybe" := false))
+          MaybeStructure.withExpected.$verify(base) should contain allOf (
+            IncorrectTypeFailure(MaybeStructure.withExpected.default, "four"),
+            IncorrectTypeFailure(MaybeStructure.withExpected.maybe, false)
+          )
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should returns IncorrectTypeFailure if incorrect type") {
+            val base = DObject("empty" := 1)
+            EmptyMaybeStructure.empty.$verify(base) should contain (IncorrectTypeFailure(EmptyMaybeStructure.empty, 1))
+          }
+        }
       }
-      it("Should fail if nested expected property is of wrong type with expected failure") {
-        val base = DObject("expected" ::= ("property" := "value"))
-        EmptyExpectedObject.expected.$get(base).left.value should contain(ExpectedFailure(EmptyExpectedObject.expected.property))
+      describe("In Expected Path") {
+        it("Should return empty list expected properties if parent not present") {
+          val base = DObject.empty
+          MaybeStructure.expectedParent.maybe.$verify(base) shouldBe empty
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should return IncorrectTypeFailure for parent if parent is incorrect type") {
+            val base = DObject("expectedParent" := 1)
+            EmptyMaybeStructure.expectedParent.maybe.$verify(base) should contain (IncorrectTypeFailure(EmptyMaybeStructure.expectedParent, 1))
+          }
+        }
       }
-      it("Should succeed if nested maybe property is of wrong type") {
-        val base = DObject("maybe" ::= ("property" := "value"))
-        EmptyExpectedObject.maybe.$get(base).right.value shouldBe DObject.empty
-        val base2 = DObject("maybe" ::= ("property" := "value", "additional" := 123))
-        EmptyExpectedObject.maybe.$get(base2).right.value shouldBe DObject("additional" := 123)
-      }
-      it("Should succeed if nested default property is of wrong type") {
-        val base = DObject("default" ::= ("property" := 123))
-        EmptyExpectedObject.default.$get(base).right.value shouldBe DObject("property" := "default")
-      }
-      it("nested object should succeed with with nested default value is missing") {
-        val base = DObject("nestedDefault" ::= ("nested" := DObject("property" := 1234)))
-        val result = DObject("nested" := DObject("property" := "default"))
-        EmptyExpectedObject.nestedDefault.$get(base).right.value shouldBe result
+      describe("In Maybe Path") {
+        it("Should return empty list if parent not present regardless of requirements of Expected properties") {
+          val base = DObject.empty
+          MaybeStructure.maybeParent.expected.$verify(base) shouldBe empty
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should return IncorrectTypeFailure for parent if parent is incorrect type") {
+            val base = DObject("maybeParent" := 1)
+            EmptyMaybeStructure.maybeParent.expected.$verify(base) should contain (IncorrectTypeFailure(EmptyMaybeStructure.maybeParent, 1))
+          }
+        }
       }
     }
-
+    describe("$get") {
+      describe("No Path") {
+        it("Should contain IncorrectTypeFailure if not an object") {
+          val base = DObject("empty" := 1)
+          MaybeStructure.empty.$get(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.empty, 1))
+        }
+        it("Should return None if not present and no expected properties") {
+          val base = DObject.empty
+          MaybeStructure.empty.$get(base).right.value shouldBe None
+        }
+        it("Should return object if all expected present and all properties correct type") {
+          val base = DObject("withExpected" ::= ("expected" := "value", "default" := 2, "maybe" := "value"))
+          MaybeStructure.withExpected.$get(base).right.value shouldBe Some(DObject("expected" := "value", "default" := 2, "maybe" := "value"))
+        }
+        it("Should return None for expected properties if not present and object not set") {
+          val base = DObject.empty
+          MaybeStructure.withExpected.$get(base).right.value shouldBe None
+        }
+        it("Should return ExpectedFailure for expected properties if present but missing properties") {
+          val base = DObject("withExpected" ::= ("default" := 2, "maybe" := "value"))
+          MaybeStructure.withExpected.$get(base).left.value should contain (ExpectedFailure(MaybeStructure.withExpected.expected))
+        }
+        it("Should provide default values if not set") {
+          val base = DObject("withExpected" ::= ("expected" := "value", "maybe" := "value"))
+          MaybeStructure.withExpected.$get(base).right.value shouldBe Some(DObject("expected" := "value", "default" := 1, "maybe" := "value"))
+        }
+        it("Should return IncorrectTypeFailure for any properties with incorrect types") {
+          val base = DObject("withExpected" ::= ("expected" := "value", "default" := "four", "maybe" := false))
+          MaybeStructure.withExpected.$get(base).left.value should contain allOf (
+            IncorrectTypeFailure(MaybeStructure.withExpected.default, "four"),
+            IncorrectTypeFailure(MaybeStructure.withExpected.maybe, false)
+          )
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should contain ExpectedFailure for expected properties if incorrect type") {
+            val base = DObject("withExpected" := 1)
+            EmptyMaybeStructure.withExpected.$get(base).right.value shouldBe None
+          }
+          it("Should return object excluding maybe if maybe has incorrect type") {
+            val base = DObject("withExpected" ::= ("default" := 5, "maybe" := 123, "expected" := "value"))
+            EmptyMaybeStructure.withExpected.$get(base).right.value shouldBe Some(DObject("default" := 5, "expected" := "value"))
+          }
+          it("Should return object with default value applied if default has incorrect type") {
+            val base = DObject("withExpected" ::= ("default" := true, "expected" := "value"))
+            EmptyMaybeStructure.withExpected.$get(base).right.value shouldBe Some(DObject("default" := 1, "expected" := "value"))
+          }
+          it("Should contain ExpectedFailure for any expected properties of the wrong type") {
+            val base = DObject("withExpected" ::= ("expected" := 123))
+            EmptyMaybeStructure.withExpected.$get(base).left.value should contain (ExpectedFailure(EmptyMaybeStructure.withExpected.expected))
+          }
+        }
+      }
+      describe("In Expected Path") {
+        it("Should return None if empty even with expected properties") {
+          val base = DObject.empty
+          MaybeStructure.expectedParent.maybe.$get(base).right.value shouldBe None
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should return None for maybe parent is incorrect type") {
+            val base = DObject("expectedParent" := 1)
+            EmptyMaybeStructure.expectedParent.maybe.$get(base).right.value shouldBe None
+          }
+        }
+      }
+      describe("In Maybe Path") {
+        it("Should return None if parent not present regardless of presents of Expected properties") {
+          val base = DObject.empty
+          MaybeStructure.maybeParent.expected.$get(base).right.value shouldBe None
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should return None if parent is incorrect type") {
+            val base = DObject("maybeParent" := 1)
+            EmptyMaybeStructure.maybeParent.expected.$get(base).right.value shouldBe None
+          }
+        }
+      }
+    }
     describe("$set") {
-      //Anything using the lens to set should be correct
-      it("should fail if maybe property of wrong type") {
-        EmptyExpectedObject.maybe.$set(DObject("property" := 123, "additional" := "temp"))(DObject.empty).left.value should contain (IncorrectTypeFailure(EmptyExpectedObject.maybe.property, 123))
+      describe("No path") {
+        it("Should make no changes if setting an empty object property to empty") {
+          val base = DObject.empty
+          MaybeStructure.empty.$set(DObject.empty)(base).right.value shouldBe base
+        }
+        it("Should clear out the object if setting an object to empty") {
+          val base = DObject("empty" ::= ("field" := "value"))
+          MaybeStructure.empty.$set(DObject.empty)(base).right.value shouldBe DObject.empty
+        }
+        it("Should set a valid object") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "default" := 5, "maybe" := "value")
+          MaybeStructure.withExpected.$set(value)(base).right.value shouldBe DObject("withExpected" := value)
+        }
+        it("Should fail with ExpectedFailure if object doesn't contain expected properties") {
+          val base = DObject.empty
+          val value = DObject("default" := 4)
+          MaybeStructure.withExpected.$set(value)(base).left.value should contain (ExpectedFailure(MaybeStructure.withExpected.expected))
+        }
+        it("Should fail with IncorrectTypeFailure if object contains incorrect types") {
+          val base = DObject.empty
+          val value = DObject("default" := false, "maybe" := 123)
+          MaybeStructure.withExpected.$set(value)(base).left.value should contain allOf(
+            IncorrectTypeFailure(MaybeStructure.withExpected.default, false),
+            IncorrectTypeFailure(MaybeStructure.withExpected.maybe, 123)
+          )
+        }
+        it("Should keep default value even if it matches the default property value") {
+          val base = DObject.empty
+          val value = DObject("default" := 1, "expected" := "value")
+          MaybeStructure.withExpected.$set(value)(base).right.value shouldBe DObject("withExpected" := value)
+        }
+        it("Should removed empty child object property values if verified") {
+          val base = DObject.empty
+          val value = DObject("maybeWithoutExpected" := DObject.empty)
+          MaybeStructure.expectedParent.$set(value)(base).right.value shouldBe base
+        }
+        it("Should not remove empty other object values if verified") {
+          val base = DObject.empty
+          val value = DObject("maybeWithoutExpected" := DObject.empty, "additional" := DObject.empty)
+          MaybeStructure.expectedParent.$set(value)(base).right.value shouldBe DObject("expectedParent" ::= ("additional" := DObject.empty))
+          val value2 = DObject("maybeWithoutExpected" := DObject("additional" := DObject.empty))
+          MaybeStructure.expectedParent.$set(value2)(base).right.value shouldBe DObject("expectedParent" ::= ("maybeWithoutExpected" ::= ("additional" := DObject.empty)))
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should fail with IncorrectTypeFailure as EmptyOnIncorrectType is irrelevant") {
+            val base = DObject.empty
+            val value = DObject("default" := false, "maybe" := 123)
+            EmptyMaybeStructure.withExpected.$set(value)(base).left.value should contain allOf(
+              IncorrectTypeFailure(EmptyMaybeStructure.withExpected.default, false),
+              IncorrectTypeFailure(EmptyMaybeStructure.withExpected.maybe, 123)
+            )
+          }
+        }
       }
-      it("should fail if default property of wrong type") {
-        EmptyExpectedObject.default.$set(DObject("property" := 123))(DObject.empty).left.value should contain (IncorrectTypeFailure(EmptyExpectedObject.default.property, 123))
+      describe("In Expected Path") {
+        it("Should create parent object if not present when setting") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value")
+          MaybeStructure.expectedParent.maybe.$set(value)(base).right.value shouldBe DObject("expectedParent" ::= ("maybe" := value))
+        }
+        it("Should replace parent object if not correct type when setting") {
+          val base = DObject("expectedParent" := 1)
+          val value = DObject("expected" := "value")
+          MaybeStructure.expectedParent.maybe.$set(value)(base).right.value shouldBe DObject("expectedParent" ::= ("maybe" := value))
+        }
+        it("Should merge in with existing properties when setting if present") {
+          val base = DObject("expectedParent" ::= ("additional" := "value"))
+          val value = DObject("expected" := "value")
+          MaybeStructure.expectedParent.maybe.$set(value)(base).right.value shouldBe DObject("expectedParent" ::= ("additional" := "value", "maybe" := value))
+        }
       }
-    }
-  }
-
-  describe("Maybe Object lens") {
-
-    object MaybeObject extends Contract {
-      val empty = new \\?{}
-      val expected = new \\? {
-        val property = \[Int]
+      describe("In Maybe Path") {
+        it("Should create parent object if not present when setting") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value")
+          MaybeStructure.maybeParent.expected.$set(value)(base).right.value shouldBe DObject("maybeParent" ::= ("expected" := value))
+        }
+        it("Should replace parent object if not correct type when setting") {
+          val base = DObject("maybeParent" := 1)
+          val value = DObject("expected" := "value")
+          MaybeStructure.maybeParent.expected.$set(value)(base).right.value shouldBe DObject("maybeParent" ::= ("expected" := value))
+        }
+        it("Should merge in with existing properties when setting if present") {
+          val base = DObject("maybeParent" ::= ("additional" := "value"))
+          val value = DObject("expected" := "value")
+          MaybeStructure.maybeParent.expected.$set(value)(base).right.value shouldBe DObject("maybeParent" ::= ("additional" := "value", "expected" := value))
+        }
       }
-      val maybe = new \\? {
-        val property = \?[Boolean]
-      }
-      val default = new \\? {
-        val property = \![String]("default")
-      }
-    }
-    describe("$get") {
-      it("Should succeed with none if empty object is empty") {
-        val base = DObject.empty
-        MaybeObject.empty.$get(base).right.value shouldBe None
-      }
-      it("Should fail if empty object is wrong type") {
-        val base = DObject("empty" := "wrongType")
-        MaybeObject.empty.$get(base).left.value should contain(IncorrectTypeFailure(MaybeObject.empty, "wrongType"))
-      }
-      it("Should succeed if empty object has additional values") {
-        val base = DObject("empty" ::= ("value" := 1))
-        MaybeObject.empty.$get(base).right.value shouldBe Some(DObject("value" := 1))
-      }
-      it("Should return None if expected object doesnt exist") {
-        val base = DObject.empty
-        MaybeObject.expected.$get(base).right.value shouldBe None
-      }
-      it("Should fail if nested expected property not found in object") {
-        val base = DObject("expected" := DObject.empty)
-        MaybeObject.expected.$get(base).left.value should contain(ExpectedFailure(MaybeObject.expected.property))
-      }
-      it("Should fail if nested expected property is of wrong type") {
-        val base = DObject("expected" ::= ("property" := "value"))
-        MaybeObject.expected.$get(base).left.value should contain(IncorrectTypeFailure(MaybeObject.expected.property, "value"))
-      }
-      it("Should succeed if nested expected property is present") {
-        val base = DObject("expected" ::= ("property" := 123))
-        MaybeObject.expected.$get(base).right.value shouldBe Some(DObject("property" := 123))
-      }
-      it("Should fail if nested maybe property is of wrong typ") {
-        val base = DObject("maybe" ::= ("property" := "value"))
-        MaybeObject.maybe.$get(base).left.value should contain(IncorrectTypeFailure(MaybeObject.maybe.property, "value"))
-      }
-      it("Should succeed if nested maybe property is empty") {
-        val base = DObject("maybe" := DObject.empty)
-        MaybeObject.maybe.$get(base).right.value shouldBe Some(DObject.empty)
-        val base2 = DObject.empty
-        MaybeObject.maybe.$get(base2).right.value shouldBe None
-      }
-      it("Should succeed if nested maybe property is set") {
-        val base = DObject("maybe" ::= ("property" := false))
-        MaybeObject.maybe.$get(base).right.value shouldBe Some(DObject("property" := false))
-      }
-      it("Should fail if nested default property is of wrong type") {
-        val base = DObject("default" ::= ("property" := 123))
-        MaybeObject.default.$get(base).left.value should contain(IncorrectTypeFailure(MaybeObject.default.property, 123))
-      }
-      it("Should return None of default object doesn't exist") {
-        val base = DObject.empty
-        MaybeObject.default.$get(base).right.value shouldBe None
-      }
-      it("Should succeed if nested default value is empty with default value") {
-        val base = DObject("default" := DObject.empty)
-        MaybeObject.default.$get(base).right.value shouldBe Some(DObject("property" := "default"))
-      }
-    }
-    describe("$maybeSet") {
-      it("Should fail if object would fail") {
-        MaybeObject.expected.$maybeSet(Some(DObject.empty))(DObject.empty).left.value should contain (ExpectedFailure(MaybeObject.expected.property))
-        MaybeObject.expected.$maybeSet(Some(DObject("property" := "fail")))(DObject.empty).left.value should contain (IncorrectTypeFailure(MaybeObject.expected.property, "fail"))
-      }
-      it("should succeed if object would succeed") {
-        MaybeObject.expected.$maybeSet(Some(DObject("property" := 1)))(DObject.empty).right.value shouldBe DObject("expected" := DObject("property" := 1))
-        MaybeObject.maybe.$maybeSet(Some(DObject.empty))(DObject.empty).right.value shouldBe DObject("maybe" := DObject.empty)
-        MaybeObject.default.$maybeSet(Some(DObject.empty))(DObject.empty).right.value shouldBe DObject("default" := DObject.empty)
-      }
-    }
-  }
-
-  describe("Maybe Object lens with EmptyOnIncorrectType") {
-
-    object EmptyMaybeObject extends Contract with EmptyOnIncorrectType {
-      val empty = new \\?{}
-      val expected = new \\? {
-        val property = \[Int]
-      }
-      val maybe = new \\? {
-        val property = \?[Boolean]
-      }
-      val default = new \\? {
-        val property = \![String]("default")
-      }
-    }
-
-    it("Should succeed with none if empty object is empty") {
-      val base = DObject.empty
-      EmptyMaybeObject.empty.$get(base).right.value shouldBe None
-    }
-    it("Should succeed with None if object is of wrong type") {
-      val base = DObject("empty" := "wrongType")
-      EmptyMaybeObject.empty.$get(base).right.value shouldBe None
-    }
-    it("Should fail with expected if expected value of wrong type") {
-      val base = DObject("expected" ::= ("property" := "value") )
-      EmptyMaybeObject.expected.$get(base).left.value should contain (ExpectedFailure(EmptyMaybeObject.expected.property))
-    }
-    it("Should return None if nested maybe property is of wrong type") {
-      val base = DObject("maybe" ::= ("property" := "value"))
-      EmptyMaybeObject.maybe.$get(base).right.value shouldBe None
-    }
-    it("Should return with default if nested default property is of wrong type") {
-      val base = DObject("default" ::= ("property" := 123) )
-      EmptyMaybeObject.default.$get(base).right.value shouldBe Some(DObject("property" := "default"))
     }
   }
 
