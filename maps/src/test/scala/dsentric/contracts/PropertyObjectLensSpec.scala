@@ -1,6 +1,6 @@
 package dsentric.contracts
 
-import dsentric.failure.{ExpectedFailure, IncorrectTypeFailure}
+import dsentric.failure.{ClosedContractFailure, ExpectedFailure, IncorrectTypeFailure}
 import dsentric.{DObject, Data, Dsentric, Path, PessimisticCodecs}
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
@@ -53,6 +53,18 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
 
     object EmptyExpectedStructure extends Contract with ExpectedContract with EmptyOnIncorrectType
 
+    object ClosedExpectedObject extends Contract {
+      val expectedObject = new  \\ {
+        val expected = \[String]
+        val maybe = \?[Int]
+      }
+    }
+    object OpenExpectedObject extends Contract  {
+      val expectedObject = new  \\ with AdditionalProperties {
+        val expected = \[String]
+        val maybe = \?[Int]
+      }
+    }
     describe("$verify") {
       describe("No Path") {
         it("Should contain IncorrectTypeFailure if not an object") {
@@ -111,6 +123,30 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
             val base = DObject("maybeParent" := 1)
             EmptyExpectedStructure.maybeParent.expected.$verify(base) should contain (IncorrectTypeFailure(EmptyExpectedStructure.maybeParent, 1))
           }
+        }
+      }
+      describe("Closed for additional properties") {
+        it("Should return empty list if no additional properties") {
+          val base = DObject("expectedObject" ::= ("expected" := "value"))
+          ClosedExpectedObject.expectedObject.$verify(base) shouldBe empty
+        }
+        it("Should return ClosedContractFailure if additional properties") {
+          val base = DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
+          ClosedExpectedObject.expectedObject.$verify(base) should contain (ClosedContractFailure(ClosedExpectedObject.expectedObject, "additional"))
+        }
+        it("Should return ClosedContractFailure if additional properties and nested") {
+          val base = DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
+          ClosedExpectedObject.$verify(base) should contain (ClosedContractFailure(ClosedExpectedObject.expectedObject, "additional"))
+        }
+      }
+      describe("Additional properties") {
+        it("Should return empty list if additional properties") {
+          val base = DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
+          OpenExpectedObject.expectedObject.$verify(base) shouldBe empty
+        }
+        it("Should return empty list if additional properties and nested") {
+          val base = DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
+          OpenExpectedObject.$verify(base) shouldBe empty
         }
       }
     }
@@ -196,6 +232,31 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
             val base = DObject("maybeParent" := 1)
             EmptyExpectedStructure.maybeParent.expected.$get(base).right.value shouldBe None
           }
+        }
+      }
+      describe("Closed for additional properties") {
+        it("Should return object if no additional properties") {
+          val base = DObject("expectedObject" ::= ("expected" := "value"))
+          ClosedExpectedObject.expectedObject.$get(base).right.value shouldBe Some(DObject("expected" := "value"))
+        }
+        it("Should fail with ClosedContractFailure if additional properties") {
+          val base = DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
+          ClosedExpectedObject.expectedObject.$get(base).left.value should contain (ClosedContractFailure(ClosedExpectedObject.expectedObject, "additional"))
+        }
+        it("Should fail with ClosedContractFailure if additional properties and nested") {
+          val base = DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
+          ClosedExpectedObject.$get(base).left.value should contain (ClosedContractFailure(ClosedExpectedObject.expectedObject, "additional"))
+        }
+      }
+      describe("Additional properties") {
+        it("Should return object if additional properties") {
+          val base = DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
+          OpenExpectedObject.expectedObject.$get(base).right.value shouldBe Some(DObject("expected" := "value", "additional" := 1))
+        }
+        it("Should return object if additional properties and nested") {
+          val base = DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
+          val t = OpenExpectedObject.$get(base)
+          t.right.value shouldBe Some(base)
         }
       }
     }
@@ -287,6 +348,25 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
           val base = DObject("maybeParent" ::= ("additional" := "value"))
           val value = DObject("expected" := "value")
           ExpectedStructure.maybeParent.expected.$set(value)(base).right.value shouldBe DObject("maybeParent" ::= ("additional" := "value", "expected" := value))
+        }
+      }
+      describe("Closed for additional properties") {
+        it("Should succeed if no additional properties") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value")
+          ClosedExpectedObject.expectedObject.$set(value)(base).right.value shouldBe DObject("expectedObject" ::= ("expected" := "value"))
+        }
+        it("Should fail with ClosedContractFailure if additional properties") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "additional" := 1)
+          ClosedExpectedObject.expectedObject.$set(value)(base).left.value should contain (ClosedContractFailure(ClosedExpectedObject.expectedObject, "additional"))
+        }
+      }
+      describe("Additional properties") {
+        it("Should succeed if additional properties") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "additional" := 1)
+          OpenExpectedObject.expectedObject.$set(value)(base).right.value shouldBe DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
         }
       }
     }
@@ -417,6 +497,20 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
 
     object EmptyMaybeStructure extends Contract with MaybeContract with EmptyOnIncorrectType
 
+    object ClosedMaybeObject extends Contract {
+      val maybeObject = new  \\? {
+        val expected = \[String]
+        val maybe = \?[Int]
+      }
+    }
+
+    object OpenMaybeObject extends Contract {
+      val maybeObject = new  \\? with AdditionalProperties{
+        val expected = \[String]
+        val maybe = \?[Int]
+      }
+    }
+
     describe("$verify") {
       describe("No Path") {
         it("Should contain IncorrectTypeFailure if not an object") {
@@ -471,6 +565,26 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
             val base = DObject("maybeParent" := 1)
             EmptyMaybeStructure.maybeParent.expected.$verify(base) should contain (IncorrectTypeFailure(EmptyMaybeStructure.maybeParent, 1))
           }
+        }
+      }
+      describe("Closed for additional properties") {
+        it("Should return empty list if no additional properties") {
+          val base = DObject("maybeObject" ::= ("expected" := "value"))
+          ClosedMaybeObject.maybeObject.$verify(base) shouldBe empty
+        }
+        it("Should return ClosedContractFailure if additional properties") {
+          val base = DObject("maybeObject" ::= ("expected" := "value", "additional" := 1))
+          ClosedMaybeObject.maybeObject.$verify(base) should contain (ClosedContractFailure(ClosedMaybeObject.maybeObject, "additional"))
+        }
+        it("Should return ClosedContractFailure if additional properties and nested") {
+          val base = DObject("maybeObject" ::= ("expected" := "value", "additional" := 1))
+          ClosedMaybeObject.$verify(base) should contain (ClosedContractFailure(ClosedMaybeObject.maybeObject, "additional"))
+        }
+      }
+      describe("Additional properties") {
+        it("Should return empty list if additional properties") {
+          val base = DObject("maybeObject" ::= ("expected" := "value", "additional" := 1))
+          OpenMaybeObject.maybeObject.$verify(base) shouldBe empty
         }
       }
     }
@@ -548,6 +662,30 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
             val base = DObject("maybeParent" := 1)
             EmptyMaybeStructure.maybeParent.expected.$get(base).right.value shouldBe None
           }
+        }
+      }
+      describe("Closed for additional properties") {
+        it("Should return object if no additional properties") {
+          val base = DObject("maybeObject" ::= ("expected" := "value"))
+          ClosedMaybeObject.maybeObject.$get(base).right.value shouldBe Some(DObject("expected" := "value"))
+        }
+        it("Should fail with ClosedContractFailure if additional properties") {
+          val base = DObject("maybeObject" ::= ("expected" := "value", "additional" := 1))
+          ClosedMaybeObject.maybeObject.$get(base).left.value should contain (ClosedContractFailure(ClosedMaybeObject.maybeObject, "additional"))
+        }
+        it("Should fail with ClosedContractFailure if additional properties and nested") {
+          val base = DObject("maybeObject" ::= ("expected" := "value", "additional" := 1))
+          ClosedMaybeObject.$get(base).left.value should contain (ClosedContractFailure(ClosedMaybeObject.maybeObject, "additional"))
+        }
+      }
+      describe("Additional properties") {
+        it("Should return object if additional properties") {
+          val base = DObject("maybeObject" ::= ("expected" := "value", "additional" := 1))
+          OpenMaybeObject.maybeObject.$get(base).right.value shouldBe Some(DObject("expected" := "value", "additional" := 1))
+        }
+        it("Should return object if additional properties and nested") {
+          val base = DObject("maybeObject" ::= ("expected" := "value", "additional" := 1))
+          OpenMaybeObject.$get(base).right.value shouldBe base
         }
       }
     }
@@ -639,6 +777,25 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
           val base = DObject("maybeParent" ::= ("additional" := "value"))
           val value = DObject("expected" := "value")
           MaybeStructure.maybeParent.expected.$set(value)(base).right.value shouldBe DObject("maybeParent" ::= ("additional" := "value", "expected" := value))
+        }
+      }
+      describe("Closed for additional properties") {
+        it("Should succeed if no additional properties") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value")
+          ClosedMaybeObject.maybeObject.$set(value)(base).right.value shouldBe DObject("maybeObject" ::= ("expected" := "value"))
+        }
+        it("Should fail with ClosedContractFailure if additional properties") {
+          val base = DObject.empty
+          val value = DObject("maybe" := "value", "additional" := 1)
+          ClosedMaybeObject.maybeObject.$set(value)(base).left.value should contain (ClosedContractFailure(ClosedMaybeObject.maybeObject, "additional"))
+        }
+      }
+      describe("Additional properties") {
+        it("Should succeed if additional properties") {
+          val base = DObject.empty
+          val value = DObject("maybe" := "value", "additional" := 1)
+          OpenMaybeObject.maybeObject.$set(value)(base).right.value shouldBe DObject("maybeObject" ::= ("expected" := "value", "additional" := 1))
         }
       }
     }

@@ -769,10 +769,7 @@ private[dsentric] object ObjectLens {
           }
 
       case a:AdditionalPropertyObjects[Any, DObject]@unchecked =>
-        PathLensOps
-          .traverseObject(obj, baseContract._path)
-          .getOrElse(Map.empty)
-          .filter(p => !exclude.contains(p._1))
+        obj.filter(p => !exclude.contains(p._1))
           .toList
           .flatMap { kv =>
             FailOnIncorrectTypeBehaviour.verifyKey(kv._1, baseContract._root, baseContract._path, a._additionalKeyCodec) ++
@@ -785,10 +782,7 @@ private[dsentric] object ObjectLens {
             })
           }
       case _ =>
-        PathLensOps
-          .traverseObject(obj, baseContract._path)
-          .getOrElse(Map.empty)
-          .keys
+        obj.keys
           .filterNot(exclude)
           .map(k => ClosedContractFailure(baseContract._root, baseContract._path, k))
           .toList
