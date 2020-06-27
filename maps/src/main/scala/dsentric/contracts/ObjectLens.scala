@@ -696,26 +696,35 @@ private[dsentric] object ObjectLens {
       case _:AdditionalProperties =>
         Right(obj)
 
+      case a:AdditionalPropertyValues[Any, Any]@unchecked if baseContract.__incorrectTypeBehaviour == FailOnIncorrectTypeBehaviour =>
+          obj.filter(p => !exclude.contains(p._1))
+            .toList
+            .flatMap { kv =>
+              FailOnIncorrectTypeBehaviour.verifyKey(kv._1, baseContract._root, baseContract._path, a._additionalKeyCodec) ++
+              FailOnIncorrectTypeBehaviour.verify(kv._2, baseContract._root, baseContract._path \ kv._1, a._additionalValueCodec)
+            } match {
+            case head :: tail =>
+              Left(NonEmptyList(head, tail))
+            case _ =>
+              Right(obj)
+          }
       case a:AdditionalPropertyValues[Any, Any]@unchecked =>
-        obj.filter(p => !exclude.contains(p._1))
-          .toList
-          .flatMap { kv =>
-            baseContract.__incorrectTypeBehaviour.verifyKey(kv._1, baseContract._root, baseContract._path, a._additionalKeyCodec) ++
-            baseContract.__incorrectTypeBehaviour.verify(kv._2, baseContract._root, baseContract._path, a._additionalValueCodec)
-          } match {
-          case head :: tail =>
-            Left(NonEmptyList(head, tail))
-          case _ =>
-            Right(obj)
-        }
+        val invalidkeys = obj.filter { kv =>
+            !exclude.contains(kv._1) &&
+              (
+                a._additionalKeyCodec.unapply(kv._1).isEmpty ||
+                a._additionalValueCodec.unapply(kv._2).isEmpty
+              )
+          }.keys
+        Right(obj -- invalidkeys)
 
-      case a:AdditionalPropertyObjects[Any, DObject]@unchecked =>
+      case a:AdditionalPropertyObjects[Any, DObject]@unchecked if baseContract.__incorrectTypeBehaviour == FailOnIncorrectTypeBehaviour =>
         ValidResult.parSequence[StructuralFailure, (String, Raw)] {
           obj.filter(p => !exclude.contains(p._1))
             .toVector
             .flatMap { kv =>
-              val keyFailures = baseContract.__incorrectTypeBehaviour.verifyKey(kv._1, baseContract._root, baseContract._path, a._additionalKeyCodec)
-              val validValue = baseContract.__incorrectTypeBehaviour(kv._2, baseContract._root, baseContract._path \ kv._1, a._additionalValueCodec)
+              val keyFailures = FailOnIncorrectTypeBehaviour.verifyKey(kv._1, baseContract._root, baseContract._path, a._additionalKeyCodec)
+              val validValue = FailOnIncorrectTypeBehaviour(kv._2, baseContract._root, baseContract._path \ kv._1, a._additionalValueCodec)
               validValue -> keyFailures match {
                 case (Failed(typeFailure, tail), failures) =>
                   Some(Left(NonEmptyList(typeFailure, tail ++ failures.toList)))
@@ -728,7 +737,7 @@ private[dsentric] object ObjectLens {
                   val traversed =
                     propertyApplicator(a._additionalContract, value.value)
                       .map(d2 => kv._1 -> a._additionalValueCodec.apply(value.internalWrap(d2)).value)
-                  Some(traversed.left.map(_.map(_.rebase(baseContract._root, baseContract._path))))
+                  Some(traversed.left.map(_.map(_.rebase(baseContract._root, baseContract._path \ kv._1))))
                 case (Found(value), Some(failure)) =>
                   val valueFailures =
                     propertyVerifier(a._additionalContract, value.value)
@@ -737,6 +746,27 @@ private[dsentric] object ObjectLens {
               }
             }
         }.map(pairs => obj ++ pairs)
+
+    case a:AdditionalPropertyObjects[Any, DObject]@unchecked =>
+      Right {
+        obj.filter(p => !exclude.contains(p._1))
+          .foldLeft(obj) { (d, kv) =>
+            a._additionalKeyCodec
+              .unapply(kv._1)
+              .flatMap { _ =>
+                a._additionalValueCodec
+                  .unapply(kv._2)
+                  .flatMap { value =>
+                    propertyApplicator(a._additionalContract, value.value)
+                      .toOption
+                      .map(d2 => a._additionalValueCodec.apply(value.internalWrap(d2)).value)
+                  }
+              }.fold(d - kv._1) { finalValue =>
+              if (finalValue != kv._2) d + (kv._1 -> finalValue)
+              else d
+            }
+          }
+      }
 
       case _ =>
         obj
@@ -765,7 +795,7 @@ private[dsentric] object ObjectLens {
           .toList
           .flatMap { kv =>
             baseContract.__incorrectTypeBehaviour.verifyKey(kv._1, baseContract._root, baseContract._path, a._additionalKeyCodec) ++
-              baseContract.__incorrectTypeBehaviour.verify(kv._2, baseContract._root, baseContract._path, a._additionalValueCodec)
+              baseContract.__incorrectTypeBehaviour.verify(kv._2, baseContract._root, baseContract._path \ kv._1, a._additionalValueCodec)
           }
 
       case a:AdditionalPropertyObjects[Any, DObject]@unchecked =>
@@ -778,7 +808,7 @@ private[dsentric] object ObjectLens {
               case NotFound => Nil
               case Found(v) =>
                 propertyVerifier(a._additionalContract, v.value)
-                  .map(_.rebase(baseContract._root, baseContract._path))
+                  .map(_.rebase(baseContract._root, baseContract._path \ kv._1))
             })
           }
       case _ =>

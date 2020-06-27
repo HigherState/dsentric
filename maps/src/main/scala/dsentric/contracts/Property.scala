@@ -143,6 +143,7 @@ trait PropertyObjectOps[D <: DObject] { __internal:BaseContract[D] =>
             (implicit codec:DCodec[DObject], keyCodec:StringCodec[K], valueCodec:DCodec[V]) =
       this(Some(name), codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
 
+
     def _parent: BaseContract[D] = __internal
   }
 

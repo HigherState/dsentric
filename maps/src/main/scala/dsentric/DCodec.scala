@@ -22,14 +22,14 @@ trait StringCodec[T] extends DCodec[T] {
   def unapply(a:Raw): Option[T] =
     a match {
       case s:String =>
-        Some(fromString(s))
+        fromString(s)
       case _ =>
         None
     }
 
   def toString(t:T):String
 
-  def fromString(s:String):T
+  def fromString(s:String):Option[T]
 
   def typeDefinition:StringDefinition
 }
@@ -220,8 +220,8 @@ trait DefaultCodecs {
       def toString(t: Path): String =
         t.toString
 
-      def fromString(s: String): Path =
-        Path.fromString(s)
+      def fromString(s: String): Option[Path] =
+        Some(Path.fromString(s))
 
       def typeDefinition:StringDefinition =
         StringDefinition.empty
@@ -272,9 +272,11 @@ trait PessimisticCodecs extends DefaultCodecs {
   implicit val stringCodec:StringCodec[String] =
     new StringCodec[String]  {
 
-      def toString(t: String): String = t
+      def toString(t: String): String =
+        t
 
-      def fromString(s: String): String = s
+      def fromString(s: String): Option[String] =
+        Some(s)
 
       def typeDefinition:StringDefinition =
         StringDefinition.empty
@@ -528,7 +530,8 @@ trait OptimisticCodecs extends DefaultCodecs {
 
       def toString(t: String): String = t
 
-      def fromString(s: String): String = s
+      def fromString(s: String): Option[String] =
+        Some(s)
 
       def typeDefinition:StringDefinition =
         StringDefinition.empty

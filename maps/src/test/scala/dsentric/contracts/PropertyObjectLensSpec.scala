@@ -1,7 +1,8 @@
 package dsentric.contracts
 
-import dsentric.failure.{ClosedContractFailure, ExpectedFailure, IncorrectTypeFailure}
-import dsentric.{DObject, Data, Dsentric, Path, PessimisticCodecs}
+import dsentric.failure.{ClosedContractFailure, ExpectedFailure, IncorrectKeyTypeFailure, IncorrectTypeFailure}
+import dsentric.schema.StringDefinition
+import dsentric.{DObject, Data, Dsentric, Path, PessimisticCodecs, StringCodec, failure}
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
@@ -12,7 +13,25 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
   import PessimisticCodecs._
   import dsentric.Implicits._
 
+  case class Length4String(value:String)
+
+  implicit val fixedLength4StringCodec: StringCodec[Length4String] =
+    new StringCodec[Length4String] {
+    def toString(t: Length4String): String = t.value
+
+    def fromString(s: String): Option[Length4String] =
+      if (s.length == 4) Some(Length4String(s))
+      else None
+
+    def typeDefinition: StringDefinition = ???
+  }
+
+  object Simple extends Contract with AdditionalProperties{
+    val default = \![Int](999)
+  }
+  
   describe("Expected Object lens") {
+
     trait ExpectedContract extends SubContract {
       val empty = new \\ with AdditionalProperties
 
@@ -47,24 +66,25 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
           val maybe = \?[String]
         }
       }
+
+      val closedObject = new  \\? {
+        val expected = \[String]
+        val maybe = \?[Int]
+      }
+      val valueObject = new \\\?[Length4String, Long]()() {
+        val expected = \[String]
+        val maybe = \?[Int]
+      }
+      val objects = new \\\\?[Length4String, DObject]()(Simple) {
+        val expected = \[String]
+        val maybe = \?[Int]
+      }
     }
 
     object ExpectedStructure extends Contract with ExpectedContract
 
     object EmptyExpectedStructure extends Contract with ExpectedContract with EmptyOnIncorrectType
-
-    object ClosedExpectedObject extends Contract {
-      val expectedObject = new  \\ {
-        val expected = \[String]
-        val maybe = \?[Int]
-      }
-    }
-    object OpenExpectedObject extends Contract  {
-      val expectedObject = new  \\ with AdditionalProperties {
-        val expected = \[String]
-        val maybe = \?[Int]
-      }
-    }
+    
     describe("$verify") {
       describe("No Path") {
         it("Should contain IncorrectTypeFailure if not an object") {
@@ -127,26 +147,58 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
       }
       describe("Closed for additional properties") {
         it("Should return empty list if no additional properties") {
-          val base = DObject("expectedObject" ::= ("expected" := "value"))
-          ClosedExpectedObject.expectedObject.$verify(base) shouldBe empty
+          val base = DObject("closedObject" ::= ("expected" := "value"))
+          ExpectedStructure.closedObject.$verify(base) shouldBe empty
         }
         it("Should return ClosedContractFailure if additional properties") {
-          val base = DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
-          ClosedExpectedObject.expectedObject.$verify(base) should contain (ClosedContractFailure(ClosedExpectedObject.expectedObject, "additional"))
+          val base = DObject("closedObject" ::= ("expected" := "value", "additional" := 1))
+          ExpectedStructure.closedObject.$verify(base) should contain (ClosedContractFailure(ExpectedStructure.closedObject, "additional"))
         }
         it("Should return ClosedContractFailure if additional properties and nested") {
-          val base = DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
-          ClosedExpectedObject.$verify(base) should contain (ClosedContractFailure(ClosedExpectedObject.expectedObject, "additional"))
+          val base = DObject("closedObject" ::= ("expected" := "value", "additional" := 1))
+          ExpectedStructure.closedObject.$verify(base) should contain (ClosedContractFailure(ExpectedStructure.closedObject, "additional"))
         }
       }
       describe("Additional properties") {
         it("Should return empty list if additional properties") {
-          val base = DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
-          OpenExpectedObject.expectedObject.$verify(base) shouldBe empty
+          val base = DObject("withExpected" ::= ("expected" := "value", "additional" := 1))
+          ExpectedStructure.withExpected.$verify(base) shouldBe empty
         }
         it("Should return empty list if additional properties and nested") {
-          val base = DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
-          OpenExpectedObject.$verify(base) shouldBe empty
+          val base = DObject("withExpected" ::= ("expected" := "value", "additional" := 1))
+          ExpectedStructure.withExpected.$verify(base) shouldBe empty
+        }
+      }
+      describe("Additional values") {
+        it("Should return empty list for valid additional values") {
+          val base = DObject("valueObject" ::= ("expected" := "value", "add1" := 56, "add2" := 0))
+          ExpectedStructure.valueObject.$verify(base) shouldBe empty
+        }
+        it("Should return IncorrectTypeFailure for invalid value types") {
+          val base = DObject("valueObject" ::= ("expected" := "value", "add1" := "value", "add2" := 0))
+          ExpectedStructure.valueObject.$verify(base) should contain (IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.valueObject._path \ "add1", longCodec, "value"))
+        }
+        it("Should return IncorrectKeyTypeFailure for invalid key types") {
+          val base = DObject("valueObject" ::= ("expected" := "value", "add10" := 12, "add2" := 0))
+          ExpectedStructure.valueObject.$verify(base) should contain (IncorrectKeyTypeFailure(ExpectedStructure, ExpectedStructure.valueObject._path \ "add10", fixedLength4StringCodec))
+        }
+      }
+      describe("Additional objects") {
+        it("Should return empty list for valid additional values") {
+          val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("default" := 1), "add2" ::= ("default" := 2)))
+          ExpectedStructure.objects.$verify(base) shouldBe empty
+        }
+        it("Should return IncorrectTypeFailure for invalid value types") {
+          val base = DObject("objects" ::= ("expected" := "value", "add1" := "value", "add2" ::= ("default" := 2)))
+          ExpectedStructure.objects.$verify(base) should contain (IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.objects._path \ "add1", dObjectCodec, "value"))
+        }
+        it("Should return IncorrectTypeFailure for invalid contract values") {
+          val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("default" := "value"), "add2" ::= ("default" := 2)))
+          ExpectedStructure.objects.$verify(base) should contain (IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.objects._path \ "add1" \ "default", intCodec, "value"))
+        }
+        it("Should return IncorrectKeyTypeFailure for invalid key types") {
+          val base = DObject("objects" ::= ("expected" := "value", "add10" := ("default" := "value1"), "add2" := ("default" := "value2")))
+          ExpectedStructure.objects.$verify(base) should contain (IncorrectKeyTypeFailure(ExpectedStructure, ExpectedStructure.objects._path \ "add10", fixedLength4StringCodec))
         }
       }
     }
@@ -236,27 +288,82 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
       }
       describe("Closed for additional properties") {
         it("Should return object if no additional properties") {
-          val base = DObject("expectedObject" ::= ("expected" := "value"))
-          ClosedExpectedObject.expectedObject.$get(base).right.value shouldBe Some(DObject("expected" := "value"))
+          val base = DObject("closedObject" ::= ("expected" := "value"))
+          ExpectedStructure.closedObject.$get(base).right.value shouldBe Some(DObject("expected" := "value"))
         }
         it("Should fail with ClosedContractFailure if additional properties") {
-          val base = DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
-          ClosedExpectedObject.expectedObject.$get(base).left.value should contain (ClosedContractFailure(ClosedExpectedObject.expectedObject, "additional"))
-        }
-        it("Should fail with ClosedContractFailure if additional properties and nested") {
-          val base = DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
-          ClosedExpectedObject.$get(base).left.value should contain (ClosedContractFailure(ClosedExpectedObject.expectedObject, "additional"))
+          val base = DObject("closedObject" ::= ("expected" := "value", "additional" := 1))
+          ExpectedStructure.closedObject.$get(base).left.value should contain (ClosedContractFailure(ExpectedStructure.closedObject, "additional"))
         }
       }
       describe("Additional properties") {
         it("Should return object if additional properties") {
-          val base = DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
-          OpenExpectedObject.expectedObject.$get(base).right.value shouldBe Some(DObject("expected" := "value", "additional" := 1))
+          val base = DObject("withExpected" ::= ("expected" := "value", "additional" := 1))
+          ExpectedStructure.withExpected.$get(base).right.value shouldBe Some(DObject("expected" := "value", "additional" := 1, "default" := 1))
         }
         it("Should return object if additional properties and nested") {
-          val base = DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
-          val t = OpenExpectedObject.$get(base)
-          t.right.value shouldBe Some(base)
+          val base = DObject("withExpected" ::= ("expected" := "value", "additional" := 1))
+          ExpectedStructure.withExpected.$get(base).right.value shouldBe Some(DObject("expected" := "value", "additional" := 1, "default" := 1))
+        }
+      }
+      describe("Additional values") {
+        it("Should return obj for valid additional values") {
+          val base = DObject("valueObject" ::= ("expected" := "value", "add1" := 56, "add2" := 0))
+          ExpectedStructure.valueObject.$get(base).right.value shouldBe Some(DObject("expected" := "value", "add1" := 56, "add2" := 0))
+        }
+        it("Should fail with IncorrectTypeFailure for invalid value types") {
+          val base = DObject("valueObject" ::= ("expected" := "value", "add1" := "value", "add2" := 0))
+          ExpectedStructure.valueObject.$get(base).left.value should contain (IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.valueObject._path \ "add1", longCodec, "value"))
+        }
+        it("Should return IncorrectKeyTypeFailure for invalid key types") {
+          val base = DObject("valueObject" ::= ("expected" := "value", "add10" := 12, "add2" := 0))
+          ExpectedStructure.valueObject.$get(base).left.value should contain (IncorrectKeyTypeFailure(ExpectedStructure, ExpectedStructure.valueObject._path \ "add10", fixedLength4StringCodec))
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should ignore additional values with incorrect types") {
+            val base = DObject("valueObject" ::= ("expected" := "value", "add1" := "value", "add2" := 0))
+            EmptyExpectedStructure.valueObject.$get(base).right.value shouldBe Some(DObject("expected" := "value", "add2" := 0))
+          }
+          it("Should ignore additional values with incorrect keys ") {
+            val base = DObject("valueObject" ::= ("expected" := "value", "add1" := 234, "add20" := 0))
+            EmptyExpectedStructure.valueObject.$get(base).right.value shouldBe Some(DObject("expected" := "value", "add1" := 234))
+          }
+        }
+      }
+      describe("Additional objects") {
+        it("Should return object for valid additional values") {
+          val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("default" := 1), "add2" ::= ("default" := 2)))
+          ExpectedStructure.objects.$get(base).right.value shouldBe Some(DObject("expected" := "value", "add1" ::= ("default" := 1), "add2" ::= ("default" := 2)))
+        }
+        it("Should return IncorrectTypeFailure for invalid value types") {
+          val base = DObject("objects" ::= ("expected" := "value", "add1" := "value", "add2" ::= ("default" := 2)))
+          ExpectedStructure.objects.$get(base).left.value should contain (IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.objects._path \ "add1", dObjectCodec, "value"))
+        }
+        it("Should return IncorrectTypeFailure for invalid contract values") {
+          val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("default" := "value"), "add2" ::= ("default" := 2)))
+          ExpectedStructure.objects.$get(base).left.value should contain (IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.objects._path \ "add1" \ "default", intCodec, "value"))
+        }
+        it("Should return IncorrectKeyTypeFailure for invalid key types") {
+          val base = DObject("objects" ::= ("expected" := "value", "add10" ::= ("default" := "value1"), "add2" ::= ("default" := "value2")))
+          ExpectedStructure.objects.$get(base).left.value should contain (IncorrectKeyTypeFailure(ExpectedStructure, ExpectedStructure.objects._path \ "add10", fixedLength4StringCodec))
+        }
+        it("Should apply contract defaults") {
+          val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("value" := 123)))
+          ExpectedStructure.objects.$get(base).right.value shouldBe Some(DObject("expected" := "value", "add1" ::= ("default" := 999, "value" := 123)))
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should ignore additional invalid objects") {
+            val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("default" := 234), "add2" := 0))
+            EmptyExpectedStructure.objects.$get(base).right.value shouldBe Some(DObject("expected" := "value", "add1" ::= ("default" := 234)))
+          }
+          it("Should ignore additional values with incorrect keys ") {
+            val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("default" := 234), "add20" ::= ("expected" := 42)))
+            EmptyExpectedStructure.objects.$get(base).right.value shouldBe Some(DObject("expected" := "value", "add1" ::= ("default" := 234)))
+          }
+          it("Should ignore additional values with invalid objects") {
+            val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("default" := "value"), "add2" ::= ("default" := 42)))
+            EmptyExpectedStructure.objects.$get(base).right.value shouldBe Some(DObject("expected" := "value", "add2" ::= ("default" := 42)))
+          }
         }
       }
     }
@@ -354,19 +461,63 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
         it("Should succeed if no additional properties") {
           val base = DObject.empty
           val value = DObject("expected" := "value")
-          ClosedExpectedObject.expectedObject.$set(value)(base).right.value shouldBe DObject("expectedObject" ::= ("expected" := "value"))
+          ExpectedStructure.closedObject.$set(value)(base).right.value shouldBe DObject("closedObject" ::= ("expected" := "value"))
         }
         it("Should fail with ClosedContractFailure if additional properties") {
           val base = DObject.empty
           val value = DObject("expected" := "value", "additional" := 1)
-          ClosedExpectedObject.expectedObject.$set(value)(base).left.value should contain (ClosedContractFailure(ClosedExpectedObject.expectedObject, "additional"))
+          ExpectedStructure.closedObject.$set(value)(base).left.value should contain (ClosedContractFailure(ExpectedStructure.closedObject, "additional"))
         }
       }
       describe("Additional properties") {
         it("Should succeed if additional properties") {
           val base = DObject.empty
           val value = DObject("expected" := "value", "additional" := 1)
-          OpenExpectedObject.expectedObject.$set(value)(base).right.value shouldBe DObject("expectedObject" ::= ("expected" := "value", "additional" := 1))
+          ExpectedStructure.withExpected.$set(value)(base).right.value shouldBe DObject("withExpected" ::= ("expected" := "value", "additional" := 1))
+        }
+      }
+      describe("Additional values") {
+        it("Should succeed if keys and values are valid") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "add1" := 56, "add2" := 0)
+          ExpectedStructure.valueObject.$set(value)(base).right.value shouldBe DObject("valueObject" ::= ("expected" := "value", "add1" := 56, "add2" := 0))
+        }
+        it("Should fail with IncorrectTypeFailure for invalid value types") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "add1" := "value", "add2" := 0)
+          ExpectedStructure.valueObject.$set(value)(base).left.value should contain (IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.valueObject._path \ "add1", longCodec, "value"))
+        }
+        it("Should return IncorrectKeyTypeFailure for invalid key types") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "add10" := 12, "add2" := 0)
+          ExpectedStructure.valueObject.$set(value)(base).left.value should contain (IncorrectKeyTypeFailure(ExpectedStructure, ExpectedStructure.valueObject._path \ "add10", fixedLength4StringCodec))
+        }
+      }
+      describe("Additional objects") {
+        it("Should succeed if keys and values are valid") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "add1" ::= ("default" := 1), "add2" ::= ("default" := 2))
+          ExpectedStructure.objects.$set(value)(base).right.value shouldBe DObject("objects" ::= ("expected" := "value", "add1" ::= ("default" := 1), "add2" ::= ("default" := 2)))
+        }
+        it("Should return IncorrectTypeFailure for invalid value types") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "add1" := "value", "add2" ::= ("default" := 2))
+          ExpectedStructure.objects.$set(value)(base).left.value should contain (IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.objects._path \ "add1", dObjectCodec, "value"))
+        }
+        it("Should return IncorrectTypeFailure for invalid contract values") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "add1" ::= ("default" := "value"), "add2" ::= ("default" := 2))
+          ExpectedStructure.objects.$set(value)(base).left.value should contain (IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.objects._path \ "add1" \ "default", intCodec, "value"))
+        }
+        it("Should return IncorrectKeyTypeFailure for invalid key types") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "add10" ::= ("default" := "value1"), "add2" ::= ("default" := "value2"))
+          ExpectedStructure.objects.$set(value)(base).left.value should contain (IncorrectKeyTypeFailure(ExpectedStructure, ExpectedStructure.objects._path \ "add10", fixedLength4StringCodec))
+        }
+        it("Should not apply contract defaults") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "add1" ::= ("value" := 123))
+          ExpectedStructure.objects.$set(value)(base).right.value shouldBe DObject("objects" ::= ("expected" := "value", "add1" ::= ("value" := 123)))
         }
       }
     }
@@ -491,25 +642,23 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
           val maybe = \?[String]
         }
       }
+      val closedObject = new  \\ {
+        val expected = \[String]
+        val maybe = \?[Int]
+      }
+      val valueObject = new \\\[Length4String, Long]()() {
+        val expected = \[String]
+        val maybe = \?[Int]
+      }
+      val objects = new \\\\[Length4String, DObject]()(Simple) {
+        val expected = \[String]
+        val maybe = \?[Int]
+      }
     }
 
     object MaybeStructure extends Contract with MaybeContract
 
     object EmptyMaybeStructure extends Contract with MaybeContract with EmptyOnIncorrectType
-
-    object ClosedMaybeObject extends Contract {
-      val maybeObject = new  \\? {
-        val expected = \[String]
-        val maybe = \?[Int]
-      }
-    }
-
-    object OpenMaybeObject extends Contract {
-      val maybeObject = new  \\? with AdditionalProperties{
-        val expected = \[String]
-        val maybe = \?[Int]
-      }
-    }
 
     describe("$verify") {
       describe("No Path") {
@@ -569,22 +718,58 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
       }
       describe("Closed for additional properties") {
         it("Should return empty list if no additional properties") {
-          val base = DObject("maybeObject" ::= ("expected" := "value"))
-          ClosedMaybeObject.maybeObject.$verify(base) shouldBe empty
+          val base = DObject("closedObject" ::= ("expected" := "value"))
+          MaybeStructure.closedObject.$verify(base) shouldBe empty
         }
         it("Should return ClosedContractFailure if additional properties") {
-          val base = DObject("maybeObject" ::= ("expected" := "value", "additional" := 1))
-          ClosedMaybeObject.maybeObject.$verify(base) should contain (ClosedContractFailure(ClosedMaybeObject.maybeObject, "additional"))
+          val base = DObject("closedObject" ::= ("expected" := "value", "additional" := 1))
+          MaybeStructure.closedObject.$verify(base) should contain (ClosedContractFailure(MaybeStructure.closedObject, "additional"))
         }
         it("Should return ClosedContractFailure if additional properties and nested") {
-          val base = DObject("maybeObject" ::= ("expected" := "value", "additional" := 1))
-          ClosedMaybeObject.$verify(base) should contain (ClosedContractFailure(ClosedMaybeObject.maybeObject, "additional"))
+          val base = DObject("closedObject" ::= ("expected" := "value", "additional" := 1))
+          MaybeStructure.closedObject.$verify(base) should contain (ClosedContractFailure(MaybeStructure.closedObject, "additional"))
         }
       }
       describe("Additional properties") {
         it("Should return empty list if additional properties") {
-          val base = DObject("maybeObject" ::= ("expected" := "value", "additional" := 1))
-          OpenMaybeObject.maybeObject.$verify(base) shouldBe empty
+          val base = DObject("withExpected" ::= ("expected" := "value", "additional" := 1))
+          MaybeStructure.withExpected.$verify(base) shouldBe empty
+        }
+        it("Should return empty list if additional properties and nested") {
+          val base = DObject("withExpected" ::= ("expected" := "value", "additional" := 1))
+          MaybeStructure.withExpected.$verify(base) shouldBe empty
+        }
+      }
+      describe("Additional values") {
+        it("Should return empty list for valid additional values") {
+          val base = DObject("valueObject" ::= ("expected" := "value", "add1" := 56, "add2" := 0))
+          MaybeStructure.valueObject.$verify(base) shouldBe empty
+        }
+        it("Should return IncorrectTypeFailure for invalid value types") {
+          val base = DObject("valueObject" ::= ("expected" := "value", "add1" := "value", "add2" := 0))
+          MaybeStructure.valueObject.$verify(base) should contain (IncorrectTypeFailure(MaybeStructure, MaybeStructure.valueObject._path \ "add1", longCodec, "value"))
+        }
+        it("Should return IncorrectKeyTypeFailure for invalid key types") {
+          val base = DObject("valueObject" ::= ("expected" := "value", "add10" := 12, "add2" := 0))
+          MaybeStructure.valueObject.$verify(base) should contain (IncorrectKeyTypeFailure(MaybeStructure, MaybeStructure.valueObject._path \ "add10", fixedLength4StringCodec))
+        }
+      }
+      describe("Additional objects") {
+        it("Should return empty list for valid additional values") {
+          val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("default" := 1), "add2" ::= ("default" := 2)))
+          MaybeStructure.objects.$verify(base) shouldBe empty
+        }
+        it("Should return IncorrectTypeFailure for invalid value types") {
+          val base = DObject("objects" ::= ("expected" := "value", "add1" := "value", "add2" ::= ("default" := 2)))
+          MaybeStructure.objects.$verify(base) should contain (IncorrectTypeFailure(MaybeStructure, MaybeStructure.objects._path \ "add1", dObjectCodec, "value"))
+        }
+        it("Should return IncorrectTypeFailure for invalid contract values") {
+          val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("default" := "value"), "add2" ::= ("default" := 2)))
+          MaybeStructure.objects.$verify(base) should contain (IncorrectTypeFailure(MaybeStructure, MaybeStructure.objects._path \ "add1" \ "default", intCodec, "value"))
+        }
+        it("Should return IncorrectKeyTypeFailure for invalid key types") {
+          val base = DObject("objects" ::= ("expected" := "value", "add10" := ("default" := "value1"), "add2" := ("default" := "value2")))
+          MaybeStructure.objects.$verify(base) should contain (IncorrectKeyTypeFailure(MaybeStructure, MaybeStructure.objects._path \ "add10", fixedLength4StringCodec))
         }
       }
     }
@@ -666,26 +851,82 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
       }
       describe("Closed for additional properties") {
         it("Should return object if no additional properties") {
-          val base = DObject("maybeObject" ::= ("expected" := "value"))
-          ClosedMaybeObject.maybeObject.$get(base).right.value shouldBe Some(DObject("expected" := "value"))
+          val base = DObject("closedObject" ::= ("expected" := "value"))
+          MaybeStructure.closedObject.$get(base).right.value shouldBe Some(DObject("expected" := "value"))
         }
         it("Should fail with ClosedContractFailure if additional properties") {
-          val base = DObject("maybeObject" ::= ("expected" := "value", "additional" := 1))
-          ClosedMaybeObject.maybeObject.$get(base).left.value should contain (ClosedContractFailure(ClosedMaybeObject.maybeObject, "additional"))
-        }
-        it("Should fail with ClosedContractFailure if additional properties and nested") {
-          val base = DObject("maybeObject" ::= ("expected" := "value", "additional" := 1))
-          ClosedMaybeObject.$get(base).left.value should contain (ClosedContractFailure(ClosedMaybeObject.maybeObject, "additional"))
+          val base = DObject("closedObject" ::= ("expected" := "value", "additional" := 1))
+          MaybeStructure.closedObject.$get(base).left.value should contain (ClosedContractFailure(MaybeStructure.closedObject, "additional"))
         }
       }
       describe("Additional properties") {
         it("Should return object if additional properties") {
-          val base = DObject("maybeObject" ::= ("expected" := "value", "additional" := 1))
-          OpenMaybeObject.maybeObject.$get(base).right.value shouldBe Some(DObject("expected" := "value", "additional" := 1))
+          val base = DObject("withExpected" ::= ("expected" := "value", "additional" := 1))
+          MaybeStructure.withExpected.$get(base).right.value shouldBe Some(DObject("expected" := "value", "additional" := 1, "default" := 1))
         }
         it("Should return object if additional properties and nested") {
-          val base = DObject("maybeObject" ::= ("expected" := "value", "additional" := 1))
-          OpenMaybeObject.$get(base).right.value shouldBe base
+          val base = DObject("withExpected" ::= ("expected" := "value", "additional" := 1))
+          MaybeStructure.withExpected.$get(base).right.value shouldBe Some(DObject("expected" := "value", "additional" := 1, "default" := 1))
+        }
+      }
+      describe("Additional values") {
+        it("Should return obj for valid additional values") {
+          val base = DObject("valueObject" ::= ("expected" := "value", "add1" := 56, "add2" := 0))
+          MaybeStructure.valueObject.$get(base).right.value shouldBe Some(DObject("expected" := "value", "add1" := 56, "add2" := 0))
+        }
+        it("Should fail with IncorrectTypeFailure for invalid value types") {
+          val base = DObject("valueObject" ::= ("expected" := "value", "add1" := "value", "add2" := 0))
+          MaybeStructure.valueObject.$get(base).left.value should contain (IncorrectTypeFailure(MaybeStructure, MaybeStructure.valueObject._path \ "add1", longCodec, "value"))
+        }
+        it("Should return IncorrectKeyTypeFailure for invalid key types") {
+          val base = DObject("valueObject" ::= ("expected" := "value", "add10" := 12, "add2" := 0))
+          MaybeStructure.valueObject.$get(base).left.value should contain (IncorrectKeyTypeFailure(MaybeStructure, MaybeStructure.valueObject._path \ "add10", fixedLength4StringCodec))
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should ignore additional values with incorrect types") {
+            val base = DObject("valueObject" ::= ("expected" := "value", "add1" := "value", "add2" := 0))
+            EmptyMaybeStructure.valueObject.$get(base).right.value shouldBe Some(DObject("expected" := "value", "add2" := 0))
+          }
+          it("Should ignore additional values with incorrect keys ") {
+            val base = DObject("valueObject" ::= ("expected" := "value", "add1" := 234, "add20" := 0))
+            EmptyMaybeStructure.valueObject.$get(base).right.value shouldBe Some(DObject("expected" := "value", "add1" := 234))
+          }
+        }
+      }
+      describe("Additional objects") {
+        it("Should return object for valid additional values") {
+          val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("default" := 1), "add2" ::= ("default" := 2)))
+          MaybeStructure.objects.$get(base).right.value shouldBe Some(DObject("expected" := "value", "add1" ::= ("default" := 1), "add2" ::= ("default" := 2)))
+        }
+        it("Should return IncorrectTypeFailure for invalid value types") {
+          val base = DObject("objects" ::= ("expected" := "value", "add1" := "value", "add2" ::= ("default" := 2)))
+          MaybeStructure.objects.$get(base).left.value should contain (IncorrectTypeFailure(MaybeStructure, MaybeStructure.objects._path \ "add1", dObjectCodec, "value"))
+        }
+        it("Should return IncorrectTypeFailure for invalid contract values") {
+          val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("default" := "value"), "add2" ::= ("default" := 2)))
+          MaybeStructure.objects.$get(base).left.value should contain (IncorrectTypeFailure(MaybeStructure, MaybeStructure.objects._path \ "add1" \ "default", intCodec, "value"))
+        }
+        it("Should return IncorrectKeyTypeFailure for invalid key types") {
+          val base = DObject("objects" ::= ("expected" := "value", "add10" ::= ("default" := "value1"), "add2" ::= ("default" := "value2")))
+          MaybeStructure.objects.$get(base).left.value should contain (IncorrectKeyTypeFailure(MaybeStructure, MaybeStructure.objects._path \ "add10", fixedLength4StringCodec))
+        }
+        it("Should apply contract defaults") {
+          val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("value" := 123)))
+          MaybeStructure.objects.$get(base).right.value shouldBe Some(DObject("expected" := "value", "add1" ::= ("default" := 999, "value" := 123)))
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should ignore additional invalid objects") {
+            val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("default" := 234), "add2" := 0))
+            EmptyMaybeStructure.objects.$get(base).right.value shouldBe Some(DObject("expected" := "value", "add1" ::= ("default" := 234)))
+          }
+          it("Should ignore additional values with incorrect keys ") {
+            val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("default" := 234), "add20" ::= ("expected" := 42)))
+            EmptyMaybeStructure.objects.$get(base).right.value shouldBe Some(DObject("expected" := "value", "add1" ::= ("default" := 234)))
+          }
+          it("Should ignore additional values with invalid objects") {
+            val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("default" := "value"), "add2" ::= ("default" := 42)))
+            EmptyMaybeStructure.objects.$get(base).right.value shouldBe Some(DObject("expected" := "value", "add2" ::= ("default" := 42)))
+          }
         }
       }
     }
@@ -783,19 +1024,63 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
         it("Should succeed if no additional properties") {
           val base = DObject.empty
           val value = DObject("expected" := "value")
-          ClosedMaybeObject.maybeObject.$set(value)(base).right.value shouldBe DObject("maybeObject" ::= ("expected" := "value"))
+          MaybeStructure.closedObject.$set(value)(base).right.value shouldBe DObject("closedObject" ::= ("expected" := "value"))
         }
         it("Should fail with ClosedContractFailure if additional properties") {
           val base = DObject.empty
-          val value = DObject("maybe" := "value", "additional" := 1)
-          ClosedMaybeObject.maybeObject.$set(value)(base).left.value should contain (ClosedContractFailure(ClosedMaybeObject.maybeObject, "additional"))
+          val value = DObject("expected" := "value", "additional" := 1)
+          MaybeStructure.closedObject.$set(value)(base).left.value should contain (ClosedContractFailure(MaybeStructure.closedObject, "additional"))
         }
       }
       describe("Additional properties") {
         it("Should succeed if additional properties") {
           val base = DObject.empty
-          val value = DObject("maybe" := "value", "additional" := 1)
-          OpenMaybeObject.maybeObject.$set(value)(base).right.value shouldBe DObject("maybeObject" ::= ("expected" := "value", "additional" := 1))
+          val value = DObject("expected" := "value", "additional" := 1)
+          MaybeStructure.withExpected.$set(value)(base).right.value shouldBe DObject("withExpected" ::= ("expected" := "value", "additional" := 1))
+        }
+      }
+      describe("Additional values") {
+        it("Should succeed if keys and values are valid") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "add1" := 56, "add2" := 0)
+          MaybeStructure.valueObject.$set(value)(base).right.value shouldBe DObject("valueObject" ::= ("expected" := "value", "add1" := 56, "add2" := 0))
+        }
+        it("Should fail with IncorrectTypeFailure for invalid value types") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "add1" := "value", "add2" := 0)
+          MaybeStructure.valueObject.$set(value)(base).left.value should contain (IncorrectTypeFailure(MaybeStructure, MaybeStructure.valueObject._path \ "add1", longCodec, "value"))
+        }
+        it("Should return IncorrectKeyTypeFailure for invalid key types") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "add10" := 12, "add2" := 0)
+          MaybeStructure.valueObject.$set(value)(base).left.value should contain (IncorrectKeyTypeFailure(MaybeStructure, MaybeStructure.valueObject._path \ "add10", fixedLength4StringCodec))
+        }
+      }
+      describe("Additional objects") {
+        it("Should succeed if keys and values are valid") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "add1" ::= ("default" := 1), "add2" ::= ("default" := 2))
+          MaybeStructure.objects.$set(value)(base).right.value shouldBe DObject("objects" ::= ("expected" := "value", "add1" ::= ("default" := 1), "add2" ::= ("default" := 2)))
+        }
+        it("Should return IncorrectTypeFailure for invalid value types") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "add1" := "value", "add2" ::= ("default" := 2))
+          MaybeStructure.objects.$set(value)(base).left.value should contain (IncorrectTypeFailure(MaybeStructure, MaybeStructure.objects._path \ "add1", dObjectCodec, "value"))
+        }
+        it("Should return IncorrectTypeFailure for invalid contract values") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "add1" ::= ("default" := "value"), "add2" ::= ("default" := 2))
+          MaybeStructure.objects.$set(value)(base).left.value should contain (IncorrectTypeFailure(MaybeStructure, MaybeStructure.objects._path \ "add1" \ "default", intCodec, "value"))
+        }
+        it("Should return IncorrectKeyTypeFailure for invalid key types") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "add10" ::= ("default" := "value1"), "add2" ::= ("default" := "value2"))
+          MaybeStructure.objects.$set(value)(base).left.value should contain (IncorrectKeyTypeFailure(MaybeStructure, MaybeStructure.objects._path \ "add10", fixedLength4StringCodec))
+        }
+        it("Should not apply contract defaults") {
+          val base = DObject.empty
+          val value = DObject("expected" := "value", "add1" ::= ("value" := 123))
+          MaybeStructure.objects.$set(value)(base).right.value shouldBe DObject("objects" ::= ("expected" := "value", "add1" ::= ("value" := 123)))
         }
       }
     }
