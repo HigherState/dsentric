@@ -47,6 +47,13 @@ final case class ClosedContractFailure[D <: DObject](contract: ContractFor[D], p
     copy(contract = rootContract, path = rootPath ++ path)
 }
 
+final case class ContractFieldFailure[D <: DObject](contract: ContractFor[D], path:Path, field:String) extends StructuralFailure {
+  def message: String = s"Contract field '$field' is already defined and cannot be used for additional property."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): StructuralFailure =
+    copy(contract = rootContract, path = rootPath ++ path)
+}
+
 object ExpectedFailure {
   def apply[D <: DObject, T](property: PropertyLens[D, T]):ExpectedFailure[D] =
     ExpectedFailure(property._root, property._path)
@@ -62,6 +69,10 @@ object ClosedContractFailure {
     ClosedContractFailure(property._root, property._path, field)
 }
 
+object ContractFieldFailure {
+  def apply[D <: DObject, T](property:PropertyLens[D, T], field:String):ContractFieldFailure[D] =
+    ContractFieldFailure(property._root, property._path, field)
+}
 
 
 

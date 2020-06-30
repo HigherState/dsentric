@@ -1,8 +1,8 @@
 package dsentric.contracts
 
-import dsentric.failure.{ClosedContractFailure, ExpectedFailure, IncorrectKeyTypeFailure, IncorrectTypeFailure}
+import dsentric.failure.{ClosedContractFailure, ContractFieldFailure, ExpectedFailure, IncorrectKeyTypeFailure, IncorrectTypeFailure}
 import dsentric.schema.StringDefinition
-import dsentric.{DObject, Data, Dsentric, Path, PessimisticCodecs, StringCodec, failure}
+import dsentric.{DObject, Data, Dsentric, Path, PessimisticCodecs, StringCodec}
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
@@ -609,6 +609,58 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
           val base = DObject("maybeParent" ::= ("additional" := "value"))
           val value = DObject("expected" := "value")
           ExpectedStructure.maybeParent.expected.$set(value)(base).right.value shouldBe DObject("maybeParent" ::= ("additional" := "value", "expected" := value))
+        }
+      }
+    }
+    describe("addiontalProperties") {
+      describe("$get") {
+        it("Should return Some value if found for key") {
+          val base = DObject("empty" ::= ("additional1" := "value"))
+          ExpectedStructure.empty.$get("additional1")(base).right.value shouldBe Some(Data("value"))
+        }
+        it("Should return None if not found for key") {
+          val base = DObject("empty" ::= ("additional2" := "value"))
+          ExpectedStructure.empty.$get("additional1")(base).right.value shouldBe None
+        }
+        it("Should fail with ContractFieldFailure if key is contract property") {
+          val base = DObject("withExpected" ::= ("expected" := "value"))
+          ExpectedStructure.withExpected.$get("default")(base).left.value should contain (ContractFieldFailure(ExpectedStructure.withExpected, "default"))
+        }
+        it("Should return None if expected object not found") {
+          val base = DObject.empty
+          ExpectedStructure.empty.$get("additional1")(base).right.value shouldBe None
+        }
+        it("Should return IncorrectType if expected object wrong type") {
+          val base = DObject("empty" := 1)
+          ExpectedStructure.empty.$get("additional1")(base).left.value should contain (IncorrectTypeFailure(ExpectedStructure.empty, 1))
+        }
+        describe("With EmptyOnIncorrectType") {
+          it("Should return None if expected object wrong type") {
+            val base = DObject("empty" := 1)
+            EmptyExpectedStructure.empty.$get("additional1")(base).right.value shouldBe None
+          }
+        }
+      }
+      describe("$add") {
+        it("Should add value to object if not exists") {
+          val base = DObject("empty" ::= ("additional1" := "value"))
+          ExpectedStructure.empty.$add("additional2" := false)(base).right.value shouldBe DObject("empty" ::= ("additional1" := "value", "additional2" := false))
+        }
+        it("Should replace dynamic data on the object") {
+          val base = DObject("empty" ::= ("additional1" := "value", "additional2" := "value2"))
+          ExpectedStructure.empty.$add("additional2" := false)(base).right.value shouldBe DObject("empty" ::= ("additional1" := "value", "additional2" := false))
+        }
+        it("Should create path to object if empty") {
+          val base = DObject.empty
+          ExpectedStructure.empty.$add("additional1" := false)(base).right.value shouldBe DObject("empty" ::= ("additional1" := false))
+        }
+        it("Should fail with ContractFieldFailure if key is contract property") {
+          val base = DObject("withExpected" ::= ("expected" := "value"))
+          ExpectedStructure.withExpected.$add("default" := 563)(base).left.value should contain (ContractFieldFailure(ExpectedStructure.withExpected, "default"))
+        }
+        it("Should replace invalid expected object if wrong type") {
+          val base = DObject("empty" := true)
+          ExpectedStructure.empty.$add("additional1" := false)(base).right.value shouldBe DObject("empty" ::= ("additional1" := false))
         }
       }
     }

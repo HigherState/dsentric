@@ -15,7 +15,17 @@ object ValidResult {
   def success[T](t:T):ValidResult[T] =
     Right(t)
 
+  def fromList(t:List[Failure]):ValidResult[Unit] =
+    t match {
+      case head :: tail =>
+        Left(NonEmptyList(head, tail))
+      case _ =>
+        ValidResult.unit
+    }
+
   val none: ValidResult[None.type] = ValidResult.success(None)
+
+  val unit: ValidResult[Unit] = ValidResult.success(())
 
   //TODO replace when cats 2.0.0 comes
   def parSequence[F <: Failure, T](v:Vector[Either[NonEmptyList[F], T]]):Either[NonEmptyList[F], Vector[T]] = {

@@ -2,13 +2,14 @@ package dsentric.contracts
 
 import dsentric.operators.DataOperator
 import dsentric._
-import dsentric.failure.ValidResult
+import dsentric.failure.{ContractFieldFailure, EmptyOnIncorrectTypeBehaviour, ValidResult}
 
 /**
  * Marker trait to identify that the Contract is closed for any additionalProperties
  * By default contracts ignore any additional properties
  */
 trait AdditionalProperties extends BaseContractAux {
+  import cats.implicits._
 
   /**
    * Returns failure if the key is in the contract definition.
@@ -16,18 +17,58 @@ trait AdditionalProperties extends BaseContractAux {
    * @param d
    * @return
    */
-  final def $get(key:String)(d:AuxD):ValidResult[Option[Data]] = ???
+  final def $get(key:String)(d:AuxD):ValidResult[Option[Data]] =
+    checkKey(key) >>
+    __incorrectTypeBehaviour
+      .traverse(d.value, this._root, this._path \ key, PessimisticCodecs.dataCodec)
+      .toValidOption
 
   /**
    * Returns failure if the key is in the contract definition.
    * @param d
    * @return
    */
-  final def $add(d:(String, Data)):ValidPathSetter[AuxD] = ???
+  final def $add(d:(String, Data)):ValidPathSetter[AuxD] =
+    ValidValueSetter(_path \ d._1, checkKey(d._1).map(_ => d._2.value))
 
-  final def $addMany(d:Iterable[(String, Data)]):ValidPathSetter[AuxD] = ???
+  /**
+   * Returns failure if any key is in the contract definition.
+   * @param d
+   * @return
+   */
+  final def $addMany(d:Iterable[(String, Data)]):ValidPathSetter[AuxD] = {
+    def fieldCheck =
+      ValidResult.fromList {
+        d.filter(p => _fields.contains(p._1))
+          .map(p => ContractFieldFailure(this._root, this._path, p._1))
+          .toList
+      }
+    def traverse = (obj:AuxD) =>
+      EmptyOnIncorrectTypeBehaviour
+        .traverse(obj.value, this._root, this._path, PessimisticCodecs.dObjectCodec)
+        .toValidOption
 
-  final def $drop(key:String):ValidPathSetter[AuxD] = ???
+    RawModifySetter(obj =>
+      ValidResult.sequence2(fieldCheck, traverse(obj))
+        .map{
+          case (_, None) =>
+            d.map(p => p._1 -> p._2.value).toMap
+          case (_, Some(target)) =>
+            target.value ++ d.map(p => p._1 -> p._2.value)
+        },
+      _path
+    )
+  }
+
+  /**
+   * Returns failure if the key is in the contract definition.
+   * @param d
+   * @return
+   */
+  final def $drop(key:String):ValidPathSetter[AuxD] =
+    RawModifyOrDropSetter(_ => checkKey(key).flatMap(_ => ValidResult.none), _path)
+
+  final def $dropAll:PathSetter[AuxD] = ???
 
   final def $setOrDrop(key:String, value:Option[Data]):PathSetter[AuxD] = ???
 
@@ -41,6 +82,12 @@ trait AdditionalProperties extends BaseContractAux {
 
   final def $dynamic[T](field:String)(implicit codec:DCodec[T]):MaybeProperty[AuxD, T] =
     new MaybeProperty[AuxD, T](Some(field), this.asInstanceOf[BaseContract[AuxD]], codec, List.empty)
+
+  private def checkKey(key:String):ValidResult[Unit] =
+    if (_fields.contains(key))
+      ValidResult.failure(ContractFieldFailure(this._root, this._path, key))
+    else
+      ValidResult.unit
 }
 
 /**
