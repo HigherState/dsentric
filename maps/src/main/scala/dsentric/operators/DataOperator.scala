@@ -5,11 +5,22 @@ import dsentric.failure.{ValidResult, ValidationFailures}
 import dsentric.{DObject, Data, Path, Raw}
 import dsentric.schema.{ObjectDefinition, TypeDefinition}
 
+
 sealed trait DataOperator[+T] {
   def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
     case t => t
   }
 }
+
+sealed trait ExpectedDataOperator[+T] extends DataOperator[T]
+
+sealed trait MaybeDataOperator[+T] extends DataOperator[T]
+
+sealed trait DefaultDataOperator[+T] extends DataOperator[T]
+
+sealed trait UniversalDataOperator[+T] extends DataOperator[T]
+
+
 
 sealed trait Validator[+T] extends DataOperator[T]
 

@@ -1,7 +1,8 @@
 package dsentric.contracts
 
+import cats.{Monoid, Traverse}
 import cats.data.NonEmptyList
-import dsentric._
+import dsentric.{RawObject, _}
 import dsentric.failure._
 
 private[dsentric] trait PropertyLens[D <: DObject, T] {
