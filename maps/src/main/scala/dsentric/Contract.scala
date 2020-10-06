@@ -366,7 +366,7 @@ trait ContractFor[D <: DObject] extends BaseContract[D] { self =>
       case head +: tail =>
         Left(NonEmptyList(head, tail.toList))
       case _ =>
-        Right(DObjectOps.rightDifferenceMap(currentState.value -> delta.value).map(new DObjectInst(_)))
+        Right(DObjectOps.rightDifferenceReduceMap(currentState.value -> delta.value).map(new DObjectInst(_)))
     }
 }
 
