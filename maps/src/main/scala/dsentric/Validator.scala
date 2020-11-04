@@ -497,6 +497,49 @@ trait Validators extends ValidatorOps{
 
     }
 
+  def mapContractByType[K, D <: DObject](
+                                      contractMatch: (D => Boolean, ContractFor[D])*
+                                    ): Validator[Optionable[Map[K, DObject]]] =
+    new Validator[Optionable[Map[K, DObject]]] {
+
+      def apply[S >: Optionable[Map[K, DObject]]](
+                                                        path: Path,
+                                                        value: Option[S],
+                                                        currentState: => Option[S]
+                                                      ): Failures = {
+        val cs =
+          (for {
+            cso <- currentState
+            cst <- getT[Map[K, D], S](cso)
+          } yield cst).getOrElse(Map.empty[K, D])
+
+        for {
+          co       <- value.toVector
+          ct       <- getT[Map[K, D], S](co).toVector
+          pair     <- ct.toVector
+          failures <- (cs.get(pair._1) match {
+            case Some(cks) =>
+              contractMatch
+                .find(_._1(cks))
+                .map(C =>
+                  C._2
+                    .$validate(pair._2, cks)
+                    .fold(_.toList.toVector.map(p => path \ pair._1.toString ++ p._1 -> p._2), _ => Vector.empty)
+                )
+                .getOrElse(Vector(path \ pair._1.toString -> "Could not match type."))
+            case None      =>
+              contractMatch
+                .find(_._1(pair._2))
+                .map(C =>
+                  C._2
+                    .$validate(pair._2)
+                    .fold(_.toList.toVector.map(p => path \ pair._1.toString ++ p._1 -> p._2), _ => Vector.empty)
+                )
+                .getOrElse(Vector(path \ pair._1.toString -> "Could not match type."))
+          })
+        } yield failures
+      }
+    }
   def keyValidator(r:Regex, message:String):Validator[Optionable[DObject]] =
     new Validator[Optionable[DObject]] {
 
