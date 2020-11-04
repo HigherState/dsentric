@@ -213,6 +213,9 @@ trait DObjectLike[+This <: DObjectLike[This] with DObject] extends Any with Data
   override def nestedKeyValueMap[T, U](pf:PartialFunction[(String, T), Option[(String, U)]])(implicit D1:DCodec[T], D2:DCodec[U]):This =
     wrap(DataOps.nestedKeyValueMap(value, pf).asInstanceOf[Map[String, Any]])
 
+  def nestedKeyValueFilter(f:Function[(String, Data),Boolean]):This =
+    wrap(DataOps.nestedKeyValueFilter(value, f))
+
   override def nestedKeyMap(pf:PartialFunction[String, Option[String]]):This =
     wrap(DataOps.nestedKeyMap(value, pf).asInstanceOf[Map[String, Any]])
 }

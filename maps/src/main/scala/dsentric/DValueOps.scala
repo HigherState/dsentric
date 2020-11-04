@@ -69,6 +69,19 @@ trait DataOps {
         v
     }
 
+  private[dsentric] def nestedKeyValueFilter[T, U](value:Map[String, Any], f:Function[(String, Data),Boolean]):Map[String, Any] =
+    value.flatMap{
+      case (key, v:Map[String, Any]@unchecked) if f(key -> ForceWrapper.dObject(v)) =>
+        val newMap = nestedKeyValueFilter(v, f)
+        if (newMap.isEmpty) None
+        else Some(key -> newMap)
+      case (key, v) if f(key -> ForceWrapper.data(v)) =>
+        Some(key -> v)
+      case _ =>
+        None
+    }
+
+
   private[dsentric] def nestedKeyMap(value:Any, pf:PartialFunction[String, Option[String]]):Any =
     value match {
       case m:Map[String, Any]@unchecked =>
