@@ -3,7 +3,7 @@ package dsentric.contracts
 import dsentric.{DObject, DProjection, Path}
 
 /**
- * Use supports mixin of AdditionalProperties, not sure its still entirelyy relevant
+ * Use supports mixin of AdditionalProperties: Open
  */
 private[dsentric] trait BaseAux {
   type AuxD <: DObject
@@ -19,7 +19,7 @@ private[dsentric] trait BaseContractAux extends BaseAux {
 }
 
 /**
- * Prevents clashes with PropertyyLens
+ * Prevents clashes with PropertyLens
  * @tparam D
  */
 private[dsentric] trait ParameterisedAux[D <: DObject] extends BaseAux {

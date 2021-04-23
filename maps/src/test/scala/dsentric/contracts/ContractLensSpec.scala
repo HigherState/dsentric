@@ -16,7 +16,7 @@ class ContractLensSpec extends AnyFunSpec with Matchers with EitherValues {
     val expected = \[String]
     val maybe = \?[Int]
   }
-  object OpenContract extends Contract with AdditionalProperties {
+  object OpenContract extends Contract with Open {
     val expected = \[String]
     val maybe = \?[Int]
   }

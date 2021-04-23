@@ -2,7 +2,7 @@ package dsentric.contracts
 
 import dsentric._
 import cats.data._
-import dsentric.failure.{ClosedContractFailure, StructuralFailure, ValidResult}
+import dsentric.failure.{ClosedContractFailure, DCodecTypeFailure, IncorrectKeyTypeFailure, StructuralFailure, ValidResult}
 
 private[dsentric] sealed trait ObjectLens[D <: DObject]
   extends BaseContract[D] with PropertyLens[D, DObject]{
@@ -304,7 +304,12 @@ private[dsentric] object ObjectLens {
         obj.filter(p => !exclude.contains(p._1))
           .toList
           .flatMap { kv =>
-            a._additionalKeyCodec.verify(kv._1).map(_.rebase(baseContract._root, baseContract._path)) ++
+            a._additionalKeyCodec.verify(kv._1).map {
+              case DCodecTypeFailure(codec, _) =>
+                IncorrectKeyTypeFailure(baseContract._root, baseContract._path \ kv._1, codec)
+              case other =>
+                other.rebase(baseContract._root, baseContract._path)
+            } ++
             a._additionalValueCodec.verify(kv._2).map(_.rebase(baseContract._root, baseContract._path \ kv._1))
           }
 

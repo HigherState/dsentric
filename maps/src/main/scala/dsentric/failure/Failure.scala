@@ -31,7 +31,7 @@ final case class DCodecTypeFailure[T](codec:DCodec[T], foundRaw:Raw) extends Str
   def message = s"Type '${codec.typeDefinition.name} was expected, type ${foundRaw.getClass.getSimpleName} was found."
 
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  IncorrectTypeFailure[G, T] =
-    IncorrectTypeFailure(rootContract, path, codec, foundRaw)
+    IncorrectTypeFailure(rootContract, rootPath, codec, foundRaw)
 }
 
 final case class IncorrectTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T], foundRaw:Raw) extends TypeFailure {

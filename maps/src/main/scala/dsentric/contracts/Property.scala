@@ -159,6 +159,14 @@ trait PropertyObjectOps[D <: DObject] { __internal:BaseContract[D] =>
             (implicit codec:DObjectCodec[DObject], keyCodec:StringCodec[K], valueCodec:DCodec[V]) =
       this(Some(name), codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
 
+    def this(valueCodec:DCodec[V], dataOperators: DataOperator[DObject]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
+            (implicit codec:DObjectCodec[DObject], keyCodec:StringCodec[K]) =
+      this(None, codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
+
+    def this(valueCodec:DCodec[V], name:String, dataOperators: DataOperator[DObject]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
+            (implicit codec:DObjectCodec[DObject], keyCodec:StringCodec[K]) =
+      this(Some(name), codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
+
 
     def _parent: BaseContract[D] = __internal
   }
@@ -187,6 +195,14 @@ trait PropertyObjectOps[D <: DObject] { __internal:BaseContract[D] =>
 
     def this(name:String, dataOperators: DataOperator[Option[DObject]]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
             (implicit codec:DObjectCodec[DObject], keyCodec:StringCodec[K], valueCodec:DCodec[V]) =
+      this(Some(name), codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
+
+    def this(valueCodec:DCodec[V], dataOperators: DataOperator[Option[DObject]]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
+            (implicit codec:DObjectCodec[DObject], keyCodec:StringCodec[K]) =
+      this(None, codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
+
+    def this(valueCodec:DCodec[V], name:String, dataOperators: DataOperator[Option[DObject]]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
+            (implicit codec:DObjectCodec[DObject], keyCodec:StringCodec[K]) =
       this(Some(name), codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
 
     def _parent: BaseContract[D] = __internal

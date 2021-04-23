@@ -197,5 +197,9 @@ traversal -
     We dont need to validate contracts in the traversal path, 
     Just need to make sure it can be traversed
 
+    its possible to get a default value for an expected object that is not present
+    As the Expected object will return an empty object in the traversal if its not found
+
 get -
     extract the value, return any type or other structural failures
+

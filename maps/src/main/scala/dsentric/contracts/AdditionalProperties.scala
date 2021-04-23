@@ -27,7 +27,7 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
     val keyString = _additionalKeyCodec.toString(key)
     checkKeyClash(keyString) >>
       TraversalOps
-        .traverse(d.value, this._root, this._path \ keyString, _additionalValueCodec)
+        .traverse(d.value, this, keyString)
         .toValidOption
   }
   /**
@@ -37,7 +37,7 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
    */
   final def $add(d:(Key, Value)):ValidPathSetter[AuxD] = {
     val keyString = _additionalKeyCodec.toString(d._1)
-    ValidValueSetter(_path \ keyString, checkKeyClash(keyString).map(_ => _additionalValueCodec(d._2)))
+    ValidValueSetter(_path \ keyString, checkKeyClash(keyString).map(_ => _additionalValueCodec(d._2).value))
   }
 
   /**
@@ -46,7 +46,7 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
    * @return
    */
   final def $addMany(d:Iterable[(Key, Value)]):ValidPathSetter[AuxD] = {
-    val toRaw = d.map(p => _additionalKeyCodec.toString(p._1) -> _additionalValueCodec(p._2))
+    val toRaw = d.map(p => _additionalKeyCodec.toString(p._1) -> _additionalValueCodec(p._2).value)
     def fieldCheck =
       ValidResult.fromList {
         toRaw.map(_._1)
@@ -56,7 +56,7 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
       }
     def traverse = (obj:AuxD) =>
       TraversalOps
-        .traverse(obj.value, this._root, this._path, PessimisticCodecs.dObjectCodec)
+        .traverseRaw(obj.value, this)
         .toValidOption
 
     RawModifySetter(obj =>
@@ -65,7 +65,7 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
           case (_, None) =>
             toRaw.toMap
           case (_, Some(target)) =>
-            target.value ++ toRaw.toMap
+            target ++ toRaw.toMap
         },
       _path
     )
@@ -101,6 +101,14 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
       ValidResult.failure(ContractFieldFailure(this._root, this._path, key))
     else
       ValidResult.unit
+}
+
+trait Open extends AdditionalProperties[String, Data] {
+  def _additionalDataOperators: List[DataOperator[Option[Map[String, Data]]]] = Nil
+
+  def _additionalKeyCodec: StringCodec[String] = PessimisticCodecs.stringCodec
+
+  def _additionalValueCodec: DCodec[Data] = PessimisticCodecs.dataCodec
 }
 
 /**
