@@ -1,5 +1,6 @@
 package dsentric
 
+import dsentric.failure.{DCodecTypeFailure, StructuralFailure}
 import dsentric.schema._
 
 import scala.collection.immutable.VectorBuilder
@@ -8,6 +9,33 @@ import scala.collection.mutable.ListBuffer
 trait DCodec[T] {
   def apply(t:T):Data
   def unapply(a:Raw):Option[T]
+
+  /**
+   * Standard type failure check, override for targetted behaviour, like NotFound if wrong type
+   * @param a
+   * @return
+   */
+  def verify(a:Raw):List[StructuralFailure] =
+    unapply(a) match {
+      case None =>
+        List(DCodecTypeFailure(this, a))
+      case _ =>
+        Nil
+    }
+
+  /**
+   * Standard type failure check, override for targetted behaviour, like NotFound if wrong type
+   * @param a
+   * @return
+   */
+  def get(a:Raw):Available[T] =
+    unapply(a) match {
+      case None =>
+        Failed(DCodecTypeFailure(this, a))
+      case Some(t) =>
+        Found(t)
+    }
+
   def typeDefinition:TypeDefinition
 }
 
@@ -35,7 +63,16 @@ trait StringCodec[T] extends DCodec[T] {
 }
 
 trait DObjectCodec[T] extends DCodec[T] {
-  override def apply(t:T):DObject
+
+  // Allows us to support NotFound if wrong type behaviours
+  // Should not validate the object in entirety
+  def getForTraversal(a: Raw): Available[RawObject] =
+    a match {
+      case m:RawObject@unchecked =>
+        Found(m)
+      case _ =>
+        Failed(DCodecTypeFailure(this, a))
+    }
 }
 
 trait DArrayCodec[T, S] extends DCodec[S] {
@@ -227,22 +264,22 @@ trait DefaultCodecs {
         StringDefinition.empty
     }
 
-  def dObjectOpsCodec[T <: DObjectOps[T] with DObject](wrap:Map[String, Any] => T):DObjectCodec[T] =
-    new DObjectCodec[T] {
-
-      def apply(t: T):DObject =
-        new DObjectInst(t.value)
-      def unapply(a:Raw): Option[T] =
-        a match {
-          case m:RawObject@unchecked =>
-            Some(wrap(m))
-          case _ =>
-            None
-        }
-
-      def typeDefinition:TypeDefinition =
-        ObjectDefinition.empty
-    }
+//  def dObjectOpsCodec[T <: DObjectOps[T] with DObject](wrap:Map[String, Any] => T):DObjectCodec[T] =
+//    new DObjectCodec[T] {
+//
+//      def apply(t: T):DObject =
+//        new DObjectInst(t.value)
+//      def unapply(a:Raw): Option[T] =
+//        a match {
+//          case m:RawObject@unchecked =>
+//            Some(wrap(m))
+//          case _ =>
+//            None
+//        }
+//
+//      def typeDefinition:TypeDefinition =
+//        ObjectDefinition.empty
+//    }
 
   implicit def setCodec[V](implicit D: DCodec[V]): DCodec[Set[V]] =
     new DCodec[Set[V]] {

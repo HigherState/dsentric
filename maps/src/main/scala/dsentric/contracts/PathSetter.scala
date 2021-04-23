@@ -1,7 +1,7 @@
 package dsentric.contracts
 
-import dsentric.failure.{Found, NotFound, PathEmptyMaybe, Traversed, Failed, ValidResult}
-import dsentric.{DObject, Path, PathLensOps, Raw, RawObject}
+import dsentric.failure.ValidResult
+import dsentric.{DObject, Failed, Found, NotFound, Path, PathEmptyMaybe, PathLensOps, Raw, RawObject, Traversed}
 
 sealed trait PathSetter[D <: DObject] extends Function[D, D] {
   def ~(pathSetter:PathSetter[D]):PathSetter[D] =

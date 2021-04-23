@@ -2,7 +2,7 @@ package dsentric.contracts
 
 import dsentric.operators.DataOperationOps
 import dsentric._
-import dsentric.failure.{EmptyOnIncorrectTypeBehaviour, FailOnIncorrectTypeBehaviour, IncorrectTypeBehaviour, ValidResult}
+import dsentric.failure.ValidResult
 
 trait SubContractFor[D <: DObject]
   extends BaseContract[D]
@@ -19,9 +19,6 @@ trait ContractFor[D <: DObject]
   with PropertyObjectOps[D]
   with ContractLens[D] {
 
-  private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour =
-    FailOnIncorrectTypeBehaviour
-
   def _path:Path = Path.empty
 
   val $ops:DataOperationOps[D] =
@@ -29,13 +26,8 @@ trait ContractFor[D <: DObject]
 
   override protected def __self: BaseContract[D] = this
   def _root: ContractFor[D] = this
+  def _parent: BaseContract[D] = this
 }
-
-trait EmptyOnIncorrectType extends WithIncorrectTypeBehaviour {
-  private[dsentric] override def __incorrectTypeBehaviour: IncorrectTypeBehaviour =
-    EmptyOnIncorrectTypeBehaviour
-}
-
 
 trait SubContract extends SubContractFor[DObject]
 

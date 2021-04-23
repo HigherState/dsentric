@@ -1,24 +1,34 @@
 package dsentric.contracts
 
-import dsentric.failure.IncorrectTypeBehaviour
 import dsentric.{DObject, DProjection, Path}
 
-private[dsentric] trait WithIncorrectTypeBehaviour {
-  private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour
-}
-
-private[dsentric] trait BaseContractAux extends WithIncorrectTypeBehaviour {
+/**
+ * Use supports mixin of AdditionalProperties, not sure its still entirelyy relevant
+ */
+private[dsentric] trait BaseAux {
   type AuxD <: DObject
 
   def _root: ContractFor[AuxD]
 
   def _path:Path
+}
+
+private[dsentric] trait BaseContractAux extends BaseAux {
 
   def _fields: Map[String, Property[AuxD, _]]
 }
 
-private[dsentric] trait BaseContract[D <: DObject] extends BaseContractAux {
+/**
+ * Prevents clashes with PropertyyLens
+ * @tparam D
+ */
+private[dsentric] trait ParameterisedAux[D <: DObject] extends BaseAux {
   type AuxD = D
+}
+
+
+private[dsentric] trait BaseContract[D <: DObject] extends BaseContractAux with ParameterisedAux[D] {
+
   private var __fields:Map[String, Property[D, Any]] = _
   @volatile
   private var _bitmap0:Boolean = false

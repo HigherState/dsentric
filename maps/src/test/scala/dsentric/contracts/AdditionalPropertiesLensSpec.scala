@@ -5,8 +5,6 @@ import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 
-
-@deprecated("Update when EitherValues is updated and undeprecate.", "")
 class AdditionalPropertiesLensSpec extends AnyFunSpec with Matchers with EitherValues {
 
   import Dsentric._

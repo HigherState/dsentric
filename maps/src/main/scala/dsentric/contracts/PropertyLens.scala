@@ -1,18 +1,14 @@
 package dsentric.contracts
 
-import cats.{Monoid, Traverse}
-import cats.data.NonEmptyList
 import dsentric.{RawObject, _}
 import dsentric.failure._
 
-private[dsentric] trait PropertyLens[D <: DObject, T] {
-
+private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with ParameterisedAux[D] {
   def _key:String
   def _path:Path
   def _codec: DCodec[T]
-  def _root:ContractFor[D]
-  private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour
-
+  def _parent: BaseContract[D]
+  def _root: ContractFor[D] = _parent._root
   /**
    * Does the object satisfy all the type and expectation constraints.
    * Returns list of possible failures.
@@ -23,21 +19,11 @@ private[dsentric] trait PropertyLens[D <: DObject, T] {
 
   /**
    * Return the property value or failure
-   * Can return None on failure if typeBehaviour is to empty
    * Can return Default value if provided value is empty or invalid and type behaviour is empty.
    * @param obj
    * @return
    */
   private[contracts] def __get(obj:D):Traversed[T]
-
-  /**
-   * Applies the direct property value to the object.
-   * Can remove if value on failure if typeBehaviour is to empty.
-   * Will set default if value is not found or value is empty or invalid and type behaviour is empty.
-   * @param obj
-   * @return
-   */
-  private[contracts] def __applyTraversal(obj:RawObject):Either[NonEmptyList[StructuralFailure], RawObject]
 
   /**
    * Verifies the direct property against the object.
@@ -53,23 +39,14 @@ private[dsentric] trait PropertyLens[D <: DObject, T] {
 
 private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens[D, T] {
 
-  private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour
-
   private[contracts] def __get(data:D):Traversed[T] =
-    __incorrectTypeBehaviour.traverse(data.value, this) match {
+    TraversalOps.traverse(data.value, this) match {
       case NotFound => Failed(ExpectedFailure(this))
       case t => t
     }
 
-  private[contracts] def __applyTraversal(obj:RawObject):Either[NonEmptyList[StructuralFailure], RawObject] =
-    __incorrectTypeBehaviour.property(obj, this) match {
-      case NotFound => Left(NonEmptyList(ExpectedFailure(this), Nil))
-      case Found(_) => Right(obj)
-      case Failed(f, tail) => Left(NonEmptyList(f, tail))
-    }
-
   private[contracts] def __verifyTraversal(obj:RawObject):List[StructuralFailure] =
-    FailOnIncorrectTypeBehaviour.property(obj, this) match {
+    TraversalOps.propertyValue(obj, this) match {
       case NotFound => List(ExpectedFailure(this))
       case Found(_) => Nil
       case Failed(f, tail) => f :: tail
@@ -78,14 +55,12 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
 
   /**
    * Verifies the Type of the value for the Property and its existence.
-   * When verifying an incorrect type always returns a failure, even if
-   * incorrect type behaviour is set to ignore.
    * Returns failure if object not found, unless property has MaybeObject Ancestor
    * @param obj
    * @return
    */
   final def $verify(obj:D):List[StructuralFailure] =
-    FailOnIncorrectTypeBehaviour.traverse(obj.value, this) match {
+    TraversalOps.traverse(obj.value, this) match {
       case NotFound => List(ExpectedFailure(this))
       case Failed(f, tail) => f :: tail
       case _ => Nil
@@ -157,38 +132,22 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
 
 private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] with ApplicativeLens[D, Option[T]] {
 
-  private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour
-
   private[contracts] def __get(obj:D):Traversed[T] =
-    __incorrectTypeBehaviour.traverse(obj.value, this)
-
-  private[contracts] def __applyTraversal(obj:RawObject):Either[NonEmptyList[StructuralFailure], RawObject] =
-    obj.get(_key) match {
-      case None =>
-        Right(obj)
-      case Some(a) =>
-        __incorrectTypeBehaviour.apply(a, this) match {
-          case Failed(f, tail) => Left(NonEmptyList(f, tail))
-          case NotFound => Right(obj - _key)
-          case _ => Right(obj)
-        }
-    }
+    TraversalOps.traverse(obj.value, this)
 
   private[contracts] def __verifyTraversal(obj:RawObject):List[StructuralFailure] =
-    FailOnIncorrectTypeBehaviour.property(obj, this) match {
+    TraversalOps.propertyValue(obj, this) match {
       case Failed(f, tail) => f :: tail
       case _ => Nil
     }
 
   /**
    * Verifies the Type of the value for the Property if it exists in the object.
-   * When verifying an incorrect type always returns a failure, even if
-   * incorrect type behaviour is set to ignore
    * @param obj
    * @return
    */
   final def $verify(obj:D):List[StructuralFailure] =
-    FailOnIncorrectTypeBehaviour.traverse(obj.value, this) match {
+    TraversalOps.traverse(obj.value, this) match {
       case Failed(f, tail) => f :: tail
       case _ => Nil
     }
@@ -317,7 +276,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
    * @return
    */
   final def unapply(obj:D):Option[Option[T]] =
-    __incorrectTypeBehaviour.traverse(obj.value, this) match {
+    TraversalOps.traverse(obj.value, this) match {
       case PathEmptyMaybe => Some(None)
       case NotFound => Some(None)
       case Found(t) => Some(Some(t))
@@ -329,23 +288,14 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
 
   def _default:T
 
-  private[dsentric] def __incorrectTypeBehaviour:IncorrectTypeBehaviour
-
   private[contracts] def __get(obj:D):Traversed[T] =
-    __incorrectTypeBehaviour.traverse(obj.value,this) match {
+    TraversalOps.traverse(obj.value,this) match {
       case NotFound => Found(_default)
       case t => t
     }
 
-  private[contracts] def __applyTraversal(obj:RawObject):Either[NonEmptyList[StructuralFailure], RawObject] =
-    __incorrectTypeBehaviour.property(obj, this) match {
-      case NotFound => Right(obj + (_key -> _codec.apply(_default).value))
-      case Found(_) => Right(obj)
-      case Failed(f, tail) => Left(NonEmptyList(f, tail))
-    }
-
   private[contracts] def __verifyTraversal(obj:RawObject):List[StructuralFailure] =
-    FailOnIncorrectTypeBehaviour.property(obj, this) match {
+    TraversalOps.propertyValue(obj, this) match {
       case Failed(f, tail) => f :: tail
       case _ => Nil
     }
@@ -395,7 +345,7 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
    * @return
    */
   final def $verify(obj:D):List[StructuralFailure] =
-    FailOnIncorrectTypeBehaviour.traverse(obj.value, this)match {
+    TraversalOps.traverse(obj.value, this) match {
       case Failed(f, tail) => f :: tail
       case _ => Nil
     }
@@ -459,7 +409,7 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
    * @return
    */
   final def unapply(obj:D):Option[T] =
-    __incorrectTypeBehaviour.traverse(obj.value, this) match {
+    TraversalOps.traverse(obj.value, this) match {
       case PathEmptyMaybe => Some(_default)
       case NotFound => Some(_default)
       case Found(t) => Some(t)

@@ -1,5 +1,6 @@
 package dsentric.contracts
 
+import cats.data.NonEmptyList
 import dsentric.DObject
 import dsentric.failure.{StructuralFailure, ValidResult}
 
@@ -8,14 +9,15 @@ trait ContractLens[D <: DObject] { this:ContractFor[D] =>
   def _fields: Map[String, Property[D, _]]
 
   /**
-   * Returns object against the contract, applying any default values
-   * and verifying the structural integrity of the object
+   * Returns object against the contract, verifying the structural integrity of the object
    * @param obj
    * @return
    */
   final def $get(obj:D):ValidResult[D] =
-    ObjectLens.propertyApplicator(this, obj.value)
-      .map(v => obj.internalWrap(v).asInstanceOf[D])
+    ObjectLens.propertyVerifier(this, obj.value) match {
+      case head :: tail => Left(NonEmptyList(head, tail))
+      case Nil => Right(obj)
+    }
 
 
   /**

@@ -30,8 +30,6 @@ sealed trait Path {
     this match {
       case PathEnd =>
         path
-      case ExpectedPathKey(key, tail) =>
-        ExpectedPathKey(key, tail ++ path)
       case PathKey(key, tail) =>
         PathKey(key, tail ++ path)
       case PathIndex(index, tail) =>
@@ -41,8 +39,6 @@ sealed trait Path {
     this match {
       case PathEnd =>
         PathKey(key, PathEnd)
-      case ExpectedPathKey(key2, tail) =>
-        ExpectedPathKey(key2, tail \ key)
       case PathKey(key2, tail) =>
         PathKey(key2, tail \ key)
       case PathIndex(index, tail) =>
@@ -52,8 +48,6 @@ sealed trait Path {
     this match {
       case PathEnd =>
         PathIndex(index, PathEnd)
-      case ExpectedPathKey(key2, tail) =>
-        ExpectedPathKey(key2, tail \ index)
       case PathKey(key, tail) =>
         PathKey(key, tail \ index)
       case PathIndex(index2, tail) =>
@@ -131,16 +125,6 @@ final case class PathIndex(index:Int, next:Path) extends Path {
   def take(index:Int):Path =
     if (index <= 0) PathEnd
     else PathIndex(index, next.take(index - 1))
-}
-
-object ExpectedPathKey{
-  def apply(key:String, next:Path):ExpectedPathKey =
-    new ExpectedPathKey(key, next)
-  def unapply(path:Path):Option[(String, Path)] =
-    path match {
-      case p:ExpectedPathKey => Some(p.key -> p.next)
-      case _ => None
-    }
 }
 
 object Path {

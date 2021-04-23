@@ -45,47 +45,6 @@ object Sanitization {
             applySanitizer(field, maybeObj.getOrElse(value), sanitizer)
               .orElse(maybeObj)
         }
-      case (maybeObj, (field, property: ObjectsProperty[D, _]@unchecked)) =>
-        getSanitizer(property) match {
-          case None =>
-            value.get(field).collect {
-              case ra: RawArray@unchecked =>
-                val sanitized = ra.map {
-                  case ro: RawObject@unchecked => sanitizeContract(property._contract, ro)
-                  case _ => None
-                }
-                if (sanitized.exists(_.nonEmpty))
-                  Some(maybeObj.getOrElse(value) + (field -> (sanitized.zip(ra).map(p => p._1.getOrElse(p._2)))))
-                else
-                  None
-            }.flatten.orElse(maybeObj)
-
-          case Some(sanitizer) =>
-            applySanitizer(field, maybeObj.getOrElse(value), sanitizer)
-              .orElse(maybeObj)
-        }
-
-      case (maybeObj, (field, property: MapObjectsProperty[D, _, _]@unchecked)) =>
-        getSanitizer(property) match {
-          case None =>
-            value.get(field).collect {
-              case rv: RawObject@unchecked =>
-                val sanitized = rv.flatMap {
-                  case (key, rv2: RawObject@unchecked) =>
-                    sanitizeContract(property._contract, rv2).map(key -> _)
-                  case _ =>
-                    None
-                }
-                val removed = sanitized.collect{ case (key, m) if m.isEmpty => key}
-                if (sanitized.nonEmpty)
-                  Some(maybeObj.getOrElse(value) + (field -> ((rv ++ sanitized) -- removed)))
-                else
-                  None
-            }.flatten.orElse(maybeObj)
-          case Some(sanitizer) =>
-            applySanitizer(field, maybeObj.getOrElse(value), sanitizer)
-              .orElse(maybeObj)
-        }
 
       case (maybeObj, (field, property)) =>
         getSanitizer(property).flatMap { sanitizer =>

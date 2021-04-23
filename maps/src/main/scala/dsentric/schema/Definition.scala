@@ -98,17 +98,6 @@ object Definition {
             (p + property, infos4, defs3)
           }
 
-        case ((p, infos0, defs0), (name, prop:ObjectsProperty[D, _], schema)) if schema.nested || forceNested =>
-          val (objectDefinition, infos1, defs1) = resolveNestedContract(prop._contract, infos0, defs0, forceNested, None)
-          val arrayDefinition = ArrayDefinition(Vector(objectDefinition))
-          val resolvedDefinition = resolveDataOperators(prop, arrayDefinition)
-          val required = resolvedDefinition.minLength.exists(_ > 0)
-          val property = PropertyDefinition(name, resolvedDefinition, schema.examples, None, required, schema.description)
-          (p + property, infos1, defs1)
-
-        case ((p, infos0, defs0), (name, prop:ObjectsProperty[D, _], schema)) =>
-          ???
-
         case ((p, infos, defs), (name, prop, schema)) =>
           val resolvedDefinition = resolveDataOperators(prop, prop._codec.typeDefinition)
           val property = PropertyDefinition(name, resolvedDefinition, schema.examples, getDefault(prop), isRequired(prop), schema.description)
@@ -182,19 +171,17 @@ object Definition {
     }
 
     contract match {
-      case _:AdditionalProperties =>
-        (Left(true), None, infos, defs)
-      case a:AdditionalPropertyValues[Any, Any]@unchecked =>
+      case a:AdditionalProperties[Any, Any]@unchecked =>
         (Right(a._additionalValueCodec.typeDefinition), getPattern(a._additionalKeyCodec), infos, defs)
-      case a:AdditionalPropertyObjects[Any, DObject]@unchecked =>
-        if (forceNested) {
-          val (objectDefinition, infos1, defs1) = resolveNestedContract(a._additionalContract, infos, defs, forceNested, None)
-          (Right(objectDefinition), getPattern(a._additionalKeyCodec), infos1, defs1)
-        }
-        else {
-          val (name, infos1, defs1) = contractObjectDefinitionRef(a._additionalContract, infos, defs, false)
-          (Right(ByRefDefinition(name)), getPattern(a._additionalKeyCodec), infos, defs1)
-        }
+//      case a:AdditionalPropertyObjects[Any, DObject]@unchecked =>
+//        if (forceNested) {
+//          val (objectDefinition, infos1, defs1) = resolveNestedContract(a._additionalContract, infos, defs, forceNested, None)
+//          (Right(objectDefinition), getPattern(a._additionalKeyCodec), infos1, defs1)
+//        }
+//        else {
+//          val (name, infos1, defs1) = contractObjectDefinitionRef(a._additionalContract, infos, defs, false)
+//          (Right(ByRefDefinition(name)), getPattern(a._additionalKeyCodec), infos, defs1)
+//        }
       case _ =>
         (Left(false), None, infos, defs)
     }

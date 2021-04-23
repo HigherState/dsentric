@@ -1,9 +1,6 @@
 package dsentric.failure
 
 import cats.data.NonEmptyList
-import dsentric.{DObject, Path}
-import dsentric.contracts.ContractFor
-
 import scala.collection.immutable.VectorBuilder
 import scala.collection.mutable.ListBuffer
 

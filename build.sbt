@@ -24,10 +24,10 @@ lazy val buildSettings = Seq(
   )
 )
 
-lazy val reflect = "org.scala-lang" % "scala-reflect" % "2.13.1"
+lazy val reflect = "org.scala-lang" % "scala-reflect" % "2.13.5"
 lazy val shapeless = "com.chuusai" %% "shapeless" % "2.3.3"
-lazy val scalatest = "org.scalatest" %% "scalatest" % "3.1.0"  % "test"
-lazy val cats = "org.typelevel" %% "cats-core" % "2.1.0"
+lazy val scalatest = "org.scalatest" %% "scalatest" % "3.2.7" % "test"
+lazy val cats = "org.typelevel" %% "cats-core" % "2.4.2"
 lazy val commons_math = "org.apache.commons" % "commons-math3" % "3.6.1"
 
 

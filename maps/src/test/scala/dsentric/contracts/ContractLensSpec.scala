@@ -6,7 +6,6 @@ import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 
-@deprecated("Update when EitherValues is updated and undeprecate.", "")
 class ContractLensSpec extends AnyFunSpec with Matchers with EitherValues {
 
   import Dsentric._
@@ -44,7 +43,7 @@ class ContractLensSpec extends AnyFunSpec with Matchers with EitherValues {
     describe("Closed for additional properties") {
       it("Should return object if no additional properties") {
         val base = DObject("expected" := "value")
-        ClosedContract.$get(base).right.value shouldBe base
+        ClosedContract.$get(base).value shouldBe base
       }
       it("Should fail with ClosedContractFailure if additional properties") {
         val base = DObject("expected" := "value", "additional" := 1)
@@ -54,7 +53,7 @@ class ContractLensSpec extends AnyFunSpec with Matchers with EitherValues {
     describe("Additional properties") {
       it("Should return object if additional properties") {
         val base = DObject("expected" := "value", "additional" := 1)
-        OpenContract.$get(base).right.value shouldBe base
+        OpenContract.$get(base).value shouldBe base
       }
     }
   }

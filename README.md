@@ -119,3 +119,83 @@ dsentric works by describing a singleton contract which represents data we might
 
 *mongo query is not a full feature set.
 
+#Verify
+
+#Delta Verify
+
+#Additional Properties object
+ - Value object with Contract
+ - Returns a D <: DObject
+ - Number of dedicated lens operation for addional properties, 
+   like add etc
+ - Get Additional Properties as a Map method?
+
+#Map Object
+ - Value object with Contract
+ - Returns a Map of correct types
+ - How do we resolve a map of a map of a contract?
+  ie `Map[String, Map[String, D]]` 
+   Contract generates an internal DCodec for D?
+   No not enough, unless we have a contract Decodec type?
+
+##Needs a specific Delta object
+
+
+- How to Handle delta collections like Set and Map when they have null values
+- How to validate delta collections
+- How to add delta values into a contract?
+(I think validate only one the delta application result not the delta value itself, IE pass through currentState and previousState, could be slow on nested objects so need to optimise)
+- Delta context - IE full replace of an nested object rather than merge (Thinking Fixtures)
+- Perhaps the difference here is A DObject or \\ will delta merge, however a Case Class Type will replace?
+- Delta validation IE standalone valid - Fixture?
+
+- $get should work on Deltas/Dobjects as well as just D ie so can use contract to get delta value. OR you could provide a property object to a dobject to extract the value obj.apply(pProperty[T, D]):Option[T]
+
+Notion of emptiable objects, IE if they are empty we remove them, thinking of say a Range object ( ), or the Object object
+Perhaps the notion of emptiness can be confgurable?
+
+?Notion of Healing support, when merging two objects,
+- could ignore bad merged value
+- In a Map[Key, Object] it could drop bad objects...
+
+How to handle a keyed object map
+Ie Map(Key, Element(Key)(values)) - might be solved by above validation :)
+Projections
+Projections Should support WildCard key match, or regex key match
+maybe "$/*/"
+Projection building ie  DProjection("nested" -> {​​​​​​​DProjection}​​​​​​​)
+function to extract paths.
+Validation
+Immutable on optional, Ie must leave blank if blank initially. Maybe immutable and immutableOnSet?
+Query Tree
+Needs more robust tests
+Include boolean identities
+Ignore if not create
+How to handle an update on a removed nested object?
+Immutable required properties help...
+DObject sub classing
+
+PathSetter supports sub class transform, what about super class, Dobject => Dobject applied to .a D for example.
+Needs a consistent elegant approach
+
+WARNING
+
+when adding a Contract element, ie as an Additional Property or element in a vector, the process doesnt validate 
+correctness as being of the correct Type is sufficient under current definition.
+We know this is fine for types, but for Contract DOBjects, we do allow adding manually adding elements that dont 
+support the contract, where as say a delta operation, this would be checked.
+
+This may need to change in the future.
+
+Terminology
+
+unapply - 
+    extract the value, type match return None if invalid type.
+    If Contract match, also return None if invalid type
+
+traversal -
+    We dont need to validate contracts in the traversal path, 
+    Just need to make sure it can be traversed
+
+get -
+    extract the value, return any type or other structural failures
