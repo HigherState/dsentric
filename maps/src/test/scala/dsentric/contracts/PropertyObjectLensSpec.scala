@@ -1,15 +1,16 @@
 package dsentric.contracts
 
+import dsentric.codecs.StringCodec
 import dsentric.failure.{ClosedContractFailure, ContractFieldFailure, ExpectedFailure, IncorrectKeyTypeFailure, IncorrectTypeFailure}
 import dsentric.schema.StringDefinition
-import dsentric.{ContractDCodec, DObject, Data, Dsentric, Path, PessimisticCodecs, StringCodec}
+import dsentric.{ContractDCodec, DObject, Data, Dsentric}
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 
 class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues {
   import Dsentric._
-  import PessimisticCodecs._
+  import dsentric.codecs.PessimisticCodecs._
   import dsentric.Implicits._
 
   case class Length4String(value:String)

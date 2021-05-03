@@ -2,6 +2,7 @@ package dsentric.contracts
 
 import dsentric._
 import cats.data._
+import dsentric.codecs.DObjectCodec
 import dsentric.failure.{ClosedContractFailure, DCodecTypeFailure, IncorrectKeyTypeFailure, StructuralFailure, ValidResult}
 
 private[dsentric] sealed trait ObjectLens[D <: DObject]
@@ -305,8 +306,8 @@ private[dsentric] object ObjectLens {
           .toList
           .flatMap { kv =>
             a._additionalKeyCodec.verify(kv._1).map {
-              case DCodecTypeFailure(codec, _) =>
-                IncorrectKeyTypeFailure(baseContract._root, baseContract._path \ kv._1, codec)
+              case DCodecTypeFailure(codec, _, p) =>
+                IncorrectKeyTypeFailure(baseContract._root, baseContract._path \ kv._1 ++ p, codec)
               case other =>
                 other.rebase(baseContract._root, baseContract._path)
             } ++

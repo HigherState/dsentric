@@ -1,5 +1,7 @@
 package dsentric
 
+import dsentric.codecs.DCodec
+
 sealed trait Matcher  {
   def apply(j:Raw):Boolean
   protected def default:Any
@@ -12,7 +14,7 @@ object ExistenceMatcher extends Matcher {
 }
 
 case class ValueMatcher[T](value:T)(implicit _codec:DCodec[T]) extends Matcher {
-  val default: Raw = _codec(value).value
+  val default: Raw = _codec(value)
   def apply(j: Raw): Boolean = j == default
 }
 

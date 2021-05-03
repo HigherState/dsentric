@@ -1,6 +1,6 @@
 package dsentric
 
-import cats.data._
+import dsentric.codecs.{DCodec, DataCodec}
 import dsentric.contracts.{PathSetter, ValidPathSetter}
 import dsentric.failure.ValidResult
 
@@ -52,6 +52,27 @@ trait Data extends Any {
 
   override def toString:String =
     SimpleRenderer.print(value)
+}
+
+/**
+ * Replacement for (String, Data) as Codec now maps to Raw, means less boxing than string data
+ * @param keyPair
+ */
+case class DataPair(keyPair:(String, Raw)) extends AnyVal {
+  def _1:String = keyPair._1
+  def _2:Data = keyPair._2 match {
+    case obj:RawObject@unchecked =>
+      new DObjectInst(obj)
+    case arr:RawArray@unchecked =>
+      new DArray(arr)
+    case DNull => DNull
+    case a => new DValue(a)
+  }
+}
+
+object DataPair {
+  implicit def fromTuple(t:(String, Data)):DataPair =
+    DataPair(t._1, t._2.value)
 }
 
 class DValue private[dsentric](val value:Raw) extends AnyVal with Data
@@ -205,7 +226,7 @@ trait DObjectOps[+C <: DObjectOps[C] with DObject]
   def deltaDiff(delta:DObject):Option[DObject] =
     RawObjectOps.rightDifferenceReduceMap(this.value, delta.value).map(new DObjectInst(_))
 
-  def toQuery:NonEmptyList[(String, Path)] Either DQuery =
+  def toQuery:DQuery =
     DQuery(value)
 
   def select(projection:DProjection):C =
@@ -231,17 +252,21 @@ trait DObject extends Any with DObjectOps[DObject] {
   override protected def coll: this.type = this
 }
 
+trait Delta extends Any with DObject with DObjectOps[Delta]
+
 final class DObjectInst private[dsentric](val value:RawObject) extends AnyVal with DObject {
   @inline
   protected def wrap(value: RawObject):DObject =
     new DObjectInst(value)
 
 }
+final class DeltaInst private[dsentric](val value:RawObject) extends AnyVal with Delta {
+  protected def wrap(value: RawObject): Delta = new DeltaInst(value)
+}
 
 final class DQuery private[dsentric](val value:RawObject) extends AnyVal with DObject with DObjectOps[DQuery]{
 
   protected def wrap(value: RawObject) = new DQuery(value)
-
 
   def isMatch(j:DObject, valueNotFoundAsNull:Boolean = false):Boolean =
     Query(Some(j.value), value, valueNotFoundAsNull)
@@ -342,7 +367,7 @@ class DArray(val value:RawArray) extends AnyVal with Data {
     value.iterator.flatMap(D.unapply)
 
   def toDataValues:Iterator[Data] =
-    toValues(DefaultCodecs.dataCodec)
+    toValues(DataCodec)
 
   override def nestedValueMap[T, U](pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):DArray =
     new DArray(DataOps.nestedValueMap(value, pf).asInstanceOf[Vector[Any]])
@@ -376,7 +401,14 @@ final case class DSome[T](t:T) extends DNullable[T] {
 
 object Data{
   def apply[T](value:T)(implicit codec:DCodec[T]):Data =
-    codec.apply(value)
+    codec.apply(value) match {
+      case obj:RawObject@unchecked =>
+        new DObjectInst(obj)
+      case arr:RawArray@unchecked =>
+        new DArray(arr)
+      case DNull => DNull
+      case a => new DValue(a)
+    }
 }
 
 
@@ -389,6 +421,9 @@ object DObject{
   def apply(values:(String, Data)*):DObject =
     new DObjectInst(values.iterator.map(p => p._1 -> p._2.value).toMap)
 
+  def apply(values:DataPair*):DObject =
+    new DObjectInst(values.iterator.map(_.keyPair).toMap)
+
   def apply(map:Map[String, Data]):DObject =
     new DObjectInst(map.view.mapValues(_.value).toMap)
 }
@@ -398,17 +433,20 @@ object DArray{
   val empty = new DArray(Vector.empty)
 
   def apply[T](values:T*)(implicit codec:DCodec[T]) =
-    new DArray(values.map(codec.apply(_).value).toVector)
+    new DArray(values.map(codec.apply).toVector)
 }
 
 object DQuery{
 
   //TODO confirm is valid query structure
-  def apply(values:(String, Data)*):NonEmptyList[(String, Path)] Either DQuery =
-    Right(new DQuery(values.iterator.map(p => p._1 -> p._2.value).toMap))
+  def apply(values:DataPair*):DQuery =
+    new DQuery(values.iterator.map(_.keyPair).toMap)
 
-  private[dsentric] def apply(value:RawObject):NonEmptyList[(String, Path)] Either DQuery =
-    Right(new DQuery(value))
+  def apply(values:(String, Data)*):DQuery =
+    new DQuery(values.iterator.map(p => p._1 -> p._2.value).toMap)
+
+  private[dsentric] def apply(value:RawObject):DQuery =
+    new DQuery(value)
 
   val empty = new DQuery(Map.empty)
 }

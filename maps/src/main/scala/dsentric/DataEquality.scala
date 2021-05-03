@@ -1,5 +1,7 @@
 package dsentric
 
+import dsentric.codecs.DCodec
+
 
 //TODO look into Implicit Ordering on the DCodec
 sealed trait DataEquality {

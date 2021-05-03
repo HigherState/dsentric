@@ -1,6 +1,7 @@
 package dsentric.schema
 
 import dsentric._
+import dsentric.codecs.DStringCodec
 import dsentric.contracts._
 import dsentric.operators.Internal
 
@@ -130,7 +131,7 @@ object Definition {
   private def getDefault[D <: DObject](p:Property[D, _]): Option[Any] =
     p match {
       case d:DefaultProperty[_, Any]@unchecked =>
-        Some(d._codec(d._default).value)
+        Some(d._codec(d._default))
       case _ => None
     }
 
@@ -164,7 +165,7 @@ object Definition {
     }
 
   private def additionalPropertiesDefinition[D <: DObject](contract:BaseContract[D], infos: Infos, defs:Definitions, forceNested:Boolean):(Either[Boolean, TypeDefinition], Option[StringDefinition], Infos, Definitions) = {
-    def getPattern(c:StringCodec[_]):Option[StringDefinition] = {
+    def getPattern(c:DStringCodec[_]):Option[StringDefinition] = {
       val s = c.typeDefinition
       if (s == StringDefinition.empty) None
       else Some(s)

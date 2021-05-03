@@ -4,7 +4,6 @@ import scala.collection.mutable
 
 class MsonSchema(tab:String, newLine:String) {
   import dsentric.Dsentric._
-  import dsentric.PessimisticCodecs._
 
   def convertObjectDefinition(objectDefinition:ObjectDefinition):String = {
     val sb = new mutable.StringBuilder()

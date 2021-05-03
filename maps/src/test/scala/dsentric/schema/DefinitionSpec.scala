@@ -2,7 +2,7 @@ package dsentric.schema
 
 import dsentric.contracts.{Contract}
 import dsentric.Dsentric._
-import dsentric.PessimisticCodecs._
+import dsentric.codecs.PessimisticCodecs._
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 

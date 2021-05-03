@@ -1,6 +1,7 @@
 package dsentric.operators
 
-import dsentric.{DCodec, DNull, DObject, Path, Raw}
+import dsentric.codecs.DCodec
+import dsentric.{DNull, DObject, Path, Raw}
 import dsentric.contracts.ContractFor
 import dsentric.failure.{ExpectedFailure, ImmutableFailure, MaskFailure, NumericalFailure, ReservedFailure, ValidationFailures, WriteOnceFailure}
 
@@ -74,7 +75,7 @@ trait StandardOperators {
 
   def mask[T](mask:T, maskIfEmpty:Boolean = false)(implicit D:DCodec[T]):Constraint[Optionable[Nothing]] with Sanitizer[Optionable[Nothing]] =
     new Constraint[Optionable[Nothing]] with Sanitizer[Optionable[Nothing]] {
-      private val dataMask:Raw = D(mask).value
+      private val dataMask:Raw = D(mask)
 
       def sanitize(value: Option[Raw]): Option[Raw] =
         if (maskIfEmpty)

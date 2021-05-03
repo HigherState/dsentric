@@ -1,7 +1,7 @@
 package dsentric.contracts
 
 import dsentric.failure.ClosedContractFailure
-import dsentric.{DObject, Dsentric, PathEnd, PessimisticCodecs}
+import dsentric.{DObject, Dsentric, PathEnd}
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
@@ -9,7 +9,7 @@ import org.scalatest.matchers.should.Matchers
 class ContractLensSpec extends AnyFunSpec with Matchers with EitherValues {
 
   import Dsentric._
-  import PessimisticCodecs._
+  import dsentric.codecs.PessimisticCodecs._
   import dsentric.Implicits._
 
   object ClosedContract extends Contract {

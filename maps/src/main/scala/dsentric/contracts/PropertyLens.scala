@@ -1,5 +1,6 @@
 package dsentric.contracts
 
+import dsentric.codecs.DCodec
 import dsentric.{RawObject, _}
 import dsentric.failure._
 
@@ -33,7 +34,7 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
   private[contracts] def __verifyTraversal(obj:RawObject):List[StructuralFailure]
 
   private[contracts] def __set(obj:D, value:T):D =
-    obj.internalWrap(PathLensOps.set(obj.value, _path, _codec(value).value)).asInstanceOf[D]
+    obj.internalWrap(PathLensOps.set(obj.value, _path, _codec(value))).asInstanceOf[D]
 
 }
 
@@ -83,7 +84,7 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
    * @return
    */
   final def $set(value:T):PathSetter[D] =
-    ValueSetter(_path, _codec(value).value)
+    ValueSetter(_path, _codec(value))
 
   /**
    * Sets or Replaces value for the Property.
@@ -94,7 +95,7 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
    */
   final def $maybeSet(value:Option[T]):PathSetter[D] =
     value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
-      ValueSetter(_path, _codec(v).value)
+      ValueSetter(_path, _codec(v))
     }
 
   /**
@@ -179,7 +180,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
    * @return
    */
   final def $set(value:T):PathSetter[D] =
-    ValueSetter(_path, _codec(value).value)
+    ValueSetter(_path, _codec(value))
 
   /**
    * Sets or Replaces value for the Property.
@@ -190,7 +191,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
    */
   final def $maybeSet(value:Option[T]):PathSetter[D] =
     value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
-      ValueSetter(_path, _codec(v).value)
+      ValueSetter(_path, _codec(v))
     }
 
   /**
@@ -213,7 +214,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
    * @return
    */
   final def $setOrDrop(value:Option[T]):PathSetter[D] =
-    value.fold[PathSetter[D]](ValueDrop(_path))(v => ValueSetter(_path, _codec(v).value))
+    value.fold[PathSetter[D]](ValueDrop(_path))(v => ValueSetter(_path, _codec(v)))
 
   /**
    * Modifies or sets the value if it doesnt exist.
@@ -324,7 +325,7 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
    * @return
    */
   final def $set(value:T):PathSetter[D] =
-    ValueSetter(_path, _codec(value).value)
+    ValueSetter(_path, _codec(value))
 
   /**
    * Sets or Replaces value for the Property.
@@ -335,7 +336,7 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
    */
   final def $maybeSet(value:Option[T]):PathSetter[D] =
     value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
-      ValueSetter(_path, _codec(v).value)
+      ValueSetter(_path, _codec(v))
     }
 
   /**
@@ -382,7 +383,7 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
    * @return
    */
   final def $setOrRestore(value:Option[T]):PathSetter[D] =
-    value.fold[PathSetter[D]](ValueDrop(_path))(v => ValueSetter(_path, _codec(v).value))
+    value.fold[PathSetter[D]](ValueDrop(_path))(v => ValueSetter(_path, _codec(v)))
 
   /**
    * Copying from an existing property, if that property is

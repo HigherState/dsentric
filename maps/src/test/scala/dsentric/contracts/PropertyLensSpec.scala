@@ -1,6 +1,7 @@
 package dsentric.contracts
 
 import dsentric._
+import dsentric.codecs.PessimisticCodecs
 import dsentric.failure.{ExpectedFailure, IncorrectTypeFailure}
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
@@ -9,7 +10,7 @@ import org.scalatest.matchers.should.Matchers
 class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
 
   import Dsentric._
-  import PessimisticCodecs._
+  import dsentric.codecs.PessimisticCodecs._
   import dsentric.Implicits._
 
   object ExpectedStructure extends Contract {
@@ -2064,11 +2065,11 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
     describe("$get") {
       it("Should return failure if not found") {
         val base = DObject.empty
-        Objects.expectedObjects.$get(base).value shouldBe Vector.empty
+        Objects.expectedObjects.$get(base).left.value should contain(ExpectedFailure(Objects.expectedObjects))
       }
       it("Should return empty vector if empty vector") {
         val base = DObject("expectedObjects" := Vector.empty[DObject])
-        Objects.expectedObjects.$get(base).value shouldBe Vector.empty
+        Objects.expectedObjects.$get(base).value should contain (Vector.empty)
       }
       it("Should fail if not a vector") {
         val base = DObject("expectedObjects" := "fail")

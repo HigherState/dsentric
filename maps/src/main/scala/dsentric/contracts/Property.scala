@@ -1,6 +1,7 @@
 package dsentric.contracts
 
 import dsentric._
+import dsentric.codecs.{DCodec, DObjectCodec, DStringCodec}
 import dsentric.operators.DataOperator
 
 sealed trait Property[D <: DObject, T <: Any] extends PropertyLens[D, T] {
@@ -147,24 +148,24 @@ trait PropertyObjectOps[D <: DObject] { __internal:BaseContract[D] =>
                           override val _codec:DObjectCodec[DObject],
                           override val _dataOperators:List[DataOperator[DObject]],
                           val _additionalDataOperators:List[DataOperator[Option[Map[K, V]]]],
-                          val _additionalKeyCodec:StringCodec[K],
+                          val _additionalKeyCodec:DStringCodec[K],
                           val _additionalValueCodec:DCodec[V]
                          ) extends AdditionalProperties[K, V] with ExpectedObjectProperty[D] {
 
     def this(dataOperators: DataOperator[DObject]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
-            (implicit codec:DObjectCodec[DObject], keyCodec:StringCodec[K], valueCodec:DCodec[V]) =
+            (implicit codec:DObjectCodec[DObject], keyCodec:DStringCodec[K], valueCodec:DCodec[V]) =
       this(None, codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
 
     def this(name:String, dataOperators: DataOperator[DObject]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
-            (implicit codec:DObjectCodec[DObject], keyCodec:StringCodec[K], valueCodec:DCodec[V]) =
+            (implicit codec:DObjectCodec[DObject], keyCodec:DStringCodec[K], valueCodec:DCodec[V]) =
       this(Some(name), codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
 
     def this(valueCodec:DCodec[V], dataOperators: DataOperator[DObject]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
-            (implicit codec:DObjectCodec[DObject], keyCodec:StringCodec[K]) =
+            (implicit codec:DObjectCodec[DObject], keyCodec:DStringCodec[K]) =
       this(None, codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
 
     def this(valueCodec:DCodec[V], name:String, dataOperators: DataOperator[DObject]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
-            (implicit codec:DObjectCodec[DObject], keyCodec:StringCodec[K]) =
+            (implicit codec:DObjectCodec[DObject], keyCodec:DStringCodec[K]) =
       this(Some(name), codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
 
 
@@ -185,24 +186,24 @@ trait PropertyObjectOps[D <: DObject] { __internal:BaseContract[D] =>
                            override val _codec:DObjectCodec[DObject],
                            override val _dataOperators:List[DataOperator[Option[DObject]]],
                            val _additionalDataOperators:List[DataOperator[Option[Map[K, V]]]],
-                           val _additionalKeyCodec:StringCodec[K],
+                           val _additionalKeyCodec:DStringCodec[K],
                            val _additionalValueCodec:DCodec[V]
                           ) extends AdditionalProperties[K, V] with MaybeObjectProperty[D] {
 
     def this(dataOperators: DataOperator[Option[DObject]]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
-            (implicit codec:DObjectCodec[DObject], keyCodec:StringCodec[K], valueCodec:DCodec[V]) =
+            (implicit codec:DObjectCodec[DObject], keyCodec:DStringCodec[K], valueCodec:DCodec[V]) =
       this(None, codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
 
     def this(name:String, dataOperators: DataOperator[Option[DObject]]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
-            (implicit codec:DObjectCodec[DObject], keyCodec:StringCodec[K], valueCodec:DCodec[V]) =
+            (implicit codec:DObjectCodec[DObject], keyCodec:DStringCodec[K], valueCodec:DCodec[V]) =
       this(Some(name), codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
 
     def this(valueCodec:DCodec[V], dataOperators: DataOperator[Option[DObject]]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
-            (implicit codec:DObjectCodec[DObject], keyCodec:StringCodec[K]) =
+            (implicit codec:DObjectCodec[DObject], keyCodec:DStringCodec[K]) =
       this(None, codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
 
     def this(valueCodec:DCodec[V], name:String, dataOperators: DataOperator[Option[DObject]]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
-            (implicit codec:DObjectCodec[DObject], keyCodec:StringCodec[K]) =
+            (implicit codec:DObjectCodec[DObject], keyCodec:DStringCodec[K]) =
       this(Some(name), codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
 
     def _parent: BaseContract[D] = __internal

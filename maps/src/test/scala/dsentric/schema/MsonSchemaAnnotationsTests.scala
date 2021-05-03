@@ -1,7 +1,7 @@
 package dsentric.schema
 
 import dsentric.Dsentric._
-import dsentric.PessimisticCodecs._
+import dsentric.codecs.PessimisticCodecs._
 import dsentric._
 import namespaced.{AnotherNested, AnotherNested2}
 import org.scalatest.funsuite.AnyFunSuite

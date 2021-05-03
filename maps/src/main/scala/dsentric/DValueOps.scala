@@ -1,5 +1,7 @@
 package dsentric
 
+import dsentric.codecs.DCodec
+
 /**
   * Created by jamie.pullar on 12/05/2016.
   */
@@ -47,7 +49,7 @@ trait DataOps {
   private[dsentric] def nestedValueMap[T, U](value:Raw, pf:PartialFunction[T, U])(implicit D1:DCodec[T], D2:DCodec[U]):Raw =
     value match {
       case a@D1(v) =>
-        pf.lift(v).map(D2(_).value).getOrElse(a)
+        pf.lift(v).map(D2(_)).getOrElse(a)
       case m:RawObject@unchecked =>
         m.view.mapValues(nestedValueMap(_,pf)).toMap
       case v:RawArray@unchecked =>
@@ -61,7 +63,7 @@ trait DataOps {
       case m:RawObject@unchecked =>
         m.flatMap { kv =>
           val newPair = D1.unapply(kv._2).flatMap(t => pf.lift(kv._1 -> t))
-          newPair.fold[Option[(String, Any)]](Some(kv._1 -> nestedKeyValueMap(kv._2, pf)))(_.map(r => r._1 -> D2(r._2).value))
+          newPair.fold[Option[(String, Any)]](Some(kv._1 -> nestedKeyValueMap(kv._2, pf)))(_.map(r => r._1 -> D2(r._2)))
         }
       case v:RawArray@unchecked =>
         v.map(nestedKeyValueMap(_,pf))

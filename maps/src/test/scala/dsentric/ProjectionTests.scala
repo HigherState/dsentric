@@ -6,7 +6,7 @@ import org.scalatest.matchers.should.Matchers
 
 class ProjectionTests extends AnyFunSuite with Matchers {
   import Dsentric._
-  import PessimisticCodecs._
+  import dsentric.codecs.PessimisticCodecs._
 
   object Query1 extends Contract {
     val field = \?[String]

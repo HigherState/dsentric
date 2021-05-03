@@ -1,7 +1,8 @@
 package dsentric.failure
 
-import dsentric.contracts.{ContractFor, Expected, PropertyLens}
-import dsentric.{DCodec, DObject, Path, Raw, StringCodec}
+import dsentric.codecs.DCodec
+import dsentric.contracts.{ContractFor, PropertyLens}
+import dsentric.{DObject, Path, Raw}
 
 import scala.util.matching.Regex
 
@@ -15,6 +16,8 @@ sealed trait Failure {
 
 sealed trait StructuralFailure extends Failure {
   def rebase[G <: DObject](rootContract:ContractFor[G], rootPath:Path):StructuralFailure
+
+  def rebase(rootPath:Path):StructuralFailure
 }
 
 sealed trait TypeFailure extends StructuralFailure
@@ -23,20 +26,48 @@ final case class ExpectedFailure[D <: DObject](contract: ContractFor[D], path:Pa
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): ExpectedFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
 
+  def rebase(rootPath:Path): ExpectedFailure[D] =
+    copy(path = rootPath ++ path)
+
   def message = "Expected value not found."
 }
 
-final case class DCodecTypeFailure[T](codec:DCodec[T], foundRaw:Raw) extends StructuralFailure {
-  def path:Path = Path.empty
-  def message = s"Type '${codec.typeDefinition.name} was expected, type ${foundRaw.getClass.getSimpleName} was found."
+final case class DCodecTypeFailure[T](codec:DCodec[T], foundRaw:Raw, path:Path = Path.empty) extends StructuralFailure {
+  def message = s"Type '${codec.typeDefinition.name}' was expected, type ${foundRaw.getClass.getSimpleName} was found."
 
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  IncorrectTypeFailure[G, T] =
-    IncorrectTypeFailure(rootContract, rootPath, codec, foundRaw)
+    IncorrectTypeFailure(rootContract, rootPath ++ path, codec, foundRaw)
+
+  def rebase(rootPath: Path):  DCodecTypeFailure[T] =
+    this.copy(path = rootPath ++ path)
+}
+
+final case class DCodecMissingElementFailure[T](codec:DCodec[T], path:Path) extends StructuralFailure {
+  def message = s"Type '${codec.typeDefinition.name}' was expected, nothing was found."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  MissingElementFailure[G, T] =
+    MissingElementFailure(rootContract, codec, rootPath ++ path)
+
+  def rebase(rootPath: Path): DCodecMissingElementFailure[T] =
+    this.copy(path = rootPath ++ path)
+}
+
+final case class DCodecUnexpectedValueFailure[T](codec:DCodec[T], path:Path, expectedValue:Raw, unexpectedValue:Raw) extends StructuralFailure {
+  def message = s"Type '${codec.typeDefinition.name}' expected value $expectedValue value, but $unexpectedValue was found."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): UnexpectedValueFailure[G, T] =
+    UnexpectedValueFailure(rootContract, codec, expectedValue, unexpectedValue, rootPath ++ path)
+
+  def rebase(rootPath: Path): DCodecUnexpectedValueFailure[T] =
+    this.copy(path = rootPath ++ path)
 }
 
 final case class IncorrectTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T], foundRaw:Raw) extends TypeFailure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  IncorrectTypeFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
+
+  def rebase(rootPath: Path):  IncorrectTypeFailure[D, T] =
+    copy(path = rootPath ++ path)
 
   def message = s"Type '${codec.typeDefinition.name} was expected, type ${foundRaw.getClass.getSimpleName} was found."
 }
@@ -44,6 +75,9 @@ final case class IncorrectTypeFailure[D <: DObject, T](contract: ContractFor[D],
 final case class IncorrectKeyTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T]) extends TypeFailure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  IncorrectKeyTypeFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
+
+  def rebase(rootPath: Path):  IncorrectKeyTypeFailure[D, T] =
+    copy(path = rootPath ++ path)
 
   def message = s"Type '${codec.typeDefinition.name} was expected for additional properties key."
 }
@@ -53,6 +87,9 @@ final case class ClosedContractFailure[D <: DObject](contract: ContractFor[D], p
 
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): ClosedContractFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
+
+  def rebase(rootPath: Path): ClosedContractFailure[D] =
+    copy(path = rootPath ++ path)
 }
 
 final case class ContractFieldFailure[D <: DObject](contract: ContractFor[D], path:Path, field:String) extends StructuralFailure {
@@ -60,6 +97,29 @@ final case class ContractFieldFailure[D <: DObject](contract: ContractFor[D], pa
 
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): StructuralFailure =
     copy(contract = rootContract, path = rootPath ++ path)
+
+  def rebase(rootPath: Path): StructuralFailure =
+    copy(path = rootPath ++ path)
+}
+
+final case class MissingElementFailure[D <: DObject, T](contract: ContractFor[D], codec:DCodec[T], path:Path) extends StructuralFailure {
+  def message = s"Type '${codec.typeDefinition.name} was expected, nothing was found."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  MissingElementFailure[G, T] =
+    copy(contract = rootContract, path = rootPath ++ path)
+
+  def rebase(rootPath: Path): MissingElementFailure[D, T] =
+    this.copy(path = rootPath ++ path)
+}
+
+final case class UnexpectedValueFailure[D <: DObject, T](contract: ContractFor[D], codec:DCodec[T], expectedValue:Raw, unexpectedValue:Raw, path:Path) extends StructuralFailure {
+  def message = s"Type '${codec.typeDefinition.name}' expected value $expectedValue value, but $unexpectedValue was found."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  UnexpectedValueFailure[G, T] =
+    copy(contract = rootContract, path = rootPath ++ path)
+
+  def rebase(rootPath: Path): UnexpectedValueFailure[D, T] =
+    this.copy(path = rootPath ++ path)
 }
 
 object ExpectedFailure {
@@ -81,6 +141,8 @@ object ContractFieldFailure {
   def apply[D <: DObject, T](property:PropertyLens[D, T], field:String):ContractFieldFailure[D] =
     ContractFieldFailure(property._root, property._path, field)
 }
+
+
 
 
 

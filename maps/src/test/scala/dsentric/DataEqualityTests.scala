@@ -1,7 +1,7 @@
 package dsentric
 
 import dsentric._
-import PessimisticCodecs.booleanCodec
+import dsentric.codecs.PessimisticCodecs.booleanCodec
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 

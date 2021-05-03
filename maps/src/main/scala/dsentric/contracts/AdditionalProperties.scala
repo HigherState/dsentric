@@ -2,6 +2,8 @@ package dsentric.contracts
 
 import dsentric.operators.DataOperator
 import dsentric._
+import dsentric.codecs.std.DValueCodecs
+import dsentric.codecs.{DCodec, DStringCodec}
 import dsentric.failure.{ContractFieldFailure, ValidResult}
 
 /**
@@ -15,7 +17,7 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
   import cats.implicits._
 
   def _additionalDataOperators:List[DataOperator[Option[Map[Key, Value]]]]
-  def _additionalKeyCodec:StringCodec[Key]
+  def _additionalKeyCodec:DStringCodec[Key]
   def _additionalValueCodec:DCodec[Value]
   /**
    * Returns failure if the key is in the contract definition.
@@ -24,7 +26,7 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
    * @return
    */
   final def $get(key:Key)(d:AuxD):ValidResult[Option[Value]] = {
-    val keyString = _additionalKeyCodec.toString(key)
+    val keyString = _additionalKeyCodec.apply(key)
     checkKeyClash(keyString) >>
       TraversalOps
         .traverse(d.value, this, keyString)
@@ -36,8 +38,8 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
    * @return
    */
   final def $add(d:(Key, Value)):ValidPathSetter[AuxD] = {
-    val keyString = _additionalKeyCodec.toString(d._1)
-    ValidValueSetter(_path \ keyString, checkKeyClash(keyString).map(_ => _additionalValueCodec(d._2).value))
+    val keyString = _additionalKeyCodec.apply(d._1)
+    ValidValueSetter(_path \ keyString, checkKeyClash(keyString).map(_ => _additionalValueCodec(d._2)))
   }
 
   /**
@@ -46,7 +48,7 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
    * @return
    */
   final def $addMany(d:Iterable[(Key, Value)]):ValidPathSetter[AuxD] = {
-    val toRaw = d.map(p => _additionalKeyCodec.toString(p._1) -> _additionalValueCodec(p._2).value)
+    val toRaw = d.map(p => _additionalKeyCodec.apply(p._1) -> _additionalValueCodec(p._2))
     def fieldCheck =
       ValidResult.fromList {
         toRaw.map(_._1)
@@ -77,7 +79,7 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
    * @return
    */
   final def $drop(key:Key):ValidPathSetter[AuxD] = {
-    val keyString = _additionalKeyCodec.toString(key)
+    val keyString = _additionalKeyCodec.apply(key)
     RawModifyOrDropSetter(_ => checkKeyClash(keyString).flatMap(_ => ValidResult.none), _path)
   }
 
@@ -106,9 +108,11 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
 trait Open extends AdditionalProperties[String, Data] {
   def _additionalDataOperators: List[DataOperator[Option[Map[String, Data]]]] = Nil
 
-  def _additionalKeyCodec: StringCodec[String] = PessimisticCodecs.stringCodec
+  def _additionalKeyCodec: DStringCodec[String] =
+    DValueCodecs.stringCodec
 
-  def _additionalValueCodec: DCodec[Data] = PessimisticCodecs.dataCodec
+  def _additionalValueCodec: DCodec[Data] =
+    DValueCodecs.dataCodec
 }
 
 /**
@@ -117,10 +121,10 @@ trait Open extends AdditionalProperties[String, Data] {
 
 abstract class DefinedAdditionalProperties[K, V](
   val _additionalDataOperators:List[DataOperator[Option[Map[K, V]]]],
-  val _additionalKeyCodec:StringCodec[K],
+  val _additionalKeyCodec:DStringCodec[K],
   val _additionalValueCodec:DCodec[V]) extends AdditionalProperties[K, V]{
 
   def this(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
-          (implicit keyCodec:StringCodec[K], valueCodec:DCodec[V]) =
+          (implicit keyCodec:DStringCodec[K], valueCodec:DCodec[V]) =
     this(additionalPropertyDataOperators.toList, keyCodec, valueCodec)
 }

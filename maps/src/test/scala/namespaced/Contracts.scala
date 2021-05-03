@@ -1,7 +1,7 @@
 package namespaced
 
 import dsentric.Dsentric._
-import dsentric.PessimisticCodecs._
+import dsentric.codecs.PessimisticCodecs._
 import dsentric.schema.{Description, Examples, Nested, Type}
 
 trait AnotherNested extends SubContract {

@@ -2,6 +2,7 @@ package dsentric.contracts
 
 import dsentric.operators.DataOperator
 import dsentric._
+import dsentric.codecs.DCodec
 
 trait PropertyOps[D <: DObject] {
 

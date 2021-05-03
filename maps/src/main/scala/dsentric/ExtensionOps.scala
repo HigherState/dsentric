@@ -1,6 +1,7 @@
 package dsentric
 
 import cats.data.NonEmptyList
+import dsentric.codecs.DCodec
 import dsentric.contracts.ValidPathSetter
 import dsentric.failure.{Failure, ValidResult}
 
@@ -10,11 +11,11 @@ final class StringOps(val self:String) extends AnyVal {
   def \(part:Int):Path =
     Path(self, part)
 
-  def :=[T](t:T)(implicit D: DCodec[T]):(String, Data) =
-    self -> D(t)
+  def :=[T](t:T)(implicit D: DCodec[T]):DataPair =
+    DataPair(self, D(t))
 
-  def ::=(pairs:(String, Data)*):(String, DObject) =
-    self -> DObject(pairs:_*)
+  def ::=(pairs:DataPair*):DataPair =
+    DataPair(self, pairs.map(_.keyPair).toMap)
 
   def p:Path = Path(self)
 }
@@ -27,8 +28,8 @@ final class IntOps(val self:Int) extends AnyVal {
 }
 
 final class PathOps(val self:Path) extends AnyVal {
-  def :=[T](v:T)(implicit D:DCodec[T]):(Path, Data) =
-    self -> D(v)
+//  def :=[T](v:T)(implicit D:DCodec[T]):(Path, Data) =
+//    self -> D(v)
 
 }
 

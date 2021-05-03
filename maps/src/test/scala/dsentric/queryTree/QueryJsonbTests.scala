@@ -2,7 +2,7 @@ package dsentric.queryTree
 
 import dsentric._
 import Dsentric._
-import dsentric.PessimisticCodecs._
+import dsentric.codecs.PessimisticCodecs._
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 

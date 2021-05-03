@@ -5,7 +5,7 @@ import org.scalatest.matchers.should.Matchers
 
 class RawObjectOpsTests extends AnyFunSuite with Matchers {
 
-  import PessimisticCodecs._
+  import dsentric.codecs.PessimisticCodecs._
   import Dsentric._
 
 
