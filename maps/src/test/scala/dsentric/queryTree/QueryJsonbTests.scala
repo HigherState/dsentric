@@ -2,7 +2,6 @@ package dsentric.queryTree
 
 import dsentric._
 import Dsentric._
-import dsentric.codecs.PessimisticCodecs._
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
@@ -12,10 +11,12 @@ import org.scalatest.matchers.should.Matchers
 class QueryJsonbTests extends AnyFunSuite with Matchers {
   implicit def r:Renderer = SimpleRenderer
 
+  import dsentric.codecs.std.DCodecs._
+
   val queryParser: QueryJsonb = QueryJsonb(_.replace("'","''"))
   //not an actual test as of yet
   test("Generate query") {
-    val query = DQuery("Owner" -> DObject("$elemMatch" -> DObject("$regex" := "^jamie.*"))).toOption.get
+    val query = DQuery("Owner" -> DObject("$elemMatch" -> DObject("$regex" := "^jamie.*")))
     val psql = queryParser("Indexed", query)
     println(psql)
   }
@@ -64,7 +65,7 @@ class QueryJsonbTests extends AnyFunSuite with Matchers {
   test("regex field query") {
     val query = DQuery(
       "$/^test/" -> DObject("$/^level2/" := DObject("element" := DObject("$gte" := 4)))
-    ).getOrElse(???)
+    )
     val psql = queryParser("Indexed", query)
     psql shouldBe Right("""EXISTS ( SELECT key, value FROM jsonb_each(Indexed) WHERE key ~ '^test' AND ( EXISTS ( SELECT key, value FROM jsonb_each(value) WHERE key ~ '^level2' AND ( (jsonb_typeof(value #> '{element}') = 'number' AND (value #>> '{element}') :: NUMERIC >= 4) ) ) ) )""")
   }

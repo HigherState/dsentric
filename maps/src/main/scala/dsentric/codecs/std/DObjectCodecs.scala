@@ -143,9 +143,9 @@ trait DObjectCodecs {
       def unapply(a: Raw): Option[Map[K, V]] =
         a match {
           case raw:RawObject@unchecked =>
-            raw.view.mapValues(valueCodec.unapply)
+            raw.view.map(p => keyCodec.unapply(p._1) -> valueCodec.unapply(p._2))
               .foldLeft(Option(Map.newBuilder[K, V])){
-                case (Some(mb), (k, Some(t))) => Some(mb.addOne(k -> t))
+                case (Some(mb), (Some(k), Some(t))) => Some(mb.addOne(k -> t))
                 case _ => None
               }.map(_.result())
           case _ =>

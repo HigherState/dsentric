@@ -18,8 +18,7 @@ trait DirectCodec[T]  {
  * Short hand for codec whos value is Data primitive and can be returned matching against type
  * @tparam T
  */
-trait MatchCodec[T] extends DirectCodec[T] {
-  this:DCodec[T] =>
+trait MatchCodec[T] extends DirectCodec[T] with DValueCodec[T] {
 
   /**
    * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
@@ -27,7 +26,7 @@ trait MatchCodec[T] extends DirectCodec[T] {
    * @param a
    * @return
    */
-  def verify(a: Raw): List[StructuralFailure] =
+  override def verify(a: Raw): List[StructuralFailure] =
     if (isMatch(a)) Nil
     else List(DCodecTypeFailure(this, a))
 
@@ -38,7 +37,7 @@ trait MatchCodec[T] extends DirectCodec[T] {
    * @param a
    * @return
    */
-  def get(a: Raw): Available[T] =
+  override def get(a: Raw): Available[T] =
     if (isMatch(a)) Found(a.asInstanceOf[T])
     else Failed(DCodecTypeFailure(this, a))
 

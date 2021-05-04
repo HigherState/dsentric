@@ -54,26 +54,6 @@ trait Data extends Any {
     SimpleRenderer.print(value)
 }
 
-/**
- * Replacement for (String, Data) as Codec now maps to Raw, means less boxing than string data
- * @param keyPair
- */
-case class DataPair(keyPair:(String, Raw)) extends AnyVal {
-  def _1:String = keyPair._1
-  def _2:Data = keyPair._2 match {
-    case obj:RawObject@unchecked =>
-      new DObjectInst(obj)
-    case arr:RawArray@unchecked =>
-      new DArray(arr)
-    case DNull => DNull
-    case a => new DValue(a)
-  }
-}
-
-object DataPair {
-  implicit def fromTuple(t:(String, Data)):DataPair =
-    DataPair(t._1, t._2.value)
-}
 
 class DValue private[dsentric](val value:Raw) extends AnyVal with Data
 
@@ -421,9 +401,6 @@ object DObject{
   def apply(values:(String, Data)*):DObject =
     new DObjectInst(values.iterator.map(p => p._1 -> p._2.value).toMap)
 
-  def apply(values:DataPair*):DObject =
-    new DObjectInst(values.iterator.map(_.keyPair).toMap)
-
   def apply(map:Map[String, Data]):DObject =
     new DObjectInst(map.view.mapValues(_.value).toMap)
 }
@@ -439,11 +416,9 @@ object DArray{
 object DQuery{
 
   //TODO confirm is valid query structure
-  def apply(values:DataPair*):DQuery =
-    new DQuery(values.iterator.map(_.keyPair).toMap)
-
   def apply(values:(String, Data)*):DQuery =
     new DQuery(values.iterator.map(p => p._1 -> p._2.value).toMap)
+
 
   private[dsentric] def apply(value:RawObject):DQuery =
     new DQuery(value)

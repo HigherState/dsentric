@@ -8,7 +8,7 @@ import org.scalatest.matchers.should.Matchers
 class ApplicativeLensTests extends AnyFunSuite with Matchers {
 
   import dsentric.ApplicativeLens._
-  import dsentric.codecs.PessimisticCodecs._
+  import dsentric.codecs.std.DCodecs._
 
   object TestObj extends Contract {
     val int = \[Int]

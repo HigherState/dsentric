@@ -1,25 +1,27 @@
 package dsentric.contracts
 
-import dsentric.codecs.StringCodec
+import dsentric.codecs.DStringCodec
+import dsentric.codecs.std.DContractCodecs
 import dsentric.failure.{ClosedContractFailure, ContractFieldFailure, ExpectedFailure, IncorrectKeyTypeFailure, IncorrectTypeFailure}
 import dsentric.schema.StringDefinition
-import dsentric.{ContractDCodec, DObject, Data, Dsentric}
+import dsentric.{DObject, Data, Dsentric}
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 
 class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues {
   import Dsentric._
-  import dsentric.codecs.PessimisticCodecs._
   import dsentric.Implicits._
+  import dsentric.codecs.std.DCodecs._
 
   case class Length4String(value:String)
 
-  implicit val fixedLength4StringCodec: StringCodec[Length4String] =
-    new StringCodec[Length4String] {
-    def toString(t: Length4String): String = t.value
+  implicit val fixedLength4StringCodec: DStringCodec[Length4String] =
+    new DStringCodec[Length4String] {
 
-    def fromString(s: String): Option[Length4String] =
+      override def apply(t: Length4String): String = t.value
+
+      def fromString(s: String): Option[Length4String] =
       if (s.length == 4) Some(Length4String(s))
       else None
 
@@ -75,7 +77,7 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
         val expected = \[String]
         val maybe = \?[Int]
       }
-      val objects = new \\\?[Length4String, DObject](ContractDCodec(Simple))() {
+      val objects = new \\\?[Length4String, DObject](DContractCodecs(Simple))() {
         val expected = \[String]
         val maybe = \?[Int]
       }
@@ -595,7 +597,7 @@ class PropertyObjectLensSpec extends AnyFunSpec with Matchers with EitherValues 
         val expected = \[String]
         val maybe = \?[Int]
       }
-      val objects = new \\\[Length4String, DObject](ContractDCodec(Simple))() {
+      val objects = new \\\[Length4String, DObject](DContractCodecs(Simple))() {
         val expected = \[String]
         val maybe = \?[Int]
       }

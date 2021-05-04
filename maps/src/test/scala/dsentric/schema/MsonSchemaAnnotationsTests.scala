@@ -1,7 +1,6 @@
 package dsentric.schema
 
 import dsentric.Dsentric._
-import dsentric.codecs.PessimisticCodecs._
 import dsentric._
 import namespaced.{AnotherNested, AnotherNested2}
 import org.scalatest.funsuite.AnyFunSuite
@@ -9,6 +8,7 @@ import org.scalatest.matchers.should.Matchers
 
 
 object MsonQuery1 extends Contract {
+  import dsentric.codecs.std.DCodecs._
   val field = \?[String]
   val field2 = \[Long]
   val fieldX = \[Float]("actualName")

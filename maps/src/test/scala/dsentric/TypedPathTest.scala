@@ -9,7 +9,7 @@ import org.scalatest.matchers.should.Matchers
   */
 class TypedPathTest extends AnyFunSuite with Matchers {
   import Dsentric._
-  import dsentric.codecs.PessimisticCodecs._
+  import dsentric.codecs.std.DCodecs._
 
   private val testDObject = DObject(
     "firstString" := "there we are",

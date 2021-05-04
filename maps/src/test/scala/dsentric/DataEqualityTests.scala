@@ -1,12 +1,11 @@
 package dsentric
 
 import dsentric._
-import dsentric.codecs.PessimisticCodecs.booleanCodec
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
 class DataEqualityTests extends AnyFunSuite with Matchers {
-
+  import dsentric.codecs.std.DCodecs._
 
   test("Data equals") {
     Data(true) shouldBe Data(true)

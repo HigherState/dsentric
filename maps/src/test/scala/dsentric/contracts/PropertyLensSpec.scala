@@ -1,7 +1,7 @@
 package dsentric.contracts
 
 import dsentric._
-import dsentric.codecs.PessimisticCodecs
+import dsentric.codecs.std.DContractCodecs
 import dsentric.failure.{ExpectedFailure, IncorrectTypeFailure}
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
@@ -10,7 +10,7 @@ import org.scalatest.matchers.should.Matchers
 class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
 
   import Dsentric._
-  import dsentric.codecs.PessimisticCodecs._
+  import dsentric.codecs.std.DCodecs._
   import dsentric.Implicits._
 
   object ExpectedStructure extends Contract {
@@ -112,7 +112,7 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
           ExpectedStructure.nulled.$get(DObject.empty).left.value should contain(ExpectedFailure(ExpectedStructure.nulled))
         }
         it("Should fail with IncorrectType if nullable wrong type") {
-          ExpectedStructure.nulled.$get(DObject("nulled" := "wrong")).left.value should contain(IncorrectTypeFailure(ExpectedStructure.nulled, "wrong"))
+          ExpectedStructure.nulled.$get(DObject("nulled" := "wrong")).left.value should contain(IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.nulled._path, intCodec, "wrong"))
         }
         it("Should return null if nullable null") {
           ExpectedStructure.nulled.$get(DObject("nulled" := DNull)).value shouldBe Some(DNull)
@@ -354,7 +354,7 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
           val base3 = DObject.empty
           ExpectedStructure.nulled.$modify { case DNull => DSome(0); case DSome(x) => DSome(x + 1) }(base3).left.value should contain(ExpectedFailure(ExpectedStructure.nulled))
           val base4 = DObject("nulled" := "wrong")
-          ExpectedStructure.nulled.$modify { case DNull => DSome(0); case DSome(x) => DSome(x + 1) }(base4).left.value should contain(IncorrectTypeFailure(ExpectedStructure.nulled, "wrong"))
+          ExpectedStructure.nulled.$modify { case DNull => DSome(0); case DSome(x) => DSome(x + 1) }(base4).left.value should contain(IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.nulled._path, intCodec, "wrong"))
         }
       }
       describe("In Expected Path") {
@@ -615,7 +615,7 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
         }
         it("Should fail with IncorrectType if nullable wrong type") {
           val base = DObject("nulled" := "wrong")
-          MaybeStructure.nulled.$get(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.nulled, "wrong"))
+          MaybeStructure.nulled.$get(base).left.value should contain(IncorrectTypeFailure(MaybeStructure, MaybeStructure.nulled._path, intCodec, "wrong"))
         }
         it("Should return null if nullable null") {
           val base = DObject("nulled" := DNull)
@@ -695,7 +695,7 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
         }
         it("Should fail with IncorrectType if nullable wrong type") {
           val base = DObject("nulled" := "wrong")
-          MaybeStructure.nulled.$getOrElse(base, DSome(123)).left.value should contain(IncorrectTypeFailure(MaybeStructure.nulled, "wrong"))
+          MaybeStructure.nulled.$getOrElse(base, DSome(123)).left.value should contain(IncorrectTypeFailure(MaybeStructure, MaybeStructure.nulled._path, intCodec, "wrong"))
         }
         it("Should return null if nullable null") {
           val base = DObject("nulled" := DNull)
@@ -1462,7 +1462,7 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
           DefaultStructure.nulled.$get(DObject.empty).value shouldBe Some(DSome(23))
         }
         it("Should fail with IncorrectTypeFailure if nullable wrong type") {
-          DefaultStructure.nulled.$get(DObject("nulled" := "wrong")).left.value should contain(IncorrectTypeFailure(DefaultStructure.nulled, "wrong"))
+          DefaultStructure.nulled.$get(DObject("nulled" := "wrong")).left.value should contain(IncorrectTypeFailure(DefaultStructure, DefaultStructure.nulled._path, intCodec, "wrong"))
         }
         it("Should return null if nullable null") {
           DefaultStructure.nulled.$get(DObject("nulled" := DNull)).value shouldBe Some(DNull)
@@ -2055,11 +2055,11 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
     }
 
     object Objects extends Contract {
-      val expectedObjects = \[Vector[DObject]](PessimisticCodecs.vectorCodec(ContractDCodec(ExpectedObjects)))
+      val expectedObjects = \[Vector[DObject]](vectorCodec(DContractCodecs(ExpectedObjects)))
 
-      val maybeObjects = \[Vector[DObject]](PessimisticCodecs.vectorCodec(ContractDCodec(MaybeObjects)))
+      val maybeObjects = \[Vector[DObject]](vectorCodec(DContractCodecs(MaybeObjects)))
 
-      val defaultObjects = \[Vector[DObject]](PessimisticCodecs.vectorCodec(ContractDCodec(DefaultObjects)))
+      val defaultObjects = \[Vector[DObject]](vectorCodec(DContractCodecs(DefaultObjects)))
     }
 
     describe("$get") {
@@ -2122,7 +2122,7 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
         Objects.defaultObjects.$set(defaultArray)(defaultBase).value shouldBe DObject("defaultObjects" := defaultArray)
       }
       it("Should replace existing wrong collection") {
-        val base = DObject("expectedObjects" := Vector(123, DObject("property" := "one"), "blah"))
+        val base = DObject("expectedObjects" := Vector(Data(123), DObject("property" := "one"), Data("blah")))
         val array = Vector(ExpectedObjects.$create(_.property.$set("one")), ExpectedObjects.$create(_.property.$set("two")))
         Objects.expectedObjects.$set(array)(base).value shouldBe DObject("expectedObjects" := array)
       }

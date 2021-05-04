@@ -9,7 +9,7 @@ import org.scalatest.matchers.should.Matchers
 class ContractLensSpec extends AnyFunSpec with Matchers with EitherValues {
 
   import Dsentric._
-  import dsentric.codecs.PessimisticCodecs._
+  import dsentric.codecs.std.DCodecs._
   import dsentric.Implicits._
 
   object ClosedContract extends Contract {

@@ -5,7 +5,7 @@ import org.scalatest.matchers.should.Matchers
 
 class RawObjectOpsTests extends AnyFunSuite with Matchers {
 
-  import dsentric.codecs.PessimisticCodecs._
+  import dsentric.codecs.std.DCodecs._
   import Dsentric._
 
 
@@ -65,7 +65,7 @@ class RawObjectOpsTests extends AnyFunSuite with Matchers {
 
   test("nested key value map") {
     val obj = DObject("change1" := 1, "array" := Vector(DObject("change2" := true, "two" := "test"), DObject("three" := 3, "change3" := "string")))
-    val c1 = obj.nestedKeyValueMap[Any, Any]{
+    val c1 = obj.nestedKeyValueMap[Data, Data]{
       case ("change1", a) => Some("changed" -> a)
     }
     c1 shouldBe DObject("changed" := 1, "array" := Vector(DObject("change2" := true, "two" := "test"), DObject("three" := 3, "change3" := "string")))
@@ -77,7 +77,7 @@ class RawObjectOpsTests extends AnyFunSuite with Matchers {
       case ("change3", a) => Some("changed" -> (a + 4))
     } shouldBe obj
 
-    obj.nestedKeyValueMap[Any, Any]{
+    obj.nestedKeyValueMap[Data, Data]{
       case ("change3", _) => None
       case ("change1", _) => None
     } shouldBe DObject("array" := Vector(DObject("change2" := true, "two" := "test"), DObject("three" := 3)))

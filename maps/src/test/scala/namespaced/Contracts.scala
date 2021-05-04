@@ -1,8 +1,9 @@
 package namespaced
 
 import dsentric.Dsentric._
-import dsentric.codecs.PessimisticCodecs._
 import dsentric.schema.{Description, Examples, Nested, Type}
+
+import dsentric.codecs.std.DCodecs._
 
 trait AnotherNested extends SubContract {
   @Description("Another nested prop")

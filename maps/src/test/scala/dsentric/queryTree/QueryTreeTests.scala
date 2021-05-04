@@ -1,7 +1,6 @@
 package dsentric.queryTree
 
 import dsentric.Dsentric._
-import dsentric.codecs.PessimisticCodecs._
 import dsentric._
 import dsentric.queryTree._
 import org.scalatest.funsuite.AnyFunSuite
@@ -14,11 +13,12 @@ import scala.util.matching.Regex
   */
 class QueryTreeTests extends AnyFunSuite with Matchers {
   implicit def r:Renderer = SimpleRenderer
+  import dsentric.codecs.std.DCodecs._
 
   val queryParser = QueryJsonb(_.replace("'","''"))
   //not an actual test as of yet
   test("Generate element match query tree") {
-    val query = DQuery("Owner" -> DObject("$elemMatch" -> DObject("$regex" := "^jamie.*"))).toOption.get
+    val query = DQuery("Owner" -> DObject("$elemMatch" -> DObject("$regex" := "^jamie.*")))
     QueryTree(query).toString should be (Exists(Path("Owner"),/(Path.empty,"^jamie.*".r)).toString)
   }
 

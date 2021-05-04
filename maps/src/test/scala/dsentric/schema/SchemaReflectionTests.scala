@@ -1,11 +1,12 @@
 package dsentric.schema
 
 import dsentric.Dsentric._
-import dsentric.codecs.PessimisticCodecs._
 import dsentric._
 import namespaced.{AnotherNested, AnotherNested2, InheritedNested}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
+
+import dsentric.codecs.std.DCodecs._
 
 @Type("Renamed")
 trait NestedNamed extends SubContract {

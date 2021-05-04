@@ -16,7 +16,7 @@ trait DValueCodecs {
     }
 
   implicit val booleanCodec:DValueCodec[Boolean] =
-    new DValueCodec[Boolean] with DirectCodec[Boolean] with MatchCodec[Boolean] {
+    new MatchCodec[Boolean] {
       protected def isMatch(a: Raw): Boolean =
         a.isInstanceOf[Boolean]
       def typeDefinition:TypeDefinition =
@@ -42,8 +42,8 @@ trait DValueCodecs {
 
   implicit val intCodec:DValueCodec[Int] =
     new DValueCodec[Int] {
-      def apply(t: Int): DValue =
-        new DValue(t.toLong)
+      def apply(t: Int): Raw =
+        t.toLong
       def unapply(a:Raw): Option[Int] =
         NumericPartialFunctions.int.lift(a)
       val typeDefinition:TypeDefinition =
@@ -51,8 +51,8 @@ trait DValueCodecs {
     }
   implicit val shortCodec:DValueCodec[Short] =
     new DValueCodec[Short] {
-      def apply(t: Short): DValue =
-        new DValue(t.toLong)
+      def apply(t: Short): Raw =
+        t.toLong
       def unapply(a:Raw): Option[Short] =
         NumericPartialFunctions.short.lift(a)
       val typeDefinition:TypeDefinition =
@@ -60,8 +60,8 @@ trait DValueCodecs {
     }
   implicit val byteCodec:DValueCodec[Byte] =
     new DValueCodec[Byte] {
-      def apply(t: Byte): DValue =
-        new DValue(t.toLong)
+      def apply(t: Byte): Raw =
+        t.toLong
       def unapply(a:Raw): Option[Byte] =
         NumericPartialFunctions.byte.lift(a)
       val typeDefinition:TypeDefinition =
@@ -69,8 +69,8 @@ trait DValueCodecs {
     }
   implicit val floatCodec:DValueCodec[Float] =
     new DValueCodec[Float] {
-      def apply(t: Float): DValue =
-        new DValue(t.toDouble)
+      def apply(t: Float): Raw =
+        t.toDouble
       def unapply(a:Raw): Option[Float] =
         NumericPartialFunctions.float.lift(a)
       val typeDefinition:TypeDefinition =
@@ -78,8 +78,8 @@ trait DValueCodecs {
     }
   implicit val numberCodec:DValueCodec[Number] =
     new DValueCodec[Number] {
-      def apply(t: Number): DValue =
-        new DValue(t)
+      def apply(t: Number): Raw =
+        t.doubleValue()
       def unapply(a:Raw): Option[Number] =
         NumericPartialFunctions.number.lift(a)
 
@@ -88,7 +88,7 @@ trait DValueCodecs {
     }
 
   implicit val dNullCodec:DCodec[DNull.type] =
-    new DValueCodec[DNull.type] with MatchCodec[DNull.type] with DirectCodec[DNull.type] {
+    new MatchCodec[DNull.type] {
 
       protected def isMatch(a: Raw): Boolean =
         a.isInstanceOf[DNull.type]

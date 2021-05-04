@@ -88,3 +88,5 @@ trait DContractCodecs {
 
 
 }
+
+object DContractCodecs extends DContractCodecs

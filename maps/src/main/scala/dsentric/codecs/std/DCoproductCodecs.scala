@@ -5,6 +5,12 @@ import dsentric.codecs.{DCodec, DCoproductCodec}
 import dsentric.failure.{DCodecTypeFailure, StructuralFailure}
 import dsentric.schema.{MultipleTypeDefinition, SingleTypeDefinition, TypeDefinition}
 
+/**
+ * Validation failures are quite hard to resolve, which codec to return,
+ * IE
+ *   Nullable returns internal codec so null option isnt immediately obvious.
+ *   But returning Nullable Contract, wont make sense when Internal codec is an Contract Codec
+ */
 trait DCoproductCodecs {
 
   implicit def dNullableCodec[T](implicit D:DCodec[T]): DCodec[DNullable[T]] =

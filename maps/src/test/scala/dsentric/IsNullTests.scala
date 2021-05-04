@@ -6,7 +6,7 @@ import org.scalatest.matchers.should.Matchers
 
 class IsNullTests extends AnyFunSuite with Matchers {
   import Dsentric._
-  import dsentric.codecs.PessimisticCodecs._
+  import dsentric.codecs.std.DCodecs._
 
   test("Data.isNull on non-null data") {
     Data(5).isNull should be (false)
