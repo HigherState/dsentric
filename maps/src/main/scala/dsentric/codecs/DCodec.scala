@@ -15,6 +15,9 @@ sealed trait DCodec[T] {
    * @return
    */
   def verify(a:Raw):List[StructuralFailure]
+
+  def verify(currentValue:Raw, deltaValue:Raw):List[StructuralFailure]
+
   /**
    * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
    * @param a
@@ -23,6 +26,10 @@ sealed trait DCodec[T] {
   def get(a:Raw):Available[T]
 
   def typeDefinition:TypeDefinition
+
+  @inline
+  protected def deltaNull(deltaValue:Raw):Boolean =
+    deltaValue.isInstanceOf[DNull.type]
 }
 
 trait DValueCodec[T] extends DCodec[T] {
@@ -53,6 +60,11 @@ trait DValueCodec[T] extends DCodec[T] {
       case Some(t) =>
         Found(t)
     }
+
+  def verify(deltaValue:Raw, currentValue:Raw):List[StructuralFailure] =
+    if (deltaNull(deltaValue)) Nil
+    else verify(deltaValue)
+
 }
 
 trait DStringCodec[T] extends DValueCodec[T] {
@@ -94,6 +106,10 @@ trait DObjectCodec[T] extends DCodec[T] {
  */
 trait DArrayCodec[T] extends DCodec[T] {
   override def apply(t:T):RawArray
+
+  def verify(currentValue: Raw, deltaValue: Raw): List[StructuralFailure] =
+    if (deltaNull(deltaValue)) Nil
+    else verify(deltaValue)
 }
 
 trait DMapCodec[K, T] extends DObjectCodec[Map[K, T]] {
@@ -136,6 +152,8 @@ object DataCodec extends DCodec[Data]{
    * @return
    */
   def verify(a: Raw): List[StructuralFailure] = Nil
+
+  def verify(currentValue: Raw, deltaValue: Raw): List[StructuralFailure] = Nil
 
   /**
    * Standard type failure check, override for targeted behaviour, like NotFound if wrong type

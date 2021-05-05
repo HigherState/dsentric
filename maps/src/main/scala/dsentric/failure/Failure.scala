@@ -62,6 +62,16 @@ final case class DCodecUnexpectedValueFailure[T](codec:DCodec[T], path:Path, exp
     this.copy(path = rootPath ++ path)
 }
 
+final case class DCodecDeltaNotSupportedFailure[T](codec:DCodec[T], path:Path) extends StructuralFailure {
+  def message = s"Type '${codec.typeDefinition.name}' does not support Delta operation."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): DeltaNotSupportedFailure[G, T] =
+    DeltaNotSupportedFailure(rootContract, codec, rootPath ++ path)
+
+  def rebase(rootPath: Path): DCodecDeltaNotSupportedFailure[T] =
+    this.copy(path = rootPath ++ path)
+}
+
 final case class IncorrectTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T], foundRaw:Raw) extends TypeFailure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  IncorrectTypeFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
@@ -119,6 +129,16 @@ final case class UnexpectedValueFailure[D <: DObject, T](contract: ContractFor[D
     copy(contract = rootContract, path = rootPath ++ path)
 
   def rebase(rootPath: Path): UnexpectedValueFailure[D, T] =
+    this.copy(path = rootPath ++ path)
+}
+
+final case class DeltaNotSupportedFailure[D <: DObject, T](contract: ContractFor[D], codec:DCodec[T], path:Path) extends StructuralFailure {
+  def message = s"Type '${codec.typeDefinition.name}' does not support Delta operation."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): DeltaNotSupportedFailure[G, T] =
+    copy(contract = rootContract, path = rootPath ++ path)
+
+  def rebase(rootPath: Path): DeltaNotSupportedFailure[D, T] =
     this.copy(path = rootPath ++ path)
 }
 

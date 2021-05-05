@@ -36,7 +36,11 @@ trait DObjectCodecs {
           List(DCodecTypeFailure(this, a))
       }
 
-    /**
+    def verify(deltaValue:Raw, currentValue:Raw):List[StructuralFailure] =
+      if (deltaNull(deltaValue)) Nil
+      else verify(deltaValue)
+
+      /**
      * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
      *
      * @param a
@@ -70,6 +74,37 @@ trait DObjectCodecs {
               .toList
           case _ =>
             List(DCodecTypeFailure(this, a))
+        }
+
+      /**
+       * Delta Map can always have Null value
+       * @param deltaValue
+       * @param currentValue
+       * @return
+       */
+      def verify(deltaValue:Raw, currentValue:Raw):List[StructuralFailure] =
+        if (deltaNull(deltaValue)) Nil
+        else deltaValue match {
+          case raw: RawObject@unchecked =>
+            val current = currentValue match {
+              case c:RawObject@unchecked =>
+                c
+              case _ =>
+                Map.empty[String, Any]
+            }
+            raw
+              .flatMap{p =>
+                current
+                  .get(p._1)
+                  .fold{
+                    if (deltaNull(p._2)) Nil
+                    else valueCodec.verify(p._2)
+                  }(valueCodec.verify(p._2, _))
+                  .map(_.rebase(Path(p._1)))
+              }
+              .toList
+          case _ =>
+            List(DCodecTypeFailure(this, deltaValue))
         }
 
       def unapply(a: Raw): Option[Map[String, T]] =
@@ -138,6 +173,40 @@ trait DObjectCodecs {
               .toList
           case _ =>
             List(DCodecTypeFailure(this, a))
+        }
+
+      /**
+       * Delta Map can always havenull value, key is not verified if value is null, allowing the removal of bad keys
+       * @param deltaValue
+       * @param currentValue
+       * @return
+       */
+      def verify(deltaValue:Raw, currentValue:Raw):List[StructuralFailure] =
+        if (deltaNull(deltaValue)) Nil
+        else deltaValue match {
+          case raw: RawObject@unchecked =>
+            val current = currentValue match {
+              case c:RawObject@unchecked =>
+                c
+              case _ =>
+                Map.empty[String, Any]
+            }
+            raw
+              .flatMap{p =>
+                val valueDNull = deltaNull(p._2)
+                current
+                  .get(p._1)
+                  .fold{
+                    if (valueDNull) Nil
+                    else valueCodec.verify(p._2)
+                  }(valueCodec.verify(p._2, _))
+                  .map(_.rebase(Path(p._1))) ++
+                if (valueDNull) Nil
+                else keyCodec.verify(p._1)
+              }
+              .toList
+          case _ =>
+            List(DCodecTypeFailure(this, deltaValue))
         }
 
       def unapply(a: Raw): Option[Map[K, V]] =
@@ -211,6 +280,20 @@ trait DObjectCodecs {
             ).toList
           case _ =>
             List(DCodecTypeFailure(this, a))
+        }
+
+      def verify(deltaValue:Raw, currentValue:Raw):List[StructuralFailure] =
+        if (deltaNull(deltaValue)) Nil
+        else deltaValue match {
+          case raw: RawObject@unchecked  =>
+            raw.flatMap(p =>
+              D.verify(p._1) ++ (
+                if (p._2 != 1 && !deltaNull(p._2)) List(DCodecUnexpectedValueFailure(this, Path(p._1), 1, p._2))
+                else Nil
+                )
+            ).toList
+          case _ =>
+            List(DCodecTypeFailure(this, deltaValue))
         }
 
       /**
@@ -295,6 +378,9 @@ trait DObjectCodecs {
           case raw =>
             List(DCodecTypeFailure(this, raw))
         }
+      def verify(deltaValue:Raw, currentValue:Raw):List[StructuralFailure] =
+        if (deltaNull(deltaValue)) Nil
+        else verify(deltaValue)
 
       /**
        * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
@@ -343,6 +429,9 @@ trait DObjectCodecs {
           case raw =>
             List(DCodecTypeFailure(this, raw))
         }
+      def verify(deltaValue:Raw, currentValue:Raw):List[StructuralFailure] =
+        if (deltaNull(deltaValue)) Nil
+        else verify(deltaValue)
 
       /**
        * Standard type failure check, override for targeted behaviour, like NotFound if wrong type

@@ -23,7 +23,7 @@ trait DContractCodecs {
           None
       }
 
-    override def verify(a: Raw): List[StructuralFailure] =
+    def verify(a: Raw): List[StructuralFailure] =
       a match {
         case m:RawObject@unchecked =>
           ObjectLens.propertyVerifier(contract, m)
@@ -31,7 +31,9 @@ trait DContractCodecs {
           List(DCodecTypeFailure(this, a))
       }
 
-    override def get(a: Raw): Available[DObject] =
+    def verify(currentValue:Raw, deltaValue:Raw):List[StructuralFailure] = ???
+
+    def get(a: Raw): Available[DObject] =
       a match {
         case m:RawObject@unchecked =>
           ObjectLens.propertyVerifier(contract, m) match {
@@ -62,15 +64,16 @@ trait DContractCodecs {
             None
         }
 
-      override def verify(a: Raw): List[StructuralFailure] =
+      def verify(a: Raw): List[StructuralFailure] =
         a match {
           case m:RawObject@unchecked =>
             ObjectLens.propertyVerifier(contract, m)
           case _ =>
             List(DCodecTypeFailure(this, a))
         }
+      def verify(currentValue:Raw, deltaValue:Raw):List[StructuralFailure] = ???
 
-      override def get(a: Raw): Available[D] =
+      def get(a: Raw): Available[D] =
         a match {
           case m:RawObject@unchecked =>
             ObjectLens.propertyVerifier(contract, m) match {

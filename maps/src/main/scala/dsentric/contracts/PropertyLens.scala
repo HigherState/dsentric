@@ -107,6 +107,9 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
   final def $modify(f:T => T):ValidPathSetter[D] =
     ModifySetter(d => __get(d).toValidOption, f, __set)
 
+  final def $modifyWith(f:T => ValidResult[T]):ValidPathSetter[D] =
+    ModifyValidSetter(d => __get(d).toValidOption, f, __set)
+
   /**
    * Copying from an existing property, if that property is
    * an Empty value on a Maybe Property, it will ignore the copy operation.
@@ -219,9 +222,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
   /**
    * Modifies or sets the value if it doesnt exist.
    * Will create object path to Property if objects dont exist only if path is expected.
-   * Returns failure if value is of the wrong type,
-   * unless incorrectTypeBehaviour is set to EmptyOnIncorrectType, in which case
-   * None will be passed as the argument into the function.
+   * Returns failure if value is of the wrong type
    * @param f
    * @return
    */
@@ -231,12 +232,20 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
   /**
    * Modifies or sets the value if it doesnt exist.
    * Will create object path to Property if objects dont exist only if path is expected.
+   * Returns failure if value is of the wrong type
+   * @param f
+   * @return
+   */
+  final def $modifyWith(f:Option[T] => ValidResult[T]):ValidPathSetter[D] =
+    TraversedModifyValidSetter(__get, f, __set)
+
+  /**
+   * Modifies or sets the value if it doesnt exist.
+   * Will create object path to Property if objects dont exist only if path is expected.
    * If None is returned it will remove the property value from the object if it exists.
    * If the removed property is contained in an otherwise empty nested object, it
    * will remove the entire object, this is recursive.
-   * Returns failure if value is of the wrong type,
-   * unless incorrectTypeBehaviour is set to EmptyOnIncorrectType, in which case
-   * None will be passed as the argument into the function.
+   * Returns failure if value is of the wrong type
    *
    * @param f
    * @return
@@ -249,15 +258,31 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
     )
 
   /**
+   * Modifies or sets the value if it doesnt exist.
+   * Will create object path to Property if objects dont exist only if path is expected.
+   * If None is returned it will remove the property value from the object if it exists.
+   * If the removed property is contained in an otherwise empty nested object, it
+   * will remove the entire object, this is recursive.
+   * Returns failure if value is of the wrong type
+   *
+   * @param f
+   * @return
+   */
+  final def $modifyOrDropWith(f:Option[T] => Option[ValidResult[T]]):ValidPathSetter[D] =
+    TraversedModifyOrDropValidSetter[D, T](
+      __get,
+      f,
+      (d, mt) => $setOrDrop(mt)(d)
+    )
+
+  /**
    * Copying from an existing property, if that property is
    * an Empty value on a Maybe Property, it will drop the value for this property.
    * If the MaybeProperty is in a nonexistent maybe object, it will ignore the copy.
    * If its an Expected property it will fail if empty
    * If the copied property is Empty but is a Default Property, it will
    * copy the default value.
-   * If will fail if the source property is of the wrong type, unless the
-   * unless incorrectTypeBehaviour is set to EmptyOnIncorrectType, in which case
-   * The target property will be dropped.
+   * If will fail if the source property is of the wrong type
    * @param p
    * @return
    */
@@ -371,6 +396,9 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
    */
   final def $modify(f:T => T):ValidPathSetter[D] =
     ModifySetter($get, f, __set)
+
+  final def $modifyWith(f:T => ValidResult[T]):ValidPathSetter[D] =
+    ModifyValidSetter($get, f, __set)
 
   /**
    * Sets or Replaces vale for the Property if provided

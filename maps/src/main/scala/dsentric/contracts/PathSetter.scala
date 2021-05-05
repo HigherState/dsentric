@@ -175,6 +175,20 @@ private final case class TraversedModifySetter[D <: DObject, T](getter:D => Trav
     }
 }
 
+private final case class TraversedModifyValidSetter[D <: DObject, T](getter:D => Traversed[T], f:Option[T] => ValidResult[T], setter:(D, T) => D) extends ValidPathSetter[D] {
+
+  def apply(v1: D): ValidResult[D] =
+    getter(v1) match {
+      case PathEmptyMaybe =>
+        ValidResult.success(v1)
+      case NotFound =>
+        f(None).map(setter(v1, _))
+      case Found(t) =>
+        f(Some(t)).map(setter(v1, _))
+      case Failed(f, tail) => ValidResult.failure(f, tail:_*)
+    }
+}
+
 /*
 First Option on f Raw result is case of codec failure
  */
@@ -188,6 +202,31 @@ private final case class TraversedModifyOrDropSetter[D <: DObject, T](getter:D =
         ValidResult.success(setter(v1, f(None)))
       case Found(t) =>
         ValidResult.success(setter(v1, f(Some(t))))
+      case Failed(f, tail) =>
+        ValidResult.failure(f, tail:_*)
+    }
+}
+
+private final case class TraversedModifyOrDropValidSetter[D <: DObject, T](getter:D => Traversed[T], f:Option[T] => Option[ValidResult[T]], setter:(D, Option[T]) => D) extends ValidPathSetter[D] {
+
+  def apply(v1: D): ValidResult[D] =
+    getter(v1) match {
+      case PathEmptyMaybe =>
+        ValidResult.success(v1)
+      case NotFound =>
+        f(None) match {
+          case None =>
+            ValidResult.success(setter(v1, None))
+          case Some(vr) =>
+            vr.map(t => setter(v1, Some(t)))
+        }
+      case Found(t) =>
+        f(Some(t)) match {
+          case None =>
+            ValidResult.success(setter(v1, None))
+          case Some(vr) =>
+            vr.map(t => setter(v1, Some(t)))
+        }
       case Failed(f, tail) =>
         ValidResult.failure(f, tail:_*)
     }

@@ -262,7 +262,7 @@ private[dsentric] object ObjectLens {
     baseContract._fields.flatMap{
       case (_, p:Property[D, Any]@unchecked) =>
         p.__verifyTraversal(obj)
-    }.toList ++ additionPropertyVerifier(baseContract, obj)
+    }.toList ++ additionalPropertyVerifier(baseContract, obj)
 
   /**
    * Reduces empty property fields
@@ -270,7 +270,7 @@ private[dsentric] object ObjectLens {
   def verifyReduce[D <: DObject](baseContract:BaseContract[D],
                                     obj:RawObject):Either[NonEmptyList[StructuralFailure], RawObject] = {
 
-    val init = additionPropertyVerifier(baseContract, obj) match {
+    val init = additionalPropertyVerifier(baseContract, obj) match {
       case head :: tail => Left(NonEmptyList(head, tail))
       case _ => Right(obj)
     }
@@ -295,7 +295,7 @@ private[dsentric] object ObjectLens {
     }
   }
 
-  private def additionPropertyVerifier[D <: DObject](
+  private def additionalPropertyVerifier[D <: DObject](
                                                       baseContract:BaseContract[D],
                                                       obj:RawObject
                                                     ):List[StructuralFailure] = {

@@ -184,8 +184,12 @@ when adding a Contract element, ie as an Additional Property or element in a vec
 correctness as being of the correct Type is sufficient under current definition.
 We know this is fine for types, but for Contract DOBjects, we do allow adding manually adding elements that dont 
 support the contract, where as say a delta operation, this would be checked.
+Corollary
+For Modify it will validate the entity coming out of the Object but not the value going in
 
 This may need to change in the future.
+
+Maps are tricky, empty maps will reduce to nothing
 
 Terminology
 

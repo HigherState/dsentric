@@ -2,6 +2,7 @@ package dsentric.codecs.std
 
 import dsentric.{DNull, DValue, Data, NumericPartialFunctions, Path, Raw}
 import dsentric.codecs.{DCodec, DStringCodec, DValueCodec, DataCodec, DirectCodec, MatchCodec}
+import dsentric.failure.{DCodecDeltaNotSupportedFailure, StructuralFailure}
 import dsentric.schema.{BooleanDefinition, IntegerDefinition, NullDefinition, NumberDefinition, StringDefinition, TypeDefinition}
 
 trait DValueCodecs {
@@ -92,6 +93,9 @@ trait DValueCodecs {
 
       protected def isMatch(a: Raw): Boolean =
         a.isInstanceOf[DNull.type]
+
+      override def verify(deltaValue: Raw, currentValue: Raw): List[StructuralFailure] =
+        List(DCodecDeltaNotSupportedFailure(this, Path.empty))
 
       def typeDefinition:TypeDefinition =
         NullDefinition
