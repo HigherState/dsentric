@@ -3,7 +3,7 @@ package dsentric.contracts
 import dsentric._
 import cats.data._
 import dsentric.codecs.DObjectCodec
-import dsentric.failure.{ClosedContractFailure, DCodecTypeFailure, IncorrectKeyTypeFailure, StructuralFailure, ValidResult}
+import dsentric.failure.{ClosedContractFailure, DCodecTypeFailure, Failure, IncorrectKeyTypeFailure, StructuralFailure, ValidResult}
 
 private[dsentric] sealed trait ObjectLens[D <: DObject]
   extends BaseContract[D] with PropertyLens[D, DObject]{
@@ -12,21 +12,11 @@ private[dsentric] sealed trait ObjectLens[D <: DObject]
 
   /**
    * Verifies the direct property against the object.
-   * @param obj
-   * @return
-   */
-  private[contracts] def __verifyTraversal(obj: RawObject): List[StructuralFailure]
-
-  /**
-   * Verifies the direct property against the object.
    * Will remove from object if empty
    * @param obj
    * @return
    */
   private[contracts] def __verifyReduce(obj: RawObject):Either[NonEmptyList[StructuralFailure], RawObject]
-
-
-  private[dsentric] def __get(obj:D):Traversed[DObject]
 
   /**
    * Apply object contract to modify the object
@@ -119,6 +109,11 @@ private[dsentric] trait ExpectedObjectLens[D <: DObject] extends ObjectLens[D]{
       case Failed(f, tail) => f :: tail
       case Found(v) => ObjectLens.propertyVerifier(this, v.value)
     }
+
+
+  private[contracts] def __verifyTraversal(currentValue: RawObject, deltaValue: RawObject): List[Failure] = ???
+
+
 
   private[contracts] def __verifyReduce(obj: RawObject): Either[NonEmptyList[StructuralFailure], RawObject] =
     TraversalOps.propertyValue(obj, this) match {
@@ -264,11 +259,19 @@ private[dsentric] object ObjectLens {
         p.__verifyTraversal(obj)
     }.toList ++ additionalPropertyVerifier(baseContract, obj)
 
+  def propertyVerifier[D <: DObject](
+                                      baseContract:BaseContract[D],
+                                      currentValue:RawObject,
+                                      deltaValue:RawObject):List[Failure] =
+    baseContract._fields.flatMap{
+      case (_, p:Property[D, Any]@unchecked) =>
+        p.__verifyTraversal(currentValue, deltaValue)
+    }.toList ++ additionalPropertyVerifier(baseContract, currentValue, deltaValue)
+
   /**
    * Reduces empty property fields
    * */
-  def verifyReduce[D <: DObject](baseContract:BaseContract[D],
-                                    obj:RawObject):Either[NonEmptyList[StructuralFailure], RawObject] = {
+  def verifyReduce[D <: DObject](baseContract:BaseContract[D], obj:RawObject):Either[NonEmptyList[StructuralFailure], RawObject] = {
 
     val init = additionalPropertyVerifier(baseContract, obj) match {
       case head :: tail => Left(NonEmptyList(head, tail))
@@ -312,6 +315,34 @@ private[dsentric] object ObjectLens {
                 other.rebase(baseContract._root, baseContract._path)
             } ++
             a._additionalValueCodec.verify(kv._2).map(_.rebase(baseContract._root, baseContract._path \ kv._1))
+          }
+
+      case _ =>
+        obj.keys
+          .filterNot(exclude)
+          .map(k => ClosedContractFailure(baseContract._root, baseContract._path, k))
+          .toList
+    }
+  }
+
+  private def additionalPropertyVerifier[D <: DObject](
+                                                        baseContract:BaseContract[D],
+                                                        currentValue:RawObject,
+                                                        deltaValue:RawObject
+                                                      ):List[Failure] = {
+    val exclude = baseContract._fields.keySet
+    baseContract match {
+      case a:AdditionalProperties[Any, Any]@unchecked =>
+        obj.filter(p => !exclude.contains(p._1))
+          .toList
+          .flatMap { kv =>
+            a._additionalKeyCodec.verify(kv._1).map {
+              case DCodecTypeFailure(codec, _, p) =>
+                IncorrectKeyTypeFailure(baseContract._root, baseContract._path \ kv._1 ++ p, codec)
+              case other =>
+                other.rebase(baseContract._root, baseContract._path)
+            } ++
+              a._additionalValueCodec.verify(kv._2).map(_.rebase(baseContract._root, baseContract._path \ kv._1))
           }
 
       case _ =>

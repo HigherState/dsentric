@@ -2,7 +2,7 @@ package dsentric.codecs.std
 
 import dsentric.{Available, DNull, DNullable, DSome, Failed, Found, NotFound, Path, Raw}
 import dsentric.codecs.{DCodec, DCoproductCodec}
-import dsentric.failure.{DCodecDeltaNotSupportedFailure, DCodecTypeFailure, StructuralFailure}
+import dsentric.failure.{DCodecDeltaNotSupportedFailure, DCodecTypeFailure, Failure, StructuralFailure}
 import dsentric.schema.{MultipleTypeDefinition, SingleTypeDefinition, TypeDefinition}
 
 /**
@@ -28,7 +28,7 @@ trait DCoproductCodecs {
           case a => D.verify(a)
         }
 
-      def verify(currentValue: Raw, deltaValue: Raw): List[StructuralFailure] =
+      def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):List[Failure] =
         List(DCodecDeltaNotSupportedFailure(this, Path.empty))
 
       /**
@@ -79,6 +79,8 @@ trait DCoproductCodecs {
         DL.unapply(a)
           .fold(DR.unapply(a).fold(List(DCodecTypeFailure(this, a)))(_ => Nil))(_ => Nil)
 
+      def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):List[Failure] =
+        ???
       /**
        * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
        *

@@ -11,6 +11,8 @@ sealed trait Failure {
 
   def rebase[G <: DObject](rootContract:ContractFor[G], rootPath:Path):Failure
 
+  def rebase(rootPath:Path):Failure
+
   def message:String
 }
 
@@ -167,6 +169,13 @@ object ContractFieldFailure {
 
 
 sealed trait ConstraintFailure extends Failure
+
+final case class RequiredFailure[D <: DObject](contract: ContractFor[D], path:Path) extends ConstraintFailure {
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): RequiredFailure[G] =
+    copy(contract = rootContract, path = rootPath ++ path)
+
+  def message:String = "Value is required and cannot be dropped."
+}
 
 final case class ReservedFailure[D <: DObject](contract: ContractFor[D], path:Path) extends ConstraintFailure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): ReservedFailure[G] =

@@ -2,7 +2,7 @@ package dsentric.codecs.std
 
 import dsentric._
 import dsentric.codecs.{DCodec, DMapCodec, DObjectCodec, DStringCodec, DirectCodec}
-import dsentric.failure.{DCodecMissingElementFailure, DCodecTypeFailure, DCodecUnexpectedValueFailure, StructuralFailure}
+import dsentric.failure.{DCodecMissingElementFailure, DCodecTypeFailure, DCodecUnexpectedValueFailure, Failure, StructuralFailure}
 import dsentric.schema.{ObjectDefinition, TypeDefinition}
 
 import scala.collection.mutable
@@ -36,9 +36,19 @@ trait DObjectCodecs {
           List(DCodecTypeFailure(this, a))
       }
 
-    def verify(deltaValue:Raw, currentValue:Raw):List[StructuralFailure] =
-      if (deltaNull(deltaValue)) Nil
-      else verify(deltaValue)
+    def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce =
+      (deltaValue -> currentValue) match {
+        case (deltaObject: RawObject@unchecked, Some(currentObject:RawObject@unchecked)) =>
+          DeltaReduced(RawObjectOps.rightDifferenceReduceMap(currentObject, deltaObject))
+        case (deltaObject: RawObject@unchecked, _) =>
+          DeltaReduced(RawObjectOps.reduceMap(deltaObject))
+        case (DNull, None) =>
+          DeltaEmpty
+        case (DNull, _) =>
+          DeltaReduced(DNull)
+        case (d, _) =>
+          DeltaFailed(DCodecTypeFailure(this, d))
+      }
 
       /**
      * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
@@ -76,33 +86,57 @@ trait DObjectCodecs {
             List(DCodecTypeFailure(this, a))
         }
 
+      def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce =
+        (deltaValue -> currentValue) match {
+          case (deltaObject: RawObject@unchecked, Some(currentObject:RawObject@unchecked)) =>
+            deltaObject
+              .map(p => p._1 -> valueCodec.verifyAndReduceDelta(p._2, currentObject.get(p._1)))
+              .foldLeft[Either[ListBuffer[Failure], mutable.Builder[(String, Raw), Map[String, Raw]]]](Right(Map.newBuilder[String, Raw])){
+                case (Right(mb), (key, DeltaReduced(d))) =>
+                  Right(mb.addOne(key -> d))
+                case (Right(_), (key, DeltaFailed(head, tail))) =>
+                  Left(new ListBuffer[Failure].addAll((head :: tail).map(_.rebase(Path(key)))))
+                case (Left(lb), (key, DeltaFailed(head, tail))) =>
+                  Left(lb.addAll((head :: tail).map(_.rebase(Path(key)))))
+                case (result, _) =>
+                  result
+              }
+            ???
+          case (deltaObject: RawObject@unchecked, _) =>
+            val reduced = RawObjectOps.reduceMap(deltaObject)
+            verify(reduced) match {
+              case head :: tail =>
+                DeltaFailed(head, tail)
+              case _ =>
+                DeltaReduced(reduced)
+            }
+          case (DNull, None) =>
+            DeltaEmpty
+          case (DNull, _) =>
+            DeltaReduced(DNull)
+          case (d, _) =>
+            DeltaFailed(DCodecTypeFailure(this, d))
+        }
       /**
        * Delta Map can always have Null value
        * @param deltaValue
        * @param currentValue
        * @return
        */
-      def verify(deltaValue:Raw, currentValue:Raw):List[StructuralFailure] =
+      def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):List[Failure] =
         if (deltaNull(deltaValue)) Nil
         else deltaValue match {
-          case raw: RawObject@unchecked =>
-            val current = currentValue match {
+          case (raw: RawObject@unchecked =>
+            val current = currentValue.collect {
               case c:RawObject@unchecked =>
                 c
-              case _ =>
-                Map.empty[String, Any]
-            }
+            }.getOrElse(Map.empty[String, Any])
             raw
-              .flatMap{p =>
-                current
-                  .get(p._1)
-                  .fold{
-                    if (deltaNull(p._2)) Nil
-                    else valueCodec.verify(p._2)
-                  }(valueCodec.verify(p._2, _))
-                  .map(_.rebase(Path(p._1)))
-              }
-              .toList
+            .flatMap{p =>
+              valueCodec.verifyAndReduceDelta(p._2, current.get(p._1))
+                .map(_.rebase(Path(p._1)))
+            }
+            .toList
           case _ =>
             List(DCodecTypeFailure(this, deltaValue))
         }
@@ -181,27 +215,19 @@ trait DObjectCodecs {
        * @param currentValue
        * @return
        */
-      def verify(deltaValue:Raw, currentValue:Raw):List[StructuralFailure] =
+      def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):List[Failure] =
         if (deltaNull(deltaValue)) Nil
         else deltaValue match {
           case raw: RawObject@unchecked =>
-            val current = currentValue match {
+            val current = currentValue.collect {
               case c:RawObject@unchecked =>
                 c
-              case _ =>
-                Map.empty[String, Any]
-            }
+            }.getOrElse(Map.empty[String, Any])
             raw
               .flatMap{p =>
-                val valueDNull = deltaNull(p._2)
-                current
-                  .get(p._1)
-                  .fold{
-                    if (valueDNull) Nil
-                    else valueCodec.verify(p._2)
-                  }(valueCodec.verify(p._2, _))
+                valueCodec.verifyAndReduceDelta(p._2, current.get(p._1))
                   .map(_.rebase(Path(p._1))) ++
-                if (valueDNull) Nil
+                if (deltaNull(p._2)) Nil
                 else keyCodec.verify(p._1)
               }
               .toList
@@ -282,7 +308,7 @@ trait DObjectCodecs {
             List(DCodecTypeFailure(this, a))
         }
 
-      def verify(deltaValue:Raw, currentValue:Raw):List[StructuralFailure] =
+      def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):List[Failure] =
         if (deltaNull(deltaValue)) Nil
         else deltaValue match {
           case raw: RawObject@unchecked  =>
@@ -378,7 +404,7 @@ trait DObjectCodecs {
           case raw =>
             List(DCodecTypeFailure(this, raw))
         }
-      def verify(deltaValue:Raw, currentValue:Raw):List[StructuralFailure] =
+      def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):List[Failure] =
         if (deltaNull(deltaValue)) Nil
         else verify(deltaValue)
 
@@ -429,7 +455,7 @@ trait DObjectCodecs {
           case raw =>
             List(DCodecTypeFailure(this, raw))
         }
-      def verify(deltaValue:Raw, currentValue:Raw):List[StructuralFailure] =
+      def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):List[Failure] =
         if (deltaNull(deltaValue)) Nil
         else verify(deltaValue)
 

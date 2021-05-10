@@ -33,6 +33,8 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    */
   private[contracts] def __verifyTraversal(obj:RawObject):List[StructuralFailure]
 
+  private[contracts] def __verifyTraversal(currentValue:RawObject, deltaValue:RawObject):List[StructuralFailure]
+
   private[contracts] def __set(obj:D, value:T):D =
     obj.internalWrap(PathLensOps.set(obj.value, _path, _codec(value))).asInstanceOf[D]
 
@@ -53,6 +55,14 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
       case Failed(f, tail) => f :: tail
     }
 
+  private[contracts] def __verifyTraversal(currentValue: RawObject, deltaValue: RawObject): List[Failure] =
+    deltaValue.get(_key).fold[List[Failure]](Nil){
+      case DNull =>
+        if (currentValue.contains(_key)) List(RequiredFailure(_root, _path))
+        else Nil
+      case propertyDelta =>
+        _codec.verifyAndReduceDelta(propertyDelta, currentValue.get(_key))
+    }
 
   /**
    * Verifies the Type of the value for the Property and its existence.

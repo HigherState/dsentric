@@ -3,7 +3,7 @@ package dsentric.codecs.std
 import dsentric.{Available, DObject, DObjectInst, Failed, Found, Raw, RawObject}
 import dsentric.codecs.DContractCodec
 import dsentric.contracts.{Contract, ContractFor, ObjectLens}
-import dsentric.failure.{DCodecTypeFailure, StructuralFailure}
+import dsentric.failure.{DCodecTypeFailure, Failure, StructuralFailure}
 import dsentric.schema.TypeDefinition
 
 trait DContractCodecs {
@@ -31,7 +31,7 @@ trait DContractCodecs {
           List(DCodecTypeFailure(this, a))
       }
 
-    def verify(currentValue:Raw, deltaValue:Raw):List[StructuralFailure] = ???
+    def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):List[Failure] = ???
 
     def get(a: Raw): Available[DObject] =
       a match {
@@ -71,7 +71,7 @@ trait DContractCodecs {
           case _ =>
             List(DCodecTypeFailure(this, a))
         }
-      def verify(currentValue:Raw, deltaValue:Raw):List[StructuralFailure] = ???
+      def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):List[Failure] = ???
 
       def get(a: Raw): Available[D] =
         a match {

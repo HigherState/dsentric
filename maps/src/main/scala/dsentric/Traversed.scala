@@ -1,7 +1,7 @@
 package dsentric
 
 import dsentric.contracts.{BaseAux, ContractFor}
-import dsentric.failure.{StructuralFailure, ValidResult}
+import dsentric.failure.{Failure, StructuralFailure, ValidResult}
 
 sealed trait Traversed[+T] {
   def toValidOption:ValidResult[Option[T]]
@@ -88,4 +88,20 @@ object Available {
         NotFound
     }
   }
+}
+
+/**
+ * Algebra for validating and reducing Delta
+ * Reducing a delta removes any redundancy in the delta object
+ * This can include removing null values which drop no value, or values which correspond to current values.
+ */
+sealed trait DeltaReduce
+
+final case class DeltaFailed(head:Failure, tail:List[Failure] = Nil) extends DeltaReduce
+final case class DeltaReduced(delta:Raw) extends DeltaReduce
+case object DeltaEmpty extends DeltaReduce
+
+object DeltaReduce {
+  def apply[Raw](value:Option[Raw]):DeltaReduce =
+    value.fold[DeltaReduce](DeltaEmpty)(DeltaReduced(_))
 }

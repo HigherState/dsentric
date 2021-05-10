@@ -1,9 +1,10 @@
 package dsentric.operators
 
+import dsentric.codecs.DCodec
 import dsentric.contracts.ContractFor
-import dsentric.failure.{ValidResult, ValidationFailures}
+import dsentric.failure.ValidationFailures
 import dsentric.{DObject, Data, Path, Raw}
-import dsentric.schema.{ObjectDefinition, TypeDefinition}
+import dsentric.schema.TypeDefinition
 
 
 sealed trait DataOperator[+T] {
@@ -29,8 +30,8 @@ trait Constraint[+T] extends DataOperator[T] {
   def verifyDelta[S >: T, D <: DObject](
                                  contract:ContractFor[D],
                                  path:Path,
-                                 currentState: Option[S],
-                                 finalState: Option[S]
+                                 delta:Raw,
+                                 currentState: Option[Raw]
                                ): ValidationFailures
 }
 

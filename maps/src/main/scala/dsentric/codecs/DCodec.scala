@@ -2,7 +2,7 @@ package dsentric.codecs
 
 import dsentric._
 import dsentric.contracts.ContractFor
-import dsentric.failure.{DCodecTypeFailure, StructuralFailure}
+import dsentric.failure.{DCodecTypeFailure, Failure, StructuralFailure}
 import dsentric.schema._
 
 sealed trait DCodec[T] {
@@ -16,7 +16,7 @@ sealed trait DCodec[T] {
    */
   def verify(a:Raw):List[StructuralFailure]
 
-  def verify(currentValue:Raw, deltaValue:Raw):List[StructuralFailure]
+  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce
 
   /**
    * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
@@ -61,9 +61,19 @@ trait DValueCodec[T] extends DCodec[T] {
         Found(t)
     }
 
-  def verify(deltaValue:Raw, currentValue:Raw):List[StructuralFailure] =
-    if (deltaNull(deltaValue)) Nil
-    else verify(deltaValue)
+  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce =
+    if (deltaNull(deltaValue)){
+      if (currentValue.isEmpty || currentValue.contains(deltaValue))
+        DeltaEmpty
+      else
+        DeltaReduced(deltaValue)
+    }
+    else verify(deltaValue) match {
+      case head :: tail =>
+        DeltaFailed(head, tail)
+      case _ =>
+        DeltaReduced(deltaValue)
+    }
 
 }
 
@@ -107,9 +117,19 @@ trait DObjectCodec[T] extends DCodec[T] {
 trait DArrayCodec[T] extends DCodec[T] {
   override def apply(t:T):RawArray
 
-  def verify(currentValue: Raw, deltaValue: Raw): List[StructuralFailure] =
-    if (deltaNull(deltaValue)) Nil
-    else verify(deltaValue)
+  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce =
+    if (deltaNull(deltaValue)){
+      if (currentValue.isEmpty || currentValue.contains(deltaValue))
+        DeltaEmpty
+      else
+        DeltaReduced(deltaValue)
+    }
+    else verify(deltaValue) match {
+      case head :: tail =>
+        DeltaFailed(head, tail)
+      case _ =>
+        DeltaReduced(deltaValue)
+    }
 }
 
 trait DMapCodec[K, T] extends DObjectCodec[Map[K, T]] {
@@ -153,7 +173,19 @@ object DataCodec extends DCodec[Data]{
    */
   def verify(a: Raw): List[StructuralFailure] = Nil
 
-  def verify(currentValue: Raw, deltaValue: Raw): List[StructuralFailure] = Nil
+  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce =
+    (deltaValue -> currentValue) match {
+      case (deltaObject: RawObject@unchecked, Some(currentObject:RawObject@unchecked)) =>
+        DeltaReduced(RawObjectOps.rightDifferenceReduceMap(currentObject, deltaObject))
+      case (deltaObject: RawObject@unchecked, _) =>
+        DeltaReduced(RawObjectOps.reduceMap(deltaObject))
+      case (d, Some(v)) if d == v =>
+        DeltaEmpty
+      case (DNull, None) =>
+        DeltaEmpty
+      case (d, _) =>
+        DeltaReduced(d)
+    }
 
   /**
    * Standard type failure check, override for targeted behaviour, like NotFound if wrong type

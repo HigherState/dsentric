@@ -207,3 +207,6 @@ traversal -
 get -
     extract the value, return any type or other structural failures
 
+Delta
+    - if an expectd property is empty, delta is Not required to fix it.  
+      Delta does not need to repair, just cannot make things worse

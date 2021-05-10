@@ -1,10 +1,9 @@
 package dsentric.operators
 
 import dsentric.codecs.DCodec
-import dsentric.{DNull, DObject, Path, Raw}
+import dsentric.{DObject, Path, Raw, RawObjectOps}
 import dsentric.contracts.ContractFor
-import dsentric.failure.{ExpectedFailure, ImmutableFailure, MaskFailure, NumericalFailure, ReservedFailure, ValidationFailures, WriteOnceFailure}
-
+import dsentric.failure.{ExpectedFailure, ImmutableFailure, MaskFailure, ReservedFailure, ValidationFailures, WriteOnceFailure}
 
 trait StandardOperators {
   //Shouldnt be used in an And or Or validator
@@ -14,29 +13,23 @@ trait StandardOperators {
     new Constraint[Option[Nothing]] {
 
       def verifyDelta[S >: Option[Nothing], D <: DObject](
-                                                           contract: ContractFor[D],
-                                                           path: Path,
-                                                           currentState: Option[S],
-                                                           finalState: Option[S]): ValidationFailures =
+                                                           contract:ContractFor[D],
+                                                           path:Path,
+                                                           delta:Raw,
+                                                           currentState: Option[Raw]): ValidationFailures =
         ValidationFailures(ReservedFailure(contract, path))
-    }
-
-  val required: Constraint[Nothing] =
-    new Constraint[Nothing] {
-
-      def verifyDelta[S >: Nothing, D <: DObject](contract: ContractFor[D], path: Path, currentState: Option[S], finalState: Option[S]): ValidationFailures =
-        if (finalState.isEmpty)
-          ValidationFailures(ExpectedFailure(contract, path))
-        else
-          ValidationFailures.empty
-
     }
 
   val immutable: Constraint[Nothing] =
     new Constraint[Nothing] {
 
-      def verifyDelta[S >: Nothing, D <: DObject](contract: ContractFor[D], path: Path, currentState: Option[S], finalState: Option[S]): ValidationFailures =
-        if (currentState.exists(s => !finalState.contains(s)))
+      def verifyDelta[S >: Nothing, D <: DObject](contract:ContractFor[D],
+                                                  path:Path,
+                                                  delta:Raw,
+                                                  currentState: Option[Raw]): ValidationFailures =
+        if (currentState.exists { s =>
+          RawObjectOps.rightReduceConcatMap()
+        })
           ValidationFailures(ImmutableFailure(contract, path))
         else
           ValidationFailures.empty
