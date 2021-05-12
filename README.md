@@ -204,9 +204,18 @@ traversal -
     its possible to get a default value for an expected object that is not present
     As the Expected object will return an empty object in the traversal if its not found
 
+    Traversal paths go through both the contract and the codecs, as codecs can reference contracts.
+
+reduce -
+    Removes extraneous values.
+    This would remove empty objects
+    Would clear out null values
+    If a codec returns NotFound on raw data
+
 get -
     extract the value, return any type or other structural failures
 
 Delta
-    - if an expectd property is empty, delta is Not required to fix it.  
+    - if an expected property is empty, delta is Not required to fix it.  
       Delta does not need to repair, just cannot make things worse
+    - If delta value is sent, but is the same as current value, but current value is invalid, it will fail validation.

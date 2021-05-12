@@ -95,13 +95,14 @@ object Available {
  * Reducing a delta removes any redundancy in the delta object
  * This can include removing null values which drop no value, or values which correspond to current values.
  */
-sealed trait DeltaReduce
+sealed trait DeltaReduce[+R]
 
-final case class DeltaFailed(head:Failure, tail:List[Failure] = Nil) extends DeltaReduce
-final case class DeltaReduced(delta:Raw) extends DeltaReduce
-case object DeltaEmpty extends DeltaReduce
+final case class DeltaFailed(head:Failure, tail:List[Failure] = Nil) extends DeltaReduce[Nothing]
+final case class DeltaReduced[R](delta:R) extends DeltaReduce[R]
+case object DeltaEmpty extends DeltaReduce[Nothing]
+case object DeltaRemove extends DeltaReduce[Nothing]
 
 object DeltaReduce {
-  def apply[Raw](value:Option[Raw]):DeltaReduce =
-    value.fold[DeltaReduce](DeltaEmpty)(DeltaReduced(_))
+  def apply[R](value:Option[R]):DeltaReduce[R] =
+    value.fold[DeltaReduce[R]](DeltaEmpty)(DeltaReduced(_))
 }

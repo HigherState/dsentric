@@ -4,7 +4,7 @@ import dsentric.{DObject, Path, Raw}
 import dsentric.contracts.ContractFor
 import dsentric.failure.{ReservedFailure, ValidationFailures}
 
-object Internal extends Constraint[Option[Nothing]] with Sanitizer[Option[Nothing]]{
+object Internal extends DeltaConstraint[Option[Nothing]] with Sanitizer[Option[Nothing]]{
 
   def verifyDelta[S >: Option[Nothing], D <: DObject](
                                                        contract: ContractFor[D],

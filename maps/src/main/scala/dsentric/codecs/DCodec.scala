@@ -2,7 +2,7 @@ package dsentric.codecs
 
 import dsentric._
 import dsentric.contracts.ContractFor
-import dsentric.failure.{DCodecTypeFailure, Failure, StructuralFailure}
+import dsentric.failure.{DCodecTypeFailure,StructuralFailure}
 import dsentric.schema._
 
 sealed trait DCodec[T] {
@@ -16,7 +16,9 @@ sealed trait DCodec[T] {
    */
   def verify(a:Raw):List[StructuralFailure]
 
-  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce
+  def verifyAndReduce(value:Raw):Option[Raw]
+
+  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[Raw]
 
   /**
    * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
@@ -48,6 +50,9 @@ trait DValueCodec[T] extends DCodec[T] {
         Nil
     }
 
+  def verifyAndReduceDelta(value:Raw):Option[Raw] =
+    deltaValue
+
   /**
    * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
    * @param a
@@ -61,12 +66,12 @@ trait DValueCodec[T] extends DCodec[T] {
         Found(t)
     }
 
-  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce =
+  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[Raw] =
     if (deltaNull(deltaValue)){
-      if (currentValue.isEmpty || currentValue.contains(deltaValue))
+      if (currentValue.isEmpty)
         DeltaEmpty
       else
-        DeltaReduced(deltaValue)
+        DeltaRemove
     }
     else verify(deltaValue) match {
       case head :: tail =>
@@ -106,6 +111,8 @@ trait DObjectCodec[T] extends DCodec[T] {
       case _ =>
         Failed(DCodecTypeFailure(this, a))
     }
+
+  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[RawObject]
 }
 
 /**
@@ -117,18 +124,18 @@ trait DObjectCodec[T] extends DCodec[T] {
 trait DArrayCodec[T] extends DCodec[T] {
   override def apply(t:T):RawArray
 
-  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce =
+  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[RawArray] =
     if (deltaNull(deltaValue)){
-      if (currentValue.isEmpty || currentValue.contains(deltaValue))
+      if (currentValue.isEmpty)
         DeltaEmpty
       else
-        DeltaReduced(deltaValue)
+        DeltaRemove
     }
     else verify(deltaValue) match {
       case head :: tail =>
         DeltaFailed(head, tail)
       case _ =>
-        DeltaReduced(deltaValue)
+        DeltaReduced(deltaValue.asInstanceOf[RawArray]) //Temp hack as verify cant succeed otherwise
     }
 }
 
@@ -173,7 +180,7 @@ object DataCodec extends DCodec[Data]{
    */
   def verify(a: Raw): List[StructuralFailure] = Nil
 
-  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce =
+  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[Raw] =
     (deltaValue -> currentValue) match {
       case (deltaObject: RawObject@unchecked, Some(currentObject:RawObject@unchecked)) =>
         DeltaReduced(RawObjectOps.rightDifferenceReduceMap(currentObject, deltaObject))
@@ -183,6 +190,8 @@ object DataCodec extends DCodec[Data]{
         DeltaEmpty
       case (DNull, None) =>
         DeltaEmpty
+      case (DNull, _) =>
+        DeltaRemove
       case (d, _) =>
         DeltaReduced(d)
     }

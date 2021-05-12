@@ -1,5 +1,6 @@
 package dsentric.contracts
 
+import cats.data.NonEmptyList
 import dsentric.codecs.DCodec
 import dsentric.{RawObject, _}
 import dsentric.failure._
@@ -33,7 +34,22 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    */
   private[contracts] def __verifyTraversal(obj:RawObject):List[StructuralFailure]
 
-  private[contracts] def __verifyTraversal(currentValue:RawObject, deltaValue:RawObject):List[StructuralFailure]
+  /**
+   * Verifies the direct property against the object.
+   * Will remove from object if Not Found or Null
+   * Empty objects for Object structures will also get removed.
+   * @param obj
+   * @return
+   */
+  private[contracts] def __verifyReduceTraversal(obj: RawObject):Either[NonEmptyList[StructuralFailure], RawObject]
+  /**
+   * Verifies the property against the delta property value.
+   * Is not responsible for traversal.
+   * @param deltaValue
+   * @param currentValue
+   * @return
+   */
+  private[contracts] def __verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[Raw]
 
   private[contracts] def __set(obj:D, value:T):D =
     obj.internalWrap(PathLensOps.set(obj.value, _path, _codec(value))).asInstanceOf[D]
@@ -55,13 +71,11 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends PropertyLens[D, T]
       case Failed(f, tail) => f :: tail
     }
 
-  private[contracts] def __verifyTraversal(currentValue: RawObject, deltaValue: RawObject): List[Failure] =
-    deltaValue.get(_key).fold[List[Failure]](Nil){
-      case DNull =>
-        if (currentValue.contains(_key)) List(RequiredFailure(_root, _path))
-        else Nil
-      case propertyDelta =>
-        _codec.verifyAndReduceDelta(propertyDelta, currentValue.get(_key))
+  private[contracts] def __verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[Raw] =
+    _codec.verifyAndReduceDelta(deltaValue, currentValue) match {
+      case DeltaRemove =>
+        DeltaFailed(RequiredFailure(_root, _path))
+      case d => d
     }
 
   /**
@@ -154,6 +168,9 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends PropertyLens[D, T] wi
       case Failed(f, tail) => f :: tail
       case _ => Nil
     }
+
+  private[contracts] def __verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[Raw] =
+    _codec.verifyAndReduceDelta(deltaValue, currentValue)
 
   /**
    * Verifies the Type of the value for the Property if it exists in the object.
@@ -335,6 +352,9 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends PropertyLens[D, T] 
       case Failed(f, tail) => f :: tail
       case _ => Nil
     }
+
+  private[contracts] def __verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[Raw] =
+    _codec.verifyAndReduceDelta(deltaValue, currentValue)
 
   /**
    * Gets value for the property if found in passed object.

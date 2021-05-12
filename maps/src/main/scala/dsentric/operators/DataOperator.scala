@@ -26,7 +26,7 @@ trait ContextTransform[C, +T] extends DataOperator[T] {
   def transform[S >: T](context:C, value:Option[S]):Option[S]
 }
 
-trait Constraint[+T] extends DataOperator[T] {
+trait DeltaConstraint[+T] extends DataOperator[T] {
   def verifyDelta[S >: T, D <: DObject](
                                  contract:ContractFor[D],
                                  path:Path,

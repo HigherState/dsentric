@@ -11,14 +11,6 @@ private[dsentric] sealed trait ObjectLens[D <: DObject]
   def _codec: DObjectCodec[DObject]
 
   /**
-   * Verifies the direct property against the object.
-   * Will remove from object if empty
-   * @param obj
-   * @return
-   */
-  private[contracts] def __verifyReduce(obj: RawObject):Either[NonEmptyList[StructuralFailure], RawObject]
-
-  /**
    * Apply object contract to modify the object
    * @param f
    * @return
@@ -111,10 +103,6 @@ private[dsentric] trait ExpectedObjectLens[D <: DObject] extends ObjectLens[D]{
     }
 
 
-  private[contracts] def __verifyTraversal(currentValue: RawObject, deltaValue: RawObject): List[Failure] = ???
-
-
-
   private[contracts] def __verifyReduce(obj: RawObject): Either[NonEmptyList[StructuralFailure], RawObject] =
     TraversalOps.propertyValue(obj, this) match {
       case NotFound =>
@@ -131,6 +119,35 @@ private[dsentric] trait ExpectedObjectLens[D <: DObject] extends ObjectLens[D]{
             else if (propertyObject.isEmpty) obj - _key
             else obj + (_key -> propertyObject)
           }
+    }
+
+
+  /**
+   * Verifies the property against the delta property value.
+   * Is not responsible for traversal.
+   *
+   * @param deltaValue
+   * @param currentValue
+   * @return
+   */
+  private[contracts] def __verifyAndReduceDelta(deltaValue: Raw, currentValue: Option[Raw]): DeltaReduce[RawObject] =
+    _codec.verifyAndReduceDelta(deltaValue, currentValue) -> currentValue match {
+      case (DeltaRemove, _) =>
+        ObjectLens.propertyVerifier(this, Map.empty) match {
+          case Nil => DeltaRemove
+          case head :: tail => DeltaFailed(head, tail)
+        }
+      case (DeltaReduced(r), Some(c:RawObject)) =>
+
+      case (DeltaReduced(r), _) =>
+        ObjectLens.propertyVerifier(this, r) match {
+          case head :: tail =>
+            DeltaFailed(head, tail)
+          case Nil =>
+            DeltaReduced(r)
+        }
+      case (d, _) =>
+        d
     }
 
   private[dsentric] def __get(obj: D): Traversed[DObject] =
@@ -212,6 +229,30 @@ private[dsentric] trait MaybeObjectLens[D <: DObject] extends ObjectLens[D] {
           }
     }
 
+  /**
+   * Verifies the property against the delta property value.
+   * Is not responsible for traversal.
+   *
+   * @param deltaValue
+   * @param currentValue
+   * @return
+   */
+  private[contracts] def __verifyAndReduceDelta(deltaValue: Raw, currentValue: Option[Raw]): DeltaReduce[RawObject] =
+    _codec.verifyAndReduceDelta(deltaValue, currentValue) -> currentValue match {
+
+      case (DeltaReduced(r), Some(c:RawObject)) =>
+
+      case (DeltaReduced(r), _) =>
+        ObjectLens.propertyVerifier(this, r) match {
+          case head :: tail =>
+            DeltaFailed(head, tail)
+          case Nil =>
+            DeltaReduced(r)
+        }
+      case (d, _) =>
+        d
+    }
+
   private[dsentric] def __get(obj: D): Traversed[DObject] =
     TraversalOps.traverse(obj.value, this)
       .flatMap { v =>
@@ -259,17 +300,11 @@ private[dsentric] object ObjectLens {
         p.__verifyTraversal(obj)
     }.toList ++ additionalPropertyVerifier(baseContract, obj)
 
-  def propertyVerifier[D <: DObject](
-                                      baseContract:BaseContract[D],
-                                      currentValue:RawObject,
-                                      deltaValue:RawObject):List[Failure] =
-    baseContract._fields.flatMap{
-      case (_, p:Property[D, Any]@unchecked) =>
-        p.__verifyTraversal(currentValue, deltaValue)
-    }.toList ++ additionalPropertyVerifier(baseContract, currentValue, deltaValue)
 
   /**
-   * Reduces empty property fields
+   * Reduces empty property fields, removing DCodec values that return NotFound
+   * Ultimately clearing out empty Objects as well
+   * Will also remove any nulls
    * */
   def verifyReduce[D <: DObject](baseContract:BaseContract[D], obj:RawObject):Either[NonEmptyList[StructuralFailure], RawObject] = {
 

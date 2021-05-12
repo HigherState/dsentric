@@ -9,8 +9,8 @@ trait StandardOperators {
   //Shouldnt be used in an And or Or validator
   val internal: Internal.type = Internal
 
-  val reserved: Constraint[Option[Nothing]] =
-    new Constraint[Option[Nothing]] {
+  val reserved: DeltaConstraint[Option[Nothing]] =
+    new DeltaConstraint[Option[Nothing]] {
 
       def verifyDelta[S >: Option[Nothing], D <: DObject](
                                                            contract:ContractFor[D],
@@ -20,8 +20,8 @@ trait StandardOperators {
         ValidationFailures(ReservedFailure(contract, path))
     }
 
-  val immutable: Constraint[Nothing] =
-    new Constraint[Nothing] {
+  val immutable: DeltaConstraint[Nothing] =
+    new DeltaConstraint[Nothing] {
 
       def verifyDelta[S >: Nothing, D <: DObject](contract:ContractFor[D],
                                                   path:Path,
@@ -35,8 +35,8 @@ trait StandardOperators {
           ValidationFailures.empty
     }
 
-  val writeOnce: Constraint[Option[Nothing]] =
-    new Constraint[Nothing] {
+  val writeOnce: DeltaConstraint[Option[Nothing]] =
+    new DeltaConstraint[Nothing] {
 
       def verifyDelta[S >: Nothing, D <: DObject](contract: ContractFor[D], path: Path, currentState: Option[S], finalState: Option[S]): ValidationFailures =
         if (currentState.exists(s => !finalState.contains(s)))
@@ -66,8 +66,8 @@ trait StandardOperators {
 //
 //    }
 
-  def mask[T](mask:T, maskIfEmpty:Boolean = false)(implicit D:DCodec[T]):Constraint[Optionable[Nothing]] with Sanitizer[Optionable[Nothing]] =
-    new Constraint[Optionable[Nothing]] with Sanitizer[Optionable[Nothing]] {
+  def mask[T](mask:T, maskIfEmpty:Boolean = false)(implicit D:DCodec[T]):DeltaConstraint[Optionable[Nothing]] with Sanitizer[Optionable[Nothing]] =
+    new DeltaConstraint[Optionable[Nothing]] with Sanitizer[Optionable[Nothing]] {
       private val dataMask:Raw = D(mask)
 
       def sanitize(value: Option[Raw]): Option[Raw] =
