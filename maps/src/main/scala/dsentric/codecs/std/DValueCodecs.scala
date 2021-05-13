@@ -1,9 +1,8 @@
 package dsentric.codecs.std
 
-import dsentric.{DNull, Data, DeltaFailed, DeltaReduce, NumericPartialFunctions, Path, Raw}
-import dsentric.codecs.{DCodec, DStringCodec, DValueCodec, DataCodec, DirectCodec, MatchCodec}
-import dsentric.failure.DCodecDeltaNotSupportedFailure
-import dsentric.schema.{BooleanDefinition, IntegerDefinition, NullDefinition, NumberDefinition, StringDefinition, TypeDefinition}
+import dsentric.{DArray, DNull, DObject, DObjectInst, DProjection, DQuery, Data, NumericPartialFunctions, Path, Raw, RawArray, RawObject, RawValue}
+import dsentric.codecs.{DArrayCodec, DCodec, DStringCodec, DValueCodec, DataCodec, DirectCodec, MatchCodec}
+import dsentric.schema.{ArrayDefinition, BooleanDefinition, IntegerDefinition, NullDefinition, NumberDefinition, ObjectDefinition, StringDefinition, TypeDefinition}
 
 trait DValueCodecs {
   implicit val stringCodec:DStringCodec[String] with DirectCodec[String] =
@@ -88,14 +87,100 @@ trait DValueCodecs {
         NumberDefinition.empty
     }
 
+  implicit def setCodec[T](implicit D:DStringCodec[T]):DValueCodec[Set[T]] =
+    new DValueCodec[Set[T]] {
+      def apply(t: Set[T]): RawObject =
+        t.map(D.apply(_) -> 1).toMap
+
+      def unapply(a: Raw): Option[Set[T]] =
+        a match {
+          case obj:RawObject@unchecked =>
+            obj.foldLeft(Option(Set.empty[T])){
+              case (Some(a), (key, 1)) =>
+                D.unapply(key).map(a + _)
+              case _ =>
+                None
+            }
+          case _ =>
+            None
+        }
+
+      def typeDefinition: TypeDefinition = ???
+    }
+
+  implicit val dObjectCodec:DValueCodec[DObject] =
+    new DValueCodec[DObject]{
+
+      def apply(t: DObject): RawValue =
+        t.value
+
+      def unapply(a: Raw): Option[DObject] =
+        a match {
+          case r:RawObject =>
+            Some(new DObjectInst(r))
+          case _ =>
+            None
+        }
+      def typeDefinition: TypeDefinition =
+        ObjectDefinition.empty
+
+    }
+
+  implicit val dArrayCodec:DArrayCodec[DArray] =
+    new DArrayCodec[DArray] {
+      override def apply(t: DArray): RawArray = t.value
+
+      def unapply(a: Raw): Option[DArray] =
+        a match {
+          case raw: RawArray@unchecked =>
+            Some(new DArray(raw))
+          case _ =>
+            None
+        }
+
+      def typeDefinition: TypeDefinition =
+        ArrayDefinition(items = Vector(TypeDefinition.anyDefinition))
+    }
+
+  implicit val dQueryCodec:DValueCodec[DQuery] =
+    new DValueCodec[DQuery]{
+
+      def apply(t: DQuery): RawValue =
+        t.value
+
+      def unapply(a: Raw): Option[DQuery] =
+        a match {
+          case r:RawObject =>
+            Some(new DQuery(r))
+          case _ =>
+            None
+        }
+      def typeDefinition: TypeDefinition =
+        ObjectDefinition.empty
+    }
+
+  implicit val dProjectionCodec:DValueCodec[DProjection] =
+    new DValueCodec[DProjection]{
+
+      def apply(t: DProjection): RawValue =
+        t.value
+
+      def unapply(a: Raw): Option[DProjection] =
+        a match {
+          case r:RawObject =>
+            Some(new DProjection(r))
+          case _ =>
+            None
+        }
+      def typeDefinition: TypeDefinition =
+        ObjectDefinition.empty
+    }
+
   implicit val dNullCodec:DCodec[DNull.type] =
     new MatchCodec[DNull.type] {
 
       protected def isMatch(a: Raw): Boolean =
         a.isInstanceOf[DNull.type]
-
-      override def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce =
-        DeltaFailed(DCodecDeltaNotSupportedFailure(this, Path.empty))
 
       def typeDefinition:TypeDefinition =
         NullDefinition

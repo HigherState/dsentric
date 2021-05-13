@@ -1,8 +1,8 @@
 package dsentric.contracts
 
 import cats.data.NonEmptyList
-import dsentric.DObject
-import dsentric.failure.{StructuralFailure, ValidResult}
+import dsentric.{DObject, Delta}
+import dsentric.failure.{StructuralFailure, ValidResult, ValidStructural}
 
 trait ContractLens[D <: DObject] { this:ContractFor[D] =>
 
@@ -13,11 +13,26 @@ trait ContractLens[D <: DObject] { this:ContractFor[D] =>
    * @param obj
    * @return
    */
-  final def $get(obj:D):ValidResult[D] =
+  final def $get(obj:D, dropBadTypes:Boolean = false):ValidStructural[D] =
     ObjectLens.propertyVerifier(this, obj.value) match {
       case head :: tail => Left(NonEmptyList(head, tail))
       case Nil => Right(obj)
     }
+
+  /**
+   * Returns object against the contract, verifying the structural integrity of the object as well as
+   * removing empty Objects and Null values.
+   * @param obj
+   * @return
+   */
+  final def $reduce(obj:D, dropBadTypes:Boolean = false):ValidStructural[D] =
+    ObjectLens.propertyVerifier(this, obj.value) match {
+      case head :: tail => Left(NonEmptyList(head, tail))
+      case Nil => Right(obj)
+    }
+
+  final def $reduceDelta(obj:D, delta:Delta, dropBadTypes:Boolean = false):ValidResult[Delta] =
+    ???
 
 
   /**

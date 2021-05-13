@@ -34,46 +34,6 @@ final case class ExpectedFailure[D <: DObject](contract: ContractFor[D], path:Pa
   def message = "Expected value not found."
 }
 
-final case class DCodecTypeFailure[T](codec:DCodec[T], foundRaw:Raw, path:Path = Path.empty) extends StructuralFailure {
-  def message = s"Type '${codec.typeDefinition.name}' was expected, type ${foundRaw.getClass.getSimpleName} was found."
-
-  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  IncorrectTypeFailure[G, T] =
-    IncorrectTypeFailure(rootContract, rootPath ++ path, codec, foundRaw)
-
-  def rebase(rootPath: Path):  DCodecTypeFailure[T] =
-    this.copy(path = rootPath ++ path)
-}
-
-final case class DCodecMissingElementFailure[T](codec:DCodec[T], path:Path) extends StructuralFailure {
-  def message = s"Type '${codec.typeDefinition.name}' was expected, nothing was found."
-
-  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  MissingElementFailure[G, T] =
-    MissingElementFailure(rootContract, codec, rootPath ++ path)
-
-  def rebase(rootPath: Path): DCodecMissingElementFailure[T] =
-    this.copy(path = rootPath ++ path)
-}
-
-final case class DCodecUnexpectedValueFailure[T](codec:DCodec[T], path:Path, expectedValue:Raw, unexpectedValue:Raw) extends StructuralFailure {
-  def message = s"Type '${codec.typeDefinition.name}' expected value $expectedValue value, but $unexpectedValue was found."
-
-  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): UnexpectedValueFailure[G, T] =
-    UnexpectedValueFailure(rootContract, codec, expectedValue, unexpectedValue, rootPath ++ path)
-
-  def rebase(rootPath: Path): DCodecUnexpectedValueFailure[T] =
-    this.copy(path = rootPath ++ path)
-}
-
-final case class DCodecDeltaNotSupportedFailure[T](codec:DCodec[T], path:Path) extends StructuralFailure {
-  def message = s"Type '${codec.typeDefinition.name}' does not support Delta operation."
-
-  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): DeltaNotSupportedFailure[G, T] =
-    DeltaNotSupportedFailure(rootContract, codec, rootPath ++ path)
-
-  def rebase(rootPath: Path): DCodecDeltaNotSupportedFailure[T] =
-    this.copy(path = rootPath ++ path)
-}
-
 final case class IncorrectTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T], foundRaw:Raw) extends TypeFailure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  IncorrectTypeFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
@@ -81,17 +41,17 @@ final case class IncorrectTypeFailure[D <: DObject, T](contract: ContractFor[D],
   def rebase(rootPath: Path):  IncorrectTypeFailure[D, T] =
     copy(path = rootPath ++ path)
 
-  def message = s"Type '${codec.typeDefinition.name} was expected, type ${foundRaw.getClass.getSimpleName} was found."
+  def message = s"Type '${codec.typeDefinition.name} was expected, $foundRaw was found."
 }
 
-final case class IncorrectKeyTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T]) extends TypeFailure {
+final case class IncorrectKeyTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T], foundRaw:String) extends TypeFailure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  IncorrectKeyTypeFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
 
   def rebase(rootPath: Path):  IncorrectKeyTypeFailure[D, T] =
     copy(path = rootPath ++ path)
 
-  def message = s"Type '${codec.typeDefinition.name} was expected for additional properties key."
+  def message = s"Type '${codec.typeDefinition.name} was expected for additional properties key, $foundRaw was found."
 }
 
 final case class ClosedContractFailure[D <: DObject](contract: ContractFor[D], path:Path, field:String) extends StructuralFailure {

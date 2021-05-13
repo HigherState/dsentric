@@ -195,7 +195,7 @@ Terminology
 
 unapply - 
     extract the value, type match return None if invalid type.
-    If Contract match, also return None if invalid type
+    If Contract match, also return None if contract is not valid.
 
 traversal -
     We dont need to validate contracts in the traversal path, 

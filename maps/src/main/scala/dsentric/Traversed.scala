@@ -94,11 +94,13 @@ object Available {
  * Algebra for validating and reducing Delta
  * Reducing a delta removes any redundancy in the delta object
  * This can include removing null values which drop no value, or values which correspond to current values.
+ * If the delta causes an object to become empty, we capture that in DeltaRemoving
  */
 sealed trait DeltaReduce[+R]
 
 final case class DeltaFailed(head:Failure, tail:List[Failure] = Nil) extends DeltaReduce[Nothing]
 final case class DeltaReduced[R](delta:R) extends DeltaReduce[R]
+final case class DeltaRemoving(delta:RawObject) extends DeltaReduce[RawObject]
 case object DeltaEmpty extends DeltaReduce[Nothing]
 case object DeltaRemove extends DeltaReduce[Nothing]
 

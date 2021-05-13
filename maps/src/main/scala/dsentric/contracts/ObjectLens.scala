@@ -2,13 +2,13 @@ package dsentric.contracts
 
 import dsentric._
 import cats.data._
-import dsentric.codecs.DObjectCodec
-import dsentric.failure.{ClosedContractFailure, DCodecTypeFailure, Failure, IncorrectKeyTypeFailure, StructuralFailure, ValidResult}
+import dsentric.codecs.DCodec
+import dsentric.failure.{ClosedContractFailure, DCodecTypeFailure, Failure, StructuralFailure, ValidResult}
 
 private[dsentric] sealed trait ObjectLens[D <: DObject]
   extends BaseContract[D] with PropertyLens[D, DObject]{
 
-  def _codec: DObjectCodec[DObject]
+  def _codec: DCodec[DObject]
 
   /**
    * Apply object contract to modify the object

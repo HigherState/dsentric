@@ -1,31 +1,28 @@
 package dsentric.codecs
 
 import dsentric._
-import dsentric.contracts.ContractFor
-import dsentric.failure.{DCodecTypeFailure,StructuralFailure}
+import dsentric.contracts.{Contract, ContractFor}
+import dsentric.failure.StructuralFailure
 import dsentric.schema._
+
+import scala.collection.immutable.VectorBuilder
+import scala.collection.mutable
 
 sealed trait DCodec[T] {
   def apply(t:T):Raw
   def unapply(a:Raw):Option[T]
 
-  /**
-   * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
-   * @param a
-   * @return
-   */
-  def verify(a:Raw):List[StructuralFailure]
-
-  def verifyAndReduce(value:Raw):Option[Raw]
-
-  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[Raw]
-
-  /**
-   * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
-   * @param a
-   * @return
-   */
-  def get(a:Raw):Available[T]
+//  /**
+//   * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
+//   * @param a
+//   * @return
+//   */
+//  def verify(a:Raw):List[StructuralFailure]
+//
+//  def verifyAndReduce(value:Raw):Option[Raw]
+//
+//  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[Raw]
+//
 
   def typeDefinition:TypeDefinition
 
@@ -37,48 +34,35 @@ sealed trait DCodec[T] {
 trait DValueCodec[T] extends DCodec[T] {
   override def apply(t:T):RawValue
 
-  /**
-   * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
-   * @param a
-   * @return
-   */
-  def verify(a:Raw):List[StructuralFailure] =
-    unapply(a) match {
-      case None =>
-        List(DCodecTypeFailure(this, a))
-      case _ =>
-        Nil
-    }
+//  /**
+//   * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
+//   * @param a
+//   * @return
+//   */
+//  def verify(a:Raw):List[StructuralFailure] =
+//    unapply(a) match {
+//      case None =>
+//        List(DCodecTypeFailure(this, a))
+//      case _ =>
+//        Nil
+//    }
+//
+//  def verifyAndReduceDelta(value:Raw):Option[Raw] =
+//    deltaValue
 
-  def verifyAndReduceDelta(value:Raw):Option[Raw] =
-    deltaValue
-
-  /**
-   * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
-   * @param a
-   * @return
-   */
-  def get(a:Raw):Available[T] =
-    unapply(a) match {
-      case None =>
-        Failed(DCodecTypeFailure(this, a))
-      case Some(t) =>
-        Found(t)
-    }
-
-  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[Raw] =
-    if (deltaNull(deltaValue)){
-      if (currentValue.isEmpty)
-        DeltaEmpty
-      else
-        DeltaRemove
-    }
-    else verify(deltaValue) match {
-      case head :: tail =>
-        DeltaFailed(head, tail)
-      case _ =>
-        DeltaReduced(deltaValue)
-    }
+//  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[Raw] =
+//    if (deltaNull(deltaValue)){
+//      if (currentValue.isEmpty)
+//        DeltaEmpty
+//      else
+//        DeltaRemove
+//    }
+//    else verify(deltaValue) match {
+//      case head :: tail =>
+//        DeltaFailed(head, tail)
+//      case _ =>
+//        DeltaReduced(deltaValue)
+//    }
 
 }
 
@@ -98,65 +82,87 @@ trait DStringCodec[T] extends DValueCodec[T] {
   def typeDefinition:StringDefinition
 }
 
-trait DObjectCodec[T] extends DCodec[T] {
 
-  override def apply(t:T):RawObject
-
-  // Allows us to support NotFound if wrong type behaviours
-  // Should not validate the object in entirety
-  def getForTraversal(a: Raw): Available[RawObject] =
-    a match {
-      case m:RawObject@unchecked =>
-        Found(m)
-      case _ =>
-        Failed(DCodecTypeFailure(this, a))
-    }
-
-  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[RawObject]
-}
-
-/**
- * Default definition for values stored as Arrays, we
- * dont use HigherKinded type as S may be any custom type
- * @tparam S
- * @tparam T
- */
-trait DArrayCodec[T] extends DCodec[T] {
-  override def apply(t:T):RawArray
-
-  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[RawArray] =
-    if (deltaNull(deltaValue)){
-      if (currentValue.isEmpty)
-        DeltaEmpty
-      else
-        DeltaRemove
-    }
-    else verify(deltaValue) match {
-      case head :: tail =>
-        DeltaFailed(head, tail)
-      case _ =>
-        DeltaReduced(deltaValue.asInstanceOf[RawArray]) //Temp hack as verify cant succeed otherwise
-    }
-}
-
-trait DMapCodec[K, T] extends DObjectCodec[Map[K, T]] {
+trait DMapCodec[M, K, T] extends DCodec[M] {
 
   def keyCodec:DStringCodec[K]
   def valueCodec:DCodec[T]
+
+  def build(m:Map[K, T]):M
+
+  def extract(m:M):Map[K,T]
+
+  def apply(t: M): RawObject =
+    extract(t).map(p => keyCodec(p._1) -> valueCodec(p._2))
+
+  def unapply(a: Raw): Option[M] =
+    a match {
+      case s:RawObject@unchecked =>
+        s.map(p => keyCodec.unapply(p._1) -> valueCodec.unapply(p._2))
+          .foldLeft[Option[mutable.Builder[(K, T), Map[K, T]]]](Some(Map.newBuilder[K, T])){
+          case (Some(mb), (Some(k), Some(v))) =>
+            Some(mb.addOne(k -> v))
+          case _ =>
+            None
+        }.map(mb => build(mb.result()))
+      case _ =>
+        None
+    }
+
+  def typeDefinition: TypeDefinition = ???
 }
 
-trait DCollectionCodec[S, T] extends DArrayCodec[S] {
+trait DCollectionCodec[S, T] extends DCodec[S] {
   def valueCodec:DCodec[T]
+
+  def build(t:Vector[T]):S
+
+  def extract(s:S):Vector[T]
+
+  def apply(t: S): RawArray = {
+    valueCodec match {
+      case _:DirectCodec[T] =>
+        extract(t)
+      case _ =>
+        extract(t).map(valueCodec.apply)
+    }
+  }
+
+  def unapply(a: Raw): Option[S] =
+    a match {
+      case s:RawArray@unchecked =>
+        s.map(valueCodec.unapply).foldLeft[Option[VectorBuilder[T]]](Some(new VectorBuilder[T])){
+          case (Some(vb), Some(t)) => Some(vb += t)
+          case _ => None
+        }.map(vb => build(vb.result()))
+      case _ =>
+        None
+    }
+
+  def typeDefinition: TypeDefinition =
+    ArrayDefinition(items = Vector(valueCodec.typeDefinition))
 }
 
 
-trait DContractCodec[D <: DObject] extends DObjectCodec[D] {
-  def contract:ContractFor[D]
+case class DContractCodec(contract:Contract) extends DCodec[DObject] {
+
+  def unapply(a: Raw): Option[DObject] =
+    a match {
+      case m:RawObject@unchecked =>
+        contract.$get(new DObjectInst(m)).toOption
+      case _ =>
+        None
+    }
+
+  def apply(t: DObject): Raw =
+    t.value
+
+  def typeDefinition: TypeDefinition = ???
 }
 
-trait DCoproductCodec[T] extends DCodec[T]
+//trait DCoproductCodec[T <: HList] extends DCodec[T]
 
-object DataCodec extends DCodec[Data]{
+object DataCodec extends DValueCodec[Data]{
   def apply(t: Data): Raw =
     t.value
 
@@ -196,23 +202,6 @@ object DataCodec extends DCodec[Data]{
         DeltaReduced(d)
     }
 
-  /**
-   * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
-   *
-   * @param a
-   * @return
-   */
-  def get(a: Raw): Available[Data] =
-    a match {
-      case a:RawObject@unchecked =>
-        Found(new DObjectInst(a))
-      case v:RawArray@unchecked =>
-        Found(new DArray(v))
-      case DNull =>
-        Found(DNull)
-      case j =>
-        Found(new DValue(j))
-    }
 
   def typeDefinition: TypeDefinition =
     TypeDefinition.anyDefinition

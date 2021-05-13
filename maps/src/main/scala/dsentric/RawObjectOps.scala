@@ -72,6 +72,10 @@ trait RawObjectOps {
       else None
     }
 
+  /**
+   * For Deltas can strip out values that dont cause any change, possibility delta does nothing at all
+   * @return
+   */
   def rightDifferenceReduceMap:Function[(RawObject,RawObject),Option[RawObject]] = {
     case (s, d) if d == s =>
       None
