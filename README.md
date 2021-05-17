@@ -193,6 +193,10 @@ Maps are tricky, empty maps will reduce to nothing
 
 Terminology
 
+set - 
+    It is not the responsibility of Dsentric to verify the values being set, beyond standard property type
+    Setting an empty object will remove the value, assuming its type is valid.
+
 unapply - 
     extract the value, type match return None if invalid type.
     If Contract match, also return None if contract is not valid.

@@ -43,7 +43,7 @@ trait TraversalOps{
   private def traverseRaw[T](value:RawObject, base:BaseContractAux, ignoreBadTypes:Boolean):Traversed[RawObject] = {
     base match {
       case expected:ExpectedObjectProperty[base.AuxD]@unchecked =>
-        traverseRaw(value, expected._parent).flatMap { traversedObject =>
+        traverseRaw(value, expected._parent, ignoreBadTypes).flatMap { traversedObject =>
           traversedObject.get(expected._key) match {
             case Some(rawObject: RawObject@unchecked) =>
               Found(rawObject)
@@ -53,8 +53,8 @@ trait TraversalOps{
               Found(RawObject.empty)
           }
         }
-      case maybe:MaybeObjectLens[base.AuxD]@unchecked =>
-        traverseRaw(value, maybe._parent).flatMap { traversedObject =>
+      case maybe:MaybeObjectPropertyLens[base.AuxD]@unchecked =>
+        traverseRaw(value, maybe._parent, ignoreBadTypes).flatMap { traversedObject =>
           traversedObject.get(maybe._key) match {
             case Some(rawObject: RawObject@unchecked) =>
               Found(rawObject)

@@ -10,21 +10,15 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
   def _codec: DCodec[T]
   def _parent: BaseContract[D]
   def _root: ContractFor[D] = _parent._root
-  /**
-   * Does the object satisfy all the type and expectation constraints.
-   * Returns list of possible failures.
-   * @param obj
-   * @return
-   */
-  def $verify(obj:D):List[StructuralFailure]
 
   /**
    * Return the property value or failure
    * Can return Default value if provided value is empty or invalid and type behaviour is empty.
+   * Import to keep awareness of Traversed as path modifiers shouldnt fail if PathEmptyMaybe
    * @param obj
    * @return
    */
-  private[contracts] def __get(data:D, ignoreBadTypes:Boolean):Traversed[T]
+  private[contracts] def __get(data:D, dropBadTypes:Boolean):Traversed[T]
 
   /**
    * Verifies the direct property against the object.
@@ -33,10 +27,10 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    * @param obj
    * @return
    */
-  private[contracts] def __reduce(obj: RawObject, ignoreBadTypes:Boolean):Available[RawObject]
+  private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidStructural[RawObject]
 
 
-  private[contracts] def __reduceDelta(deltaObject:RawObject, currentValue:RawObject, ignoreBadTypes:Boolean):ValidResult[RawObject]
+  private[contracts] def __reduceDelta(deltaObject:RawObject, currentValue:RawObject, dropBadTypes:Boolean):ValidResult[RawObject]
 //  /**
 //   * Verifies the property against the delta property value.
 //   * Is not responsible for traversal.
@@ -46,9 +40,39 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
 //   */
 //  private[contracts] def __reduceDeltaTTrav(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[Raw]
 
-  private[contracts] def __set(obj:D, value:T):D =
-    obj.internalWrap(PathLensOps.set(obj.value, _path, _codec(value))).asInstanceOf[D]
+  private[contracts] def __set(obj:D, value:T):D = {
+    _codec(value) match {
+      case r:RawObject@unchecked if r.isEmpty =>
+        obj.internalWrap(PathLensOps.drop(obj.value, _path).getOrElse(Map.empty)).asInstanceOf[D]
+      case r =>
+        obj.internalWrap(PathLensOps.set(obj.value, _path, r)).asInstanceOf[D]
+    }
 
+  }
+
+  /**
+   * Does the object satisfy all the type and expectation constraints.
+   * Returns list of possible failures.
+   * @param obj
+   * @return
+   */
+  def $verify(obj:D):List[StructuralFailure] =
+    __get(obj, false) match {
+      case Failed(head, tail) =>
+        head :: tail
+      case _ =>
+        Nil
+    }
+
+  /**
+   * Sets or Replaces value for the Property.
+   * Will create object path to Property if objects dont exist.
+   * Function doesnt provided validation of the value being set.
+   * @param value
+   * @return
+   */
+  final def $set(value:T):PathSetter[D] =
+    ValueSetter(_path, _codec(value))
 }
 
 

@@ -1,10 +1,10 @@
 package dsentric
 
 import dsentric.contracts.{BaseAux, ContractFor}
-import dsentric.failure.{Failure, StructuralFailure, ValidResult}
+import dsentric.failure.{Failure, StructuralFailure, ValidResult, ValidStructural}
 
 sealed trait Traversed[+T] {
-  def toValidOption:ValidResult[Option[T]]
+  def toValidOption:ValidStructural[Option[T]]
 
   def rebase(base:BaseAux):Traversed[T]
   def rebase[G <: DObject](rootContract:ContractFor[G], rootPath:Path):Traversed[T]
@@ -22,7 +22,8 @@ sealed trait Available[+T] extends Traversed[T] {
 }
 
 case object PathEmptyMaybe extends Traversed[Nothing] {
-  def toValidOption: ValidResult[Option[Nothing]] = ValidResult.none
+  def toValidOption: ValidStructural[Option[Nothing]] =
+    ValidResult.none
 
   def rebase(baseContract:BaseAux): Traversed[Nothing] = this
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): Traversed[Nothing] = this
@@ -35,7 +36,8 @@ case object PathEmptyMaybe extends Traversed[Nothing] {
 }
 
 case object NotFound extends Available[Nothing] {
-  def toValidOption: ValidResult[Option[Nothing]] = ValidResult.none
+  def toValidOption: ValidStructural[Option[Nothing]] =
+    ValidResult.none
 
   def rebase(base:BaseAux): Available[Nothing] = this
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): Available[Nothing] = this
@@ -47,7 +49,8 @@ case object NotFound extends Available[Nothing] {
 }
 
 final case class Found[+T](value:T) extends Available[T] {
-  def toValidOption: ValidResult[Option[T]] = ValidResult.success((Some(value)))
+  def toValidOption: ValidStructural[Option[T]] =
+    ValidResult.success((Some(value)))
 
   def rebase(base:BaseAux): Found[T] = this
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): Found[T] = this
@@ -60,7 +63,8 @@ final case class Found[+T](value:T) extends Available[T] {
 }
 
 final case class Failed(failure: StructuralFailure, tail: List[StructuralFailure] = Nil) extends Available[Nothing] {
-  def toValidOption: ValidResult[Option[Nothing]] = ValidResult.failure(failure, tail:_*)
+  def toValidOption: ValidStructural[Option[Nothing]] =
+    ValidResult.failure(failure, tail)
 
   def rebase(base:BaseAux): Failed =
     rebase(base._root, base._path)

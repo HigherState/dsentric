@@ -74,7 +74,7 @@ class DefaultProperty[D <: DObject, T] private[contracts]
   extends Property[D, T] with DefaultLens[D, T]
 
 
-sealed trait ExpectedObjectProperty[D <: DObject] extends Property[D, DObject] with Expected with ExpectedObjectLens[D] with SubContractFor[D] {
+sealed trait ExpectedObjectProperty[D <: DObject] extends Property[D, DObject] with Expected with ExpectedObjectPropertyLens[D] with SubContractFor[D] {
 
   def _dataOperators:List[DataOperator[DObject]]
 
@@ -87,7 +87,7 @@ sealed trait ExpectedObjectProperty[D <: DObject] extends Property[D, DObject] w
 //  }
 
 }
-sealed trait MaybeObjectProperty[D <: DObject] extends Property[D, DObject] with MaybeObjectLens[D] with SubContractFor[D] {
+sealed trait MaybeObjectProperty[D <: DObject] extends Property[D, DObject] with MaybeObjectPropertyLens[D] with SubContractFor[D] {
   def _dataOperators:List[DataOperator[Option[DObject]]]
 }
 

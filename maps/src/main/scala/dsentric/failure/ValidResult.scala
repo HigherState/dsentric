@@ -5,10 +5,13 @@ import cats.data.{NonEmptyList, Validated}
 
 object ValidResult {
 
-  def failure[T](failure:Failure, additional:Failure*):ValidResult[T] =
-    Left(NonEmptyList(failure, additional.toList))
+  def failure[T](failure:StructuralFailure, additional:List[StructuralFailure] = Nil):ValidStructural[T] =
+    Left(NonEmptyList(failure, additional))
 
-  def success[T](t:T):ValidResult[T] =
+  def failure[T](failure:Failure, additional:List[Failure] = Nil):ValidResult[T] =
+    Left(NonEmptyList(failure, additional))
+
+  def success[T](t:T):Right[Nothing, T] =
     Right(t)
 
   def fromList(t:List[Failure]):ValidResult[Unit] =
@@ -19,9 +22,11 @@ object ValidResult {
         ValidResult.unit
     }
 
-  val none: ValidResult[None.type] = ValidResult.success(None)
+  val none: Right[Nothing, None.type] =
+    ValidResult.success(None)
 
-  val unit: ValidResult[Unit] = ValidResult.success(())
+  val unit: ValidResult[Unit] =
+    ValidResult.success(())
 
   def sequence2[S, T](s:ValidResult[S], t:ValidResult[T]):ValidResult[(S, T)] = {
     (s, t) match {

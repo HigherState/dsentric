@@ -3,7 +3,8 @@ package dsentric.contracts
 import cats.data.NonEmptyList
 import dsentric._
 import dsentric.codecs.{DCodec, DCollectionCodec, DContractCodec, DMapCodec, DValueCodec}
-import dsentric.failure.{ExpectedFailure, Failure, IncorrectKeyTypeFailure, IncorrectTypeFailure, MissingElementFailure, StructuralFailure, ValidResult}
+import dsentric.failure.{ExpectedFailure, Failure, IncorrectKeyTypeFailure, IncorrectTypeFailure, MissingElementFailure, StructuralFailure, ValidResult, ValidStructural}
+
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
@@ -11,44 +12,52 @@ sealed trait ValuePropertyLens[D <: DObject, T] extends PropertyLens[D, T]
 
 private[dsentric] trait ExpectedLens[D <: DObject, T] extends ValuePropertyLens[D, T] with ApplicativeLens[D, T] {
 
-  private def isIgnore2BadTypes(ignoreBadTypes:Boolean):BadTypes =
-    if (ignoreBadTypes) ToDropBadTypes
+  private def isIgnore2BadTypes(dropBadTypes:Boolean):BadTypes =
+    if (dropBadTypes) ToDropBadTypes
     else FailOnBadTypes
 
-  private[contracts] def __get(data:D, ignoreBadTypes:Boolean):Traversed[T] =
-    TraversalOps.traverse(data.value, this, ignoreBadTypes) match {
+  private[contracts] def __get(data:D, dropBadTypes:Boolean):Traversed[T] =
+    TraversalOps.traverse(data.value, this, dropBadTypes) match {
       case NotFound =>
         Failed(ExpectedFailure(this))
       case Found(raw) =>
-        ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(ignoreBadTypes))
-          .failNotFound(ExpectedFailure(this))
-    }
-
-  private[contracts] def __reduce(obj: RawObject, ignoreBadTypes:Boolean):Available[RawObject] =
-    obj.get(_key) match {
-      case None =>
-        Failed(ExpectedFailure(this))
-      case Some(raw) =>
-        ValuePropertyLensOps.reduce(this, raw, isIgnore2BadTypes(ignoreBadTypes)) match {
+        ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
           case NotFound =>
             Failed(ExpectedFailure(this))
+          case Found(t) =>
+            Found(t)
+        }
+      case f:Failed =>
+        f
+      case PathEmptyMaybe =>
+        PathEmptyMaybe
+    }
+
+  private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidStructural[RawObject] =
+    obj.get(_key) match {
+      case None =>
+        ValidResult.failure(ExpectedFailure(this))
+      case Some(raw) =>
+        ValuePropertyLensOps.reduce(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
+          case NotFound =>
+            ValidResult.failure(ExpectedFailure(this))
           case Found(reducedRaw) if reducedRaw != raw =>
-            Found(obj + (_key -> reducedRaw))
+            ValidResult.success(obj + (_key -> reducedRaw))
           case Found(_) =>
-            Found(obj)
-          case f:Failed =>
-            f
+            ValidResult.success(obj)
+          case Failed(head, tail) =>
+            ValidResult.failure(head, tail)
         }
     }
 
-  private[contracts] def __reduceDelta(deltaObject:RawObject, currentValue:RawObject, ignoreBadTypes:Boolean):ValidResult[RawObject] =
+  private[contracts] def __reduceDelta(deltaObject:RawObject, currentValue:RawObject, dropBadTypes:Boolean):ValidResult[RawObject] =
     deltaObject.get(_key) -> currentValue.get(_key) match {
       case (None, _) =>
         // We dont return failure here, even if currentValue doesnt have a representation for the property
         // Deltas dont need to repair, they just cant make things worse.
         Right(deltaObject)
       case (Some(raw), None) =>
-        ValuePropertyLensOps.reduce(this, raw, isIgnore2BadTypes(ignoreBadTypes)) match {
+        ValuePropertyLensOps.reduce(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
           case NotFound =>
             Left(NonEmptyList(ExpectedFailure(this), Nil))
           case Found(reducedRaw) if reducedRaw != raw =>
@@ -59,7 +68,7 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ValuePropertyLens[
             Left(NonEmptyList(head, tail))
         }
       case (Some(deltaRaw), Some(currentRaw)) =>
-        ValuePropertyLensOps.deltaReduce(this, deltaRaw, currentRaw, isIgnore2BadTypes(ignoreBadTypes)) match {
+        ValuePropertyLensOps.deltaReduce(this, deltaRaw, currentRaw, isIgnore2BadTypes(dropBadTypes)) match {
           case DeltaReduced(reducedRaw) =>
             Right(deltaObject + (_key -> reducedRaw))
           case DeltaEmpty =>
@@ -72,38 +81,14 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ValuePropertyLens[
     }
 
   /**
-   * Verifies the Type of the value for the Property and its existence.
-   * Returns failure if object not found, unless property has MaybeObject Ancestor
-   * TODO make performant
-   * @param obj
-   * @return
-   */
-  final def $verify(obj:D):List[StructuralFailure] =
-    __get(obj, false) match {
-      case Failed(head, tail) =>
-        head :: tail
-      case _ =>
-        Nil
-    }
-
-  /**
    * Returns object if found and of correct type
    * Returns ExpectedFailure if object not found, unless property has MaybeObject Property Ancestor
    * Returns None if there is a path with Maybes Object Properties that have no values
    * @param obj
    * @return
    */
-  final def $get(obj:D, ignoreBadTypes:Boolean = false):ValidResult[Option[T]] =
-    __get(obj, ignoreBadTypes).toValidOption
-
-  /**
-   * Sets or Replaces the value for the Property.
-   * Will create object path to Property if objects dont exist.
-   * @param value
-   * @return
-   */
-  final def $set(value:T):PathSetter[D] =
-    ValueSetter(_path, _codec(value))
+  final def $get(obj:D, dropBadTypes:Boolean = false):ValidStructural[Option[T]] =
+    __get(obj, dropBadTypes).toValidOption
 
   /**
    * Sets or Replaces value for the Property.
@@ -123,11 +108,11 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ValuePropertyLens[
    * @param f
    * @return
    */
-  final def $modify(f:T => T, ignoreBadTypes:Boolean = false):ValidPathSetter[D] =
-    ModifySetter(d => __get(d, ignoreBadTypes).toValidOption, f, __set)
+  final def $modify(f:T => T, dropBadTypes:Boolean = false):ValidPathSetter[D] =
+    ModifySetter(d => __get(d, dropBadTypes).toValidOption, f, __set)
 
-  final def $modifyWith(f:T => ValidResult[T], ignoreBadTypes:Boolean = false):ValidPathSetter[D] =
-    ModifyValidSetter(d => __get(d, ignoreBadTypes).toValidOption, f, __set)
+  final def $modifyWith(f:T => ValidResult[T], dropBadTypes:Boolean = false):ValidPathSetter[D] =
+    ModifyValidSetter(d => __get(d, dropBadTypes).toValidOption, f, __set)
 
   /**
    * Copying from an existing property, if that property is
@@ -138,8 +123,8 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ValuePropertyLens[
    * @param p
    * @return
    */
-  final def $copy(p:PropertyLens[D, T], ignoreBadTypes:Boolean = false):ValidPathSetter[D] =
-    ModifySetter(d => p.__get(d, ignoreBadTypes).toValidOption, identity[T], __set)
+  final def $copy(p:PropertyLens[D, T], dropBadTypes:Boolean = false):ValidPathSetter[D] =
+    ModifySetter(d => p.__get(d, dropBadTypes).toValidOption, identity[T], __set)
 
   //  final lazy val $delta:ExpectedDelta[D, T] =
   //    new ExpectedDelta(this)
@@ -156,40 +141,40 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ValuePropertyLens[
 
 private[dsentric] trait MaybeLens[D <: DObject, T] extends ValuePropertyLens[D, T] with ApplicativeLens[D, Option[T]] {
 
-  private def isIgnore2BadTypes(ignoreBadTypes:Boolean):BadTypes =
-    if (ignoreBadTypes) DropBadTypes
+  private def isIgnore2BadTypes(dropBadTypes:Boolean):BadTypes =
+    if (dropBadTypes) DropBadTypes
     else FailOnBadTypes
 
-  private[contracts] def __get(data:D, ignoreBadTypes:Boolean):Traversed[T] =
-    TraversalOps.traverse(data.value, this, ignoreBadTypes).flatMap{raw =>
-      ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(ignoreBadTypes))
+  private[contracts] def __get(data:D, dropBadTypes:Boolean):Traversed[T] =
+    TraversalOps.traverse(data.value, this, dropBadTypes).flatMap{raw =>
+      ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(dropBadTypes))
     }
 
-  private[contracts] def __reduce(obj: RawObject, ignoreBadTypes:Boolean):Available[RawObject] =
+  private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidStructural[RawObject] =
     obj.get(_key) match {
       case None =>
-        NotFound
+        Right(obj)
       case Some(raw) =>
-        ValuePropertyLensOps.reduce(this, raw, isIgnore2BadTypes(ignoreBadTypes)) match {
+        ValuePropertyLensOps.reduce(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
           case Found(reducedRaw) if reducedRaw != raw =>
-            Found(obj + (_key -> reducedRaw))
+            Right(obj + (_key -> reducedRaw))
           case Found(_) =>
-            Found(obj)
+            Right(obj)
           case NotFound =>
-            NotFound
-          case f:Failed =>
-            f
+            Right(obj - _key)
+          case Failed(head, tail) =>
+            Left(NonEmptyList(head, tail))
         }
     }
 
-  private[contracts] def __reduceDelta(deltaObject:RawObject, currentValue:RawObject, ignoreBadTypes:Boolean):ValidResult[RawObject] =
+  private[contracts] def __reduceDelta(deltaObject:RawObject, currentValue:RawObject, dropBadTypes:Boolean):ValidResult[RawObject] =
     deltaObject.get(_key) -> currentValue.get(_key) match {
       case (None, _) =>
         // We dont return failure here, even if currentValue doesnt have a representation for the property
         // Deltas dont need to repair, they just cant make things worse.
         Right(deltaObject)
       case (Some(raw), None) =>
-        ValuePropertyLensOps.reduce(this, raw, isIgnore2BadTypes(ignoreBadTypes)) match {
+        ValuePropertyLensOps.reduce(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
           case NotFound =>
             Right(deltaObject - _key)
           case Found(reducedRaw) if reducedRaw != raw =>
@@ -200,7 +185,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends ValuePropertyLens[D, 
             Left(NonEmptyList(head, tail))
         }
       case (Some(deltaRaw), Some(currentRaw)) =>
-        ValuePropertyLensOps.deltaReduce(this, deltaRaw, currentRaw, isIgnore2BadTypes(ignoreBadTypes)) match {
+        ValuePropertyLensOps.deltaReduce(this, deltaRaw, currentRaw, isIgnore2BadTypes(dropBadTypes)) match {
           case DeltaReduced(reducedRaw) =>
             Right(deltaObject + (_key -> reducedRaw))
           case DeltaEmpty =>
@@ -217,27 +202,14 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends ValuePropertyLens[D, 
     }
 
   /**
-   * Verifies the Type of the value for the Property if it exists in the object.
-   * @param obj
-   * @return
-   */
-  final def $verify(obj:D):List[StructuralFailure] =
-    __get(obj, false) match {
-      case Failed(head, tail) =>
-        head :: tail
-      case _ =>
-        Nil
-    }
-
-  /**
    * Gets value for the property if found in passed object.
    * Returns failure if value is of unexpected type,
    * unless incorrectTypeBehaviour is set to EmptyOnIncorrectType
    * @param obj
    * @return
    */
-  final def $get(obj:D, ignoreBadTypes:Boolean = false):ValidResult[Option[T]] =
-    __get(obj, ignoreBadTypes).toValidOption
+  final def $get(obj:D, dropBadTypes:Boolean = false):ValidResult[Option[T]] =
+    __get(obj, dropBadTypes).toValidOption
 
   /**
    * Gets value for the property if found in passed object, otherwise returns default.
@@ -246,17 +218,8 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends ValuePropertyLens[D, 
    * @param obj
    * @return
    */
-  final def $getOrElse(obj:D, default: => T, ignoreBadTypes:Boolean = false):ValidResult[T] =
-    __get(obj, ignoreBadTypes).toValidOption.map(_.getOrElse(default))
-
-  /**
-   * Sets or Replaces value for the Property.
-   * Will create object path to Property if objects dont exist.
-   * @param value
-   * @return
-   */
-  final def $set(value:T):PathSetter[D] =
-    ValueSetter(_path, _codec(value))
+  final def $getOrElse(obj:D, default: => T, dropBadTypes:Boolean = false):ValidResult[T] =
+    __get(obj, dropBadTypes).toValidOption.map(_.getOrElse(default))
 
   /**
    * Sets or Replaces value for the Property.
@@ -299,8 +262,8 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends ValuePropertyLens[D, 
    * @param f
    * @return
    */
-  final def $modify(f:Option[T] => T, ignoreBadTypes:Boolean = false):ValidPathSetter[D] =
-    TraversedModifySetter(__get(_, ignoreBadTypes), f, __set)
+  final def $modify(f:Option[T] => T, dropBadTypes:Boolean = false):ValidPathSetter[D] =
+    TraversedModifySetter(__get(_, dropBadTypes), f, __set)
 
   /**
    * Modifies or sets the value if it doesnt exist.
@@ -309,8 +272,8 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends ValuePropertyLens[D, 
    * @param f
    * @return
    */
-  final def $modifyWith(f:Option[T] => ValidResult[T], ignoreBadTypes:Boolean = false):ValidPathSetter[D] =
-    TraversedModifyValidSetter(__get(_, ignoreBadTypes), f, __set)
+  final def $modifyWith(f:Option[T] => ValidResult[T], dropBadTypes:Boolean = false):ValidPathSetter[D] =
+    TraversedModifyValidSetter(__get(_, dropBadTypes), f, __set)
 
   /**
    * Modifies or sets the value if it doesnt exist.
@@ -323,9 +286,9 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends ValuePropertyLens[D, 
    * @param f
    * @return
    */
-  final def $modifyOrDrop(f:Option[T] => Option[T], ignoreBadTypes:Boolean = false):ValidPathSetter[D] =
+  final def $modifyOrDrop(f:Option[T] => Option[T], dropBadTypes:Boolean = false):ValidPathSetter[D] =
     TraversedModifyOrDropSetter[D, T](
-      __get(_, ignoreBadTypes),
+      __get(_, dropBadTypes),
       f,
       (d, mt) => $setOrDrop(mt)(d)
     )
@@ -341,9 +304,9 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends ValuePropertyLens[D, 
    * @param f
    * @return
    */
-  final def $modifyOrDropWith(f:Option[T] => Option[ValidResult[T]], ignoreBadTypes:Boolean = false):ValidPathSetter[D] =
+  final def $modifyOrDropWith(f:Option[T] => Option[ValidResult[T]], dropBadTypes:Boolean = false):ValidPathSetter[D] =
     TraversedModifyOrDropValidSetter[D, T](
-      __get(_, ignoreBadTypes),
+      __get(_, dropBadTypes),
       f,
       (d, mt) => $setOrDrop(mt)(d)
     )
@@ -359,9 +322,9 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends ValuePropertyLens[D, 
    * @param p
    * @return
    */
-  final def $copy(p:PropertyLens[D, T], ignoreBadTypes:Boolean = false):ValidPathSetter[D] =
+  final def $copy(p:PropertyLens[D, T], dropBadTypes:Boolean = false):ValidPathSetter[D] =
     TraversedModifyOrDropSetter(
-      p.__get(_, ignoreBadTypes),
+      p.__get(_, dropBadTypes),
       identity[Option[T]],
       (d:D, mt:Option[T]) => $setOrDrop(mt)(d))
 
@@ -382,14 +345,14 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends ValuePropertyLens[D
 
   def _default:T
 
-  private def isIgnore2BadTypes(ignoreBadTypes:Boolean):BadTypes =
-    if (ignoreBadTypes) DropBadTypes
+  private def isIgnore2BadTypes(dropBadTypes:Boolean):BadTypes =
+    if (dropBadTypes) DropBadTypes
     else FailOnBadTypes
 
 
-  private[contracts] def __get(data:D, ignoreBadTypes:Boolean):Traversed[T] =
-    TraversalOps.traverse(data.value, this, ignoreBadTypes).flatMap{raw =>
-      ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(ignoreBadTypes)) match {
+  private[contracts] def __get(data:D, dropBadTypes:Boolean):Traversed[T] =
+    TraversalOps.traverse(data.value, this, dropBadTypes).flatMap{raw =>
+      ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
         case NotFound =>
           Found(_default)
         case t =>
@@ -398,32 +361,32 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends ValuePropertyLens[D
     }
 
   //Same as Modify, cana tidy
-  private[contracts] def __reduce(obj: RawObject, ignoreBadTypes:Boolean):Available[RawObject] =
+  private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidStructural[RawObject] =
     obj.get(_key) match {
       case None =>
-        NotFound
+        Right(obj)
       case Some(raw) =>
-        ValuePropertyLensOps.reduce(this, raw, isIgnore2BadTypes(ignoreBadTypes)) match {
+        ValuePropertyLensOps.reduce(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
           case Found(reducedRaw) if reducedRaw != raw =>
-            Found(obj + (_key -> reducedRaw))
+            Right(obj + (_key -> reducedRaw))
           case Found(_) =>
-            Found(obj)
+            Right(obj)
           case NotFound =>
-            NotFound
-          case f:Failed =>
-            f
+            Right(obj - _key)
+          case Failed(head, tail) =>
+            Left(NonEmptyList(head, tail))
         }
     }
 
   //Same as Modify, cana tidy
-  private[contracts] def __reduceDelta(deltaObject:RawObject, currentValue:RawObject, ignoreBadTypes:Boolean):ValidResult[RawObject] =
+  private[contracts] def __reduceDelta(deltaObject:RawObject, currentValue:RawObject, dropBadTypes:Boolean):ValidResult[RawObject] =
     deltaObject.get(_key) -> currentValue.get(_key) match {
       case (None, _) =>
         // We dont return failure here, even if currentValue doesnt have a representation for the property
         // Deltas dont need to repair, they just cant make things worse.
         Right(deltaObject)
       case (Some(raw), None) =>
-        ValuePropertyLensOps.reduce(this, raw, isIgnore2BadTypes(ignoreBadTypes)) match {
+        ValuePropertyLensOps.reduce(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
           case NotFound =>
             Right(deltaObject - _key)
           case Found(reducedRaw) if reducedRaw != raw =>
@@ -434,7 +397,7 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends ValuePropertyLens[D
             Left(NonEmptyList(head, tail))
         }
       case (Some(deltaRaw), Some(currentRaw)) =>
-        ValuePropertyLensOps.deltaReduce(this, deltaRaw, currentRaw, isIgnore2BadTypes(ignoreBadTypes)) match {
+        ValuePropertyLensOps.deltaReduce(this, deltaRaw, currentRaw, isIgnore2BadTypes(dropBadTypes)) match {
           case DeltaReduced(reducedRaw) =>
             Right(deltaObject + (_key -> reducedRaw))
           case DeltaEmpty =>
@@ -462,8 +425,8 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends ValuePropertyLens[D
    * @param obj
    * @return
    */
-  final def $get(obj:D, ignoreBadTypes:Boolean = false):ValidResult[Option[T]] =
-    __get(obj, ignoreBadTypes).toValidOption
+  final def $get(obj:D, dropBadTypes:Boolean = false):ValidResult[Option[T]] =
+    __get(obj, dropBadTypes).toValidOption
 
   /**
    * Sets or Replaces the value for the Property.
@@ -520,11 +483,11 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends ValuePropertyLens[D
    * @param f
    * @return
    */
-  final def $modify(f:T => T, ignoreBadTypes:Boolean = false):ValidPathSetter[D] =
-    ModifySetter($get(_, ignoreBadTypes), f, __set)
+  final def $modify(f:T => T, dropBadTypes:Boolean = false):ValidPathSetter[D] =
+    ModifySetter($get(_, dropBadTypes), f, __set)
 
-  final def $modifyWith(f:T => ValidResult[T], ignoreBadTypes:Boolean = false):ValidPathSetter[D] =
-    ModifyValidSetter($get(_, ignoreBadTypes), f, __set)
+  final def $modifyWith(f:T => ValidResult[T], dropBadTypes:Boolean = false):ValidPathSetter[D] =
+    ModifyValidSetter($get(_, dropBadTypes), f, __set)
 
   /**
    * Sets or Replaces vale for the Property if provided
@@ -551,8 +514,8 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends ValuePropertyLens[D
    * @param p
    * @return
    */
-  final def $copy(p:PropertyLens[D, T], ignoreBadTypes:Boolean = false):ValidPathSetter[D] =
-    TraversedModifyOrDropSetter[D, T](p.__get(_, ignoreBadTypes), identity[Option[T]], (d, mt) => $setOrRestore(mt)(d))
+  final def $copy(p:PropertyLens[D, T], dropBadTypes:Boolean = false):ValidPathSetter[D] =
+    TraversedModifyOrDropSetter[D, T](p.__get(_, dropBadTypes), identity[Option[T]], (d, mt) => $setOrRestore(mt)(d))
 
   //  final lazy val $delta:MaybeDelta[D, T] =
   //    new MaybeDelta[D, T](this)
@@ -568,7 +531,7 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends ValuePropertyLens[D
 }
 
 
-object ValuePropertyLensOps extends GetOps with ReduceOps with DeltaReduceOps {
+private[dsentric] object ValuePropertyLensOps extends GetOps with ReduceOps with DeltaReduceOps {
   def get[D <: DObject, T](propertyLens: PropertyLens[D, T], raw:Raw, badTypes: BadTypes):Available[T] =
     getCodec(propertyLens._root, propertyLens._path, badTypes)(propertyLens._codec -> raw)
 
@@ -603,7 +566,7 @@ private case object DropBadTypes extends BadTypes {
  * Validates and returns the element, bad values can be removed or generate failures.
  * Empty objects or Null values are left
  */
-trait GetOps {
+private[dsentric] trait GetOps {
   protected def getCodec[D <: DObject, C](contract:ContractFor[D], path:Path, badTypes:BadTypes):Function[(DCodec[C], Raw), Available[C]] = {
     case (d:DValueCodec[C], raw) =>
       getValue(contract, path, badTypes, d, raw)
@@ -708,7 +671,7 @@ trait GetOps {
  * Verifies the structure of the document and removes any Empty objects or Null values.
  * Bad types can be dropped or return failures
  */
-trait ReduceOps {
+private[dsentric] trait ReduceOps {
 
   protected def reduceCodec[D <: DObject, C](contract:ContractFor[D], path:Path, badTypes:BadTypes):Function[(DCodec[C], Raw), Available[Raw]] = {
     case (_, DNull) =>
@@ -834,7 +797,7 @@ trait ReduceOps {
  * Reduces deltas that do no change, or are effectively empty
  * (An empty object will not replace or remove a Value)
  */
-trait DeltaReduceOps extends ReduceOps {
+private[dsentric] trait DeltaReduceOps extends ReduceOps {
 
   private def available2DeltaReduce[T]:Function[Available[T],DeltaReduce[T]] = {
     case Found(t) => DeltaReduced(t)
