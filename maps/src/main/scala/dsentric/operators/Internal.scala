@@ -6,11 +6,11 @@ import dsentric.failure.{ReservedFailure, ValidationFailures}
 
 object Internal extends DeltaConstraint[Option[Nothing]] with Sanitizer[Option[Nothing]]{
 
-  def verifyDelta[S >: Option[Nothing], D <: DObject](
-                                                       contract: ContractFor[D],
-                                                       path: Path,
-                                                       currentState: Option[S],
-                                                       finalState: Option[S]): ValidationFailures =
+  def verifyDelta[D <: DObject](
+                                 contract: ContractFor[D],
+                                 path: Path,
+                                 delta:Raw,
+                                 currentState: Raw): ValidationFailures =
     ValidationFailures(ReservedFailure(contract, path))
 
   def sanitize(value: Option[Raw]): Option[Raw] = None

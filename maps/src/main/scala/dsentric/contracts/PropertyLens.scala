@@ -1,6 +1,5 @@
 package dsentric.contracts
 
-import cats.data.NonEmptyList
 import dsentric.codecs.DCodec
 import dsentric.{RawObject, _}
 import dsentric.failure._
@@ -25,14 +24,7 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    * @param obj
    * @return
    */
-  private[contracts] def __get(obj:D):Traversed[T]
-
-  /**
-   * Verifies the direct property against the object.
-   * @param obj
-   * @return
-   */
-  private[contracts] def __verifyTraversal(obj:RawObject):List[StructuralFailure]
+  private[contracts] def __get(data:D, ignoreBadTypes:Boolean):Traversed[T]
 
   /**
    * Verifies the direct property against the object.
@@ -41,15 +33,18 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    * @param obj
    * @return
    */
-  private[contracts] def __verifyReduceTraversal(obj: RawObject):Either[NonEmptyList[StructuralFailure], RawObject]
-  /**
-   * Verifies the property against the delta property value.
-   * Is not responsible for traversal.
-   * @param deltaValue
-   * @param currentValue
-   * @return
-   */
-  private[contracts] def __verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[Raw]
+  private[contracts] def __reduce(obj: RawObject, ignoreBadTypes:Boolean):Available[RawObject]
+
+
+  private[contracts] def __reduceDelta(deltaObject:RawObject, currentValue:RawObject, ignoreBadTypes:Boolean):ValidResult[RawObject]
+//  /**
+//   * Verifies the property against the delta property value.
+//   * Is not responsible for traversal.
+//   * @param deltaValue
+//   * @param currentValue
+//   * @return
+//   */
+//  private[contracts] def __reduceDeltaTTrav(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[Raw]
 
   private[contracts] def __set(obj:D, value:T):D =
     obj.internalWrap(PathLensOps.set(obj.value, _path, _codec(value))).asInstanceOf[D]

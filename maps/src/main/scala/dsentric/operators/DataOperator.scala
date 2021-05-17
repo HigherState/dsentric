@@ -1,9 +1,8 @@
 package dsentric.operators
 
-import dsentric.codecs.DCodec
 import dsentric.contracts.ContractFor
 import dsentric.failure.ValidationFailures
-import dsentric.{DObject, Data, Path, Raw}
+import dsentric.{DObject, Path, Raw}
 import dsentric.schema.TypeDefinition
 
 
@@ -27,11 +26,21 @@ trait ContextTransform[C, +T] extends DataOperator[T] {
 }
 
 trait DeltaConstraint[+T] extends DataOperator[T] {
-  def verifyDelta[S >: T, D <: DObject](
+  /**
+   * Verify the reduced delta value against the current State
+   * @param contract
+   * @param path
+   * @param reducedDelta
+   * @param currentState
+   * @tparam S
+   * @tparam D
+   * @return
+   */
+def verifyDelta[D <: DObject](
                                  contract:ContractFor[D],
                                  path:Path,
-                                 delta:Raw,
-                                 currentState: Option[Raw]
+                                 reducedDelta:Raw,
+                                 currentState: Raw
                                ): ValidationFailures
 }
 

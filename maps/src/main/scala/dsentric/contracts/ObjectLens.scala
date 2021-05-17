@@ -3,7 +3,7 @@ package dsentric.contracts
 import dsentric._
 import cats.data._
 import dsentric.codecs.DCodec
-import dsentric.failure.{ClosedContractFailure, DCodecTypeFailure, Failure, StructuralFailure, ValidResult}
+import dsentric.failure.{ClosedContractFailure, Failure, StructuralFailure, ValidResult}
 
 private[dsentric] sealed trait ObjectLens[D <: DObject]
   extends BaseContract[D] with PropertyLens[D, DObject]{
@@ -306,7 +306,7 @@ private[dsentric] object ObjectLens {
    * Ultimately clearing out empty Objects as well
    * Will also remove any nulls
    * */
-  def verifyReduce[D <: DObject](baseContract:BaseContract[D], obj:RawObject):Either[NonEmptyList[StructuralFailure], RawObject] = {
+  def reduce[D <: DObject](baseContract:BaseContract[D], obj:RawObject):Either[NonEmptyList[StructuralFailure], RawObject] = {
 
     val init = additionalPropertyVerifier(baseContract, obj) match {
       case head :: tail => Left(NonEmptyList(head, tail))
@@ -315,8 +315,8 @@ private[dsentric] object ObjectLens {
 
     baseContract._fields.foldLeft(init){
       case (Right(d), (_, p:ObjectLens[D]@unchecked)) =>
-        p.__verifyReduce(d)
-      case (Right(d), (_, p:Property[D, Any]@unchecked)) =>
+        p.__reduce(d)
+      case (Right(d), (_, p:ValuePropertyLens[D, Any]@unchecked)) =>
         p.__verifyTraversal(d) match {
           case Nil =>
             Right(d)

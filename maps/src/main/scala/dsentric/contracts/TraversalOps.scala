@@ -1,20 +1,9 @@
 package dsentric.contracts
 
 import dsentric._
+import dsentric.failure.IncorrectTypeFailure
 
 trait TraversalOps{
-  /**
-   * Extracts value from object using the key value.
-   * @param value
-   * @param property
-   * @tparam D
-   * @tparam T
-   * @return
-   */
-  def propertyValue[D <: DObject, T](value:RawObject, property:PropertyLens[D, T]):Available[T] =
-    value.get(property._key).fold[Available[T]](NotFound){raw =>
-      property._codec.get(raw).rebase(property)
-    }
 
   /**
    * Extracts value from object following the Property Pathway.
@@ -24,9 +13,15 @@ trait TraversalOps{
    * @tparam T
    * @return
    */
-  def traverse[D <: DObject, T](value:RawObject, property:PropertyLens[D, T]):Traversed[T] =
-    traverseRaw(value, property._parent)
-      .flatMap(propertyValue(_, property))
+  def traverse[D <: DObject, T](value:RawObject, property:PropertyLens[D, T], ignoreBadTypes:Boolean):Traversed[Raw] =
+    traverseRaw(value, property._parent, ignoreBadTypes).flatMap{ rawObject =>
+      rawObject.get(property._key) match {
+        case None =>
+          NotFound
+        case Some(raw) =>
+          Found(raw)
+      }
+    }
 
   def traverse[Key, Value](value:RawObject, additionalProperties:AdditionalProperties[Key, Value], keyString:String):Traversed[Value] =
     traverseRaw(value, additionalProperties)
@@ -45,20 +40,29 @@ trait TraversalOps{
    * @tparam T
    * @return
    */
-  def traverseRaw[T](value:RawObject, base:BaseContractAux):Traversed[RawObject] = {
+  private def traverseRaw[T](value:RawObject, base:BaseContractAux, ignoreBadTypes:Boolean):Traversed[RawObject] = {
     base match {
       case expected:ExpectedObjectProperty[base.AuxD]@unchecked =>
         traverseRaw(value, expected._parent).flatMap { traversedObject =>
-          val raw = traversedObject.getOrElse(expected._key, RawObject.empty)
-          expected._codec.getForTraversal(raw).rebase(expected._root, expected._path)
+          traversedObject.get(expected._key) match {
+            case Some(rawObject: RawObject@unchecked) =>
+              Found(rawObject)
+            case Some(raw) if !ignoreBadTypes =>
+              Failed(IncorrectTypeFailure(expected, raw))
+            case _ =>
+              Found(RawObject.empty)
+          }
         }
       case maybe:MaybeObjectLens[base.AuxD]@unchecked =>
         traverseRaw(value, maybe._parent).flatMap { traversedObject =>
-          traversedObject
-            .get(maybe._key)
-            .fold[Traversed[RawObject]](PathEmptyMaybe){
-              raw => maybe._codec.getForTraversal(raw).rebase(maybe._root, maybe._path)
-            }
+          traversedObject.get(maybe._key) match {
+            case Some(rawObject: RawObject@unchecked) =>
+              Found(rawObject)
+            case Some(raw) if !ignoreBadTypes =>
+              Failed(IncorrectTypeFailure(maybe, raw))
+            case _ =>
+              PathEmptyMaybe
+          }
         }
       case _:ContractFor[base.AuxD]@unchecked =>
         Found(value)
