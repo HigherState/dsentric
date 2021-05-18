@@ -1,7 +1,7 @@
 package dsentric.contracts
 
 import dsentric.failure.ValidResult
-import dsentric.{DObject, Failed, Found, NotFound, Path, PathEmptyMaybe, PathLensOps, Raw, RawObject, Traversed}
+import dsentric.{DObject, Failed, Found, NotFound, Path, PathEmptyMaybe, PathLensOps, Raw, RawObject, MaybeAvailable}
 
 sealed trait PathSetter[D <: DObject] extends Function[D, D] {
   def ~(pathSetter:PathSetter[D]):PathSetter[D] =
@@ -164,7 +164,7 @@ private final case class RawModifyDropOrIgnoreSetter[D <: DObject, T](modifier:D
 /*
 Option on f Raw result is case of codec failure
  */
-private final case class TraversedModifySetter[D <: DObject, T](getter:D => Traversed[T], f:Option[T] => T, setter:(D, T) => D) extends ValidPathSetter[D] {
+private final case class TraversedModifySetter[D <: DObject, T](getter:D => MaybeAvailable[T], f:Option[T] => T, setter:(D, T) => D) extends ValidPathSetter[D] {
 
   def apply(v1: D): ValidResult[D] =
     getter(v1) match {
@@ -175,7 +175,7 @@ private final case class TraversedModifySetter[D <: DObject, T](getter:D => Trav
     }
 }
 
-private final case class TraversedModifyValidSetter[D <: DObject, T](getter:D => Traversed[T], f:Option[T] => ValidResult[T], setter:(D, T) => D) extends ValidPathSetter[D] {
+private final case class TraversedModifyValidSetter[D <: DObject, T](getter:D => MaybeAvailable[T], f:Option[T] => ValidResult[T], setter:(D, T) => D) extends ValidPathSetter[D] {
 
   def apply(v1: D): ValidResult[D] =
     getter(v1) match {
@@ -192,7 +192,7 @@ private final case class TraversedModifyValidSetter[D <: DObject, T](getter:D =>
 /*
 First Option on f Raw result is case of codec failure
  */
-private final case class TraversedModifyOrDropSetter[D <: DObject, T](getter:D => Traversed[T], f:Option[T] => Option[T], setter:(D, Option[T]) => D) extends ValidPathSetter[D] {
+private final case class TraversedModifyOrDropSetter[D <: DObject, T](getter:D => MaybeAvailable[T], f:Option[T] => Option[T], setter:(D, Option[T]) => D) extends ValidPathSetter[D] {
 
   def apply(v1: D): ValidResult[D] =
     getter(v1) match {
@@ -207,7 +207,7 @@ private final case class TraversedModifyOrDropSetter[D <: DObject, T](getter:D =
     }
 }
 
-private final case class TraversedModifyOrDropValidSetter[D <: DObject, T](getter:D => Traversed[T], f:Option[T] => Option[ValidResult[T]], setter:(D, Option[T]) => D) extends ValidPathSetter[D] {
+private final case class TraversedModifyOrDropValidSetter[D <: DObject, T](getter:D => MaybeAvailable[T], f:Option[T] => Option[ValidResult[T]], setter:(D, Option[T]) => D) extends ValidPathSetter[D] {
 
   def apply(v1: D): ValidResult[D] =
     getter(v1) match {

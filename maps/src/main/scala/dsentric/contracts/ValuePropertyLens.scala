@@ -3,35 +3,18 @@ package dsentric.contracts
 import cats.data.NonEmptyList
 import dsentric._
 import dsentric.codecs.{DCodec, DCollectionCodec, DContractCodec, DMapCodec, DValueCodec}
-import dsentric.failure.{ExpectedFailure, Failure, IncorrectKeyTypeFailure, IncorrectTypeFailure, MissingElementFailure, StructuralFailure, ValidResult, ValidStructural}
+import dsentric.failure._
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 sealed trait ValuePropertyLens[D <: DObject, T] extends PropertyLens[D, T]
 
-private[dsentric] trait ExpectedLens[D <: DObject, T] extends ValuePropertyLens[D, T] with ApplicativeLens[D, T] {
-
-  private def isIgnore2BadTypes(dropBadTypes:Boolean):BadTypes =
+sealed trait ExpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]{
+  private[contracts] def isIgnore2BadTypes(dropBadTypes:Boolean):BadTypes =
     if (dropBadTypes) ToDropBadTypes
     else FailOnBadTypes
 
-  private[contracts] def __get(data:D, dropBadTypes:Boolean):Traversed[T] =
-    TraversalOps.traverse(data.value, this, dropBadTypes) match {
-      case NotFound =>
-        Failed(ExpectedFailure(this))
-      case Found(raw) =>
-        ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
-          case NotFound =>
-            Failed(ExpectedFailure(this))
-          case Found(t) =>
-            Found(t)
-        }
-      case f:Failed =>
-        f
-      case PathEmptyMaybe =>
-        PathEmptyMaybe
-    }
 
   private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidStructural[RawObject] =
     obj.get(_key) match {
@@ -81,16 +64,6 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ValuePropertyLens[
     }
 
   /**
-   * Returns object if found and of correct type
-   * Returns ExpectedFailure if object not found, unless property has MaybeObject Property Ancestor
-   * Returns None if there is a path with Maybes Object Properties that have no values
-   * @param obj
-   * @return
-   */
-  final def $get(obj:D, dropBadTypes:Boolean = false):ValidStructural[Option[T]] =
-    __get(obj, dropBadTypes).toValidOption
-
-  /**
    * Sets or Replaces value for the Property.
    * Does nothing if None is provided.
    * Will create object path to Property if objects dont exist.
@@ -126,17 +99,94 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ValuePropertyLens[
   final def $copy(p:PropertyLens[D, T], dropBadTypes:Boolean = false):ValidPathSetter[D] =
     ModifySetter(d => p.__get(d, dropBadTypes).toValidOption, identity[T], __set)
 
-  //  final lazy val $delta:ExpectedDelta[D, T] =
-  //    new ExpectedDelta(this)
+}
+
+private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D, T] with ApplicativeLens[D, T] {
+
+  private[contracts] def __get(data:D, dropBadTypes:Boolean):Valid[T] =
+    TraversalOps.traverse(data.value, this, dropBadTypes) match {
+      case NotFound  =>
+        Failed(ExpectedFailure(this))
+      case Found(raw) =>
+        ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
+          case NotFound =>
+            Failed(ExpectedFailure(this))
+          case Found(t) =>
+            Found(t)
+        }
+      case f:Failed =>
+        f
+    }
+
+
+  /**
+   * Returns object if found and of correct type
+   * Returns ExpectedFailure if object not found, unless property has MaybeObject Property Ancestor
+   * Returns None if there is a path with Maybes Object Properties that have no values
+   * @param obj
+   * @return
+   */
+  final def $get(obj:D, dropBadTypes:Boolean = false):ValidStructural[T] =
+    __get(obj, dropBadTypes).toValid
 
   /**
    * Unapply is only ever a simple prism to the value and its decoding
-   * TODO Would be cool if we could take into account pathing, IE has a maybe path, so should return Option of T
    * @param obj
    * @return
    */
   final def unapply(obj:D):Option[T] =
     PathLensOps.traverse(obj.value, _path).flatMap(_codec.unapply)
+}
+
+/**
+ * This is an Expected Property nested in a Maybe Object
+ * @tparam D
+ * @tparam T
+ */
+private[dsentric] trait MaybeExpectedLens[D <: DObject, T] extends ExpectedLensLike[D, T] with ApplicativeLens[D, Option[T]] {
+
+  private[contracts] def __get(data:D, dropBadTypes:Boolean):MaybeAvailable[T] =
+    TraversalOps.maybeTraverse(data.value, this, dropBadTypes) match {
+      case NotFound =>
+        Failed(ExpectedFailure(this))
+      case Found(raw) =>
+        ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
+          case NotFound =>
+            Failed(ExpectedFailure(this))
+          case Found(t) =>
+            Found(t)
+        }
+      case f:Failed =>
+        f
+      case PathEmptyMaybe =>
+        PathEmptyMaybe
+    }
+
+  /**
+   * Returns object if found and of correct type
+   * Returns ExpectedFailure if object not found, unless property has MaybeObject Property Ancestor
+   * Returns None if there is a path with Maybes Object Properties that have no values
+   * @param obj
+   * @return
+   */
+  final def $get(obj:D, dropBadTypes:Boolean = false):ValidStructural[Option[T]] =
+    __get(obj, dropBadTypes).toValidOption
+
+  /**
+   * Unapply is only ever a simple prism to the value and its decoding
+   * Matches success None when the maybe path is empty
+   * @param obj
+   * @return
+   */
+  final def unapply(obj:D):Option[Option[T]] =
+    TraversalOps.maybeTraverse(obj.value, this, false) match {
+      case PathEmptyMaybe =>
+        Some(None)
+      case Found(r) =>
+        _codec.unapply(r).map(Some(_))
+      case _ =>
+        None
+    }
 }
 
 private[dsentric] trait MaybeLens[D <: DObject, T] extends ValuePropertyLens[D, T] with ApplicativeLens[D, Option[T]] {
@@ -145,8 +195,8 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends ValuePropertyLens[D, 
     if (dropBadTypes) DropBadTypes
     else FailOnBadTypes
 
-  private[contracts] def __get(data:D, dropBadTypes:Boolean):Traversed[T] =
-    TraversalOps.traverse(data.value, this, dropBadTypes).flatMap{raw =>
+  private[contracts] def __get(data:D, dropBadTypes:Boolean):MaybeAvailable[T] =
+    TraversalOps.maybeTraverse(data.value, this, dropBadTypes).flatMap{ raw =>
       ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(dropBadTypes))
     }
 
@@ -350,8 +400,8 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends ValuePropertyLens[D
     else FailOnBadTypes
 
 
-  private[contracts] def __get(data:D, dropBadTypes:Boolean):Traversed[T] =
-    TraversalOps.traverse(data.value, this, dropBadTypes).flatMap{raw =>
+  private[contracts] def __get(data:D, dropBadTypes:Boolean):MaybeAvailable[T] =
+    TraversalOps.maybeTraverse(data.value, this, dropBadTypes).flatMap{ raw =>
       ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
         case NotFound =>
           Found(_default)
@@ -429,17 +479,6 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends ValuePropertyLens[D
     __get(obj, dropBadTypes).toValidOption
 
   /**
-   * Sets or Replaces the value for the Property.
-   * Will create object path to Property if objects dont exist.
-   * If you set a value which is the same as the default value,
-   * The value will get set in the object
-   * @param value
-   * @return
-   */
-  final def $set(value:T):PathSetter[D] =
-    ValueSetter(_path, _codec(value))
-
-  /**
    * Sets or Replaces value for the Property.
    * Does nothing if None is provided.
    * Will create object path to Property if objects dont exist.
@@ -449,20 +488,6 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends ValuePropertyLens[D
   final def $maybeSet(value:Option[T]):PathSetter[D] =
     value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
       ValueSetter(_path, _codec(v))
-    }
-
-  /**
-   * When verifying an incorrect type always returns a failure, even if
-   * incorrect type behaviour is set to ignore
-   * @param obj
-   * @return
-   */
-  final def $verify(obj:D):List[StructuralFailure] =
-    __get(obj, false) match {
-      case Failed(head, tail) =>
-        head :: tail
-      case _ =>
-        Nil
     }
 
   /**
@@ -529,7 +554,6 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends ValuePropertyLens[D
   final def unapply(obj:D):Option[T] =
     Some(PathLensOps.traverse(obj.value, _path).flatMap(_codec.unapply).getOrElse(_default))
 }
-
 
 private[dsentric] object ValuePropertyLensOps extends GetOps with ReduceOps with DeltaReduceOps {
   def get[D <: DObject, T](propertyLens: PropertyLens[D, T], raw:Raw, badTypes: BadTypes):Available[T] =

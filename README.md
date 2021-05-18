@@ -223,3 +223,29 @@ Delta
     - if an expected property is empty, delta is Not required to fix it.  
       Delta does not need to repair, just cannot make things worse
     - If delta value is sent, but is the same as current value, but current value is invalid, it will fail validation.
+
+---Expected -> unapply Some(t) or None [failure or empty]
+---Maybe -> unapply Some(Some(t)) or Some(None)[empty] or None [failure]
+
+---Maybe (Empty)
+    ---Expected  -> unapply Some(None)[path empty]
+    ---Expected  -> unapply Some(None)[path empty]
+        ---Expected -> unapply Some(None)[empty]
+
+---Maybe (Valid)
+    ---Expected  -> unapply Some(Some(t)) or None[failure or empty]
+    ---Expected  -> unapply Some(None) [pathEmpty] Some(t) or None [failure] Some(Empty) [empty]
+        ---Expected -> unapply Some(None)
+
+---Expected
+    ---Expected  -> unapply Option[T]
+
+---Maybe (empty)
+    ---Expected
+            ---Expected
+== PathMaybeEmpty
+
+---Maybe
+    ---Expected (empty)
+        ---Expected
+== NotFound

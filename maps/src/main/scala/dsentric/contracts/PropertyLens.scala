@@ -14,11 +14,11 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
   /**
    * Return the property value or failure
    * Can return Default value if provided value is empty or invalid and type behaviour is empty.
-   * Import to keep awareness of Traversed as path modifiers shouldnt fail if PathEmptyMaybe
+   * Import to keep awareness of Traversed as path modifiers shouldnt maybe set if PathEmptyMaybe
    * @param obj
    * @return
    */
-  private[contracts] def __get(data:D, dropBadTypes:Boolean):Traversed[T]
+  private[contracts] def __get(data:D, dropBadTypes:Boolean):MaybeAvailable[T]
 
   /**
    * Verifies the direct property against the object.
@@ -47,7 +47,6 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
       case r =>
         obj.internalWrap(PathLensOps.set(obj.value, _path, r)).asInstanceOf[D]
     }
-
   }
 
   /**
@@ -72,7 +71,13 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    * @return
    */
   final def $set(value:T):PathSetter[D] =
-    ValueSetter(_path, _codec(value))
+    _codec(value) match {
+      case r:RawObject@unchecked if r.isEmpty =>
+        ValueDrop(_path)
+      case r =>
+        ValueSetter(_path, r)
+    }
+
 }
 
 
