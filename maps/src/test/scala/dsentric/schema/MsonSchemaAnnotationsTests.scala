@@ -21,7 +21,7 @@ object MsonQuery1 extends Contract {
   }
   val nested2 = new \\ with AnotherNested
 
-  val nested3 = new \\? with AnotherNested2
+  //val nested3 = new \\? with AnotherNested2
 }
 
 class MsonSchemaAnnotationsTests extends AnyFunSuite with Matchers {

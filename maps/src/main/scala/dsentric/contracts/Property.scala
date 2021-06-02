@@ -75,16 +75,44 @@ class DefaultProperty[D <: DObject, T] private[contracts]
    val _dataOperators:List[DataOperator[Option[T]]])
   extends Property[D, T] with DefaultLens[D, T]
 
+class MaybeDefaultProperty[D <: DObject, T] private[contracts]
+  (private[contracts] val __nameOverride:Option[String],
+   val _default:T,
+   val _parent:BaseContract[D],
+   val _codec:DCodec[T],
+   val _dataOperators:List[DataOperator[Option[T]]])
+    extends Property[D, T] with MaybeDefaultLens[D, T]
 
-trait ExpectedObjectProperty[D <: DObject] extends Property[D, DObject] with ExpectedObjectPropertyLens[D] with SubContractFor[D] {
+
+trait ExpectedObjectProperty[D <: DObject]
+  extends Property[D, DObject]
+    with ExpectedObjectPropertyLens[D]
+    with ExpectedPropertyObjectOps[D]
+    with ExpectedPropertyOps[D]
+    with SubContractFor[D] {
+
+  def _dataOperators:List[DataOperator[DObject]]
+
+}
+
+trait MaybeExpectedObjectProperty[D <: DObject]
+  extends Property[D, DObject]
+    with MaybeExpectedObjectPropertyLens[D]
+    with MaybeExpectedPropertyObjectOps[D]
+    with MaybeExpectedPropertyOps[D]
+    with BaseContract[D] {
+  override protected def __self: BaseContract[D] = this
   def _dataOperators:List[DataOperator[DObject]]
 }
 
-trait MaybeExpectedObjectProperty[D <: DObject] extends Property[D, DObject] with MaybeExpectedObjectPropertyLens[D] with SubContractFor[D] {
-  def _dataOperators:List[DataOperator[DObject]]
-}
+trait MaybeObjectProperty[D <: DObject]
+  extends Property[D, DObject]
+    with MaybeObjectPropertyLens[D]
+    with MaybeExpectedPropertyObjectOps[D]
+    with MaybeExpectedPropertyOps[D]
+    with BaseContract[D] {
 
-trait MaybeObjectProperty[D <: DObject] extends Property[D, DObject] with MaybeObjectPropertyLens[D] with SubContractFor[D] {
+  override protected def __self: BaseContract[D] = this
   def _dataOperators:List[DataOperator[Option[DObject]]]
 }
 

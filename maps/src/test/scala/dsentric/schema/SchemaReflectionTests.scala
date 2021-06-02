@@ -30,16 +30,16 @@ object Query1 extends Contract {
     val field2 = \?[String]
   }
   @Description("This is inherited")
-  val inherited = new \\? with AnotherNested
+  val inherited = new \\ with AnotherNested
 
   @Type("Overwritten")
-  val overwritten = new \\? with AnotherNested
+  val overwritten = new \\ with AnotherNested
 
   @Nested
-  val renamed = new \\? with NestedNamed
+  val renamed = new \\ with NestedNamed
 
   @Type("OverwrittenRenamed")
-  val overwrittenRenamed = new \\? with AnotherNested
+  val overwrittenRenamed = new \\ with AnotherNested
 
   val newOne = new \\ {
     val inside = \[Int]

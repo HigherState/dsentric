@@ -18,12 +18,6 @@ trait PropertyOps[D <: DObject] {
     new MaybeProperty[D, T](Some(name), __self, codec, dataOperators.toList)
 
 
-  def \![T](default:T, dataOperators: DataOperator[Option[T]]*)(implicit codec:DCodec[T]):DefaultProperty[D, T] =
-    new DefaultProperty[D, T](None, default, __self, codec, dataOperators.toList)
-
-  def \![T](name:String, default:T, dataOperators: DataOperator[Option[T]]*)(implicit codec:DCodec[T]):DefaultProperty[D, T] =
-    new DefaultProperty[D, T](Some(name), default:T, __self, codec, dataOperators.toList)
-
 }
 
 trait ExpectedPropertyOps[D <: DObject] extends PropertyOps[D] {
@@ -37,6 +31,12 @@ trait ExpectedPropertyOps[D <: DObject] extends PropertyOps[D] {
   def \[T](name:String, dataOperators: DataOperator[T]*)(implicit codec:DCodec[T]):ExpectedProperty[D, T] =
     new ExpectedProperty[D, T](Some(name), __self, codec, dataOperators.toList)
 
+  def \![T](default:T, dataOperators: DataOperator[Option[T]]*)(implicit codec:DCodec[T]):DefaultProperty[D, T] =
+    new DefaultProperty[D, T](None, default, __self, codec, dataOperators.toList)
+
+  def \![T](name:String, default:T, dataOperators: DataOperator[Option[T]]*)(implicit codec:DCodec[T]):DefaultProperty[D, T] =
+    new DefaultProperty[D, T](Some(name), default:T, __self, codec, dataOperators.toList)
+
 }
 
 trait MaybeExpectedPropertyOps[D <: DObject] extends PropertyOps[D] {
@@ -48,6 +48,12 @@ trait MaybeExpectedPropertyOps[D <: DObject] extends PropertyOps[D] {
 
   def \[T](name:String, dataOperators: DataOperator[T]*)(implicit codec:DCodec[T]):MaybeExpectedProperty[D, T] =
     new MaybeExpectedProperty[D, T](Some(name), __self, codec, dataOperators.toList)
+
+  def \![T](default:T, dataOperators: DataOperator[Option[T]]*)(implicit codec:DCodec[T]):MaybeDefaultProperty[D, T] =
+    new MaybeDefaultProperty[D, T](None, default, __self, codec, dataOperators.toList)
+
+  def \![T](name:String, default:T, dataOperators: DataOperator[Option[T]]*)(implicit codec:DCodec[T]):MaybeDefaultProperty[D, T] =
+    new MaybeDefaultProperty[D, T](Some(name), default:T, __self, codec, dataOperators.toList)
 
 }
 

@@ -111,7 +111,7 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
           ExpectedStructure.field.$get(DObject("field" := false)).left.value should contain(IncorrectTypeFailure(ExpectedStructure.field, false))
         }
         it("Should return value if set with correct type") {
-          ExpectedStructure.field.$get(DObject("field" := "test")).value shouldBe Some("test")
+          ExpectedStructure.field.$get(DObject("field" := "test")).value shouldBe "test"
         }
         it("Should return Type failure if nullable empty") {
           ExpectedStructure.nulled.$get(DObject.empty).left.value should contain(ExpectedFailure(ExpectedStructure.nulled))
@@ -120,16 +120,16 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
           ExpectedStructure.nulled.$get(DObject("nulled" := "wrong")).left.value should contain(IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.nulled._path, intCodec, "wrong"))
         }
         it("Should return null if nullable null") {
-          ExpectedStructure.nulled.$get(DObject("nulled" := DNull)).value shouldBe Some(DNull)
+          ExpectedStructure.nulled.$get(DObject("nulled" := DNull)).value shouldBe DNull
         }
         it("Should return DSome Value if nullable set") {
-          ExpectedStructure.nulled.$get(DObject("nulled" := 123)).value shouldBe Some(DSome(123))
+          ExpectedStructure.nulled.$get(DObject("nulled" := 123)).value shouldBe DSome(123)
         }
       }
       describe("In Expected Path") {
         it("Should return value if exists with correct type") {
           val base = DObject("expected" ::= ("field" := "value"))
-          ExpectedStructure.expected.field.$get(base).value shouldBe Some("value")
+          ExpectedStructure.expected.field.$get(base).value shouldBe "value"
         }
         it("Should fail with IncorrectTypeFailure if wrong type for property") {
           val base = DObject("expected" ::= ("field" := 1234))
@@ -1452,7 +1452,7 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
     describe("$get") {
       describe("No path") {
         it("Should return default if empty value") {
-          DefaultStructure.field.$get(DObject.empty).value shouldBe Some("defaultValue")
+          DefaultStructure.field.$get(DObject.empty).value shouldBe "defaultValue"
         }
         it("Should fail with IncorrectTypeFailure if unexpected null value") {
           DefaultStructure.field.$get(DObject("field" := DNull)).left.value should contain(IncorrectTypeFailure(DefaultStructure.field, DNull))
@@ -1461,25 +1461,25 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
           DefaultStructure.field.$get(DObject("field" := false)).left.value should contain(IncorrectTypeFailure(DefaultStructure.field, false))
         }
         it("Should return value if set") {
-          DefaultStructure.field.$get(DObject("field" := "test")).value shouldBe Some("test")
+          DefaultStructure.field.$get(DObject("field" := "test")).value shouldBe "test"
         }
         it("Should return default if nullable empty") {
-          DefaultStructure.nulled.$get(DObject.empty).value shouldBe Some(DSome(23))
+          DefaultStructure.nulled.$get(DObject.empty).value shouldBe DSome(23)
         }
         it("Should fail with IncorrectTypeFailure if nullable wrong type") {
           DefaultStructure.nulled.$get(DObject("nulled" := "wrong")).left.value should contain(IncorrectTypeFailure(DefaultStructure, DefaultStructure.nulled._path, intCodec, "wrong"))
         }
         it("Should return null if nullable null") {
-          DefaultStructure.nulled.$get(DObject("nulled" := DNull)).value shouldBe Some(DNull)
+          DefaultStructure.nulled.$get(DObject("nulled" := DNull)).value shouldBe DNull
         }
         it("Should return DSome Value if nullable set") {
-          DefaultStructure.nulled.$get(DObject("nulled" := 123)).value shouldBe Some(DSome(123))
+          DefaultStructure.nulled.$get(DObject("nulled" := 123)).value shouldBe DSome(123)
         }
       }
       describe("In Expected Path") {
         it("Should return value if exists with correct type") {
           val base = DObject("expected" ::= ("field" := "value"))
-          DefaultStructure.expected.field.$get(base).value shouldBe Some("value")
+          DefaultStructure.expected.field.$get(base).value shouldBe "value"
         }
         it("Should fail with IncorrectTypeFailure if wrong type for property") {
           val base = DObject("expected" ::= ("field" := 1234))
@@ -1491,11 +1491,11 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
         }
         it("Should return default if property value not found") {
           val base = DObject("expected" := DObject.empty)
-          DefaultStructure.expected.field.$get(base).value shouldBe Some("default")
+          DefaultStructure.expected.field.$get(base).value shouldBe "default"
         }
         it("Should return default if the Expected parent object is not found") {
           val base = DObject.empty
-          DefaultStructure.expected.field.$get(base).value shouldBe Some("default")
+          DefaultStructure.expected.field.$get(base).value shouldBe "default"
         }
       }
       describe("In Maybe Path") {
@@ -2074,7 +2074,7 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should return empty vector if empty vector") {
         val base = DObject("expectedObjects" := Vector.empty[DObject])
-        Objects.expectedObjects.$get(base).value should contain (Vector.empty)
+        Objects.expectedObjects.$get(base).value shouldBe Vector.empty
       }
       it("Should fail if not a vector") {
         val base = DObject("expectedObjects" := "fail")
@@ -2083,7 +2083,7 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
       it("Should succeed if all objects succeed") {
         val expecteds = Vector(DObject("property" := "test"), DObject("property" := "test2"))
         val base = DObject("expectedObjects" := expecteds)
-        Objects.expectedObjects.$get(base).value shouldBe Some(expecteds)
+        Objects.expectedObjects.$get(base).value shouldBe expecteds
       }
       it("Should fail if any object fails") {
         val expecteds = Vector(DObject("property" := "test"), DObject("property" := false), DObject("property" := "test2", "additional" := 123))
@@ -2096,7 +2096,7 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
       it("Should return with empty object if maybe") {
         val maybes = Vector(DObject("property" := "test"), DObject("property" := "test2"), DObject.empty)
         val base = DObject("maybeObjects" := maybes)
-        Objects.maybeObjects.$get(base).value shouldBe Some(maybes)
+        Objects.maybeObjects.$get(base).value shouldBe maybes
       }
 
       it("Should not include any defaults") {
@@ -2170,11 +2170,11 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
         MapObjects.expectedMap.$get(base).left.value should contain (ExpectedFailure(MapObjects.expectedMap))
 
         val base2 = DObject("defaultMap" := DObject.empty)
-        MapObjects.defaultMap.$get(base2).value shouldBe Some(Map.empty)
+        MapObjects.defaultMap.$get(base2).value shouldBe Map.empty
       }
       it("Should return map") {
         val base = DObject("maybeMap" := Map("first" -> DObject("property" := 123), "second" -> DObject("property" := 456)))
-        MapObjects.maybeMap.$get(base).value shouldBe Some(Map("first" -> DObject("property" := 123), "second" -> DObject("property" := 456)))
+        MapObjects.maybeMap.$get(base).value shouldBe Map("first" -> DObject("property" := 123), "second" -> DObject("property" := 456))
       }
       it("Should fail if map not correct type") {
         val base = DObject("expectedMap" := 123)
@@ -2187,9 +2187,9 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
     }
 
     describe("$set") {
-      it("Should set as empty if set empty object") {
+      it("Should reduce if set empty object") {
         val base = DObject.empty
-        MapObjects.expectedMap.$set(Map.empty)(base)shouldBe DObject("expectedMap" := Map.empty[String, DObject])
+        MapObjects.expectedMap.$set(Map.empty)(base) shouldBe DObject()
       }
       it("Should set correct map values") {
         val base = DObject.empty

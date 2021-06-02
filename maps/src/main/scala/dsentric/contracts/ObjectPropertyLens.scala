@@ -262,14 +262,14 @@ private[dsentric] object ObjectPropertyLensOps extends ReduceOps {
     val exclude = baseContract._fields.keySet
     baseContract match {
       case a:AdditionalProperties[Any, Any]@unchecked =>
-        val excludedObject = obj -- exclude
-        reduceMap(a._root, a._path, badTypes, DCodecs.keyValueMapCodec(a._additionalKeyCodec, a._additionalValueCodec), excludedObject) match {
-          case Found(rawObject) if rawObject == excludedObject =>
+        val (baseObject, additionalObject) = obj.partition(p => exclude(p._1))
+        reduceMap(a._root, a._path, badTypes, DCodecs.keyValueMapCodec(a._additionalKeyCodec, a._additionalValueCodec), additionalObject) match {
+          case Found(rawObject) if rawObject == additionalObject =>
             Right(obj)
           case Found(rawObject) =>
-            Right(obj -- exclude ++ rawObject)
+            Right(baseObject ++ rawObject)
           case NotFound =>
-            Right(excludedObject)
+            Right(baseObject)
           case Failed(head, tail) =>
             Left(NonEmptyList(head, tail))
         }
