@@ -1,7 +1,6 @@
 package dsentric.codecs
 
-import dsentric.{Available, Failed, Found, Raw}
-import dsentric.failure.{DCodecTypeFailure, StructuralFailure}
+import dsentric.Raw
 
 /**
  * Short hand for codecs whos value is a Data primitive

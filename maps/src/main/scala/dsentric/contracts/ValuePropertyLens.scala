@@ -2,8 +2,9 @@ package dsentric.contracts
 
 import cats.data.NonEmptyList
 import dsentric._
-import dsentric.codecs.{DCodec, DCollectionCodec, DContractCodec, DMapCodec, DValueCodec}
+import dsentric.codecs.{DCodec, DCollectionCodec, DContractCodec, DCoproductCodec, DMapCodec, DValueCodec}
 import dsentric.failure._
+import shapeless.HList
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -19,17 +20,17 @@ sealed trait ExpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]{
   private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidStructural[RawObject] =
     obj.get(_key) match {
       case None =>
-        ValidResult.failure(ExpectedFailure(this))
+        ValidResult.structuralFailure(ExpectedFailure(this))
       case Some(raw) =>
         ValuePropertyLensOps.reduce(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
           case NotFound =>
-            ValidResult.failure(ExpectedFailure(this))
+            ValidResult.structuralFailure(ExpectedFailure(this))
           case Found(reducedRaw) if reducedRaw != raw =>
             ValidResult.success(obj + (_key -> reducedRaw))
           case Found(_) =>
             ValidResult.success(obj)
           case Failed(head, tail) =>
-            ValidResult.failure(head, tail)
+            ValidResult.structuralFailure(head, tail)
         }
     }
 
@@ -113,6 +114,8 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D
             Failed(ExpectedFailure(this))
           case Found(t) =>
             Found(t)
+          case f:Failed =>
+            f
         }
       case f:Failed =>
         f
@@ -155,6 +158,8 @@ private[dsentric] trait MaybeExpectedLens[D <: DObject, T] extends ExpectedLensL
             Failed(ExpectedFailure(this))
           case Found(t) =>
             Found(t)
+          case f:Failed =>
+            f
         }
       case f:Failed =>
         f
@@ -594,13 +599,15 @@ private[dsentric] trait GetOps {
   protected def getCodec[D <: DObject, C](contract:ContractFor[D], path:Path, badTypes:BadTypes):Function[(DCodec[C], Raw), Available[C]] = {
     case (d:DValueCodec[C], raw) =>
       getValue(contract, path, badTypes, d, raw)
-    case (d:DMapCodec[C, _, _], rawObject:RawObject) =>
+    case (d:DMapCodec[C, _, _], rawObject:RawObject@unchecked) =>
       getMap(contract, path, badTypes, d, rawObject)
-    case (d:DCollectionCodec[C, _], rawArray: RawArray) =>
+    case (d:DCollectionCodec[C, _], rawArray: RawArray@unchecked) =>
       getCollection(contract, path, badTypes, d, rawArray)
-    case (DContractCodec(codecContract), rawObject:RawObject) =>
+    case (DContractCodec(codecContract), rawObject:RawObject@unchecked) =>
       getContract(contract, path, badTypes, codecContract, rawObject)
         .asInstanceOf[Available[C]]
+    case (d:DCoproductCodec[C, _], raw) =>
+      getCoproduct(contract, path, badTypes, d, raw)
     case _ if badTypes == DropBadTypes =>
       NotFound
     case (d, raw) =>
@@ -654,7 +661,7 @@ private[dsentric] trait GetOps {
   protected def getCollection[D <: DObject, S, T](contract:ContractFor[D], path:Path, badTypes:BadTypes, codec:DCollectionCodec[S, T], raw:RawArray):Available[S] = {
     val nested = badTypes.nest
     raw.zipWithIndex.map { p =>
-      getCodec(contract, path \ p._2, nested)(codec.valueCodec -> p._1) -> p._1
+      getCodec(contract, path \ p._2, nested)(codec.valueCodec -> p._1) -> p._2
     }.foldLeft[Either[ListBuffer[StructuralFailure], mutable.Builder[T, Vector[T]]]](Right(Vector.newBuilder[T])){
       case (Right(vb), (Found(t), _)) =>
         Right(vb.addOne(t))
@@ -680,7 +687,7 @@ private[dsentric] trait GetOps {
   }
 
   protected def getContract[D <: DObject](contract:ContractFor[D], path:Path, badTypes:BadTypes, codecContract:Contract, raw:RawObject):Available[DObject] =
-    codecContract.$get(new DObjectInst(raw), badTypes.nest == DropBadTypes) match {
+    codecContract.$reduce(new DObjectInst(raw), badTypes.nest == DropBadTypes) match {
       case Right(d) =>
         Found(d)
       case Left(_) if badTypes == DropBadTypes =>
@@ -688,6 +695,31 @@ private[dsentric] trait GetOps {
       case Left(NonEmptyList(head, tail)) =>
         Failed(head, tail).rebase(contract, path)
     }
+
+  /**
+   * Returns unavailable result of last entry (Right biased)
+   * @param contract
+   * @param path
+   * @param badTypes
+   * @param codec
+   * @param raw
+   * @tparam D
+   * @tparam T
+   * @tparam H
+   * @return
+   */
+  protected def getCoproduct[D <: DObject, T, H <: HList](contract:ContractFor[D], path:Path, badTypes:BadTypes, codec:DCoproductCodec[T, H], raw:Raw): Available[T] = {
+    codec.codecsList.foldLeft[Available[T]](NotFound){
+      case (a:Found[T], _) => a
+      case (_, c) =>
+        getCodec(contract, path, badTypes)(c -> raw) match {
+          case Found(t) => codec.lift(t, c).fold[Available[T]](NotFound)(Found(_))
+          case NotFound => NotFound
+          case f:Failed => f
+        }
+    }
+  }
+
 
 }
 
@@ -700,16 +732,18 @@ private[dsentric] trait ReduceOps {
   protected def reduceCodec[D <: DObject, C](contract:ContractFor[D], path:Path, badTypes:BadTypes):Function[(DCodec[C], Raw), Available[Raw]] = {
     case (_, DNull) =>
       NotFound
-    case (_, rawObject:RawObject)  if rawObject.isEmpty =>
+    case (_, rawObject:RawObject@unchecked)  if rawObject.isEmpty =>
       NotFound
     case (d:DValueCodec[C], raw) =>
       reduceValue(contract, path, badTypes, d, raw)
-    case (d:DMapCodec[C, _, _], rawObject:RawObject) =>
+    case (d:DMapCodec[C, _, _], rawObject:RawObject@unchecked) =>
       reduceMap(contract, path, badTypes, d, rawObject)
-    case (d:DCollectionCodec[C, _], rawArray: RawArray) =>
+    case (d:DCollectionCodec[C, _], rawArray: RawArray@unchecked) =>
       reduceCollection(contract, path, badTypes, d, rawArray)
-    case (DContractCodec(codecContract), rawObject:RawObject) =>
+    case (DContractCodec(codecContract), rawObject:RawObject@unchecked) =>
       reduceContract(contract, path, badTypes, codecContract, rawObject)
+    case (d:DCoproductCodec[C, _], raw) =>
+      reduceCoproduct(contract, path, badTypes, d, raw)
     case _ if badTypes == DropBadTypes =>
       NotFound
     case (d, raw) =>
@@ -718,7 +752,7 @@ private[dsentric] trait ReduceOps {
 
   protected def reduceValue[D <: DObject, V](contract:ContractFor[D], path:Path, badTypes:BadTypes, codec:DValueCodec[V], raw:Raw):Available[Raw] =
     raw match {
-      case rawObject: RawObject =>
+      case rawObject: RawObject@unchecked =>
         RawObjectOps.reduceMap(rawObject).fold[Available[Raw]](NotFound) { r =>
           codec.unapply(r) match {
             case None if badTypes == DropBadTypes =>
@@ -781,7 +815,7 @@ private[dsentric] trait ReduceOps {
   protected def reduceCollection[D <: DObject, S, T](contract:ContractFor[D], path:Path, badTypes:BadTypes, codec:DCollectionCodec[S, T], raw:RawArray):Available[RawArray] = {
     val nest = badTypes.nest
     raw.zipWithIndex.map { p =>
-      reduceCodec(contract, path \ p._2, nest)(codec.valueCodec -> p._1) -> p._1
+      reduceCodec(contract, path \ p._2, nest)(codec.valueCodec -> p._1) -> p._2
     }.foldLeft[Either[ListBuffer[StructuralFailure], mutable.Builder[Raw, Vector[Raw]]]](Right(Vector.newBuilder[Raw])){
       case (Right(vb), (Found(t), _)) =>
         Right(vb.addOne(t))
@@ -815,6 +849,17 @@ private[dsentric] trait ReduceOps {
       case Left(NonEmptyList(head, tail)) =>
         Failed(head, tail).rebase(contract, path)
     }
+
+  protected def reduceCoproduct[D <: DObject, T, H <: HList](contract:ContractFor[D], path:Path, badTypes:BadTypes, codec:DCoproductCodec[T, H], raw:Raw): Available[Raw] = {
+    codec.codecsList.foldLeft[Available[Raw]](NotFound){
+      case (a:Found[Raw], _) =>
+        a
+      case (_, c) =>
+        reduceCodec(contract, path, badTypes)(c -> raw)
+    }
+  }
+
+
 }
 
 /**
@@ -835,12 +880,14 @@ private[dsentric] trait DeltaReduceOps extends ReduceOps {
       DeltaRemove
     case (d:DValueCodec[C], delta, current) =>
       deltaReduceValue(contract, path, badTypes, d, delta, current)
-    case (d:DMapCodec[C, _, _], deltaObject:RawObject, current:Raw) =>
+    case (d:DMapCodec[C, _, _], deltaObject:RawObject@unchecked, current:Raw) =>
       deltaReduceMap(contract, path, badTypes, d, deltaObject, current)
-    case (d:DCollectionCodec[C, _], deltaArray: RawArray, _) =>
+    case (d:DCollectionCodec[C, _], deltaArray: RawArray@unchecked, _) =>
       available2DeltaReduce(reduceCollection(contract, path, badTypes, d, deltaArray))
-    case (DContractCodec(codecContract), rawObject:RawObject, current) =>
+    case (DContractCodec(codecContract), rawObject:RawObject@unchecked, current) =>
       deltaReduceContract(contract, path, badTypes, codecContract, rawObject, current)
+    case (d:DCoproductCodec[C, _], raw, current) =>
+      deltaReduceCoproduct(contract, path, badTypes, d, raw, current)
     case _ if badTypes == DropBadTypes =>
       DeltaEmpty
     case (d, raw, _) =>
@@ -850,7 +897,7 @@ private[dsentric] trait DeltaReduceOps extends ReduceOps {
 
   protected def deltaReduceValue[D <: DObject, V](contract:ContractFor[D], path:Path, badTypes:BadTypes, codec:DValueCodec[V], delta:Raw, current:Raw):DeltaReduce[Raw] =
     (delta, current) match {
-      case (deltaObject:RawObject, currentObject:RawObject) =>
+      case (deltaObject:RawObject@unchecked, currentObject:RawObject@unchecked) =>
         RawObjectOps.rightDifferenceReduceMap(currentObject -> deltaObject) match {
           case None =>
             DeltaEmpty
@@ -874,7 +921,7 @@ private[dsentric] trait DeltaReduceOps extends ReduceOps {
 
   protected def deltaReduceMap[D <: DObject, C, K, V](contract:ContractFor[D], path:Path, badTypes:BadTypes, codec:DMapCodec[C, K, V], deltaObject:RawObject, current:Raw):DeltaReduce[RawObject] =
     current match {
-      case currentObject: RawObject =>
+      case currentObject: RawObject@unchecked =>
         val nest = badTypes.nest
         deltaObject.map{
           case (key, DNull) if (currentObject.contains(key)) =>
@@ -940,7 +987,7 @@ private[dsentric] trait DeltaReduceOps extends ReduceOps {
 
   protected def deltaReduceContract[D <: DObject](contract:ContractFor[D], path:Path, badTypes:BadTypes, codecContract:Contract, deltaObject:RawObject, current:Raw):DeltaReduce[RawObject] =
     current match {
-      case currentObject: RawObject =>
+      case currentObject: RawObject@unchecked =>
         codecContract.$reduceDelta(new DObjectInst(currentObject), new DeltaInst(deltaObject), badTypes.nest == DropBadTypes) match {
           case Right(d) if d.isEmpty =>
             DeltaEmpty
@@ -957,4 +1004,15 @@ private[dsentric] trait DeltaReduceOps extends ReduceOps {
       case _ =>
         available2DeltaReduce(reduceContract(contract, path, badTypes, codecContract, deltaObject))
     }
+
+  protected def deltaReduceCoproduct[D <: DObject, T, H <: HList](contract:ContractFor[D], path:Path, badTypes:BadTypes, codec:DCoproductCodec[T, H], raw:Raw, current:Raw): DeltaReduce[Raw] = {
+    codec.codecsList.foldLeft[DeltaReduce[Raw]](DeltaEmpty){
+      case (_:DeltaFailed, c) =>
+        deltaReduceCodec(contract, path, badTypes)((c, raw, current))
+      case (a, _) =>
+        a
+    }
+  }
+
+
 }

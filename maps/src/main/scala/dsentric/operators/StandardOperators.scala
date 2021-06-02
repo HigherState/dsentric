@@ -61,8 +61,20 @@ trait StandardOperators {
         else
           value.map(_ => dataMask)
 
-      def verifyDelta[D <: DObject](contract: ContractFor[D], path: Path, currentState: Option[S], finalState: Option[S]): ValidationFailures =
-        if (finalState.contains(dataMask))
+
+      /**
+       * Verify the reduced delta value against the current State
+       *
+       * @param contract
+       * @param path
+       * @param reducedDelta
+       * @param currentState
+       * @tparam S
+       * @tparam D
+       * @return
+       */
+      def verifyDelta[D <: DObject](contract: ContractFor[D], path: Path, reducedDelta: Raw, currentState: Raw): ValidationFailures =
+        if (reducedDelta == dataMask)
           ValidationFailures(MaskFailure(contract, path, mask))
         else
           ValidationFailures.empty

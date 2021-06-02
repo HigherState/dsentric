@@ -17,3 +17,5 @@ trait DMapCodecs {
         m
     }
 }
+
+object DMapCodecs extends DMapCodecs

@@ -39,23 +39,23 @@ class ContractLensSpec extends AnyFunSpec with Matchers with EitherValues {
       }
     }
   }
-  describe("$get") {
-    describe("Closed for additional properties") {
-      it("Should return object if no additional properties") {
-        val base = DObject("expected" := "value")
-        ClosedContract.$get(base).value shouldBe base
-      }
-      it("Should fail with ClosedContractFailure if additional properties") {
-        val base = DObject("expected" := "value", "additional" := 1)
-        ClosedContract.$get(base).left.value should contain(ClosedContractFailure(ClosedContract, PathEnd, "additional"))
-      }
-    }
-    describe("Additional properties") {
-      it("Should return object if additional properties") {
-        val base = DObject("expected" := "value", "additional" := 1)
-        OpenContract.$get(base).value shouldBe base
-      }
-    }
-  }
+//  describe("$get") {
+//    describe("Closed for additional properties") {
+//      it("Should return object if no additional properties") {
+//        val base = DObject("expected" := "value")
+//        ClosedContract.$get(base).value shouldBe base
+//      }
+//      it("Should fail with ClosedContractFailure if additional properties") {
+//        val base = DObject("expected" := "value", "additional" := 1)
+//        ClosedContract.$get(base).left.value should contain(ClosedContractFailure(ClosedContract, PathEnd, "additional"))
+//      }
+//    }
+//    describe("Additional properties") {
+//      it("Should return object if additional properties") {
+//        val base = DObject("expected" := "value", "additional" := 1)
+//        OpenContract.$get(base).value shouldBe base
+//      }
+//    }
+//  }
 
 }

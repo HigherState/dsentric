@@ -249,3 +249,10 @@ Delta
     ---Expected (empty)
         ---Expected
 == NotFound
+
+ADD: Contract.property.$contains()
+
+Operation,  Can we have PathSetters that apply to all additional properties or values in a map or array... good for masking.
+  Conditional mask remove flags?
+
+Projections, simply properties and projections, so can do use a property as a project

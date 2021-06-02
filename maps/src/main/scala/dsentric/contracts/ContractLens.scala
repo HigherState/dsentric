@@ -1,6 +1,5 @@
 package dsentric.contracts
 
-import cats.data.NonEmptyList
 import dsentric.{DObject, Delta}
 import dsentric.failure.{StructuralFailure, ValidResult, ValidStructural}
 
@@ -9,27 +8,16 @@ trait ContractLens[D <: DObject] { this:ContractFor[D] =>
   def _fields: Map[String, Property[D, _]]
 
   /**
-   * Returns object against the contract, verifying the structural integrity of the object
-   * @param obj
-   * @return
-   */
-  final def $get(obj:D, dropBadTypes:Boolean = false):ValidStructural[D] =
-    ObjectLens.propertyVerifier(this, obj.value) match {
-      case head :: tail => Left(NonEmptyList(head, tail))
-      case Nil => Right(obj)
-    }
-
-  /**
    * Returns object against the contract, verifying the structural integrity of the object as well as
    * removing empty Objects and Null values.
    * @param obj
    * @return
    */
-  final def $reduce(obj:D, dropBadTypes:Boolean = false):ValidStructural[D] =
-    ObjectLens.propertyVerifier(this, obj.value) match {
-      case head :: tail => Left(NonEmptyList(head, tail))
-      case Nil => Right(obj)
-    }
+  final def $reduce(obj:D, dropBadTypes:Boolean = false):ValidStructural[D] = {
+    val badTypes = if (dropBadTypes) DropBadTypes else FailOnBadTypes
+    ObjectPropertyLensOps.reduce(this, obj.value, badTypes)
+      .map{obj.internalWrap(_).asInstanceOf[D]}
+  }
 
   final def $reduceDelta(obj:D, delta:Delta, dropBadTypes:Boolean = false):ValidResult[Delta] =
     ???
@@ -41,7 +29,10 @@ trait ContractLens[D <: DObject] { this:ContractFor[D] =>
    * @return
    */
   final def $verify(obj:D):List[StructuralFailure] =
-    ObjectLens.propertyVerifier(this, obj.value)
+    ObjectPropertyLensOps.reduce(this, obj.value, DropBadTypes) match {
+      case Left(nel) => nel.toList
+      case _ => Nil
+    }
 
   final def $modify(f:this.type => D => D):D => D =
     f(this)

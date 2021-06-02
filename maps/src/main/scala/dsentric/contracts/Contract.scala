@@ -6,8 +6,8 @@ import dsentric.failure.ValidResult
 
 trait SubContractFor[D <: DObject]
   extends BaseContract[D]
-  with PropertyOps[D]
-  with PropertyObjectOps[D] {
+    with ExpectedPropertyOps[D]
+    with ExpectedPropertyObjectOps[D] {
   type Out = D
 
   override protected def __self: BaseContract[D] = this
@@ -15,8 +15,8 @@ trait SubContractFor[D <: DObject]
 
 trait ContractFor[D <: DObject]
   extends BaseContract[D]
-  with PropertyOps[D]
-  with PropertyObjectOps[D]
+  with ExpectedPropertyOps[D]
+  with ExpectedPropertyObjectOps[D]
   with ContractLens[D] {
 
   def _path:Path = Path.empty

@@ -1,7 +1,6 @@
 package dsentric.contracts
 
 import dsentric._
-import dsentric.codecs.std.DContractCodecs
 import dsentric.failure.{ExpectedFailure, IncorrectTypeFailure}
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
@@ -28,6 +27,12 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
       val default = \![String]("default")
     }
   }
+
+  trait Temp extends SubContract {
+    val field = \[String]
+    val default = \![String]("default")
+  }
+
 
   describe("Expected Lens") {
     describe("$verify") {
@@ -2055,11 +2060,11 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
     }
 
     object Objects extends Contract {
-      val expectedObjects = \[Vector[DObject]](vectorCodec(DContractCodecs(ExpectedObjects)))
+      val expectedObjects = \[Vector[DObject]](ExpectedObjects)
 
-      val maybeObjects = \[Vector[DObject]](vectorCodec(DContractCodecs(MaybeObjects)))
+      val maybeObjects = \[Vector[DObject]](MaybeObjects)
 
-      val defaultObjects = \[Vector[DObject]](vectorCodec(DContractCodecs(DefaultObjects)))
+      val defaultObjects = \[Vector[DObject]](DefaultObjects)
     }
 
     describe("$get") {
@@ -2154,9 +2159,9 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
     }
 
     object MapObjects extends Contract {
-      val expectedMap = \[Map[String, DObject]](stringValueMapCodec(DContractCodecs(Expected)))
-      val maybeMap = \[Map[String, DObject]](stringValueMapCodec(DContractCodecs(Maybe)))
-      val defaultMap = \[Map[String, DObject]](stringValueMapCodec(DContractCodecs(Default)))
+      val expectedMap = \[Map[String, DObject]](Expected)
+      val maybeMap = \[Map[String, DObject]](Maybe)
+      val defaultMap = \[Map[String, DObject]](Default)
     }
 
     describe("$get") {

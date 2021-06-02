@@ -11,15 +11,12 @@ sealed trait Failure {
 
   def rebase[G <: DObject](rootContract:ContractFor[G], rootPath:Path):Failure
 
-  def rebase(rootPath:Path):Failure
-
   def message:String
 }
 
 sealed trait StructuralFailure extends Failure {
   def rebase[G <: DObject](rootContract:ContractFor[G], rootPath:Path):StructuralFailure
 
-  def rebase(rootPath:Path):StructuralFailure
 }
 
 sealed trait TypeFailure extends StructuralFailure
@@ -28,18 +25,12 @@ final case class ExpectedFailure[D <: DObject](contract: ContractFor[D], path:Pa
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): ExpectedFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
 
-  def rebase(rootPath:Path): ExpectedFailure[D] =
-    copy(path = rootPath ++ path)
-
   def message = "Expected value not found."
 }
 
 final case class IncorrectTypeFailure[D <: DObject, T](contract: ContractFor[D], path:Path, codec:DCodec[T], foundRaw:Raw) extends TypeFailure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  IncorrectTypeFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
-
-  def rebase(rootPath: Path):  IncorrectTypeFailure[D, T] =
-    copy(path = rootPath ++ path)
 
   def message = s"Type '${codec.typeDefinition.name} was expected, $foundRaw was found."
 }
@@ -48,8 +39,6 @@ final case class IncorrectKeyTypeFailure[D <: DObject, T](contract: ContractFor[
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  IncorrectKeyTypeFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
 
-  def rebase(rootPath: Path):  IncorrectKeyTypeFailure[D, T] =
-    copy(path = rootPath ++ path)
 
   def message = s"Type '${codec.typeDefinition.name} was expected for additional properties key, $foundRaw was found."
 }
@@ -59,9 +48,6 @@ final case class ClosedContractFailure[D <: DObject](contract: ContractFor[D], p
 
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): ClosedContractFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
-
-  def rebase(rootPath: Path): ClosedContractFailure[D] =
-    copy(path = rootPath ++ path)
 }
 
 final case class ContractFieldFailure[D <: DObject](contract: ContractFor[D], path:Path, field:String) extends StructuralFailure {
@@ -69,9 +55,6 @@ final case class ContractFieldFailure[D <: DObject](contract: ContractFor[D], pa
 
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): StructuralFailure =
     copy(contract = rootContract, path = rootPath ++ path)
-
-  def rebase(rootPath: Path): StructuralFailure =
-    copy(path = rootPath ++ path)
 }
 
 final case class MissingElementFailure[D <: DObject, T](contract: ContractFor[D], codec:DCodec[T], path:Path) extends StructuralFailure {
@@ -79,9 +62,6 @@ final case class MissingElementFailure[D <: DObject, T](contract: ContractFor[D]
 
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  MissingElementFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
-
-  def rebase(rootPath: Path): MissingElementFailure[D, T] =
-    this.copy(path = rootPath ++ path)
 }
 
 final case class UnexpectedValueFailure[D <: DObject, T](contract: ContractFor[D], codec:DCodec[T], expectedValue:Raw, unexpectedValue:Raw, path:Path) extends StructuralFailure {
@@ -90,8 +70,6 @@ final case class UnexpectedValueFailure[D <: DObject, T](contract: ContractFor[D
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  UnexpectedValueFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
 
-  def rebase(rootPath: Path): UnexpectedValueFailure[D, T] =
-    this.copy(path = rootPath ++ path)
 }
 
 final case class DeltaNotSupportedFailure[D <: DObject, T](contract: ContractFor[D], codec:DCodec[T], path:Path) extends StructuralFailure {
@@ -100,8 +78,6 @@ final case class DeltaNotSupportedFailure[D <: DObject, T](contract: ContractFor
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): DeltaNotSupportedFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
 
-  def rebase(rootPath: Path): DeltaNotSupportedFailure[D, T] =
-    this.copy(path = rootPath ++ path)
 }
 
 object ExpectedFailure {
@@ -133,6 +109,7 @@ sealed trait ConstraintFailure extends Failure
 final case class RequiredFailure[D <: DObject](contract: ContractFor[D], path:Path) extends ConstraintFailure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): RequiredFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
+
 
   def message:String = "Value is required and cannot be dropped."
 }

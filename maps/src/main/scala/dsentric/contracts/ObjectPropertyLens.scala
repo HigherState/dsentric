@@ -25,13 +25,23 @@ private[dsentric] sealed trait ObjectPropertyLens[D <: DObject]
           if (r.isEmpty) obj
           else obj + (_key -> r)
         }
-      case Some(rawObject:RawObject) =>
+      case Some(rawObject:RawObject@unchecked) =>
         reduce(rawObject).map{r =>
           if (r.isEmpty) obj - _key
           else obj + (_key -> r)
         }
+      case Some(_) if dropBadTypes =>
+        reduce(RawObject.empty).map{r =>
+          if (r.isEmpty) obj
+          else obj + (_key -> r)
+        }
+      case Some(r) =>
+        ValidResult.structuralFailure(IncorrectTypeFailure(this, r))
     }
   }
+
+  private[contracts] def __reduceDelta(deltaObject:RawObject, currentValue:RawObject, dropBadTypes:Boolean):ValidResult[RawObject] =
+    ???
 
   /**
    * Apply object contract to modify the object
@@ -76,13 +86,11 @@ private[dsentric] sealed trait ObjectPropertyLens[D <: DObject]
   /**
    * Sets the object content to the passed value.
    * Does nothing if None is passed.
-   * Verifies the object satisfies the property requirements
-   * and additional properties definition.
    * @param obj
    * @return
    */
-  final def $maybeSet(obj:Option[DObject]):ValidPathSetter[D] =
-    obj.fold[ValidPathSetter[D]](IdentityValidSetter[D]())($set)
+  final def $maybeSet(obj:Option[DObject]):PathSetter[D] =
+    obj.fold[PathSetter[D]](IdentitySetter[D]())($set)
 }
 
 sealed trait ExpectedObjectPropertyLensLike[D <: DObject] extends ObjectPropertyLens[D] {
@@ -208,9 +216,11 @@ private[dsentric] trait MaybeObjectPropertyLens[D <: DObject] extends ObjectProp
 
   final def unapply(obj:D):Option[Option[DObject]] =
     TraversalOps.maybeTraverse(obj.value, this, false) match {
-      case PathEmptyMaybe => Some(None)
-      case NotFound => Some(None)
-      case Found(t:RawObject) =>
+      case PathEmptyMaybe =>
+        Some(None)
+      case NotFound =>
+        Some(None)
+      case Found(t:RawObject@unchecked) =>
         Some(Some(new DObjectInst(t)))
       case Found(_) =>
         None

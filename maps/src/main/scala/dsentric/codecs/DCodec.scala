@@ -1,9 +1,12 @@
 package dsentric.codecs
 
 import dsentric._
-import dsentric.contracts.{Contract, ContractFor}
+import dsentric.contracts.Contract
 import dsentric.failure.StructuralFailure
 import dsentric.schema._
+import shapeless.HList
+import shapeless.UnaryTCConstraint.*->*
+import shapeless.ops.hlist.{ToTraversable}
 
 import scala.collection.immutable.VectorBuilder
 import scala.collection.mutable
@@ -149,7 +152,8 @@ case class DContractCodec(contract:Contract) extends DCodec[DObject] {
   def unapply(a: Raw): Option[DObject] =
     a match {
       case m:RawObject@unchecked =>
-        contract.$get(new DObjectInst(m)).toOption
+        //TODO could be a disconnect between unapply in ObjectLens
+        contract.$reduce(new DObjectInst(m)).toOption
       case _ =>
         None
     }
@@ -160,7 +164,11 @@ case class DContractCodec(contract:Contract) extends DCodec[DObject] {
   def typeDefinition: TypeDefinition = ???
 }
 
-//trait DCoproductCodec[T <: HList] extends DCodec[T]
+abstract class DCoproductCodec[T, H <: HList : *->*[DCodec]#λ](val codecs:H)(implicit T:ToTraversable.Aux[H, List, DCodec[_]]) extends DCodec[T] {
+  def codecsList: List[DCodec[_]] = codecs.toList
+
+  def lift[A](a:A, codec:DCodec[A]):Option[T]
+}
 
 object DataCodec extends DValueCodec[Data]{
   def apply(t: Data): Raw =

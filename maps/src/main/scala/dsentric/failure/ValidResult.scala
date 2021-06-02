@@ -5,7 +5,7 @@ import cats.data.{NonEmptyList, Validated}
 
 object ValidResult {
 
-  def failure[T](failure:StructuralFailure, additional:List[StructuralFailure] = Nil):ValidStructural[T] =
+  def structuralFailure[T](failure:StructuralFailure, additional:List[StructuralFailure] = Nil):ValidStructural[T] =
     Left(NonEmptyList(failure, additional))
 
   def failure[T](failure:Failure, additional:List[Failure] = Nil):ValidResult[T] =

@@ -39,3 +39,5 @@ trait DCollectionCodecs {
     }
 
 }
+
+object DCollectionCodecs extends DCollectionCodecs

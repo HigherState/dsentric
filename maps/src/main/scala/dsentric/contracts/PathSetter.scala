@@ -171,7 +171,7 @@ private final case class TraversedModifySetter[D <: DObject, T](getter:D => Mayb
       case PathEmptyMaybe => ValidResult.success(v1)
       case NotFound => ValidResult.success(setter(v1, f(None)))
       case Found(t) => ValidResult.success(setter(v1, f(Some(t))))
-      case Failed(f, tail) => ValidResult.failure(f, tail:_*)
+      case Failed(f, tail) => ValidResult.structuralFailure(f, tail)
     }
 }
 
@@ -185,7 +185,7 @@ private final case class TraversedModifyValidSetter[D <: DObject, T](getter:D =>
         f(None).map(setter(v1, _))
       case Found(t) =>
         f(Some(t)).map(setter(v1, _))
-      case Failed(f, tail) => ValidResult.failure(f, tail:_*)
+      case Failed(f, tail) => ValidResult.structuralFailure(f, tail)
     }
 }
 
@@ -203,7 +203,7 @@ private final case class TraversedModifyOrDropSetter[D <: DObject, T](getter:D =
       case Found(t) =>
         ValidResult.success(setter(v1, f(Some(t))))
       case Failed(f, tail) =>
-        ValidResult.failure(f, tail:_*)
+        ValidResult.structuralFailure(f, tail)
     }
 }
 
@@ -228,7 +228,7 @@ private final case class TraversedModifyOrDropValidSetter[D <: DObject, T](gette
             vr.map(t => setter(v1, Some(t)))
         }
       case Failed(f, tail) =>
-        ValidResult.failure(f, tail:_*)
+        ValidResult.structuralFailure(f, tail)
     }
 }
 

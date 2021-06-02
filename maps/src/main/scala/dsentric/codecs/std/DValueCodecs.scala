@@ -1,7 +1,7 @@
 package dsentric.codecs.std
 
 import dsentric.{DArray, DNull, DObject, DObjectInst, DProjection, DQuery, Data, NumericPartialFunctions, Path, Raw, RawArray, RawObject, RawValue}
-import dsentric.codecs.{DArrayCodec, DCodec, DStringCodec, DValueCodec, DataCodec, DirectCodec, MatchCodec}
+import dsentric.codecs.{DCodec, DStringCodec, DValueCodec, DataCodec, DirectCodec, MatchCodec}
 import dsentric.schema.{ArrayDefinition, BooleanDefinition, IntegerDefinition, NullDefinition, NumberDefinition, ObjectDefinition, StringDefinition, TypeDefinition}
 
 trait DValueCodecs {
@@ -116,7 +116,7 @@ trait DValueCodecs {
 
       def unapply(a: Raw): Option[DObject] =
         a match {
-          case r:RawObject =>
+          case r:RawObject@unchecked =>
             Some(new DObjectInst(r))
           case _ =>
             None
@@ -126,8 +126,8 @@ trait DValueCodecs {
 
     }
 
-  implicit val dArrayCodec:DArrayCodec[DArray] =
-    new DArrayCodec[DArray] {
+  implicit val dArrayCodec:DValueCodec[DArray] =
+    new DValueCodec[DArray] {
       override def apply(t: DArray): RawArray = t.value
 
       def unapply(a: Raw): Option[DArray] =
@@ -150,7 +150,7 @@ trait DValueCodecs {
 
       def unapply(a: Raw): Option[DQuery] =
         a match {
-          case r:RawObject =>
+          case r:RawObject@unchecked =>
             Some(new DQuery(r))
           case _ =>
             None
@@ -167,7 +167,7 @@ trait DValueCodecs {
 
       def unapply(a: Raw): Option[DProjection] =
         a match {
-          case r:RawObject =>
+          case r:RawObject@unchecked =>
             Some(new DProjection(r))
           case _ =>
             None

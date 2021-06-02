@@ -26,11 +26,12 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
    * @return
    */
   final def $get(key:Key)(d:AuxD):ValidResult[Option[Value]] = {
-    val keyString = _additionalKeyCodec.apply(key)
-    checkKeyClash(keyString) >>
-      TraversalOps
-        .traverse(d.value, this, keyString)
-        .toValidOption
+    ???
+//    val keyString = _additionalKeyCodec.apply(key)
+//    checkKeyClash(keyString) >>
+//      TraversalOps
+//        .traverse(d.value, this, keyString)
+//        .toValidOption
   }
   /**
    * Returns failure if the key is in the contract definition.
@@ -48,29 +49,30 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
    * @return
    */
   final def $addMany(d:Iterable[(Key, Value)]):ValidPathSetter[AuxD] = {
-    val toRaw = d.map(p => _additionalKeyCodec.apply(p._1) -> _additionalValueCodec(p._2))
-    def fieldCheck =
-      ValidResult.fromList {
-        toRaw.map(_._1)
-          .filter(_fields.contains)
-          .map(keyString => ContractFieldFailure(this._root, this._path, keyString))
-          .toList
-      }
-    def traverse = (obj:AuxD) =>
-      TraversalOps
-        .traverseRaw(obj.value, this)
-        .toValidOption
-
-    RawModifySetter(obj =>
-      ValidResult.sequence2(fieldCheck, traverse(obj))
-        .map{
-          case (_, None) =>
-            toRaw.toMap
-          case (_, Some(target)) =>
-            target ++ toRaw.toMap
-        },
-      _path
-    )
+    ???
+//    val toRaw = d.map(p => _additionalKeyCodec.apply(p._1) -> _additionalValueCodec(p._2))
+//    def fieldCheck =
+//      ValidResult.fromList {
+//        toRaw.map(_._1)
+//          .filter(_fields.contains)
+//          .map(keyString => ContractFieldFailure(this._root, this._path, keyString))
+//          .toList
+//      }
+//    def traverse = (obj:AuxD) =>
+//      TraversalOps
+//        .traverseRaw(obj.value, this)
+//        .toValidOption
+//
+//    RawModifySetter(obj =>
+//      ValidResult.sequence2(fieldCheck, traverse(obj))
+//        .map{
+//          case (_, None) =>
+//            toRaw.toMap
+//          case (_, Some(target)) =>
+//            target ++ toRaw.toMap
+//        },
+//      _path
+//    )
   }
 
   /**
@@ -100,7 +102,7 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
 
   private def checkKeyClash(key:String):ValidResult[Unit] =
     if (_fields.contains(key))
-      ValidResult.failure(ContractFieldFailure(this._root, this._path, key))
+      ValidResult.structuralFailure(ContractFieldFailure(this._root, this._path, key), Nil)
     else
       ValidResult.unit
 }
