@@ -132,5 +132,38 @@ class AdditionalPropertiesLensSpec extends AnyFunSpec with Matchers with EitherV
       val current = DObject("expected" := 1234L, "additional" := false, "dropMe" := 5678)
       NestedAdditionalProperties.$drop("dropMe")(current).value shouldBe DObject("expected" := 1234L, "additional" := false)
     }
+    it("Should clear out object if dropped key last entry") {
+      val current = DObject("expected" := 1234L, "maybeAdditional" ::= ("dropMe" := 123))
+      NestedAdditionalProperties.maybeAdditional.$drop("dropMe")(current).value shouldBe DObject("expected" := 1234L)
+    }
+    it("Should do nothing if not applied to object") {
+      val current = DObject("expected" := 1234L, "expectedAdditional" := false)
+      NestedAdditionalProperties.expectedAdditional.$drop("dropMe")(current).value shouldBe current
+    }
+  }
+
+  describe("$dropAll") {
+    it("Should fo nothing not applied to object") {
+        val current = DObject("expected" := 1234L, "expectedAdditional" := false)
+        NestedAdditionalProperties.expectedAdditional.$dropAll(current) shouldBe current
+      }
+    it("Should clear out object if only contains additional keys") {
+      val current = DObject("expected" := 1234L, "maybeAdditional" ::= ("dropMe" := 123, "dropMe2" := "test"))
+      NestedAdditionalProperties.maybeAdditional.$dropAll(current) shouldBe DObject("expected" := 1234L)
+    }
+    it("Should not clear out field values") {
+      Simple.$dropAll(DObject("dropMe" := "dropped", "dropMe2" := "test", "default" := 456)) shouldBe DObject("default" := 456)
+    }
+  }
+  describe("$modify") {
+    it("Should do nothing if key not found") {
+      pending
+    }
+    it("Should fail if value is of wrong type") {
+      pending
+    }
+    it("Should modify if value found") {
+      pending
+    }
   }
 }

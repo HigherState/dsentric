@@ -1,7 +1,7 @@
 package dsentric
 
 
-//TODO remove DObject referencing methods, mak pure Raw
+//TODO move DObject referencing methods, make pure Raw
 trait RawObjectOps {
 
   def concat(x :DObject, y:DObject):DObject =
@@ -55,6 +55,8 @@ trait RawObjectOps {
     case (s, d) =>
       val r = d.flatMap { kvp =>
         s.get(kvp._1).fold(Option(kvp)){
+          case v if v == kvp._2 =>
+            None
           case m:RawObject@unchecked =>
             kvp._2 match {
               case m2:RawObject@unchecked =>
@@ -62,8 +64,6 @@ trait RawObjectOps {
               case _ =>
                 Some(kvp)
             }
-          case v if v == kvp._2 =>
-            None
           case _ =>
             Some(kvp)
         }
@@ -71,6 +71,38 @@ trait RawObjectOps {
       if (r.nonEmpty) Some(r)
       else None
     }
+
+  /**
+   * Left is current, right is new value, result calculates the Delta object
+   * @return
+   */
+  def calculateDelta(x:DObject, y:DObject):Option[Delta] =
+    calculateDeltaRaw(x.value -> y.value).map(new DeltaInst(_))
+
+  def calculateDeltaRaw:Function[(RawObject, RawObject), Option[RawObject]] = {
+    case (s, d) if d == s =>
+      None
+    case (s, d) =>
+      val r = d.flatMap { kvp =>
+        s.get(kvp._1).fold(Option(kvp)){
+          case v if v == kvp._2 =>
+            None
+          case m:RawObject@unchecked =>
+            kvp._2 match {
+              case m2:RawObject@unchecked =>
+                calculateDeltaRaw(m -> m2).map(kvp._1 -> _)
+              case _ =>
+                Some(kvp)
+            }
+          case _ =>
+            Some(kvp)
+        }
+      }
+      val drop = s.view.filterKeys(k => !d.contains(k)).map(_._1 -> DNull)
+      val result = r ++ drop
+      if (result.nonEmpty) Some(result)
+      else None
+  }
 
   /**
    * For Deltas can strip out values that dont cause any change, possibility delta does nothing at all

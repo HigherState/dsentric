@@ -252,12 +252,7 @@ private final case class RawTraversedModifyValidSetter[D <: DObject](getter:RawO
       case NotFound | PathEmptyMaybe =>
         ValidResult.success(rawObject)
       case Found(t) =>
-        f(t).map{
-          case r if path.isEmpty =>
-            r
-          case r =>
-            Setter.apply(rawObject, r, path)
-        }
+        f(t).map(Setter.apply(rawObject, _, path))
       case Failed(f, tail) =>
         ValidResult.structuralFailure(f, tail)
     }
@@ -271,6 +266,28 @@ private final case class RawTraversedModifyValidSetter[D <: DObject](getter:RawO
       case Failed(f, tail) =>
         ValidResult.structuralFailure(f, tail)
     }
+}
+
+/**
+ * Doesnt do anything if path doesnt lead to a Raw Object
+ * @param getter
+ * @param f
+ * @param path
+ * @tparam D
+ */
+private final case class RawTraversedIgnoredModifySetter[D <: DObject](f:RawObject => RawObject, path:Path) extends PathSetter[D] {
+
+  def rawApply(rawObject: RawObject): RawObject =
+    PathLensOps.traverseObject(rawObject, path)
+      .fold(rawObject){r =>
+        Setter.apply(rawObject, f(r), path)
+      }
+
+  private[contracts] def rawDelta(rawObject: RawObject): RawObject =
+    PathLensOps.traverseObject(rawObject, path)
+      .fold(RawObject.empty){r =>
+        Setter.deltaApply(rawObject, f(r), path)
+      }
 }
 
 /*
@@ -373,6 +390,8 @@ private[contracts] object Setter {
 
   def apply[T](obj:RawObject, value:Raw, path:Path):RawObject = {
     value match {
+      case r:RawObject@unchecked if path.isEmpty =>
+        r
       case r:RawObject@unchecked if r.isEmpty =>
         PathLensOps.drop(obj, path).getOrElse(Map.empty)
       case r =>
@@ -380,14 +399,26 @@ private[contracts] object Setter {
     }
   }
 
+  /**
+   * Traverses the obj to compare the new Delta entry
+   * We want to traverse as we cant guarantee the target and destination paths were the same
+   * @param obj
+   * @param value
+   * @param path
+   * @return
+   */
   def deltaApply(obj:RawObject, value:Raw, path:Path):RawObject =
-    PathLensOps.traverse(obj, path) match {
-      case Some(r) if r == value =>
+    PathLensOps.traverse(obj, path) -> value match {
+      case (Some(r), v) if r == v =>
         RawObject.empty
-      case Some(_) if value == RawObject.empty =>
+      case (Some(_), v:RawObject@unchecked) if v.isEmpty =>
         PathLensOps.pathToMap(path, DNull)
-      case None if value == RawObject.empty =>
+      case (None, v:RawObject@unchecked) if v.isEmpty =>
         RawObject.empty
+      case (Some(r:RawObject@unchecked), v:RawObject@unchecked) =>
+        RawObjectOps.calculateDeltaRaw(r -> v)
+          .map(d => PathLensOps.pathToMap(path, d))
+          .getOrElse(RawObject.empty)
       case _ =>
         PathLensOps.pathToMap(path, value)
     }

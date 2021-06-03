@@ -19,6 +19,25 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
   def _additionalDataOperators:List[DataOperator[Option[Map[Key, Value]]]]
   def _additionalKeyCodec:DStringCodec[Key]
   def _additionalValueCodec:DCodec[Value]
+
+  private[contracts] def __get(data:RawObject, key:String, dropBadTypes:Boolean):MaybeAvailable[Value] =
+    TraversalOps.maybeTraverseRaw(data, this, dropBadTypes)
+      .flatMap { rawObject =>
+        rawObject.get(key) match {
+          case Some(value) =>
+            _additionalValueCodec.unapply(value) match {
+              case None if dropBadTypes =>
+                NotFound
+              case None =>
+                Failed(IncorrectTypeFailure(_root, _path \ key, _additionalValueCodec, value))
+              case Some(t) =>
+                Found(t)
+            }
+          case None =>
+            NotFound
+        }
+      }
+
   /**
    * Returns failure if the key is in the contract definition.
    * @param key
@@ -27,25 +46,10 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
    */
   final def $get(key:Key, dropBadTypes:Boolean)(d:AuxD):ValidResult[Option[Value]] = {
     val keyString = _additionalKeyCodec.apply(key)
-    checkKeyClash(keyString).flatMap { _ =>
-      TraversalOps.traverseRaw(d.value, this, dropBadTypes)
-        .flatMap{rawObject =>
-          rawObject.get(keyString) match {
-            case Some(value) =>
-              _additionalValueCodec.unapply(value) match {
-                case None if dropBadTypes =>
-                  NotFound
-                case None =>
-                  Failed(IncorrectTypeFailure(_root, _path \ keyString, _additionalValueCodec, value))
-                case Some(t) =>
-                  Found(t)
-              }
-            case None =>
-              NotFound
-          }
-      }.toValidOption
-    }
+    _checkKeyClash(keyString) >>
+    __get(d.value, keyString, dropBadTypes).toValidOption
   }
+
   final def $get(key:Key)(d:AuxD):ValidResult[Option[Value]] =
     $get(key, false)(d)
 
@@ -56,7 +60,7 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
    */
   final def $put(d:(Key, Value)):ValidPathSetter[AuxD] = {
     val keyString = _additionalKeyCodec.apply(d._1)
-    ValidValueSetter(_path \ keyString, checkKeyClash(keyString).map(_ => _additionalValueCodec(d._2)))
+    ValidValueSetter(_path \ keyString, _checkKeyClash(keyString).map(_ => _additionalValueCodec(d._2)))
   }
 
   /**
@@ -91,14 +95,39 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
    */
   final def $drop(key:Key):ValidPathSetter[AuxD] = {
     val keyString = _additionalKeyCodec.apply(key)
-    ValidDrop(checkKeyClash(keyString).map(_ => _path \ keyString))
+    ValidDrop(_checkKeyClash(keyString).map(_ => _path \ keyString))
   }
 
-  final def $dropAll:PathSetter[AuxD] = ???
+  final def $dropAll:PathSetter[AuxD] =
+    RawTraversedIgnoredModifySetter[AuxD](
+      r => r.view.filterKeys(_fields.contains).toMap,
+      _path
+    )
 
-  final def $setOrDrop(key:String, value:Option[Data]):PathSetter[AuxD] = ???
+  final def $setOrDrop(key:Key, value:Option[Value]):ValidPathSetter[AuxD] = {
+    val keyString = _additionalKeyCodec.apply(key)
+    value match {
+      case None =>
+        ValidDrop(_checkKeyClash(keyString).map(_ => _path \ keyString))
+      case Some(v) =>
+        ValidValueSetter(_path \ keyString, _checkKeyClash(keyString).map(_ => _additionalValueCodec(v)))
+    }
+  }
+  final def $modify(key:Key, f:Value => Value, dropBadTypes:Boolean):ValidPathSetter[AuxD] = {
+    val keyString = _additionalKeyCodec.apply(key)
+    ModifySetter(d => _checkKeyClash(keyString) >> __get(d, keyString, dropBadTypes).toValidOption, f, _additionalValueCodec, _path \ keyString)
+  }
 
-  final def $modify(key:String, f:Option[Data] => Data):ValidPathSetter[AuxD] = ???
+  final def $modify(key:Key, f:Value => Value):ValidPathSetter[AuxD] =
+    $modify(key, f, false)
+
+  /**
+   * IMPORTANT Does not set if maybe path is empty
+   * @param key
+   * @param f
+   * @return
+   */
+  final def $modifyOrSet(key:Key, f:Option[Value] => Value):ValidPathSetter[AuxD] = ???
 
   final def $modifyOrDrop(key:String, f:Option[Data] => Option[Data]):ValidPathSetter[AuxD] = ???
 
@@ -107,7 +136,7 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
   final def $dynamic[T](field:String)(implicit codec:DCodec[T]):MaybeProperty[AuxD, T] =
     new MaybeProperty[AuxD, T](Some(field), this.asInstanceOf[BaseContract[AuxD]], codec, List.empty)
 
-  private def checkKeyClash(key:String):ValidResult[Unit] =
+  private def _checkKeyClash(key:String):ValidResult[Unit] =
     if (_fields.contains(key))
       ValidResult.structuralFailure(ContractFieldFailure(this._root, this._path, key), Nil)
     else

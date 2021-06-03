@@ -329,23 +329,39 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
     value.fold[PathSetter[D]](ValueDrop(_path))(v => ValueSetter(_path, _codec(v)))
 
   /**
-   * Modifies or sets the value if it doesnt exist.
-   * Will create object path to Property if objects dont exist only if path is expected.
-   * Returns failure if value is of the wrong type
+   * Modifies value for the property.
+   * Returns Failure if wrong type.
+   * Does nothing if value not found
    * @param f
    * @return
    */
-  final def $modify(f:Option[T] => T, dropBadTypes:Boolean = false):ValidPathSetter[D] =
+  final def $modify(f:T => T, dropBadTypes:Boolean = false):ValidPathSetter[D] =
+    ModifySetter(d => __get(d, dropBadTypes).toValidOption, f, _codec, _path)
+
+  final def $modifyWith(f:T => ValidResult[T], dropBadTypes:Boolean = false):ValidPathSetter[D] =
+    ModifyValidSetter(d => __get(d, dropBadTypes).toValidOption, f, _codec, _path)
+
+  /**
+   * Modifies or sets the value if it doesnt exist.
+   * Will create object path to Property if objects dont exist only if path is expected.
+   * Returns failure if value is of the wrong type
+   * IMPORTANT set will create the path to the object if not found, this will not (may change)
+   *   --perhaps need ExpectedMaybeLens and it would create path
+   * @param f
+   * @return
+   */
+  final def $modifyOrSet(f:Option[T] => T, dropBadTypes:Boolean = false):ValidPathSetter[D] =
     TraversedModifySetter(__get(_, dropBadTypes), f, _codec, _path)
 
   /**
    * Modifies or sets the value if it doesnt exist.
    * Will create object path to Property if objects dont exist only if path is expected.
    * Returns failure if value is of the wrong type
+   * IMPORTANT set will create the path to the object if not found, this will not (may change)
    * @param f
    * @return
    */
-  final def $modifyWith(f:Option[T] => ValidResult[T], dropBadTypes:Boolean = false):ValidPathSetter[D] =
+  final def $modifyOrSetWith(f:Option[T] => ValidResult[T], dropBadTypes:Boolean = false):ValidPathSetter[D] =
     TraversedModifyValidSetter(__get(_, dropBadTypes), f, _codec, _path)
 
   /**
@@ -403,6 +419,7 @@ sealed trait DefaultLensLike[D <: DObject, T] extends UnexpectedLensLike[D, T] {
 
   /**
    * Modifies value for the property.
+   * Uses Default value if value not found
    * Returns Failure if existing value is Empty or of wrong type.
    * @param f
    * @return

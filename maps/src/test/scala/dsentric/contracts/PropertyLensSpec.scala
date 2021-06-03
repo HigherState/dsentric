@@ -1057,6 +1057,83 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
       }
     }
     describe("$modify") {
+      val f:Function[String, String] = _ + " modified"
+      describe("No Path") {
+        it("Should do nothing if empty value") {
+          val base = DObject.empty
+          MaybeStructure.field.$modify(f)(base).value shouldBe DObject.empty
+        }
+        it("Should modify a set value") {
+          val base = DObject("field" := "value")
+          MaybeStructure.field.$modify(f)(base).value shouldBe DObject("field" := "value modified")
+        }
+        it("Should fail with IncorrectTypeFailure if wrong type") {
+          val base = DObject("field" := 123)
+          MaybeStructure.field.$modify(f)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.field, 123))
+        }
+        it("Should fail with IncorrectTypeFailure if incorrect null type") {
+          val base = DObject("field" := DNull)
+          MaybeStructure.field.$modify(f)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.field, DNull))
+        }
+        it("Should modify a null value") {
+          val pfN: Function[DNullable[Int], DNullable[Int]] = {
+            case DNull => DSome(0)
+            case DSome(x) => DSome(x + 1)
+          }
+          val base = DObject("nulled" := DNull)
+          MaybeStructure.nulled.$modify(pfN)(base).value shouldBe DObject("nulled" := 0)
+          val base2 = DObject("nulled" := 123)
+          MaybeStructure.nulled.$modify(pfN)(base2).value shouldBe DObject("nulled" := 124)
+          val base3 = DObject.empty
+          MaybeStructure.nulled.$modify(pfN)(base3).value shouldBe DObject.empty
+        }
+      }
+      describe("In Expected Path") {
+        it("Should modify a nested value") {
+          val base = DObject("expected" ::= ("field" := "value"))
+          MaybeStructure.expected.field.$modify(f)(base).value shouldBe DObject("expected" ::= ("field" := "value modified"))
+        }
+        it("Should fail with IncorrectTypeFailure if wrong type for property") {
+          val base = DObject("expected" ::= ("field" := 1234))
+          MaybeStructure.expected.field.$modify(f)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.expected.field, 1234))
+        }
+        it("Should fail with IncorrectTypeFailure for the parent if parent is wrong type") {
+          val base = DObject("expected" := false)
+          MaybeStructure.expected.field.$modify(f)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.expected, false))
+        }
+        it("Should not modify structure if nested value not found") {
+          val base = DObject("expected" ::= ("field2" := "value"))
+          MaybeStructure.expected.field.$modify(f)(base).value shouldBe base
+        }
+        it("Should do nothing if parent not found") {
+          val base = DObject.empty
+          MaybeStructure.expected.field.$modify(f)(base).value shouldBe base
+        }
+      }
+      describe("In Maybe Path") {
+        it("Should modify a nested value") {
+          val base = DObject("maybe" ::= ("field" := "value"))
+          MaybeStructure.maybe.field.$modify(f)(base).value shouldBe DObject("maybe" ::= ("field" := "value modified"))
+        }
+        it("Should fail with IncorrectTypeFailure if wrong type for property") {
+          val base = DObject("maybe" ::= ("field" := 1234))
+          MaybeStructure.maybe.field.$modify(f)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.maybe.field, 1234))
+        }
+        it("Should fail with IncorrectTypeFailure for the parent if parent is wrong type") {
+          val base = DObject("maybe" := false)
+          MaybeStructure.maybe.field.$modify(f)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.maybe, false))
+        }
+        it("Should not modify structure if nested value not found") {
+          val base = DObject("maybe" ::= ("field2" := "value"))
+          MaybeStructure.maybe.field.$modify(f)(base).value shouldBe base
+        }
+        it("Should do nothing if parent not found") {
+          val base = DObject.empty
+          MaybeStructure.maybe.field.$modify(f)(base).value shouldBe base
+        }
+      }
+    }
+    describe("$modifyOrSet") {
       val pf:Function[Option[String], String] = {
         case None => "wasEmpty"
         case Some(t) => t + " found"
@@ -1064,19 +1141,19 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
       describe("No Path") {
         it("Should modify empty value") {
           val base = DObject.empty
-          MaybeStructure.field.$modify(pf)(base).value shouldBe DObject("field" := "wasEmpty")
+          MaybeStructure.field.$modifyOrSet(pf)(base).value shouldBe DObject("field" := "wasEmpty")
         }
         it("Should modify a set value") {
           val base = DObject("field" := "value")
-          MaybeStructure.field.$modify(pf)(base).value shouldBe DObject("field" := "value found")
+          MaybeStructure.field.$modifyOrSet(pf)(base).value shouldBe DObject("field" := "value found")
         }
         it("Should fail with IncorrectTypeFailure if wrong type") {
           val base = DObject("field" := 123)
-          MaybeStructure.field.$modify(pf)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.field, 123))
+          MaybeStructure.field.$modifyOrSet(pf)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.field, 123))
         }
         it("Should fail with IncorrectTypeFailure if incorrect null type") {
           val base = DObject("field" := DNull)
-          MaybeStructure.field.$modify(pf)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.field, DNull))
+          MaybeStructure.field.$modifyOrSet(pf)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.field, DNull))
         }
         it("Should modify a null value") {
           val pfN: Function[Option[DNullable[Int]], DNullable[Int]] = {
@@ -1085,55 +1162,55 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
             case Some(DSome(x)) => DSome(x + 1)
           }
           val base = DObject("nulled" := DNull)
-          MaybeStructure.nulled.$modify(pfN)(base).value shouldBe DObject("nulled" := 0)
+          MaybeStructure.nulled.$modifyOrSet(pfN)(base).value shouldBe DObject("nulled" := 0)
           val base2 = DObject("nulled" := 123)
-          MaybeStructure.nulled.$modify(pfN)(base2).value shouldBe DObject("nulled" := 124)
+          MaybeStructure.nulled.$modifyOrSet(pfN)(base2).value shouldBe DObject("nulled" := 124)
           val base3 = DObject.empty
-          MaybeStructure.nulled.$modify(pfN)(base3).value shouldBe DObject("nulled" := DNull)
+          MaybeStructure.nulled.$modifyOrSet(pfN)(base3).value shouldBe DObject("nulled" := DNull)
         }
       }
       describe("In Expected Path") {
         it("Should modify a nested value") {
           val base = DObject("expected" ::= ("field" := "value"))
-          MaybeStructure.expected.field.$modify(pf)(base).value shouldBe DObject("expected" ::= ("field" := "value found"))
+          MaybeStructure.expected.field.$modifyOrSet(pf)(base).value shouldBe DObject("expected" ::= ("field" := "value found"))
         }
         it("Should fail with IncorrectTypeFailure if wrong type for property") {
           val base = DObject("expected" ::= ("field" := 1234))
-          MaybeStructure.expected.field.$modify(pf)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.expected.field, 1234))
+          MaybeStructure.expected.field.$modifyOrSet(pf)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.expected.field, 1234))
         }
         it("Should fail with IncorrectTypeFailure for the parent if parent is wrong type") {
           val base = DObject("expected" := false)
-          MaybeStructure.expected.field.$modify(pf)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.expected, false))
+          MaybeStructure.expected.field.$modifyOrSet(pf)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.expected, false))
         }
         it("Should modify structure if nested value not found") {
           val base = DObject("expected" ::= ("field2" := "value"))
-          MaybeStructure.expected.field.$modify(pf)(base).value shouldBe DObject("expected" ::= ("field2" := "value", "field" := "wasEmpty"))
+          MaybeStructure.expected.field.$modifyOrSet(pf)(base).value shouldBe DObject("expected" ::= ("field2" := "value", "field" := "wasEmpty"))
         }
         it("Should create structure if parent not found") {
           val base = DObject.empty
-          MaybeStructure.expected.field.$modify(pf)(base).value shouldBe DObject("expected" ::= ("field" := "wasEmpty"))
+          MaybeStructure.expected.field.$modifyOrSet(pf)(base).value shouldBe DObject("expected" ::= ("field" := "wasEmpty"))
         }
       }
       describe("In Maybe Path") {
         it("Should modify a nested value") {
           val base = DObject("maybe" ::= ("field" := "value"))
-          MaybeStructure.maybe.field.$modify(pf)(base).value shouldBe DObject("maybe" ::= ("field" := "value found"))
+          MaybeStructure.maybe.field.$modifyOrSet(pf)(base).value shouldBe DObject("maybe" ::= ("field" := "value found"))
         }
         it("Should fail with IncorrectTypeFailure if wrong type for property") {
           val base = DObject("maybe" ::= ("field" := 1234))
-          MaybeStructure.maybe.field.$modify(pf)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.maybe.field, 1234))
+          MaybeStructure.maybe.field.$modifyOrSet(pf)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.maybe.field, 1234))
         }
         it("Should fail with IncorrectTypeFailure for the parent if parent is wrong type") {
           val base = DObject("maybe" := false)
-          MaybeStructure.maybe.field.$modify(pf)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.maybe, false))
+          MaybeStructure.maybe.field.$modifyOrSet(pf)(base).left.value should contain(IncorrectTypeFailure(MaybeStructure.maybe, false))
         }
         it("Should modify structure if nested value not found") {
           val base = DObject("maybe" ::= ("field2" := "value"))
-          MaybeStructure.maybe.field.$modify(pf)(base).value shouldBe DObject("maybe" ::= ("field2" := "value", "field" := "wasEmpty"))
+          MaybeStructure.maybe.field.$modifyOrSet(pf)(base).value shouldBe DObject("maybe" ::= ("field2" := "value", "field" := "wasEmpty"))
         }
         it("Should do nothing if parent not found") {
           val base = DObject.empty
-          MaybeStructure.maybe.field.$modify(pf)(base).value shouldBe base
+          MaybeStructure.maybe.field.$modifyOrSet(pf)(base).value shouldBe base
         }
       }
     }
