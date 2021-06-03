@@ -1,6 +1,6 @@
 package dsentric.contracts
 
-import dsentric._
+import dsentric.{RawObject, _}
 import cats.data._
 import dsentric.codecs.DCodec
 import dsentric.codecs.std.DCodecs
@@ -82,7 +82,7 @@ private[dsentric] sealed trait ObjectPropertyLens[D <: DObject]
    * @return
    */
   final def $get(obj:D, dropBadTypes:Boolean = false):ValidResult[Option[DObject]] =
-    __get(obj, dropBadTypes).toValidOption
+    __get(obj.value, dropBadTypes).toValidOption
   /**
    * Sets the object content to the passed value.
    * Does nothing if None is passed.
@@ -103,7 +103,7 @@ sealed trait ExpectedObjectPropertyLensLike[D <: DObject] extends ObjectProperty
  */
 private[dsentric] trait ExpectedObjectPropertyLens[D <: DObject] extends ExpectedObjectPropertyLensLike[D]  with ApplicativeLens[D, DObject]{
 
-  private[contracts] def __get(data:D, dropBadTypes:Boolean):Valid[DObject] = {
+  private[contracts] def __get(data:RawObject, dropBadTypes:Boolean):Valid[DObject] = {
     def reduce(rawObject:Map[String, Any]):Valid[DObject] =
       ObjectPropertyLensOps.reduce(this, rawObject, isIgnore2BadTypes(dropBadTypes)) match {
         case Right(rawObject) =>
@@ -113,7 +113,7 @@ private[dsentric] trait ExpectedObjectPropertyLens[D <: DObject] extends Expecte
           Failed(head, tail)
       }
 
-    TraversalOps.traverse(data.value, this, dropBadTypes) match {
+    TraversalOps.traverse(data, this, dropBadTypes) match {
       case NotFound  =>
         reduce(RawObject.empty)
       case Found(rawObject:RawObject@unchecked) =>
@@ -138,7 +138,7 @@ private[dsentric] trait ExpectedObjectPropertyLens[D <: DObject] extends Expecte
 
 private[dsentric] trait MaybeExpectedObjectPropertyLens[D <: DObject] extends ExpectedObjectPropertyLensLike[D] with ApplicativeLens[D, Option[DObject]]{
 
-  private[contracts] def __get(data:D, dropBadTypes:Boolean):MaybeAvailable[DObject] = {
+  private[contracts] def __get(data:RawObject, dropBadTypes:Boolean):MaybeAvailable[DObject] = {
     def reduce(rawObject:Map[String, Any]):Valid[DObject] =
       ObjectPropertyLensOps.reduce(this, rawObject, isIgnore2BadTypes(dropBadTypes)) match {
         case Right(rawObject) =>
@@ -148,7 +148,7 @@ private[dsentric] trait MaybeExpectedObjectPropertyLens[D <: DObject] extends Ex
           Failed(head, tail)
       }
 
-    TraversalOps.maybeTraverse(data.value, this, dropBadTypes) match {
+    TraversalOps.maybeTraverse(data, this, dropBadTypes) match {
       case NotFound  =>
         reduce(RawObject.empty)
       case Found(rawObject:RawObject@unchecked) =>
@@ -186,7 +186,7 @@ private[dsentric] trait MaybeExpectedObjectPropertyLens[D <: DObject] extends Ex
  */
 private[dsentric] trait MaybeObjectPropertyLens[D <: DObject] extends ObjectPropertyLens[D] {
 
-  private[contracts] def __get(data:D, dropBadTypes:Boolean):MaybeAvailable[DObject] = {
+  private[contracts] def __get(data:RawObject, dropBadTypes:Boolean):MaybeAvailable[DObject] = {
     def reduce(rawObject:Map[String, Any]):MaybeAvailable[DObject] =
       ObjectPropertyLensOps.reduce(this, rawObject, isIgnore2BadTypes(dropBadTypes)) match {
         case Right(rawObject) if rawObject.isEmpty =>
@@ -197,7 +197,7 @@ private[dsentric] trait MaybeObjectPropertyLens[D <: DObject] extends ObjectProp
           Failed(head, tail)
       }
 
-    TraversalOps.maybeTraverse(data.value, this, dropBadTypes) match {
+    TraversalOps.maybeTraverse(data, this, dropBadTypes) match {
       case NotFound =>
         NotFound
       case Found(rawObject:RawObject@unchecked) =>

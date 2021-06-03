@@ -141,13 +141,9 @@ dsentric works by describing a singleton contract which represents data we might
 ##Needs a specific Delta object
 
 
-- How to Handle delta collections like Set and Map when they have null values
-- How to validate delta collections
-- How to add delta values into a contract?
 (I think validate only one the delta application result not the delta value itself, IE pass through currentState and previousState, could be slow on nested objects so need to optimise)
 - Delta context - IE full replace of an nested object rather than merge (Thinking Fixtures)
 - Perhaps the difference here is A DObject or \\ will delta merge, however a Case Class Type will replace?
-- Delta validation IE standalone valid - Fixture?
 
 - $get should work on Deltas/Dobjects as well as just D ie so can use contract to get delta value. OR you could provide a property object to a dobject to extract the value obj.apply(pProperty[T, D]):Option[T]
 
@@ -160,10 +156,7 @@ Perhaps the notion of emptiness can be confgurable?
 
 How to handle a keyed object map
 Ie Map(Key, Element(Key)(values)) - might be solved by above validation :)
-Projections
-Projections Should support WildCard key match, or regex key match
-maybe "$/*/"
-Projection building ie  DProjection("nested" -> {​​​​​​​DProjection}​​​​​​​)
+
 function to extract paths.
 Validation
 Immutable on optional, Ie must leave blank if blank initially. Maybe immutable and immutableOnSet?
@@ -250,9 +243,20 @@ Delta
         ---Expected
 == NotFound
 
+TODO: 
+ Delta testing
+ Santization and testing
+ Review Projections - 
+    simply properties and projections, so can do use a property as a project
+    Projections
+    Projections Should support WildCard key match, or regex key match
+    maybe "$/*/"
+    Projection building ie  DProjection("nested" -> {​​​​​​​DProjection}​​​​​​​)
+  Delta
+
 ADD: Contract.property.$contains()
 
 Operation,  Can we have PathSetters that apply to all additional properties or values in a map or array... good for masking.
   Conditional mask remove flags?
 
-Projections, simply properties and projections, so can do use a property as a project
+

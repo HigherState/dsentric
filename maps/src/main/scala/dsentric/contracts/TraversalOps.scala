@@ -46,6 +46,7 @@ trait TraversalOps{
         f
     }
 
+
   /**
    * Traverses the Property parents list.  Parents should always return a RawObject.  In the case where a property is
    * expected, but no value is found for the property, an empty object is returned.
@@ -55,7 +56,7 @@ trait TraversalOps{
    * @tparam T
    * @return
    */
-  private def maybeTraverseRaw[T](value:RawObject, base:BaseContractAux, ignoreBadTypes:Boolean):MaybeAvailable[RawObject] = {
+  def maybeTraverseRaw(value:RawObject, base:BaseContractAux, ignoreBadTypes:Boolean):MaybeAvailable[RawObject] = {
     base match {
       case expected:ExpectedObjectPropertyLensLike[base.AuxD]@unchecked =>
         maybeTraverseRaw(value, expected._parent, ignoreBadTypes).flatMap { traversedObject =>
@@ -93,7 +94,7 @@ trait TraversalOps{
    * @tparam T
    * @return
    */
-  private def traverseRaw[T](value:RawObject, base:BaseContractAux, ignoreBadTypes:Boolean):Valid[RawObject] = {
+  def traverseRaw[T](value:RawObject, base:BaseContractAux, ignoreBadTypes:Boolean):Valid[RawObject] = {
     base match {
       case prop:ObjectPropertyLens[base.AuxD]@unchecked =>
         traverseRaw(value, prop._parent, ignoreBadTypes) match {

@@ -1,7 +1,8 @@
 package dsentric.contracts
 
+import dsentric.codecs.DCodec
 import dsentric.failure.ValidResult
-import dsentric.{DObject, Failed, Found, NotFound, Path, PathEmptyMaybe, PathLensOps, Raw, RawObject, MaybeAvailable}
+import dsentric._
 
 sealed trait PathSetter[D <: DObject] extends Function[D, D] {
   def ~(pathSetter:PathSetter[D]):PathSetter[D] =
@@ -13,10 +14,18 @@ sealed trait PathSetter[D <: DObject] extends Function[D, D] {
   def ~(f:Function[D, D]):Function[D, D] =
     this.andThen(f)
 
-  def apply(v1: D): D
+  private[contracts] def rawApply(rawObject:RawObject):RawObject
 
-  @inline
-  final protected def asD(d:DObject):D = d.asInstanceOf[D]
+  private[contracts] def rawDelta(rawObject:RawObject):RawObject
+
+  def apply(v1: D): D =
+    v1.internalWrap(rawApply(v1.value)).asInstanceOf[D]
+
+  def apply(delta:Delta):Delta =
+    new DeltaInst(rawApply(delta.value))
+
+  def asDelta(v1:D):Delta =
+    new DeltaInst(rawDelta(v1.value))
 
   def lift:ValidPathSetter[D] =
     LiftedSetter(this)
@@ -26,217 +35,369 @@ sealed trait ValidPathSetter[D <: DObject] extends Function[D, ValidResult[D]] {
   def ~(pathSetter:PathSetter[D]):ValidPathSetter[D] =
     CompositeValidSetter(this, LiftedSetter(pathSetter))
 
-  @inline
-  final protected def asD(d:DObject):D = d.asInstanceOf[D]
+  private[contracts] def rawApply(rawObject:RawObject):ValidResult[RawObject]
 
-  def apply(v1: D): ValidResult[D]
+  private[contracts] def rawDelta(rawObject:RawObject):ValidResult[RawObject]
+
+  def apply(v1: D): ValidResult[D] =
+    rawApply(v1.value).map(result => v1.internalWrap(result).asInstanceOf[D])
+
+
+  def apply(delta:Delta):ValidResult[Delta] =
+    rawApply(delta.value).map(result => new DeltaInst(result))
+
+  def asDelta(v1:D):ValidResult[Delta] =
+    rawApply(RawObject.empty).map(result => new DeltaInst(result))
 }
 
 private case class IdentitySetter[D <: DObject]() extends PathSetter[D] {
-  def apply(v1:D): D = v1
+
+  private[contracts] def rawApply(rawObject: RawObject): RawObject =
+    rawObject
+  private[contracts] def rawDelta(rawObject: RawObject): RawObject =
+    RawObject.empty
+  override def apply(v1:D): D = v1
+  override def apply(delta:Delta):Delta = delta
 }
 
 private case class IdentityValidSetter[D <: DObject]() extends ValidPathSetter[D] {
-  def apply(v1:D): ValidResult[D] = Right(v1)
+
+  private[contracts] def rawApply(rawObject: RawObject): ValidResult[RawObject] =
+    ValidResult.success(rawObject)
+  private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
+    ValidResult.empty
+  override def apply(v1:D): ValidResult[D] = ValidResult.success(v1)
+  override def apply(delta:Delta):ValidResult[Delta] = ValidResult.success(delta)
 }
 
 private final case class LiftedSetter[D <: DObject](pathSetter:PathSetter[D]) extends ValidPathSetter[D] {
-  def apply(v1: D): ValidResult[D] =
-    ValidResult.success(pathSetter(v1))
+  private[contracts] def rawApply(rawObject: RawObject): ValidResult[RawObject] =
+    ValidResult.success(pathSetter.rawApply(rawObject))
+
+  private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
+    ValidResult.success(pathSetter.rawDelta(rawObject))
 }
 
 private final case class ValueSetter[D <: DObject](path:Path, value:Raw) extends PathSetter[D] {
 
-  def apply(v1: D): D =
-    asD(v1.internalWrap(PathLensOps.set(v1.value, path, value)))
+  private[contracts] def rawApply(rawObject: RawObject): RawObject =
+    PathLensOps.set(rawObject, path, value)
 
+  private[contracts] def rawDelta(rawObject: RawObject): RawObject =
+    PathLensOps.pathToMap(path, value)
 }
 
-//TODO: Support lazy evaluation of validResult
 private final case class ValidValueSetter[D <: DObject](path:Path, value:ValidResult[Raw]) extends ValidPathSetter[D] {
+  private[contracts] def rawApply(rawObject: RawObject): ValidResult[RawObject] =
+    value.map(v => PathLensOps.set(rawObject, path, v))
 
-  def apply(v1: D): ValidResult[D] =
-    value.map(r => asD(v1.internalWrap(PathLensOps.set(v1.value, path, r))))
-
+  private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
+    value.map(v => PathLensOps.pathToMap(path, v))
 }
 
 //If object is empty then drops the value
 private final case class ValidObjectSetter[D <: DObject](path:Path, value:ValidResult[RawObject]) extends ValidPathSetter[D] {
 
-  def apply(v1: D): ValidResult[D] =
+
+  private[contracts] def rawApply(rawObject: RawObject): ValidResult[RawObject] =
     value.map {
       case r if r.isEmpty =>
-        PathLensOps.drop(v1.value, path).fold(v1){d =>
-          asD(v1.internalWrap(d))
-        }
+        PathLensOps.drop(rawObject, path).getOrElse(rawObject)
       case r =>
-        asD(v1.internalWrap(PathLensOps.set(v1.value, path, r)))
+        PathLensOps.set(rawObject, path, r)
     }
 
+  private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
+    value.map(PathLensOps.pathToMap(path, _))
 }
 
 private final case class ValueDrop[D <: DObject](path:Path) extends PathSetter[D] {
 
-  def apply(v1: D): D =
-    PathLensOps.drop(v1.value, path).fold(v1)(r => asD(v1.internalWrap(r)))
+  private[contracts] def rawApply(rawObject: RawObject): RawObject =
+    PathLensOps.drop(rawObject, path).getOrElse(rawObject)
+
+  private[contracts] def rawDelta(rawObject: RawObject): RawObject =
+    Setter.deltaIgnoreOrNull(rawObject, path)
+}
+
+private final case class ValidDrop[D <: DObject](validPath:ValidResult[Path]) extends ValidPathSetter[D] {
+  private[contracts] def rawApply(rawObject: RawObject): ValidResult[RawObject] =
+    validPath.map{path => PathLensOps.drop(rawObject, path).getOrElse(rawObject) }
+
+  private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
+    validPath.map(Setter.deltaIgnoreOrNull(rawObject, _))
 }
 
 private final case class CompositeSetter[D <: DObject](leftSetter:PathSetter[D], rightSetter:PathSetter[D]) extends PathSetter[D] {
 
-  def apply(v1: D): D =
-    rightSetter(leftSetter(v1))
+  private[contracts] def rawApply(rawObject: RawObject): RawObject =
+    rightSetter.rawApply(leftSetter.rawApply(rawObject))
+
+  private[contracts] def rawDelta(rawObject: RawObject): RawObject =
+    RawObjectOps.concatMap(leftSetter.rawDelta(rawObject), rightSetter.rawDelta(rawObject))
+
 }
 
 private final case class CompositeValidSetter[D <: DObject](leftSetter:ValidPathSetter[D], rightSetter:ValidPathSetter[D]) extends ValidPathSetter[D] {
 
-  def apply(v1: D): ValidResult[D] =
-    leftSetter(v1).flatMap(rightSetter)
+  private[contracts] def rawApply(rawObject: RawObject): ValidResult[RawObject] =
+    leftSetter.rawApply(rawObject).flatMap(rightSetter.rawApply)
+
+
+  private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
+    for {
+      left <- leftSetter.rawDelta(rawObject)
+      right <- rightSetter.rawDelta(rawObject)
+    } yield RawObjectOps.concatMap(left, right)
+
 }
 /*
 Option on f Raw result is case of codec failure
  */
-private final case class ModifySetter[D <: DObject, T](getter:D => ValidResult[Option[T]], f:T => T, setter:(D, T) => D) extends ValidPathSetter[D] {
+private final case class ModifySetter[D <: DObject, T](getter:RawObject => ValidResult[Option[T]], f:T => T, codec: DCodec[T], path:Path) extends ValidPathSetter[D] {
 
-  def apply(v1: D): ValidResult[D] =
-    getter(v1)
-      .map{
-        case None => v1
-        case Some(t) =>
-          setter(v1, f(t))
-      }
-}
-
-private final case class ModifyValidSetter[D <: DObject, T](getter:D => ValidResult[Option[T]], f:T => ValidResult[T], setter:(D, T) => D) extends ValidPathSetter[D] {
-
-  def apply(v1: D): ValidResult[D] =
-    getter(v1)
-      .flatMap{
-        case None =>
-          Right(v1)
-        case Some(t) =>
-          f(t).map(t => setter(v1, t))
-      }
-}
-
-private final case class RawModifySetter[D <: DObject, T](modifier:D => ValidResult[Raw],  path:Path) extends ValidPathSetter[D] {
-
-  def apply(v1: D): ValidResult[D] =
-    modifier(v1).map{r =>
-      asD(v1.internalWrap(PathLensOps.set(v1.value, path, r)))
+  private[contracts] def rawApply(rawObject: RawObject): ValidResult[RawObject] =
+    getter(rawObject).map{
+      case None => rawObject
+      case Some(result) =>
+        Setter(rawObject, codec(f(result)), path)
     }
-}
 
-private final case class RawModifyOrDropSetter[D <: DObject, T](modifier:D => ValidResult[Option[Raw]],  path:Path) extends ValidPathSetter[D] {
-
-  def apply(v1: D): ValidResult[D] =
-    modifier(v1).map{
+  private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
+    getter(rawObject).map{
       case None =>
-        asD(v1.internalWrap(PathLensOps.drop(v1.value, path).getOrElse(RawObject.empty)))
-      case Some(r) =>
-        asD(v1.internalWrap(PathLensOps.set(v1.value, path, r)))
+        RawObject.empty
+      case Some(result) =>
+        Setter.deltaApply(rawObject, codec(f(result)), path)
     }
 }
 
-private final case class RawModifyOrIgnoreSetter[D <: DObject, T](modifier:D => ValidResult[Option[Raw]],  path:Path) extends ValidPathSetter[D] {
+private final case class ModifyValidSetter[D <: DObject, T](getter:RawObject => ValidResult[Option[T]], f:T => ValidResult[T], codec: DCodec[T], path:Path) extends ValidPathSetter[D] {
 
-  def apply(v1: D): ValidResult[D] =
-    modifier(v1).map{
+  private[contracts] def rawApply(rawObject: RawObject): ValidResult[RawObject] =
+    getter(rawObject).flatMap{
       case None =>
-        v1
-      case Some(r) =>
-        asD(v1.internalWrap(PathLensOps.set(v1.value, path, r)))
+        ValidResult.success(rawObject)
+      case Some(result) =>
+        f(result).map(r => Setter(rawObject, codec(r), path))
     }
-}
 
-private final case class RawModifyDropOrIgnoreSetter[D <: DObject, T](modifier:D => ValidResult[Option[Option[Raw]]],  path:Path) extends ValidPathSetter[D] {
-
-  def apply(v1: D): ValidResult[D] =
-    modifier(v1).map{
+  private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
+    getter(rawObject).flatMap{
       case None =>
-        v1
-      case Some(None) =>
-        asD(v1.internalWrap(PathLensOps.drop(v1.value, path).getOrElse(RawObject.empty)))
-      case Some(Some(r)) =>
-        asD(v1.internalWrap(PathLensOps.set(v1.value, path, r)))
+        ValidResult.empty
+      case Some(result) =>
+        f(result).map(r => Setter.deltaApply(rawObject, codec(r), path))
     }
 }
+
 
 /*
 Option on f Raw result is case of codec failure
  */
-private final case class TraversedModifySetter[D <: DObject, T](getter:D => MaybeAvailable[T], f:Option[T] => T, setter:(D, T) => D) extends ValidPathSetter[D] {
+private final case class TraversedModifySetter[D <: DObject, T](getter:RawObject => MaybeAvailable[T], f:Option[T] => T, codec: DCodec[T], path:Path) extends ValidPathSetter[D] {
 
-  def apply(v1: D): ValidResult[D] =
-    getter(v1) match {
-      case PathEmptyMaybe => ValidResult.success(v1)
-      case NotFound => ValidResult.success(setter(v1, f(None)))
-      case Found(t) => ValidResult.success(setter(v1, f(Some(t))))
+  def rawApply(rawObject: RawObject): ValidResult[RawObject] =
+    getter(rawObject) match {
+      case PathEmptyMaybe => ValidResult.success(rawObject)
+      case NotFound => ValidResult.success(Setter(rawObject, codec(f(None)), path))
+      case Found(t) => ValidResult.success(Setter(rawObject, codec(f(Some(t))), path))
       case Failed(f, tail) => ValidResult.structuralFailure(f, tail)
     }
-}
 
-private final case class TraversedModifyValidSetter[D <: DObject, T](getter:D => MaybeAvailable[T], f:Option[T] => ValidResult[T], setter:(D, T) => D) extends ValidPathSetter[D] {
-
-  def apply(v1: D): ValidResult[D] =
-    getter(v1) match {
+  private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
+    getter(rawObject) match {
       case PathEmptyMaybe =>
-        ValidResult.success(v1)
+        ValidResult.empty
       case NotFound =>
-        f(None).map(setter(v1, _))
+        ValidResult.success(Setter.deltaApply(rawObject, codec(f(None)), path))
       case Found(t) =>
-        f(Some(t)).map(setter(v1, _))
-      case Failed(f, tail) => ValidResult.structuralFailure(f, tail)
+        ValidResult.success(Setter.deltaApply(rawObject, codec(f(Some(t))), path))
+      case Failed(f, tail) =>
+        ValidResult.structuralFailure(f, tail)
+    }
+}
+
+private final case class TraversedModifyValidSetter[D <: DObject, T](getter:RawObject => MaybeAvailable[T], f:Option[T] => ValidResult[T], codec: DCodec[T], path:Path) extends ValidPathSetter[D] {
+
+  def rawApply(rawObject: RawObject): ValidResult[RawObject] =
+    getter(rawObject) match {
+      case PathEmptyMaybe =>
+        ValidResult.success(rawObject)
+      case NotFound =>
+        f(None).map(r => Setter(rawObject, codec(r), path))
+      case Found(t) =>
+        f(Some(t)).map(r => Setter(rawObject, codec(r), path))
+      case Failed(f, tail) =>
+        ValidResult.structuralFailure(f, tail)
+    }
+
+  private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
+    getter(rawObject) match {
+      case PathEmptyMaybe =>
+        ValidResult.empty
+      case NotFound =>
+        f(None).map(r => Setter.deltaApply(rawObject, codec(r), path))
+      case Found(t) =>
+        f(Some(t)).map(r => Setter.deltaApply(rawObject, codec(r), path))
+      case Failed(f, tail) =>
+        ValidResult.structuralFailure(f, tail)
+    }
+}
+
+private final case class RawTraversedModifyValidSetter[D <: DObject](getter:RawObject => MaybeAvailable[RawObject], f:RawObject => ValidResult[RawObject], path:Path) extends ValidPathSetter[D] {
+
+  def rawApply(rawObject: RawObject): ValidResult[RawObject] =
+    getter(rawObject) match {
+      case NotFound | PathEmptyMaybe =>
+        ValidResult.success(rawObject)
+      case Found(t) =>
+        f(t).map{
+          case r if path.isEmpty =>
+            r
+          case r =>
+            Setter.apply(rawObject, r, path)
+        }
+      case Failed(f, tail) =>
+        ValidResult.structuralFailure(f, tail)
+    }
+
+  private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
+    getter(rawObject) match {
+      case NotFound | PathEmptyMaybe =>
+        ValidResult.empty
+      case Found(t) =>
+        f(t).map(r => Setter.deltaApply(rawObject, r, path))
+      case Failed(f, tail) =>
+        ValidResult.structuralFailure(f, tail)
     }
 }
 
 /*
 First Option on f Raw result is case of codec failure
  */
-private final case class TraversedModifyOrDropSetter[D <: DObject, T](getter:D => MaybeAvailable[T], f:Option[T] => Option[T], setter:(D, Option[T]) => D) extends ValidPathSetter[D] {
+private final case class TraversedModifyOrDropSetter[D <: DObject, T](getter:RawObject => MaybeAvailable[T], f:Option[T] => Option[T], codec: DCodec[T], path:Path) extends ValidPathSetter[D] {
 
-  def apply(v1: D): ValidResult[D] =
-    getter(v1) match {
+  def rawApply(rawObject: RawObject): ValidResult[RawObject] =
+    getter(rawObject) match {
       case PathEmptyMaybe =>
-        ValidResult.success(v1)
+        ValidResult.success(rawObject)
       case NotFound =>
-        ValidResult.success(setter(v1, f(None)))
+        ValidResult.success{
+          f(None).fold(PathLensOps.drop(rawObject, path).getOrElse(rawObject)){r =>
+            Setter(rawObject, codec(r), path)
+          }
+        }
       case Found(t) =>
-        ValidResult.success(setter(v1, f(Some(t))))
+        ValidResult.success{
+          f(Some(t)).fold(PathLensOps.drop(rawObject, path).getOrElse(rawObject)){r =>
+            Setter(rawObject, codec(r), path)
+          }
+        }
+      case Failed(f, tail) =>
+        ValidResult.structuralFailure(f, tail)
+    }
+
+  private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
+    getter(rawObject) match {
+      case PathEmptyMaybe =>
+        ValidResult.empty
+      case NotFound =>
+        f(None) match {
+          case None =>
+            ValidResult.success(Setter.deltaIgnoreOrNull(rawObject, path))
+          case Some(r) =>
+            ValidResult.success(Setter.deltaApply(rawObject, codec(r), path))
+        }
+      case Found(t) =>
+        f(None)  match {
+          case None =>
+            ValidResult.success(Setter.deltaIgnoreOrNull(rawObject, path))
+          case Some(r) =>
+            ValidResult.success(Setter.deltaApply(rawObject, codec(r), path))
+        }
+
       case Failed(f, tail) =>
         ValidResult.structuralFailure(f, tail)
     }
 }
 
-private final case class TraversedModifyOrDropValidSetter[D <: DObject, T](getter:D => MaybeAvailable[T], f:Option[T] => Option[ValidResult[T]], setter:(D, Option[T]) => D) extends ValidPathSetter[D] {
+private final case class TraversedModifyOrDropValidSetter[D <: DObject, T](getter:RawObject => MaybeAvailable[T], f:Option[T] => Option[ValidResult[T]], codec: DCodec[T], path:Path) extends ValidPathSetter[D] {
 
-  def apply(v1: D): ValidResult[D] =
-    getter(v1) match {
+  def rawApply(rawObject: RawObject): ValidResult[RawObject] =
+    getter(rawObject) match {
       case PathEmptyMaybe =>
-        ValidResult.success(v1)
+        ValidResult.success(rawObject)
       case NotFound =>
         f(None) match {
           case None =>
-            ValidResult.success(setter(v1, None))
+            ValidResult.success(PathLensOps.drop(rawObject, path).getOrElse(rawObject))
           case Some(vr) =>
-            vr.map(t => setter(v1, Some(t)))
+            vr.map(t => Setter(rawObject, codec(t), path))
         }
       case Found(t) =>
         f(Some(t)) match {
           case None =>
-            ValidResult.success(setter(v1, None))
+            ValidResult.success(PathLensOps.drop(rawObject, path).getOrElse(rawObject))
           case Some(vr) =>
-            vr.map(t => setter(v1, Some(t)))
+            vr.map(t => Setter(rawObject, codec(t), path))
+        }
+      case Failed(f, tail) =>
+        ValidResult.structuralFailure(f, tail)
+    }
+
+  private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
+    getter(rawObject) match {
+      case PathEmptyMaybe =>
+        ValidResult.empty
+      case NotFound =>
+        f(None) match {
+          case None =>
+            ValidResult.success(Setter.deltaIgnoreOrNull(rawObject, path))
+          case Some(vr) =>
+            vr.map(t => Setter.deltaApply(rawObject, codec(t), path))
+        }
+      case Found(t) =>
+        f(Some(t)) match {
+          case None =>
+            ValidResult.success(Setter.deltaIgnoreOrNull(rawObject, path))
+          case Some(vr) =>
+            vr.map(t => Setter.deltaApply(rawObject, codec(t), path))
         }
       case Failed(f, tail) =>
         ValidResult.structuralFailure(f, tail)
     }
 }
 
-/*
-First Option on f Raw result is case of codec failure
- */
-private final case class ModifyOrDropSetter[D <: DObject, T](getter:D => ValidResult[Option[T]], f:Option[T] => Option[T], setter:(D, Option[T]) => D) extends ValidPathSetter[D] {
+private[contracts] object Setter {
 
-  def apply(v1: D): ValidResult[D] =
-    getter(v1).map(maybeT => setter(v1, f(maybeT)))
+  def apply[T](obj:RawObject, value:Raw, path:Path):RawObject = {
+    value match {
+      case r:RawObject@unchecked if r.isEmpty =>
+        PathLensOps.drop(obj, path).getOrElse(Map.empty)
+      case r =>
+        PathLensOps.set(obj, path, r)
+    }
+  }
+
+  def deltaApply(obj:RawObject, value:Raw, path:Path):RawObject =
+    PathLensOps.traverse(obj, path) match {
+      case Some(r) if r == value =>
+        RawObject.empty
+      case Some(_) if value == RawObject.empty =>
+        PathLensOps.pathToMap(path, DNull)
+      case None if value == RawObject.empty =>
+        RawObject.empty
+      case _ =>
+        PathLensOps.pathToMap(path, value)
+    }
+
+  def deltaIgnoreOrNull(obj:RawObject, path:Path):RawObject = {
+    if (path.isEmpty) RawObject.empty
+    else if (PathLensOps.traverse(obj, path).isEmpty)
+      RawObject.empty
+    else
+      PathLensOps.pathToMap(path, DNull)
+  }
+
 }

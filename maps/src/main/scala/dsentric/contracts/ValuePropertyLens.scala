@@ -87,7 +87,7 @@ sealed trait ExpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]{
    * @return
    */
   final def $copy(p:PropertyLens[D, T], dropBadTypes:Boolean = false):ValidPathSetter[D] =
-    ModifySetter(d => p.__get(d, dropBadTypes).toValidOption, identity[T], __set)
+    ModifySetter(d => p.__get(d, dropBadTypes).toValidOption, identity[T], _codec, _path)
 
   /**
    * Modifies value for the property.
@@ -96,10 +96,10 @@ sealed trait ExpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]{
    * @return
    */
   final def $modify(f:T => T, dropBadTypes:Boolean = false):ValidPathSetter[D] =
-    ModifySetter(d => __get(d, dropBadTypes).toValidOption, f, __set)
+    ModifySetter(d => __get(d, dropBadTypes).toValidOption, f, _codec, _path)
 
   final def $modifyWith(f:T => ValidResult[T], dropBadTypes:Boolean = false):ValidPathSetter[D] =
-    ModifyValidSetter(d => __get(d, dropBadTypes).toValidOption, f, __set)
+    ModifyValidSetter(d => __get(d, dropBadTypes).toValidOption, f, _codec, _path)
 }
 
 sealed trait UnexpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]{
@@ -161,9 +161,9 @@ sealed trait UnexpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]
         }
     }
 
+  @inline
   private[contracts] def __setOrDrop(value:Option[T]):PathSetter[D] =
     value.fold[PathSetter[D]](ValueDrop(_path))(v => ValueSetter(_path, _codec(v)))
-
 
   /**
    * Copying from an existing property, if that property is
@@ -180,14 +180,15 @@ sealed trait UnexpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]
     TraversedModifyOrDropSetter(
       p.__get(_, dropBadTypes),
       identity[Option[T]],
-      (d:D, mt:Option[T]) => mt.fold[PathSetter[D]](ValueDrop(_path))(v => ValueSetter(_path, _codec(v)))(d))
+      _codec,
+      _path)
 
 }
 
 private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D, T] with ApplicativeLens[D, T] {
 
-  private[contracts] def __get(data:D, dropBadTypes:Boolean):Valid[T] =
-    TraversalOps.traverse(data.value, this, dropBadTypes) match {
+  private[contracts] def __get(rawObject:RawObject, dropBadTypes:Boolean):Valid[T] =
+    TraversalOps.traverse(rawObject, this, dropBadTypes) match {
       case NotFound  =>
         Failed(ExpectedFailure(this))
       case Found(raw) =>
@@ -212,7 +213,7 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D
    * @return
    */
   final def $get(obj:D, dropBadTypes:Boolean = false):ValidStructural[T] =
-    __get(obj, dropBadTypes).toValid
+    __get(obj.value, dropBadTypes).toValid
 
   /**
    * Unapply is only ever a simple prism to the value and its decoding
@@ -230,8 +231,8 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D
  */
 private[dsentric] trait MaybeExpectedLens[D <: DObject, T] extends ExpectedLensLike[D, T] with ApplicativeLens[D, Option[T]] {
 
-  private[contracts] def __get(data:D, dropBadTypes:Boolean):MaybeAvailable[T] =
-    TraversalOps.maybeTraverse(data.value, this, dropBadTypes) match {
+  private[contracts] def __get(data:RawObject, dropBadTypes:Boolean):MaybeAvailable[T] =
+    TraversalOps.maybeTraverse(data, this, dropBadTypes) match {
       case NotFound =>
         Failed(ExpectedFailure(this))
       case Found(raw) =>
@@ -257,7 +258,7 @@ private[dsentric] trait MaybeExpectedLens[D <: DObject, T] extends ExpectedLensL
    * @return
    */
   final def $get(obj:D, dropBadTypes:Boolean = false):ValidStructural[Option[T]] =
-    __get(obj, dropBadTypes).toValidOption
+    __get(obj.value, dropBadTypes).toValidOption
 
   /**
    * Unapply is only ever a simple prism to the value and its decoding
@@ -278,8 +279,8 @@ private[dsentric] trait MaybeExpectedLens[D <: DObject, T] extends ExpectedLensL
 
 private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D, T] with ApplicativeLens[D, Option[T]] {
 
-  private[contracts] def __get(data:D, dropBadTypes:Boolean):MaybeAvailable[T] =
-    TraversalOps.maybeTraverse(data.value, this, dropBadTypes).flatMap{ raw =>
+  private[contracts] def __get(data:RawObject, dropBadTypes:Boolean):MaybeAvailable[T] =
+    TraversalOps.maybeTraverse(data, this, dropBadTypes).flatMap{ raw =>
       ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(dropBadTypes))
     }
 
@@ -291,7 +292,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
    * @return
    */
   final def $get(obj:D, dropBadTypes:Boolean = false):ValidResult[Option[T]] =
-    __get(obj, dropBadTypes).toValidOption
+    __get(obj.value, dropBadTypes).toValidOption
 
   /**
    * Gets value for the property if found in passed object, otherwise returns default.
@@ -301,7 +302,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
    * @return
    */
   final def $getOrElse(obj:D, default: => T, dropBadTypes:Boolean = false):ValidResult[T] =
-    __get(obj, dropBadTypes).toValidOption.map(_.getOrElse(default))
+    __get(obj.value, dropBadTypes).toValidOption.map(_.getOrElse(default))
 
 
 
@@ -335,7 +336,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
    * @return
    */
   final def $modify(f:Option[T] => T, dropBadTypes:Boolean = false):ValidPathSetter[D] =
-    TraversedModifySetter(__get(_, dropBadTypes), f, __set)
+    TraversedModifySetter(__get(_, dropBadTypes), f, _codec, _path)
 
   /**
    * Modifies or sets the value if it doesnt exist.
@@ -345,7 +346,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
    * @return
    */
   final def $modifyWith(f:Option[T] => ValidResult[T], dropBadTypes:Boolean = false):ValidPathSetter[D] =
-    TraversedModifyValidSetter(__get(_, dropBadTypes), f, __set)
+    TraversedModifyValidSetter(__get(_, dropBadTypes), f, _codec, _path)
 
   /**
    * Modifies or sets the value if it doesnt exist.
@@ -362,7 +363,8 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
     TraversedModifyOrDropSetter[D, T](
       __get(_, dropBadTypes),
       f,
-      (d, mt) => $setOrDrop(mt)(d)
+      _codec,
+      _path
     )
 
   /**
@@ -380,11 +382,9 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
     TraversedModifyOrDropValidSetter[D, T](
       __get(_, dropBadTypes),
       f,
-      (d, mt) => $setOrDrop(mt)(d)
+      _codec,
+      _path
     )
-
-  //  final lazy val $delta:MaybeDelta[D, T] =
-  //    new MaybeDelta[D, T](this)
 
   /**
    * Unapply is only ever a simple prism to the value and its decoding
@@ -408,10 +408,10 @@ sealed trait DefaultLensLike[D <: DObject, T] extends UnexpectedLensLike[D, T] {
    * @return
    */
   final def $modify(f:T => T, dropBadTypes:Boolean = false):ValidPathSetter[D] =
-    ModifySetter(d => __get(d, dropBadTypes).toValidOption, f, __set)
+    ModifySetter(d => __get(d, dropBadTypes).toValidOption, f, _codec, _path)
 
   final def $modifyWith(f:T => ValidResult[T], dropBadTypes:Boolean = false):ValidPathSetter[D] =
-    ModifyValidSetter(d => __get(d, dropBadTypes).toValidOption, f, __set)
+    ModifyValidSetter(d => __get(d, dropBadTypes).toValidOption, f, _codec, _path)
 
   /**
    * Removes the property value from the object if it exists.
@@ -439,8 +439,8 @@ sealed trait DefaultLensLike[D <: DObject, T] extends UnexpectedLensLike[D, T] {
 }
 private[dsentric] trait DefaultLens[D <: DObject, T] extends DefaultLensLike[D, T] with ApplicativeLens[D, T] {
 
-  private[contracts] def __get(data:D, dropBadTypes:Boolean):Valid[T] =
-    TraversalOps.traverse(data.value, this, dropBadTypes) match {
+  private[contracts] def __get(data:RawObject, dropBadTypes:Boolean):Valid[T] =
+    TraversalOps.traverse(data, this, dropBadTypes) match {
       case NotFound =>
         Found(_default)
       case f:Failed =>
@@ -466,7 +466,7 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends DefaultLensLike[D, 
    * @return
    */
   final def $get(obj:D, dropBadTypes:Boolean = false):ValidResult[T] =
-    __get(obj, dropBadTypes).toValid
+    __get(obj.value, dropBadTypes).toValid
 
   /**
    * Unapply is only ever a simple prism to the value and its decoding
@@ -485,8 +485,8 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends DefaultLensLike[D, 
  */
 private[dsentric] trait MaybeDefaultLens[D <: DObject, T] extends DefaultLensLike[D, T] with ApplicativeLens[D, Option[T]] {
 
-  private[contracts] def __get(data:D, dropBadTypes:Boolean):MaybeAvailable[T] =
-    TraversalOps.maybeTraverse(data.value, this, dropBadTypes).flatMap { raw =>
+  private[contracts] def __get(data:RawObject, dropBadTypes:Boolean):MaybeAvailable[T] =
+    TraversalOps.maybeTraverse(data, this, dropBadTypes).flatMap { raw =>
       ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(dropBadTypes))
     } match {
       case NotFound =>
@@ -503,7 +503,7 @@ private[dsentric] trait MaybeDefaultLens[D <: DObject, T] extends DefaultLensLik
    * @return
    */
   final def $get(obj:D, dropBadTypes:Boolean = false):ValidStructural[Option[T]] =
-    __get(obj, dropBadTypes).toValidOption
+    __get(obj.value, dropBadTypes).toValidOption
 
   /**
    * Unapply is only ever a simple prism to the value and its decoding

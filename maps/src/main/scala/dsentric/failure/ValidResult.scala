@@ -2,6 +2,7 @@ package dsentric.failure
 
 import cats.CommutativeApplicative
 import cats.data.{NonEmptyList, Validated}
+import dsentric.RawObject
 
 object ValidResult {
 
@@ -25,8 +26,11 @@ object ValidResult {
   val none: Right[Nothing, None.type] =
     ValidResult.success(None)
 
-  val unit: ValidResult[Unit] =
+  val unit: Right[Nothing, Unit] =
     ValidResult.success(())
+
+  val empty:Right[Nothing, RawObject] =
+    ValidResult.success(RawObject.empty)
 
   def sequence2[S, T](s:ValidResult[S], t:ValidResult[T]):ValidResult[(S, T)] = {
     (s, t) match {

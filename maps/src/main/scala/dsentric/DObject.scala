@@ -435,6 +435,13 @@ object DProjection {
       .foldLeft(Map.empty[String, Any])(RawObjectOps.concatMap))
 }
 
+object Delta {
+  val empty:Delta = new DeltaInst(RawObject.empty)
+
+  def apply(values:(String, Data)*):Delta =
+    new DeltaInst(values.iterator.map(p => p._1 -> p._2.value).toMap)
+}
+
 object ForceWrapper {
 
   def data(value:Any):Data =
