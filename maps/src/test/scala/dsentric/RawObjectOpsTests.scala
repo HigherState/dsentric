@@ -9,15 +9,6 @@ class RawObjectOpsTests extends AnyFunSuite with Matchers {
   import Dsentric._
 
 
-  test("Applying single key delta object value on obj") {
-    val obj = DObject("one" := 1, "two" := "two")
-    RawObjectOps.rightReduceConcat(obj, DObject.empty) should equal (obj)
-    RawObjectOps.rightReduceConcat(obj, DObject("three" := 3)) should equal (obj + ("three" := 3))
-    RawObjectOps.rightReduceConcat(obj, DObject("two" := "three")) should equal (DObject("one" := 1, "two" := "three"))
-    RawObjectOps.rightReduceConcat(obj, DObject("one" := DNull)) should equal (DObject("two" := "two"))
-    RawObjectOps.rightReduceConcat(obj, DObject("two" := DObject.empty)) should equal (DObject("one" := 1))
-  }
-
   test("Type structure in collection") {
     val obj = DObject("one" := 1, "two" := "two")
     val collection = List(1 -> obj, 2 -> obj)
@@ -25,16 +16,6 @@ class RawObjectOpsTests extends AnyFunSuite with Matchers {
     collection.flatMap{p =>
       collection2
     }
-  }
-
-  test("Applying nested delta object") {
-    val obj = DObject("one" := 1, "obj" := DObject("two" := false, "three" := List(1,2,3,4), "four" := DObject("five" := 5)))
-    RawObjectOps.rightReduceConcat(obj, DObject("obj" := DObject.empty)) should equal (DObject("one" := 1))
-    RawObjectOps.rightReduceConcat(obj, DObject("obj" := DNull)) should equal (DObject("one" := 1))
-    RawObjectOps.rightReduceConcat(obj, DObject("obj" := DObject("two" := true))) should equal (DObject("one" := 1, "obj" := DObject("two" := true, "three" := List(1,2,3,4), "four" := DObject("five" := 5))))
-    RawObjectOps.rightReduceConcat(obj, DObject("obj" := DObject("three" := DNull))) should equal (DObject("one" := 1, "obj" := DObject("two" := false, "four" := DObject("five" := 5))))
-    RawObjectOps.rightReduceConcat(obj, DObject("obj" := DObject("two" := DNull, "three" := DNull, "four" := DNull))) should equal (DObject("one" := 1))
-    RawObjectOps.rightReduceConcat(obj, DObject("obj" := DObject("six" := "vi"))) should equal (DObject("one" := 1, "obj" := DObject("two" := false, "three" := List(1,2,3,4), "four" := DObject("five" := 5), "six" := "vi")))
   }
 
   test("Get difference") {

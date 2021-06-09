@@ -45,7 +45,7 @@ class RawObjectOpsSpec extends AnyFunSpec with Matchers {
         RawObjectOps.rightDifferenceReduceMap(nested -> delta) shouldBe Some(Map("one" -> Map.empty))
       }
       it("Should keep nested null property if relevant") {
-        val delta = Map("one" -> Map("two-one" -> DNull))
+        val delta = Map("two" -> Map("two-one" -> DNull))
         RawObjectOps.rightDifferenceReduceMap(nested -> delta) shouldBe Some(delta)
       }
 

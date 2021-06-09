@@ -23,6 +23,13 @@ trait RawObjectOps {
   def rightReduceConcat(x: DObject, y: DObject): DObject =
     new DObjectInst(rightReduceConcatMap(x.value, y.value))
 
+  /**
+   * Applies changes in y onto x, if y contains a null, it will remove the key if present, or be ignored if not.
+   * If an object has its key count reduced to empty and it is nested it will remove the key value pair.
+   * @param x
+   * @param y
+   * @return
+   */
   def rightReduceConcatMap(x: RawObject, y: RawObject): RawObject =
     y.foldLeft(x){
       case (acc, (k, DNull)) =>
@@ -105,10 +112,10 @@ trait RawObjectOps {
   }
 
   /**
-   * For Deltas can strip out values that dont cause any change, possibility delta does nothing at all
+   * For Deltas can strip out values that do not cause any change, possibility delta does nothing at all
    * @return
    */
-  def rightDifferenceReduceMap:Function[(RawObject,RawObject),Option[RawObject]] = {
+  def rightDifferenceReduceMap:Function[(RawObject,RawObject), Option[RawObject]] = {
     case (s, d) if d == s =>
       None
     case (s, d) =>

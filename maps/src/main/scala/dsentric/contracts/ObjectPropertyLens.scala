@@ -1,10 +1,10 @@
 package dsentric.contracts
 
-import dsentric.{RawObject, _}
+import dsentric._
 import cats.data._
 import dsentric.codecs.DCodec
 import dsentric.codecs.std.DCodecs
-import dsentric.failure.{ClosedContractFailure, IncorrectTypeFailure, StructuralFailure, ValidResult, ValidStructural}
+import dsentric.failure.{ClosedContractFailure, ExpectedFailure, IncorrectTypeFailure, StructuralFailure, ValidResult, ValidStructural}
 
 private[dsentric] sealed trait ObjectPropertyLens[D <: DObject]
   extends BaseContract[D] with PropertyLens[D, DObject]{
@@ -40,8 +40,39 @@ private[dsentric] sealed trait ObjectPropertyLens[D <: DObject]
     }
   }
 
-  private[contracts] def __reduceDelta(deltaObject:RawObject, currentValue:RawObject, dropBadTypes:Boolean):ValidResult[RawObject] =
-    ???
+  private[contracts] def __reduceDelta(deltaObject:RawObject, currentObject:RawObject, dropBadTypes:Boolean):ValidResult[RawObject] = {
+    deltaObject.get(_key) -> currentObject.get(_key) match {
+      case (None, _) =>
+        ValidResult.success(deltaObject)
+      case (Some(DNull), None) =>
+        ValidResult.success(deltaObject - _key)
+      case (Some(d), Some(c:RawObject@unchecked)) =>
+        ObjectPropertyLensOps.deltaReduce(this, d, c, isIgnore2BadTypes(dropBadTypes)) match {
+          // We shouldn't be able to outright remove an Expected object
+          // But its possible it can be reduced to nothing if all properties are Maybes, so we dont fail on DeltaRemoving
+          case DeltaRemove if this.isInstanceOf[ExpectedObjectPropertyLens[D]] =>
+            ValidResult.failure(ExpectedFailure(this))
+          case DeltaRemove =>
+            ValidResult.success(deltaObject + (_key -> DNull))
+          case DeltaEmpty =>
+            ValidResult.success(deltaObject - _key)
+          case DeltaRemoving(delta) =>
+            ValidResult.success(deltaObject + (_key -> delta))
+          case DeltaReduced(delta) =>
+            ValidResult.success(deltaObject + (_key -> delta))
+          case DeltaFailed(head, tail) =>
+            ValidResult.failure(head, tail)
+        }
+      case (Some(d:RawObject@unchecked), _) =>
+        ObjectPropertyLensOps.reduce(this, d, isIgnore2BadTypes(dropBadTypes))
+
+      case (Some(_), _) if dropBadTypes =>
+        ValidResult.success(deltaObject - _key)
+
+      case (Some(d), _) =>
+        ValidResult.structuralFailure(IncorrectTypeFailure(this, d))
+    }
+  }
 
   /**
    * Apply object contract to modify the object
@@ -101,7 +132,7 @@ sealed trait ExpectedObjectPropertyLensLike[D <: DObject] extends ObjectProperty
  * are expected.
  * @tparam D
  */
-private[dsentric] trait ExpectedObjectPropertyLens[D <: DObject] extends ExpectedObjectPropertyLensLike[D]  with ApplicativeLens[D, DObject]{
+private[dsentric] trait ExpectedObjectPropertyLens[D <: DObject] extends ExpectedObjectPropertyLensLike[D] with ApplicativeLens[D, DObject]{
 
   private[contracts] def __get(data:RawObject, dropBadTypes:Boolean):Valid[DObject] = {
     def reduce(rawObject:Map[String, Any]):Valid[DObject] =
@@ -229,7 +260,7 @@ private[dsentric] trait MaybeObjectPropertyLens[D <: DObject] extends ObjectProp
 
 }
 
-private[dsentric] object ObjectPropertyLensOps extends ReduceOps {
+private[dsentric] object ObjectPropertyLensOps extends DeltaReduceOps {
 
 
   /**
@@ -239,9 +270,36 @@ private[dsentric] object ObjectPropertyLensOps extends ReduceOps {
    * */
   def reduce[D <: DObject](baseContract:BaseContract[D], obj:RawObject, badTypes:BadTypes):ValidStructural[RawObject] = {
 
-    val init = reduceAdditionalProperties(baseContract, obj, badTypes)
+    def reduceAdditionalProperties:ValidStructural[RawObject] = {
+      val exclude = baseContract._fields.keySet
+      baseContract match {
+        case a:AdditionalProperties[Any, Any]@unchecked =>
+          val (baseObject, additionalObject) = obj.partition(p => exclude(p._1))
+          reduceMap(a._root, a._path, badTypes, DCodecs.keyValueMapCodec(a._additionalKeyCodec, a._additionalValueCodec), additionalObject) match {
+            case Found(rawObject) if rawObject == additionalObject =>
+              ValidResult.success(obj)
+            case Found(rawObject) =>
+              ValidResult.success(baseObject ++ rawObject)
+            case NotFound =>
+              ValidResult.success(baseObject)
+            case Failed(head, tail) =>
+              ValidResult.structuralFailure(head, tail)
+          }
+        case _ =>
+          obj.keys
+            .filterNot(exclude)
+            .map(k => ClosedContractFailure(baseContract._root, baseContract._path, k))
+            .toList match {
+            case head :: tail =>
+              ValidResult.structuralFailure(head, tail)
+            case Nil =>
+              ValidResult.success(obj)
+          }
+      }
+    }
+
     val drop = badTypes.nest == DropBadTypes
-    baseContract._fields.foldLeft(init){
+    baseContract._fields.foldLeft(reduceAdditionalProperties){
       case (Right(d), (_, p)) =>
         p.__reduce(d, drop)
       case (l@Left(nel), (_, p)) =>
@@ -254,36 +312,88 @@ private[dsentric] object ObjectPropertyLensOps extends ReduceOps {
     }
   }
 
-  private def reduceAdditionalProperties[D <: DObject](
-                                                      baseContract:BaseContract[D],
-                                                      obj:RawObject,
-                                                      badTypes:BadTypes
-                                                    ):ValidStructural[RawObject] = {
-    val exclude = baseContract._fields.keySet
-    baseContract match {
-      case a:AdditionalProperties[Any, Any]@unchecked =>
-        val (baseObject, additionalObject) = obj.partition(p => exclude(p._1))
-        reduceMap(a._root, a._path, badTypes, DCodecs.keyValueMapCodec(a._additionalKeyCodec, a._additionalValueCodec), additionalObject) match {
-          case Found(rawObject) if rawObject == additionalObject =>
-            Right(obj)
-          case Found(rawObject) =>
-            Right(baseObject ++ rawObject)
-          case NotFound =>
-            Right(baseObject)
-          case Failed(head, tail) =>
-            Left(NonEmptyList(head, tail))
-        }
-      case _ =>
-        obj.keys
-          .filterNot(exclude)
-          .map(k => ClosedContractFailure(baseContract._root, baseContract._path, k))
-          .toList match {
-          case head :: tail =>
-            Left(NonEmptyList(head, tail))
-          case Nil =>
-            Right(obj)
+  /**
+   * Delta on the object only needs to check the properties that it is changing to valid.
+   * It is not the responsibility of the delta to be validated against incorrect types or expected requirements
+   * in the object that it is not changing.
+   * @param baseContract
+   * @param delta
+   * @param currentObject
+   * @param badTypes
+   * @tparam D
+   * @return
+   */
+  def deltaReduce[D <: DObject](baseContract:BaseContract[D], delta:Raw, currentObject:RawObject, badTypes:BadTypes):DeltaReduce[RawObject] = {
+    def deltaReduceAdditionalProperties(deltaObject:RawObject):ValidResult[RawObject] = {
+      val exclude = baseContract._fields.keySet
+      baseContract match {
+        case a:AdditionalProperties[Any, Any]@unchecked =>
+          val (baseDelta, additionalDelta) = deltaObject.partition(p => exclude(p._1))
+          if (additionalDelta.nonEmpty) {
+            val additionalCurrent = currentObject.filter(p => !exclude(p._1))
+            deltaReduceMap(a._root, a._path, badTypes, DCodecs.keyValueMapCodec(a._additionalKeyCodec, a._additionalValueCodec), additionalCurrent, additionalDelta) match {
+              case DeltaEmpty |  DeltaRemove => //Delta Remove isnt possible in this instance
+                ValidResult.success(baseDelta)
+              case DeltaRemoving(delta) =>
+                ValidResult.success(baseDelta ++ delta)
+              case DeltaReduced(delta) =>
+                ValidResult.success(baseDelta ++ delta)
+              case DeltaFailed(head, tail) =>
+                ValidResult.failure(head, tail)
+            }
+          }
+          else
+            ValidResult.success(baseDelta)
+        case _ =>
+          deltaObject.foldLeft[ValidResult[RawObject]](ValidResult.success(deltaObject)) {
+            case (r, (key, _)) if exclude(key) =>
+              r
+            //Allow removing of existing additional properties that shouldn't be there
+            case (Right(d), (key, DNull)) if currentObject.contains(key) =>
+              ValidResult.success(d)
+            case (Right(d), (key, DNull | RawObject.empty)) =>
+              ValidResult.success(d - key)
+            case (failed, (_, DNull | RawObject.empty)) =>
+              failed
+            case (Right(_), (key, __)) =>
+              ValidResult.failure(ClosedContractFailure(baseContract._root, baseContract._path, key))
+            case (Left(NonEmptyList(head, tail)), (key, _)) =>
+              ValidResult.failure(ClosedContractFailure(baseContract._root, baseContract._path, key), head :: tail)
+          }
+      }
+    }
+
+    delta match {
+      case DNull =>
+        DeltaRemove
+      case deltaObject:RawObject@unchecked =>
+        val drop = badTypes.nest == DropBadTypes //not sure if this means anything in Delta, need to review
+        val init = deltaReduceAdditionalProperties(deltaObject)
+        baseContract._fields
+          .view.filterKeys(deltaObject.contains)
+          .foldLeft(init){
+            case (Right(d), (_, p)) =>
+              p.__reduceDelta(d, currentObject, drop)
+            case (l@Left(nel), (_, p)) =>
+              p.__reduceDelta(deltaObject, currentObject, drop) match {
+                case Right(_) =>
+                  l
+                case Left(nel2) =>
+                  Left(nel ::: nel2)
+              }
+          } match {
+          case Left(nel) =>
+            DeltaFailed(nel.head, nel.tail)
+          case Right(delta) =>
+            if (delta.isEmpty) DeltaEmpty
+            else if (RawObjectOps.rightReduceConcatMap(currentObject, currentObject).isEmpty) //TODO improve performance
+              DeltaRemoving(delta)
+            else
+              DeltaReduced(delta)
         }
 
+      case _ if badTypes == DropBadTypes =>
+        DeltaEmpty
     }
   }
 }

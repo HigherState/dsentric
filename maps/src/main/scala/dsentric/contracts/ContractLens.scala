@@ -1,6 +1,6 @@
 package dsentric.contracts
 
-import dsentric.{DObject, Delta}
+import dsentric.{DObject, Delta, DeltaEmpty, DeltaFailed, DeltaInst, DeltaReduced, DeltaRemove, DeltaRemoving}
 import dsentric.failure.{StructuralFailure, ValidResult, ValidStructural}
 
 trait ContractLens[D <: DObject] { this:ContractFor[D] =>
@@ -19,9 +19,19 @@ trait ContractLens[D <: DObject] { this:ContractFor[D] =>
       .map{obj.internalWrap(_).asInstanceOf[D]}
   }
 
-  final def $reduceDelta(obj:D, delta:Delta, dropBadTypes:Boolean = false):ValidResult[Delta] =
-    ???
-
+  final def $reduceDelta(obj:D, delta:Delta, dropBadTypes:Boolean = false):ValidResult[Delta] = {
+    val badTypes = if (dropBadTypes) DropBadTypes else FailOnBadTypes
+    ObjectPropertyLensOps.deltaReduce(this, delta.value, obj.value, badTypes) match {
+      case DeltaEmpty | DeltaRemove =>
+        ValidResult.success(Delta.empty)
+      case DeltaReduced(delta) =>
+        ValidResult.success(new DeltaInst(delta))
+      case DeltaRemoving(delta) =>
+        ValidResult.success(new DeltaInst(delta))
+      case DeltaFailed(head, tail)  =>
+        ValidResult.failure(head, tail)
+    }
+  }
 
   /**
    * Verifies the structural integrity of the object against the contract

@@ -107,7 +107,12 @@ object Available {
  */
 sealed trait DeltaReduce[+R]
 
-final case class DeltaFailed(head:Failure, tail:List[Failure] = Nil) extends DeltaReduce[Nothing]
+final case class DeltaFailed(head:Failure, tail:List[Failure] = Nil) extends DeltaReduce[Nothing] {
+  def rebase(base:BaseAux): DeltaFailed =
+    rebase(base._root, base._path)
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): DeltaFailed =
+    DeltaFailed(head.rebase(rootContract, rootPath), tail.map(_.rebase(rootContract, rootPath)))
+}
 final case class DeltaReduced[R](delta:R) extends DeltaReduce[R]
 final case class DeltaRemoving(delta:RawObject) extends DeltaReduce[RawObject]
 case object DeltaEmpty extends DeltaReduce[Nothing]

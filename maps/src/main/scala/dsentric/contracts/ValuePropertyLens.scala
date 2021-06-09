@@ -1,7 +1,7 @@
 package dsentric.contracts
 
 import cats.data.NonEmptyList
-import dsentric._
+import dsentric.{Available, _}
 import dsentric.codecs.{DCodec, DCollectionCodec, DContractCodec, DCoproductCodec, DMapCodec, DValueCodec}
 import dsentric.failure._
 import shapeless.HList
@@ -47,35 +47,41 @@ sealed trait ExpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]{
         }
     }
 
-  private[contracts] def __reduceDelta(deltaObject:RawObject, currentValue:RawObject, dropBadTypes:Boolean):ValidResult[RawObject] =
-    deltaObject.get(_key) -> currentValue.get(_key) match {
+  private[contracts] def __reduceDelta(deltaObject:RawObject, currentObject:RawObject, dropBadTypes:Boolean):ValidResult[RawObject] = {
+    //TODO Tidyup dropbadTypes in context of delta, dunno if we want to make it boolean as reduce functions do get called
+    val drop = if (dropBadTypes) DropBadTypes else FailOnBadTypes
+    deltaObject.get(_key) -> currentObject.get(_key) match {
       case (None, _) =>
         // We dont return failure here, even if currentValue doesnt have a representation for the property
         // Deltas dont need to repair, they just cant make things worse.
-        Right(deltaObject)
+        ValidResult.success(deltaObject)
+      case (Some(DNull), None) =>
+        ValidResult.success(deltaObject - _key)
       case (Some(raw), None) =>
-        ValuePropertyLensOps.reduce(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
+        ValuePropertyLensOps.reduce(this, raw, drop) match {
+          //Delta not responsible for setting an expected value
           case NotFound =>
-            Left(NonEmptyList(ExpectedFailure(this), Nil))
+            ValidResult.success(deltaObject - _key)
           case Found(reducedRaw) if reducedRaw != raw =>
-            Right(deltaObject + (_key -> reducedRaw))
+            ValidResult.success(deltaObject + (_key -> reducedRaw))
           case Found(_) =>
-            Right(deltaObject)
+            ValidResult.success(deltaObject)
           case Failed(head, tail) =>
-            Left(NonEmptyList(head, tail))
+            ValidResult.failure(head, tail)
         }
       case (Some(deltaRaw), Some(currentRaw)) =>
-        ValuePropertyLensOps.deltaReduce(this, deltaRaw, currentRaw, isIgnore2BadTypes(dropBadTypes)) match {
+        ValuePropertyLensOps.deltaReduce(this, deltaRaw, currentRaw, drop) match {
           case DeltaReduced(reducedRaw) =>
-            Right(deltaObject + (_key -> reducedRaw))
+            ValidResult.success(deltaObject + (_key -> reducedRaw))
           case DeltaEmpty =>
-            Right(deltaObject - _key)
+            ValidResult.success(deltaObject - _key)
           case DeltaRemoving(_) | DeltaRemove =>
-            Left(NonEmptyList(ExpectedFailure(this), Nil))
+            ValidResult.failure(ExpectedFailure(this))
           case DeltaFailed(head, tail) =>
-            Left(NonEmptyList(head, tail))
+            ValidResult.failure(head, tail)
         }
     }
+  }
 
   /**
    * Copying from an existing property, if that property is
@@ -104,60 +110,60 @@ sealed trait ExpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]{
 
 sealed trait UnexpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]{
   private[contracts] def isIgnore2BadTypes(dropBadTypes:Boolean):BadTypes =
-    if (dropBadTypes) ToDropBadTypes
+    if (dropBadTypes) DropBadTypes
     else FailOnBadTypes
 
-
-  //Same as Modify, cana tidy
   private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidStructural[RawObject] =
     obj.get(_key) match {
       case None =>
-        Right(obj)
+        ValidResult.success(obj)
       case Some(raw) =>
         ValuePropertyLensOps.reduce(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
           case Found(reducedRaw) if reducedRaw != raw =>
-            Right(obj + (_key -> reducedRaw))
+            ValidResult.success(obj + (_key -> reducedRaw))
           case Found(_) =>
-            Right(obj)
+            ValidResult.success(obj)
           case NotFound =>
-            Right(obj - _key)
+            ValidResult.success(obj - _key)
           case Failed(head, tail) =>
-            Left(NonEmptyList(head, tail))
+            ValidResult.structuralFailure(head, tail)
         }
     }
 
-  //Same as Modify, cana tidy
-  private[contracts] def __reduceDelta(deltaObject:RawObject, currentValue:RawObject, dropBadTypes:Boolean):ValidResult[RawObject] =
-    deltaObject.get(_key) -> currentValue.get(_key) match {
+  //Same as Modify, can tidy
+  private[contracts] def __reduceDelta(deltaObject:RawObject, currentObject:RawObject, dropBadTypes:Boolean):ValidResult[RawObject] =
+    deltaObject.get(_key) -> currentObject.get(_key) match {
       case (None, _) =>
         // We dont return failure here, even if currentValue doesnt have a representation for the property
         // Deltas dont need to repair, they just cant make things worse.
-        Right(deltaObject)
+        ValidResult.success(deltaObject)
+      case (Some(DNull), None) =>
+        ValidResult.success(deltaObject - _key)
       case (Some(raw), None) =>
         ValuePropertyLensOps.reduce(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
           case NotFound =>
-            Right(deltaObject - _key)
+            ValidResult.success(deltaObject - _key)
           case Found(reducedRaw) if reducedRaw != raw =>
-            Right(deltaObject + (_key -> reducedRaw))
+            ValidResult.success(deltaObject + (_key -> reducedRaw))
           case Found(_) =>
-            Right(deltaObject)
+            ValidResult.success(deltaObject)
           case Failed(head, tail) =>
-            Left(NonEmptyList(head, tail))
+            ValidResult.failure(head, tail)
         }
       case (Some(deltaRaw), Some(currentRaw)) =>
         ValuePropertyLensOps.deltaReduce(this, deltaRaw, currentRaw, isIgnore2BadTypes(dropBadTypes)) match {
           case DeltaReduced(reducedRaw) =>
-            Right(deltaObject + (_key -> reducedRaw))
+            ValidResult.success(deltaObject + (_key -> reducedRaw))
           case DeltaEmpty =>
-            Right(deltaObject - _key)
+            ValidResult.success(deltaObject - _key)
           case DeltaRemove if deltaRaw != DNull =>
-            Right(deltaObject + (_key -> DNull))
+            ValidResult.success(deltaObject + (_key -> DNull))
           case DeltaRemove =>
-            Right(deltaObject)
+            ValidResult.success(deltaObject)
           case DeltaRemoving(reducedRaw) =>
-            Right(deltaObject + (_key -> reducedRaw))
+            ValidResult.success(deltaObject + (_key -> reducedRaw))
           case DeltaFailed(head, tail) =>
-            Left(NonEmptyList(head, tail))
+            ValidResult.failure(head, tail)
         }
     }
 
@@ -894,6 +900,15 @@ private[dsentric] trait DeltaReduceOps extends ReduceOps {
                   DeltaReduced(reducedDelta)
               }
         }
+       //If Delta is causing no change we still want it to fail if its no changing to an invalid value.
+      case (deltaRaw:Raw, currentRaw) if currentRaw == deltaRaw  =>
+        reduceValue(contract, path, badTypes, codec, deltaRaw) match {
+          case Found(_) | NotFound =>
+            DeltaEmpty
+          case Failed(head, tail) =>
+            DeltaFailed(head, tail)
+        }
+
       case (deltaRaw:Raw, _) =>
         available2DeltaReduce(reduceValue(contract, path, badTypes, codec, deltaRaw))
     }
@@ -978,7 +993,7 @@ private[dsentric] trait DeltaReduceOps extends ReduceOps {
           case Left(_) if badTypes == DropBadTypes =>
             DeltaEmpty
           case Left(NonEmptyList(head, tail)) =>
-            DeltaFailed(head, tail)
+            DeltaFailed(head, tail).rebase(contract, path)
         }
       case _ =>
         available2DeltaReduce(reduceContract(contract, path, badTypes, codecContract, deltaObject))

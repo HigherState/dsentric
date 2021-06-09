@@ -29,7 +29,7 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    */
   private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidStructural[RawObject]
 
-  private[contracts] def __reduceDelta(deltaObject:RawObject, currentValue:RawObject, dropBadTypes:Boolean):ValidResult[RawObject]
+  private[contracts] def __reduceDelta(deltaObject:RawObject, currentObject:RawObject, dropBadTypes:Boolean):ValidResult[RawObject]
 
 
 
