@@ -232,7 +232,10 @@ trait DObject extends Any with DObjectOps[DObject] {
   override protected def coll: this.type = this
 }
 
-trait Delta extends Any with DObject with DObjectOps[Delta]
+trait Delta extends Any with DObject with DObjectOps[Delta] {
+  override def toString:String =
+    s"Delta :- ${super.toString}"
+}
 
 final class DObjectInst private[dsentric](val value:RawObject) extends AnyVal with DObject {
   @inline
@@ -240,7 +243,9 @@ final class DObjectInst private[dsentric](val value:RawObject) extends AnyVal wi
     new DObjectInst(value)
 
 }
+
 final class DeltaInst private[dsentric](val value:RawObject) extends AnyVal with Delta {
+
   protected def wrap(value: RawObject): Delta = new DeltaInst(value)
 }
 

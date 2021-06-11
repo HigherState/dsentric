@@ -867,8 +867,13 @@ private[dsentric] trait DeltaReduceOps extends ReduceOps {
       deltaReduceValue(contract, path, badTypes, d, delta, current)
     case (d:DMapCodec[C, _, _], deltaObject:RawObject@unchecked, current:Raw) =>
       deltaReduceMap(contract, path, badTypes, d, deltaObject, current)
-    case (d:DCollectionCodec[C, _], deltaArray: RawArray@unchecked, _) =>
-      available2DeltaReduce(reduceCollection(contract, path, badTypes, d, deltaArray))
+    case (d:DCollectionCodec[C, _], deltaArray: RawArray@unchecked, current:Raw) =>
+      available2DeltaReduce(reduceCollection(contract, path, badTypes, d, deltaArray)) match {
+        case DeltaReduced(dr) if dr == current =>
+          DeltaEmpty
+        case d =>
+          d
+      }
     case (DContractCodec(codecContract), rawObject:RawObject@unchecked, current) =>
       deltaReduceContract(contract, path, badTypes, codecContract, rawObject, current)
     case (d:DCoproductCodec[C, _], raw, current) =>
@@ -939,8 +944,6 @@ private[dsentric] trait DeltaReduceOps extends ReduceOps {
                 deltaReduceCodec(contract, path \ key, nest)((codec.valueCodec, deltaValue, currentValue)) match {
                   case DeltaFailed(head, tail) =>
                     key -> DeltaFailed(failure, head :: tail)
-                  case DeltaEmpty =>
-                    key -> DeltaEmpty
                   case _ =>
                     key -> DeltaFailed(failure)
                 }

@@ -1,12 +1,13 @@
 package dsentric.codecs
 
 import dsentric._
+import dsentric.codecs.std.DMapCodecs.keyValueMapCodec
 import dsentric.contracts.Contract
 import dsentric.failure.StructuralFailure
 import dsentric.schema._
 import shapeless.HList
 import shapeless.UnaryTCConstraint.*->*
-import shapeless.ops.hlist.{ToTraversable}
+import shapeless.ops.hlist.ToTraversable
 
 import scala.collection.immutable.VectorBuilder
 import scala.collection.mutable
