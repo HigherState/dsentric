@@ -86,7 +86,6 @@ trait DStringCodec[T] extends DValueCodec[T] {
   def typeDefinition:StringDefinition
 }
 
-
 trait DMapCodec[M, K, T] extends DCodec[M] {
 
   def keyCodec:DStringCodec[K]
@@ -147,7 +146,6 @@ trait DCollectionCodec[S, T] extends DCodec[S] {
     ArrayDefinition(items = Vector(valueCodec.typeDefinition))
 }
 
-
 case class DContractCodec(contract:Contract) extends DCodec[DObject] {
 
   def unapply(a: Raw): Option[DObject] =
@@ -163,6 +161,25 @@ case class DContractCodec(contract:Contract) extends DCodec[DObject] {
     t.value
 
   def typeDefinition: TypeDefinition = ???
+}
+
+case class DTypeContractCodec(typeDefinition: TypeDefinition)(val contracts:PartialFunction[DObject, Contract]) extends DCodec[DObject] {
+
+  def this(contracts:PartialFunction[DObject, Contract]) =
+    this(ObjectDefinition.empty)(contracts)
+
+  def unapply(a: Raw): Option[DObject] =
+    a match {
+      case m:RawObject@unchecked =>
+        contracts
+          .lift(new DObjectInst(m))
+          .flatMap(_.$reduce(new DObjectInst(m)).toOption)
+      case _ =>
+        None
+    }
+
+  def apply(t: DObject): Raw =
+    t.value
 }
 
 abstract class DCoproductCodec[T, H <: HList : *->*[DCodec]#λ](val codecs:H)(implicit T:ToTraversable.Aux[H, List, DCodec[_]]) extends DCodec[T] {
@@ -214,4 +231,19 @@ object DataCodec extends DValueCodec[Data]{
 
   def typeDefinition: TypeDefinition =
     TypeDefinition.anyDefinition
+}
+
+object DValueCodec {
+  def literal[T](t:T)(implicit D:DValueCodec[T]):DValueCodec[T] =
+   new DValueCodec[T] {
+     private val rawT:Raw = D.apply(t)
+     override def apply(t: T): RawValue =
+       rawT
+
+     def unapply(a: Raw): Option[T] =
+       if (a == rawT) Some(t)
+       else None
+
+     def typeDefinition: TypeDefinition = ???
+   }
 }

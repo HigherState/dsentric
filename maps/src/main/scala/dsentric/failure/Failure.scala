@@ -1,8 +1,10 @@
 package dsentric.failure
 
-import dsentric.codecs.DCodec
+import dsentric.codecs.{DCodec, DCoproductCodec, DTypeContractCodec}
 import dsentric.contracts.{ContractFor, PropertyLens}
-import dsentric.{DObject, Path, Raw}
+import dsentric.{DObject, Path, Raw, RawObject}
+import shapeless.HList
+import shapeless.UnaryTCConstraint.*->*
 
 import scala.util.matching.Regex
 
@@ -57,6 +59,13 @@ final case class ContractFieldFailure[D <: DObject](contract: ContractFor[D], pa
     copy(contract = rootContract, path = rootPath ++ path)
 }
 
+final case class ContractTypeResolutionFailure[D <: DObject](contract: ContractFor[D], path:Path, foundRaw:RawObject) extends StructuralFailure {
+  def message: String = s"Contract type cannot be resolved with given object."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): StructuralFailure =
+    copy(contract = rootContract, path = rootPath ++ path)
+}
+
 final case class MissingElementFailure[D <: DObject, T](contract: ContractFor[D], codec:DCodec[T], path:Path) extends StructuralFailure {
   def message = s"Type '${codec.typeDefinition.name} was expected, nothing was found."
 
@@ -68,6 +77,19 @@ final case class UnexpectedValueFailure[D <: DObject, T](contract: ContractFor[D
   def message = s"Type '${codec.typeDefinition.name}' expected value $expectedValue value, but $unexpectedValue was found."
 
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  UnexpectedValueFailure[G, T] =
+    copy(contract = rootContract, path = rootPath ++ path)
+
+}
+final case class CoproductTypeValueFailure[D <: DObject, T, H <: HList](
+  contract: ContractFor[D],
+  codec:DCoproductCodec[T, H],
+  path:Path,
+  coproductFailures:List[Failure],
+  foundRaw:Raw
+) extends StructuralFailure {
+  def message = s"Type '${codec.typeDefinition.name} was expected, $foundRaw was found."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  CoproductTypeValueFailure[G, T, H] =
     copy(contract = rootContract, path = rootPath ++ path)
 
 }

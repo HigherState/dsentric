@@ -80,6 +80,9 @@ final case class Failed(failure: StructuralFailure, tail: List[StructuralFailure
     ValidResult.structuralFailure(failure, tail)
 
   def failNotFound(failure: => StructuralFailure): Failed = this
+
+  def ++(f:Failed):Failed =
+    Failed(failure, tail ::: f.failure :: f.tail)
 }
 
 object Available {
@@ -112,6 +115,9 @@ final case class DeltaFailed(head:Failure, tail:List[Failure] = Nil) extends Del
     rebase(base._root, base._path)
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): DeltaFailed =
     DeltaFailed(head.rebase(rootContract, rootPath), tail.map(_.rebase(rootContract, rootPath)))
+
+  def ++(f:DeltaFailed):DeltaFailed =
+    DeltaFailed(head, tail ::: f.head :: f.tail)
 }
 final case class DeltaReduced[R](delta:R) extends DeltaReduce[R]
 final case class DeltaRemoving(delta:RawObject) extends DeltaReduce[RawObject]

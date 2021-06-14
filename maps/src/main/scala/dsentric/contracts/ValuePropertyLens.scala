@@ -2,7 +2,7 @@ package dsentric.contracts
 
 import cats.data.NonEmptyList
 import dsentric.{Available, _}
-import dsentric.codecs.{DCodec, DCollectionCodec, DContractCodec, DCoproductCodec, DMapCodec, DValueCodec}
+import dsentric.codecs.{DCodec, DCollectionCodec, DContractCodec, DCoproductCodec, DMapCodec, DTypeContractCodec, DValueCodec}
 import dsentric.failure._
 import shapeless.HList
 
@@ -591,6 +591,9 @@ private[dsentric] trait GetOps {
     case (DContractCodec(codecContract), rawObject:RawObject@unchecked) =>
       getContract(contract, path, badTypes, codecContract, rawObject)
         .asInstanceOf[Available[C]]
+    case (d:DTypeContractCodec, rawObject:RawObject@unchecked) =>
+      getTypeContract(contract, path, badTypes, d.contracts, rawObject)
+        .asInstanceOf[Available[C]]
     case (d:DCoproductCodec[C, _], raw) =>
       getCoproduct(contract, path, badTypes, d, raw)
     case _ if badTypes == DropBadTypes =>
@@ -681,6 +684,16 @@ private[dsentric] trait GetOps {
         Failed(head, tail).rebase(contract, path)
     }
 
+  protected def getTypeContract[D <: DObject](contract:ContractFor[D], path:Path, badTypes:BadTypes, typeCodecs:PartialFunction[DObject, Contract], raw:RawObject):Available[DObject] =
+    typeCodecs.lift(new DObjectInst(raw)) match {
+      case None if badTypes == DropBadTypes =>
+        NotFound
+      case None =>
+        Failed(ContractTypeResolutionFailure(contract, path, raw))
+      case Some(typeContract) =>
+        getContract(contract, path, badTypes, typeContract, raw)
+    }
+
   /**
    * Returns unavailable result of last entry (Right biased)
    * @param contract
@@ -696,12 +709,21 @@ private[dsentric] trait GetOps {
   protected def getCoproduct[D <: DObject, T, H <: HList](contract:ContractFor[D], path:Path, badTypes:BadTypes, codec:DCoproductCodec[T, H], raw:Raw): Available[T] = {
     codec.codecsList.foldLeft[Available[T]](NotFound){
       case (a:Found[T], _) => a
-      case (_, c) =>
+      case (a, c) =>
         getCodec(contract, path, badTypes)(c -> raw) match {
           case Found(t) => codec.lift(t, c).fold[Available[T]](NotFound)(Found(_))
           case NotFound => NotFound
-          case f:Failed => f
+          case f:Failed =>
+            a match {
+              case f2:Failed => f2 ++ f
+              case _ => f
+            }
         }
+    } match {
+      case Failed(head, tail) =>
+        Failed(CoproductTypeValueFailure(contract, codec, path, head :: tail, raw))
+      case a =>
+        a
     }
   }
 
@@ -729,6 +751,8 @@ private[dsentric] trait ReduceOps {
       reduceContract(contract, path, badTypes, codecContract, rawObject)
     case (d:DCoproductCodec[C, _], raw) =>
       reduceCoproduct(contract, path, badTypes, d, raw)
+    case (d:DTypeContractCodec, rawObject: RawObject@unchecked) =>
+      reduceTypeContract(contract, path, badTypes, d.contracts, rawObject)
     case _ if badTypes == DropBadTypes =>
       NotFound
     case (d, raw) =>
@@ -839,12 +863,35 @@ private[dsentric] trait ReduceOps {
     codec.codecsList.foldLeft[Available[Raw]](NotFound){
       case (a:Found[Raw], _) =>
         a
-      case (_, c) =>
-        reduceCodec(contract, path, badTypes)(c -> raw)
+      case (a, c) =>
+        reduceCodec(contract, path, FailOnBadTypes)(c -> raw) match {
+          case f:Failed =>
+            a match {
+              case f2:Failed => f2 ++ f
+              case _ => f
+            }
+          case a2 =>
+          a2
+        }
+    } match {
+      case _:Failed if badTypes == DropBadTypes =>
+        NotFound
+      case Failed(head, tail) =>
+        Failed(CoproductTypeValueFailure(contract, codec, path, head :: tail, raw))
+      case a =>
+        a
     }
   }
 
-
+  protected def reduceTypeContract[D <: DObject](contract:ContractFor[D], path:Path, badTypes:BadTypes, typeCodecs:PartialFunction[DObject, Contract], raw:RawObject):Available[RawObject] =
+    typeCodecs.lift(new DObjectInst(raw)) match {
+      case None if badTypes == DropBadTypes =>
+        NotFound
+      case None =>
+        Failed(ContractTypeResolutionFailure(contract, path, raw))
+      case Some(typeContract) =>
+        reduceContract(contract, path, badTypes, typeContract, raw)
+    }
 }
 
 /**
@@ -878,6 +925,8 @@ private[dsentric] trait DeltaReduceOps extends ReduceOps {
       deltaReduceContract(contract, path, badTypes, codecContract, rawObject, current)
     case (d:DCoproductCodec[C, _], raw, current) =>
       deltaReduceCoproduct(contract, path, badTypes, d, raw, current)
+    case (d:DTypeContractCodec, rawObject: RawObject@unchecked, current) =>
+      deltaReduceTypeContract(contract, path, badTypes, d.contracts, rawObject, current)
     case _ if badTypes == DropBadTypes =>
       DeltaEmpty
     case (d, raw, _) =>
@@ -1002,14 +1051,64 @@ private[dsentric] trait DeltaReduceOps extends ReduceOps {
         available2DeltaReduce(reduceContract(contract, path, badTypes, codecContract, deltaObject))
     }
 
+  protected def deltaReduceTypeContract[D <: DObject](
+                                                       contract:ContractFor[D],
+                                                       path:Path,
+                                                       badTypes:BadTypes,
+                                                       typeCodecs:PartialFunction[DObject, Contract],
+                                                       deltaObject:RawObject,
+                                                       current:Raw):DeltaReduce[RawObject] =
+    current match {
+      case currentObject: RawObject@unchecked =>
+        val newState = RawObjectOps.rightReduceConcatMap(currentObject, deltaObject)
+        typeCodecs.lift(new DObjectInst(currentObject)) -> typeCodecs.lift(new DObjectInst(newState)) match {
+          case (None, None) =>
+            DeltaFailed(ContractTypeResolutionFailure(contract, path, deltaObject))
+          case (Some(currentContract), maybeDeltaContract) if maybeDeltaContract.isEmpty | maybeDeltaContract.contains(currentContract) =>
+            deltaReduceContract(contract, path, badTypes, currentContract, deltaObject, current)
+          //Contract type has changed, need to validate delta operations as well as final state
+          case (_, Some(deltaContract)) =>
+            deltaReduceContract(contract, path, badTypes, deltaContract, deltaObject, current) match {
+              case DeltaReduced(delta) =>
+                val newReducedState = RawObjectOps.rightReduceConcatMap(currentObject, delta)
+                reduceContract(contract, path, FailOnBadTypes, deltaContract, newReducedState) match {
+                  case _:Failed if badTypes == DropBadTypes =>
+                    DeltaEmpty
+                  case Failed(head, tail) =>
+                    DeltaFailed(head, tail)
+                  case _ =>
+                    DeltaReduced(delta)
+                }
+              case d =>
+               d
+            }
+       }
+      case _ =>
+        available2DeltaReduce(reduceTypeContract(contract, path, badTypes, typeCodecs, deltaObject))
+    }
+
   protected def deltaReduceCoproduct[D <: DObject, T, H <: HList](contract:ContractFor[D], path:Path, badTypes:BadTypes, codec:DCoproductCodec[T, H], raw:Raw, current:Raw): DeltaReduce[Raw] = {
-    codec.codecsList.foldLeft[DeltaReduce[Raw]](DeltaEmpty){
-      case (_:DeltaFailed, c) =>
-        deltaReduceCodec(contract, path, badTypes)((c, raw, current))
+    codec.codecsList.foldLeft[Option[DeltaReduce[Raw]]](None){
+      case (Some(f:DeltaFailed), c) =>
+        deltaReduceCodec(contract, path, FailOnBadTypes)((c, raw, current)) match {
+          case f2:DeltaFailed =>
+            Some(f ++ f2)
+          case d =>
+            Some(d)
+        }
+      case (None, c) =>
+        Some(deltaReduceCodec(contract, path, FailOnBadTypes)((c, raw, current)))
       case (a, _) =>
         a
+    } match {
+      case Some(_:DeltaFailed) if badTypes == DropBadTypes =>
+        DeltaEmpty
+      case Some(DeltaFailed(head, tail)) =>
+        DeltaFailed(CoproductTypeValueFailure(contract, codec, path, head :: tail, raw))
+      case Some(d) =>
+        d
+      case None =>
+        DeltaEmpty
     }
   }
-
-
 }
