@@ -46,6 +46,8 @@ private[dsentric] sealed trait ObjectPropertyLens[D <: DObject]
         ValidResult.success(deltaObject)
       case (Some(DNull), None) =>
         ValidResult.success(deltaObject - _key)
+      case (Some(c:RawObject@unchecked), None) if RawObjectOps.reducesEmpty(c) =>
+        ValidResult.success(deltaObject - _key)
       case (Some(d), Some(c:RawObject@unchecked)) =>
         ObjectPropertyLensOps.deltaReduce(this, d, c, isIgnore2BadTypes(dropBadTypes)) match {
           // We shouldn't be able to outright remove an Expected object
@@ -64,7 +66,10 @@ private[dsentric] sealed trait ObjectPropertyLens[D <: DObject]
             ValidResult.failure(head, tail)
         }
       case (Some(d:RawObject@unchecked), _) =>
-        ObjectPropertyLensOps.reduce(this, d, isIgnore2BadTypes(dropBadTypes))
+        ObjectPropertyLensOps.reduce(this, d, isIgnore2BadTypes(dropBadTypes)).map{r =>
+          if (r.isEmpty) deltaObject - _key
+          else deltaObject + (_key -> r)
+        }
 
       case (Some(_), _) if dropBadTypes =>
         ValidResult.success(deltaObject - _key)
@@ -285,6 +290,8 @@ private[dsentric] object ObjectPropertyLensOps extends DeltaReduceOps {
             case Failed(head, tail) =>
               ValidResult.structuralFailure(head, tail)
           }
+        case _ if badTypes == DropBadTypes =>
+          ValidResult.success(obj.view.filterKeys(exclude).toMap)
         case _ =>
           obj.keys
             .filterNot(exclude)
@@ -331,8 +338,8 @@ private[dsentric] object ObjectPropertyLensOps extends DeltaReduceOps {
           val (baseDelta, additionalDelta) = deltaObject.partition(p => exclude(p._1))
           if (additionalDelta.nonEmpty) {
             val additionalCurrent = currentObject.filter(p => !exclude(p._1))
-            deltaReduceMap(a._root, a._path, badTypes, DCodecs.keyValueMapCodec(a._additionalKeyCodec, a._additionalValueCodec), additionalCurrent, additionalDelta) match {
-              case DeltaEmpty |  DeltaRemove => //Delta Remove isnt possible in this instance
+            deltaReduceMap(a._root, a._path, badTypes, DCodecs.keyValueMapCodec(a._additionalKeyCodec, a._additionalValueCodec), additionalDelta, additionalCurrent) match {
+              case DeltaEmpty | DeltaRemove => //Delta Remove isnt possible in this instance
                 ValidResult.success(baseDelta)
               case DeltaRemoving(delta) =>
                 ValidResult.success(baseDelta ++ delta)
@@ -355,8 +362,12 @@ private[dsentric] object ObjectPropertyLensOps extends DeltaReduceOps {
               ValidResult.success(d - key)
             case (failed, (_, DNull | RawObject.empty)) =>
               failed
+            case (Right(d), (key, __)) if badTypes == DropBadTypes =>
+              ValidResult.success(d - key)
             case (Right(_), (key, __)) =>
               ValidResult.failure(ClosedContractFailure(baseContract._root, baseContract._path, key))
+            case (f, _) if badTypes == DropBadTypes =>
+              f
             case (Left(NonEmptyList(head, tail)), (key, _)) =>
               ValidResult.failure(ClosedContractFailure(baseContract._root, baseContract._path, key), head :: tail)
           }

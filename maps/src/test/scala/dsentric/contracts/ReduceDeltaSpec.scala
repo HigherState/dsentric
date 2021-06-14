@@ -1,7 +1,7 @@
 package dsentric.contracts
 
 import dsentric.codecs.{DContractCodec, DCoproductCodec, DTypeContractCodec, DValueCodec}
-import dsentric.failure.{ContractTypeResolutionFailure, CoproductTypeValueFailure, ExpectedFailure, IncorrectKeyTypeFailure, IncorrectTypeFailure, MissingElementFailure}
+import dsentric.failure.{ClosedContractFailure, ContractTypeResolutionFailure, CoproductTypeValueFailure, ExpectedFailure, IncorrectKeyTypeFailure, IncorrectTypeFailure, MissingElementFailure}
 import dsentric.schema.ObjectDefinition
 import dsentric.{DNull, DObject, Data, Delta, Path}
 import org.scalatest.EitherValues
@@ -369,6 +369,13 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
         val delta = Delta("property" ::= ("expected" := DNull))
         ContractCodec.$reduceDelta(base, delta).left.value should contain (ExpectedFailure(ContractCodec, Path("property", "expected")))
       }
+      it("Should return empty if removing expected contract on empty object (Unusual case)") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("expected" := DNull))
+        ContractCodec.$reduceDelta(base, delta).value shouldBe Delta.empty
+        val base2 = DObject("property" := DObject.empty)
+        ContractCodec.$reduceDelta(base2, delta).value shouldBe Delta.empty
+      }
       it("Should return empty delta if removing expected contract current values under dropBadTypes is true") {
         val base = DObject("property" ::= ("expected" := "value", "maybe" := true))
         val delta = Delta("property" ::= ("expected" := DNull))
@@ -502,6 +509,13 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
         val delta = Delta("codecProperty" ::= ("obj1" ::= ("maybe" := 1234)))
         MapCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty
       }
+      it("Should return empty if removing expected content from empty nested contract (Unusual case)") {
+        val base = DObject.empty
+        val delta = Delta("codecProperty" ::= ("key1" ::= ("expected" := DNull)))
+        MapCodec.$reduceDelta(base, delta).value shouldBe Delta.empty
+        val base2 = DObject("codecProperty" ::= ("key1" := DObject.empty))
+        MapCodec.$reduceDelta(base2, delta).value shouldBe Delta.empty
+      }
     }
     describe("Collection Codec Type") {
       object Nested extends Contract {
@@ -568,7 +582,7 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should fail if nested contract fails to validate") {
         val base = DObject("codecProperty" := List.empty[DObject])
-        val delta = Delta("codecProperty" := List(DObject("expected" := DNull)))
+        val delta = Delta("codecProperty" := List(DObject("maybe" := false)))
         CollectionCodec.$reduceDelta(base, delta).left.value should contain (ExpectedFailure(CollectionCodec, Path("codecProperty", 0, "expected")))
       }
       it("Should return empty delta if contract fails to validate under drop bad types ") {
@@ -651,6 +665,13 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
         CoproductCodec.$reduceDelta(base, delta).value shouldBe delta
         CoproductCodec.$reduceDelta(base, delta, true).value shouldBe delta
       }
+      it("Should return empty if removing expected content from empty contract (Unusual case)") {
+        val base = DObject.empty
+        val delta = Delta("codecProperty" ::= ("expected" := DNull))
+        CoproductCodec.$reduceDelta(base, delta).value shouldBe Delta.empty
+        val base2 = DObject("codecProperty" := DObject.empty)
+        CoproductCodec.$reduceDelta(base2, delta).value shouldBe Delta.empty
+      }
     }
     describe("Type Contract Codec Type") {
 
@@ -709,6 +730,11 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
         val base = DObject.empty
         val delta = Delta("property" ::= ("type" := "type3", "property1" := false, "property2" := 123))
         TypeContractCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return reduce delta if current empty") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("type" := "type1", "property1" := "value", "property2" := DNull))
+        TypeContractCodec.$reduceDelta(base, delta, true).value shouldBe Delta("property" ::= ("type" := "type1", "property1" := "value"))
       }
       it("Should return delta if updating current type correctly") {
         val base1 = DObject("property" ::= ("type" := "type1", "property1" := "value", "property2" := 123))
@@ -780,10 +806,469 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
   }
 
   describe("Object Property behaviour") {
+    import dsentric.codecs.std.DCodecs._
 
+    describe("Expected property") {
+      object ExpectedObject extends Contract {
+        val property = new \\ {
+          val expected = \[String]
+          val maybe = \?[Int]
+        }
+        val notExpected = new \\ {
+          val maybe = \?[String]
+          val maybe2 = \?[Int]
+        }
+      }
+      it("Should return empty if empty and delta empty") {
+        val base = DObject.empty
+        val delta = Delta.empty
+        ExpectedObject.$reduceDelta(base, delta).value shouldBe Delta.empty
+        ExpectedObject.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return empty if object empty and delta object empty") {
+        val base = DObject("property" := DObject.empty)
+        val delta = Delta("property" := DObject.empty)
+        ExpectedObject.$reduceDelta(base, delta).value shouldBe Delta.empty
+        ExpectedObject.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return delta if empty and valid property delta") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("expected" := "value", "maybe" := 123))
+        ExpectedObject.$reduceDelta(base, delta).value shouldBe delta
+        ExpectedObject.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return delta if property is empty and valid property delta") {
+        val base = DObject("property" := DObject.empty)
+        val delta = Delta("property" ::= ("expected" := "value", "maybe" := 123))
+        ExpectedObject.$reduceDelta(base, delta).value shouldBe delta
+        ExpectedObject.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return failure if empty and delta is a remove delta") {
+        val base = DObject("property" := DObject.empty)
+        val delta = Delta("property" := DNull)
+        ExpectedObject.$reduceDelta(base, delta).left.value should contain (
+          ExpectedFailure(ExpectedObject, Path("property"))
+        )
+        ExpectedObject.$reduceDelta(base, delta, true).left.value should contain (
+          ExpectedFailure(ExpectedObject, Path("property"))
+        )
+      }
+      it("Should return empty if empty and has expected properties and delta is a remove delta") {
+        val base = DObject.empty
+        val delta = Delta("property" := DNull)
+        ExpectedObject.$reduceDelta(base, delta).value shouldBe Delta.empty
+        ExpectedObject.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return delta if empty and has no expected properties and delta is a remove delta") {
+        val base = DObject("notExpected" ::= ("maybe" := 1234))
+        val delta = Delta("notExpected" ::= ("maybe" -> DNull))
+        ExpectedObject.$reduceDelta(base, delta).value shouldBe delta
+        ExpectedObject.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return delta if current fails to have expected properties and delta is a reducing delta") {
+        val base = DObject("property" ::= ("maybe" := 1234))
+        val delta = Delta("property" ::= ("maybe" -> DNull))
+        ExpectedObject.$reduceDelta(base, delta).value shouldBe delta
+        ExpectedObject.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return empty if empty but has expected properties but delta is reducing") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("expected" -> DNull))
+        ExpectedObject.$reduceDelta(base, delta).value shouldBe Delta.empty
+        ExpectedObject.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return empty if current and delta are the same") {
+        val base = DObject("property" ::= ("expected" := "value"), "notExpected" ::= ("maybe2" := 123))
+        val delta = Delta("property" ::= ("expected" := "value"), "notExpected" ::= ("maybe2" := 123))
+        ExpectedObject.$reduceDelta(base, delta).value shouldBe Delta.empty
+        ExpectedObject.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return delta if delta is successful delta") {
+        val base = DObject("property" ::= ("expected" := "value"))
+        val delta = Delta("property" ::= ("expected" := "value2", "maybe" := 141))
+        ExpectedObject.$reduceDelta(base, delta).value shouldBe delta
+        ExpectedObject.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return reduced delta if delta is successful delta but contains matching properties") {
+        val base = DObject("property" ::= ("expected" := "value"))
+        val delta = Delta("property" ::= ("expected" := "value", "maybe" := 141, "additional" := DNull))
+        ExpectedObject.$reduceDelta(base, delta).value shouldBe Delta("property" ::= ("maybe" := 141))
+        ExpectedObject.$reduceDelta(base, delta, true).value shouldBe Delta("property" ::= ("maybe" := 141))
+      }
+      it("Should return delta if current object has bad values but delta updates without touching those values") {
+        val base = DObject("property" ::= ("expected" := 1451))
+        val delta = Delta("property" ::= ("maybe" := 141))
+        ExpectedObject.$reduceDelta(base, delta).value shouldBe delta
+        ExpectedObject.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return delta if current object has bad values but delta updates fixing those values") {
+        val base = DObject("property" ::= ("expected" := 1451))
+        val delta = Delta("property" ::= ("expected" := "fixed"))
+        ExpectedObject.$reduceDelta(base, delta).value shouldBe delta
+        ExpectedObject.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return failure  if current object has bad values and delta matches the current object") {
+        val base = DObject("property" ::= ("expected" := 1451))
+        val delta = Delta("property" ::= ("expected" := 1451))
+        ExpectedObject.$reduceDelta(base, delta).left.value should contain (
+          IncorrectTypeFailure(ExpectedObject, Path("property", "expected"), stringCodec, 1451)
+        )
+      }
+      it("Should return failure if current empty and properties have incorrect expected types") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("expected" := 1451))
+        ExpectedObject.$reduceDelta(base, delta).left.value should contain (
+          IncorrectTypeFailure(ExpectedObject, Path("property", "expected"), stringCodec, 1451)
+        )
+      }
+      it("Should return failure if current empty and properties have incorrect expected types with DropBadTypes = true (unusual case, contradicts Contract Codec approach)") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("expected" := 1451))
+        ExpectedObject.$reduceDelta(base, delta).left.value should contain (
+          IncorrectTypeFailure(ExpectedObject, Path("property", "expected"), stringCodec, 1451)
+        )
+        ExpectedObject.$reduceDelta(base, delta, true).left.value should contain (
+          IncorrectTypeFailure(ExpectedObject, Path("property", "expected"), stringCodec, 1451)
+        )
+      }
+      it("Should return reduced delta if current empty and properties have incorrect maybe types with DropBadTypes = true") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("expected" := "value", "maybe" := false))
+        ExpectedObject.$reduceDelta(base, delta, true).value shouldBe Delta("property" ::= ("expected" := "value"))
+      }
+    }
+    describe("Maybe property") {
+      object MaybeObject extends Contract {
+        val property = new \\? {
+          val expected = \[String]
+          val maybe = \?[Int]
+        }
+        val notExpected = new \\? {
+          val maybe = \?[String]
+          val maybe2 = \?[Int]
+        }
+      }
+      it("Should return empty if empty and delta empty") {
+        val base = DObject.empty
+        val delta = Delta.empty
+        MaybeObject.$reduceDelta(base, delta).value shouldBe Delta.empty
+        MaybeObject.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return empty if object empty and delta object empty") {
+        val base = DObject("property" := DObject.empty)
+        val delta = Delta("property" := DObject.empty)
+        MaybeObject.$reduceDelta(base, delta).value shouldBe Delta.empty
+        MaybeObject.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return delta if empty and valid property delta") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("expected" := "value", "maybe" := 123))
+        MaybeObject.$reduceDelta(base, delta).value shouldBe delta
+        MaybeObject.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return delta if property is empty and valid property delta") {
+        val base = DObject("property" := DObject.empty)
+        val delta = Delta("property" ::= ("expected" := "value", "maybe" := 123))
+        MaybeObject.$reduceDelta(base, delta).value shouldBe delta
+        MaybeObject.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return delta if empty and delta is a remove delta") {
+        val base = DObject("property" := DObject.empty)
+        val delta = Delta("property" := DNull)
+        MaybeObject.$reduceDelta(base, delta).value shouldBe delta
+        MaybeObject.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return empty if empty and has expected properties and delta is a remove delta") {
+        val base = DObject.empty
+        val delta = Delta("property" := DNull)
+        MaybeObject.$reduceDelta(base, delta).value shouldBe Delta.empty
+        MaybeObject.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return delta if empty and has no expected properties and delta is a remove delta") {
+        val base = DObject("notExpected" ::= ("maybe" := 1234))
+        val delta = Delta("notExpected" ::= ("maybe" -> DNull))
+        MaybeObject.$reduceDelta(base, delta).value shouldBe delta
+        MaybeObject.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return delta if current fails to have expected properties and delta is a reducing delta") {
+        val base = DObject("property" ::= ("maybe" := 1234))
+        val delta = Delta("property" ::= ("maybe" -> DNull))
+        MaybeObject.$reduceDelta(base, delta).value shouldBe delta
+        MaybeObject.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return empty if empty but has expected properties but delta is reducing") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("expected" -> DNull))
+        MaybeObject.$reduceDelta(base, delta).value shouldBe Delta.empty
+        MaybeObject.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return empty if current and delta are the same") {
+        val base = DObject("property" ::= ("expected" := "value"), "notExpected" ::= ("maybe2" := 123))
+        val delta = Delta("property" ::= ("expected" := "value"), "notExpected" ::= ("maybe2" := 123))
+        MaybeObject.$reduceDelta(base, delta).value shouldBe Delta.empty
+        MaybeObject.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return delta if delta is successful delta") {
+        val base = DObject("property" ::= ("expected" := "value"))
+        val delta = Delta("property" ::= ("expected" := "value2", "maybe" := 141))
+        MaybeObject.$reduceDelta(base, delta).value shouldBe delta
+        MaybeObject.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return reduced delta if delta is successful delta but contains matching properties") {
+        val base = DObject("property" ::= ("expected" := "value"))
+        val delta = Delta("property" ::= ("expected" := "value", "maybe" := 141, "additional" := DNull))
+        MaybeObject.$reduceDelta(base, delta).value shouldBe Delta("property" ::= ("maybe" := 141))
+        MaybeObject.$reduceDelta(base, delta, true).value shouldBe Delta("property" ::= ("maybe" := 141))
+      }
+      it("Should return delta if current object has bad values but delta updates without touching those values") {
+        val base = DObject("property" ::= ("expected" := 1451))
+        val delta = Delta("property" ::= ("maybe" := 141))
+        MaybeObject.$reduceDelta(base, delta).value shouldBe delta
+        MaybeObject.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return delta if current object has bad values but delta updates fixing those values") {
+        val base = DObject("property" ::= ("expected" := 1451))
+        val delta = Delta("property" ::= ("expected" := "fixed"))
+        MaybeObject.$reduceDelta(base, delta).value shouldBe delta
+        MaybeObject.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return failure  if current object has bad values and delta matches the current object") {
+        val base = DObject("property" ::= ("expected" := 1451))
+        val delta = Delta("property" ::= ("expected" := 1451))
+        MaybeObject.$reduceDelta(base, delta).left.value should contain (
+          IncorrectTypeFailure(MaybeObject, Path("property", "expected"), stringCodec, 1451)
+        )
+      }
+      it("Should return failure if current empty and properties have incorrect expected types") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("expected" := 1451))
+        MaybeObject.$reduceDelta(base, delta).left.value should contain (
+          IncorrectTypeFailure(MaybeObject, Path("property", "expected"), stringCodec, 1451)
+        )
+      }
+      it("Should return failure if current empty and properties have incorrect expected types with DropBadTypes = true (unusual case, contradicts Contract Codec approach)") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("expected" := 1451))
+        MaybeObject.$reduceDelta(base, delta).left.value should contain (
+          IncorrectTypeFailure(MaybeObject, Path("property", "expected"), stringCodec, 1451)
+        )
+        MaybeObject.$reduceDelta(base, delta, true).left.value should contain (
+          IncorrectTypeFailure(MaybeObject, Path("property", "expected"), stringCodec, 1451)
+        )
+      }
+      it("Should return reduced delta if current empty and properties have incorrect maybe types with DropBadTypes = true") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("expected" := "value", "maybe" := false))
+        MaybeObject.$reduceDelta(base, delta, true).value shouldBe Delta("property" ::= ("expected" := "value"))
+      }
+    }
   }
 
   describe("Additional Property behaviour") {
+    import dsentric.codecs.std.DCodecs._
+    describe("Closed object") {
+      object Closed extends Contract {
+        val property = new \\? {
+          val maybe = \?[Int]
+        }
+      }
+      it("Should fail if delta contains additional properties on an empty object") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("additional" := "value"))
+        Closed.$reduceDelta(base, delta).left.value should contain (
+          ClosedContractFailure(Closed, Path("property"), "additional")
+        )
+      }
+      it("Should return empty if delta on an empty object contains additional properties and DropBadType is true") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("additional" := "value"))
+        Closed.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return empty if delta removes an additional property that doesnt exist on an empty object") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("additional" := DNull))
+        Closed.$reduceDelta(base, delta).value shouldBe Delta.empty
+        Closed.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should fail if delta contains additional properties on an existing object") {
+        val base = DObject("property" ::= ("maybe" := 123))
+        val delta = Delta("property" ::= ("additional" := "value"))
+        Closed.$reduceDelta(base, delta).left.value should contain (
+          ClosedContractFailure(Closed, Path("property"), "additional")
+        )
+      }
+      it("Should return empty if delta contains additional properties on an existing object with DropBadType = true") {
+        val base = DObject("property" ::= ("maybe" := 123))
+        val delta = Delta("property" ::= ("additional" := "value"))
+        Closed.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return delta if delta removes additional properties from current") {
+        val base = DObject("property" ::= ("additional" := "value"))
+        val delta = Delta("property" ::= ("additional" := DNull))
+        Closed.$reduceDelta(base, delta).value shouldBe delta
+        Closed.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return empty if delta removes additional properties which doesnt exist") {
+        val base = DObject("property" ::= ("maybe" := 123))
+        val delta = Delta("property" ::= ("additional" := DNull))
+        Closed.$reduceDelta(base, delta).value shouldBe Delta.empty
+        Closed.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+    }
+    describe("Open object") {
+      object Nested extends Contract {
+        val expected = \[String]
+        val maybe = \?[Boolean]
+      }
+      object Additional extends Contract {
+        val property = new \\\?[Length4String, Long]()() {
+          val maybe = \?[String]
+        }
+        val codecProperty = new \\\?[String, DObject](DContractCodec(Nested))() {
+          val maybe = \?[Int]
+        }
+      }
+      it("Should return fail if additional properties have invalid key on empty object") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("failed" := 1234))
+        Additional.$reduceDelta(base, delta).left.value should contain (
+          IncorrectKeyTypeFailure(Additional, Path("property"), Length4String.fixedLength4StringCodec, "failed")
+        )
+      }
+      it("Should return empty if additional properties have invalid key on empty object with DropBadType is true") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("failed" := 1234))
+        Additional.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return fail if additional properties have invalid key") {
+        val base = DObject("property" ::= ("maybe" := "value"))
+        val delta = Delta("property" ::= ("failed" := 1234))
+        Additional.$reduceDelta(base, delta).left.value should contain (
+          IncorrectKeyTypeFailure(Additional, Path("property"), Length4String.fixedLength4StringCodec, "failed")
+        )
+      }
+      it("Should return empty if additional properties have invalid key with DropBadType is true") {
+        val base = DObject("property" ::= ("maybe" := "value"))
+        val delta = Delta("property" ::= ("failed" := 1234))
+        Additional.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return fail if additional properties have invalid value on empty object") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("add1" := "failed"))
+        Additional.$reduceDelta(base, delta).left.value should contain (
+          IncorrectTypeFailure(Additional, Path("property", "add1"), longCodec, "failed")
+        )
+      }
+      it("Should return empty if additional properties have invalid value on empty object with DropBadType is true") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("add1" := "failed"))
+        Additional.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return fail if additional properties have invalid value") {
+        val base = DObject("property" ::= ("maybe" := "value"))
+        val delta = Delta("property" ::= ("add1" := "failed"))
+        Additional.$reduceDelta(base, delta).left.value should contain (
+          IncorrectTypeFailure(Additional, Path("property", "add1"), longCodec, "failed")
+        )
+      }
+      it("Should return empty if additional properties have invalid value with DropBadType is true") {
+        val base = DObject("property" ::= ("maybe" := 3))
+        val delta = Delta("property" ::= ("add1" := "failed"))
+        Additional.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
 
+      it("Should return empty if removing from empty, even if key is invalid") {
+        val base = DObject.empty
+        val delta = Delta("property" ::= ("add1" := DNull))
+        Additional.$reduceDelta(base, delta).value shouldBe Delta.empty
+        Additional.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+        val delta2 = Delta("property" ::= ("invalid" := DNull))
+        Additional.$reduceDelta(base, delta2).value shouldBe Delta.empty
+        Additional.$reduceDelta(base, delta2, true).value shouldBe Delta.empty
+      }
+      it("Should return empty if removing a non existing key even if key is invalid") {
+        val base = DObject("property" ::= ("maybe" := "value"))
+        val delta = Delta("property" ::= ("add1" := DNull))
+        Additional.$reduceDelta(base, delta).value shouldBe Delta.empty
+        Additional.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+        val delta2 = Delta("property" ::= ("invalid" := DNull))
+        Additional.$reduceDelta(base, delta2).value shouldBe Delta.empty
+        Additional.$reduceDelta(base, delta2, true).value shouldBe Delta.empty
+      }
+      it("Should return delta if removing an existing key") {
+        val base = DObject("property" ::= ("maybe" := "value", "add1" := 1412L))
+        val delta = Delta("property" ::= ("add1" := DNull))
+        Additional.$reduceDelta(base, delta).value shouldBe delta
+        Additional.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return delta if removing an existing key even if key is invalid") {
+        val base = DObject("property" ::= ("maybe" := "value", "invalid" := 1412L))
+        val delta = Delta("property" ::= ("invalid" := DNull))
+        Additional.$reduceDelta(base, delta).value shouldBe delta
+        Additional.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+
+      it("Should return delta if adding a correct key pair") {
+        val base = DObject("property" ::= ("maybe" := "value"))
+        val delta = Delta("property" ::= ("add1" := 1234))
+        Additional.$reduceDelta(base, delta).value shouldBe delta
+        Additional.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return delta if replacing an existing key pair") {
+        val base = DObject("property" ::= ("maybe" := "value", "add1" := 54334))
+        val delta = Delta("property" ::= ("add1" := 1234))
+        Additional.$reduceDelta(base, delta).value shouldBe delta
+        Additional.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return empty if same key pair already exists") {
+        val base = DObject("property" ::= ("maybe" := "value", "add1" := 1234))
+        val delta = Delta("property" ::= ("add1" := 1234))
+        Additional.$reduceDelta(base, delta).value shouldBe Delta.empty
+        Additional.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return fail if trying to set defined property with additional property type") {
+        val base = DObject("property" ::= ("maybe" := "value", "add1" := 1234))
+        val delta = Delta("property" ::= ("maybe" := 1234))
+        Additional.$reduceDelta(base, delta).left.value should contain (
+          IncorrectTypeFailure(Additional, Path("property", "maybe"), stringCodec, 1234)
+        )
+      }
+      it("Should return fail if setting same invalid additional property key value which already exists") {
+        val base = DObject("property" ::= ("maybe" := "value", "invalid" := 1234, "add1" := "failed"))
+        val delta = Delta("property" ::= ("invalid" := 1234))
+        Additional.$reduceDelta(base, delta).left.value should contain (
+          IncorrectKeyTypeFailure(Additional, Path("property"), Length4String.fixedLength4StringCodec, "invalid")
+        )
+        val delta2 = Delta("property" ::= ("add1" := "failed"))
+        Additional.$reduceDelta(base, delta2).left.value should contain (
+          IncorrectTypeFailure(Additional, Path("property", "add1"), longCodec, "failed")
+        )
+      }
+      
+      it("Should fail if nested contract fails to validate") {
+        val base = DObject("codecProperty" ::= ("obj1" ::= ("expected" := "value", "maybe" := true)))
+        val delta = Delta("codecProperty" ::= ("obj1" ::= ("expected" := DNull)))
+        Additional.$reduceDelta(base, delta).left.value should contain (ExpectedFailure(Additional, Path("codecProperty", "obj1", "expected")))
+        val delta2 = Delta("codecProperty" ::= ("obj1" ::= ("maybe" := "fail")))
+        Additional.$reduceDelta(base, delta2).left.value should contain (IncorrectTypeFailure(Additional, Path("codecProperty", "obj1", "maybe"), Nested.maybe._codec, "fail"))
+      }
+      it("Should return empty if nested contract expected fails under drop under bad type ") {
+        val base = DObject("codecProperty" ::= ("obj1" ::= ("expected" := "value", "maybe" := true)))
+        val delta = Delta("codecProperty" ::= ("obj1" ::= ("expected" := DNull)))
+        Additional.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return empty if nested contract type fails under drop under bad type ") {
+        val base = DObject("codecProperty" ::= ("obj1" ::= ("expected" := "value", "maybe" := true)))
+        val delta = Delta("codecProperty" ::= ("obj1" ::= ("maybe" := 1234)))
+        Additional.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return empty if removing expected content from empty nested contract (Unusual case)") {
+        val base = DObject.empty
+        val delta = Delta("codecProperty" ::= ("key1" ::= ("expected" := DNull)))
+        Additional.$reduceDelta(base, delta).value shouldBe Delta.empty
+        val base2 = DObject("codecProperty" ::= ("key1" := DObject.empty))
+        Additional.$reduceDelta(base2, delta).value shouldBe Delta.empty
+      }
+    }
   }
 }

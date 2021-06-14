@@ -237,6 +237,19 @@ trait RawObjectOps {
     if (reducedMap.isEmpty) None
     else Some(reducedMap)
   }
+
+  def reducesEmpty(target:RawObject):Boolean =
+    target.foldLeft(true) {
+      case (false, _) =>
+        false
+      case (_, (_, DNull)) =>
+        true
+      case (_, (_, m: RawObject@unchecked)) =>
+        reducesEmpty(m)
+      case _ =>
+        false
+    }
+
 }
 
 object RawObjectOps extends RawObjectOps

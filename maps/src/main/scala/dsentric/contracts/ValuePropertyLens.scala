@@ -739,7 +739,7 @@ private[dsentric] trait ReduceOps {
   protected def reduceCodec[D <: DObject, C](contract:ContractFor[D], path:Path, badTypes:BadTypes):Function[(DCodec[C], Raw), Available[Raw]] = {
     case (_, DNull) =>
       NotFound
-    case (_, rawObject:RawObject@unchecked)  if rawObject.isEmpty =>
+    case (_, rawObject:RawObject@unchecked) if RawObjectOps.reducesEmpty(rawObject) =>
       NotFound
     case (d:DValueCodec[C], raw) =>
       reduceValue(contract, path, badTypes, d, raw)
@@ -774,13 +774,13 @@ private[dsentric] trait ReduceOps {
         }
       case r =>
         codec.unapply(r) match {
-        case None if badTypes == DropBadTypes =>
-          NotFound
-        case None =>
-          Failed(IncorrectTypeFailure(contract, path, codec, raw))
-        case Some(_) =>
-          Found(raw)
-      }
+          case None if badTypes == DropBadTypes =>
+            NotFound
+          case None =>
+            Failed(IncorrectTypeFailure(contract, path, codec, raw))
+          case Some(_) =>
+            Found(raw)
+        }
     }
 
   protected def reduceMap[D <: DObject, C, K, V](contract:ContractFor[D], path:Path, badTypes:BadTypes, codec:DMapCodec[C, K, V], raw:RawObject):Available[RawObject] = {
