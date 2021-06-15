@@ -6,9 +6,6 @@ import dsentric.RawObject
 
 object ValidResult {
 
-  def structuralFailure[T](failure:StructuralFailure, additional:List[StructuralFailure] = Nil):ValidStructural[T] =
-    Left(NonEmptyList(failure, additional))
-
   def failure[T](failure:Failure, additional:List[Failure] = Nil):ValidResult[T] =
     Left(NonEmptyList(failure, additional))
 

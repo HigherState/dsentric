@@ -138,7 +138,7 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
 
   private def _checkKeyClash(key:String):ValidResult[Unit] =
     if (_fields.contains(key))
-      ValidResult.structuralFailure(ContractFieldFailure(this._root, this._path, key), Nil)
+      ValidResult.failure(ContractFieldFailure(this._root, this._path, key), Nil)
     else
       ValidResult.unit
 }

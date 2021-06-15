@@ -10,6 +10,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 sealed trait ValuePropertyLens[D <: DObject, T] extends PropertyLens[D, T] {
+
   /**
    * Sets or Replaces value for the Property.
    * Does nothing if None is provided.
@@ -30,20 +31,20 @@ sealed trait ExpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]{
     else FailOnBadTypes
 
 
-  private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidStructural[RawObject] =
+  private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidResult[RawObject] =
     obj.get(_key) match {
       case None =>
-        ValidResult.structuralFailure(ExpectedFailure(this))
+        ValidResult.failure(ExpectedFailure(this))
       case Some(raw) =>
         ValuePropertyLensOps.reduce(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
           case NotFound =>
-            ValidResult.structuralFailure(ExpectedFailure(this))
+            ValidResult.failure(ExpectedFailure(this))
           case Found(reducedRaw) if reducedRaw != raw =>
             ValidResult.success(obj + (_key -> reducedRaw))
           case Found(_) =>
             ValidResult.success(obj)
           case Failed(head, tail) =>
-            ValidResult.structuralFailure(head, tail)
+            ValidResult.failure(head, tail)
         }
     }
 
@@ -113,7 +114,7 @@ sealed trait UnexpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]
     if (dropBadTypes) DropBadTypes
     else FailOnBadTypes
 
-  private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidStructural[RawObject] =
+  private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidResult[RawObject] =
     obj.get(_key) match {
       case None =>
         ValidResult.success(obj)
@@ -126,7 +127,7 @@ sealed trait UnexpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]
           case NotFound =>
             ValidResult.success(obj - _key)
           case Failed(head, tail) =>
-            ValidResult.structuralFailure(head, tail)
+            ValidResult.failure(head, tail)
         }
     }
 
@@ -218,7 +219,7 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D
    * @param obj
    * @return
    */
-  final def $get(obj:D, dropBadTypes:Boolean = false):ValidStructural[T] =
+  final def $get(obj:D, dropBadTypes:Boolean = false):ValidResult[T] =
     __get(obj.value, dropBadTypes).toValid
 
   /**
@@ -263,7 +264,7 @@ private[dsentric] trait MaybeExpectedLens[D <: DObject, T] extends ExpectedLensL
    * @param obj
    * @return
    */
-  final def $get(obj:D, dropBadTypes:Boolean = false):ValidStructural[Option[T]] =
+  final def $get(obj:D, dropBadTypes:Boolean = false):ValidResult[Option[T]] =
     __get(obj.value, dropBadTypes).toValidOption
 
   /**
@@ -525,7 +526,7 @@ private[dsentric] trait MaybeDefaultLens[D <: DObject, T] extends DefaultLensLik
    * @param obj
    * @return
    */
-  final def $get(obj:D, dropBadTypes:Boolean = false):ValidStructural[Option[T]] =
+  final def $get(obj:D, dropBadTypes:Boolean = false):ValidResult[Option[T]] =
     __get(obj.value, dropBadTypes).toValidOption
 
   /**
@@ -546,15 +547,17 @@ private[dsentric] trait MaybeDefaultLens[D <: DObject, T] extends DefaultLensLik
 }
 
 private[dsentric] object ValuePropertyLensOps extends GetOps with ReduceOps with DeltaReduceOps {
-  def get[D <: DObject, T](propertyLens: PropertyLens[D, T], raw:Raw, badTypes: BadTypes):Available[T] =
+  def get[D <: DObject, T](propertyLens: ValuePropertyLens[D, T], raw:Raw, badTypes: BadTypes):Available[T] =
     getCodec(propertyLens._root, propertyLens._path, badTypes)(propertyLens._codec -> raw)
 
-  def reduce[D <: DObject, T](propertyLens: PropertyLens[D, T], raw:Raw, badTypes: BadTypes):Available[Raw] =
-    reduceCodec(propertyLens._root, propertyLens._path, badTypes)(propertyLens._codec -> raw)
+  def reduce[D <: DObject, T](propertyLens: ValuePropertyLens[D, T], raw:Raw, badTypes: BadTypes):Available[Raw] = {
+    val reduce = reduceCodec(propertyLens._root, propertyLens._path, badTypes)(propertyLens._codec -> raw)
+    propertyLens.__applyConstraints(reduce, badTypes)
+  }
 
-  def deltaReduce[D <: DObject, T](propertyLens: PropertyLens[D, T], delta:Raw, current:Raw, badTypes: BadTypes):DeltaReduce[Raw] = {
-
-    deltaReduceCodec(propertyLens._root, propertyLens._path, badTypes)((propertyLens._codec, delta, current))
+  def deltaReduce[D <: DObject, T](propertyLens: ValuePropertyLens[D, T], delta:Raw, current:Raw, badTypes: BadTypes):DeltaReduce[Raw] = {
+    val deltaReduce = deltaReduceCodec(propertyLens._root, propertyLens._path, badTypes)((propertyLens._codec, delta, current))
+    propertyLens.__applyConstraints(current, deltaReduce, badTypes)
   }
 }
 
@@ -626,11 +629,11 @@ private[dsentric] trait GetOps {
         }
       val value = getCodec(contract, path \ p._1, nested)(codec.valueCodec -> p._2)
       Available.sequence2(key, value)
-    }.foldLeft[Either[ListBuffer[StructuralFailure], mutable.Builder[(K, V), Map[K, V]]]](Right(Map.newBuilder[K, V])) {
+    }.foldLeft[Either[ListBuffer[Failure], mutable.Builder[(K, V), Map[K, V]]]](Right(Map.newBuilder[K, V])) {
       case (Right(mb), Found(pair)) =>
         Right(mb.addOne(pair))
       case (Right(_), Failed(head, tail)) =>
-        Left(new ListBuffer[StructuralFailure].addAll(head :: tail))
+        Left(new ListBuffer[Failure].addAll(head :: tail))
       case (Left(lb), Failed(head, tail)) =>
         Left(lb.addAll(head :: tail))
       case (result, _) =>
@@ -650,15 +653,15 @@ private[dsentric] trait GetOps {
     val nested = badTypes.nest
     raw.zipWithIndex.map { p =>
       getCodec(contract, path \ p._2, nested)(codec.valueCodec -> p._1) -> p._2
-    }.foldLeft[Either[ListBuffer[StructuralFailure], mutable.Builder[T, Vector[T]]]](Right(Vector.newBuilder[T])){
+    }.foldLeft[Either[ListBuffer[Failure], mutable.Builder[T, Vector[T]]]](Right(Vector.newBuilder[T])){
       case (Right(vb), (Found(t), _)) =>
         Right(vb.addOne(t))
       case (Right(_), (Failed(head, tail), _)) =>
-        Left(new ListBuffer[StructuralFailure].addAll(head :: tail))
+        Left(new ListBuffer[Failure].addAll(head :: tail))
       case (Left(lb), (Failed(head, tail), _)) =>
         Left(lb.addAll(head :: tail))
       case (Right(_), (NotFound, index)) =>
-        Left(new ListBuffer[StructuralFailure].addOne(MissingElementFailure(contract, codec, path \ index)))
+        Left(new ListBuffer[Failure].addOne(MissingElementFailure(contract, codec, path \ index)))
       case (Left(lb), (NotFound, index)) =>
         Left(lb.addOne(MissingElementFailure(contract, codec, path \ index)))
       case (result, _) =>
@@ -797,11 +800,11 @@ private[dsentric] trait ReduceOps {
         }
       val value = reduceCodec(contract, path \ p._1, nest)(codec.valueCodec -> p._2)
       Available.sequence2(key, value)
-    }.foldLeft[Either[ListBuffer[StructuralFailure], mutable.Builder[(String, Raw), Map[String, Raw]]]](Right(Map.newBuilder[String, Raw])) {
+    }.foldLeft[Either[ListBuffer[Failure], mutable.Builder[(String, Raw), Map[String, Raw]]]](Right(Map.newBuilder[String, Raw])) {
       case (Right(mb), Found(pair)) =>
         Right(mb.addOne(pair))
       case (Right(_), Failed(head, tail)) =>
-        Left(new ListBuffer[StructuralFailure].addAll(head :: tail))
+        Left(new ListBuffer[Failure].addAll(head :: tail))
       case (Left(lb), Failed(head, tail)) =>
         Left(lb.addAll(head :: tail))
       case (result, _) =>
@@ -825,15 +828,15 @@ private[dsentric] trait ReduceOps {
     val nest = badTypes.nest
     raw.zipWithIndex.map { p =>
       reduceCodec(contract, path \ p._2, nest)(codec.valueCodec -> p._1) -> p._2
-    }.foldLeft[Either[ListBuffer[StructuralFailure], mutable.Builder[Raw, Vector[Raw]]]](Right(Vector.newBuilder[Raw])){
+    }.foldLeft[Either[ListBuffer[Failure], mutable.Builder[Raw, Vector[Raw]]]](Right(Vector.newBuilder[Raw])){
       case (Right(vb), (Found(t), _)) =>
         Right(vb.addOne(t))
       case (Right(_), (Failed(head, tail), _)) =>
-        Left(new ListBuffer[StructuralFailure].addAll(head :: tail))
+        Left(new ListBuffer[Failure].addAll(head :: tail))
       case (Left(lb), (Failed(head, tail), _)) =>
         Left(lb.addAll(head :: tail))
       case (Right(_), (NotFound, index)) =>
-        Left(new ListBuffer[StructuralFailure].addOne(MissingElementFailure(contract, codec, path \ index)))
+        Left(new ListBuffer[Failure].addOne(MissingElementFailure(contract, codec, path \ index)))
       case (Left(lb), (NotFound, index)) =>
         Left(lb.addOne(MissingElementFailure(contract, codec, path \ index)))
       case (result, _) =>

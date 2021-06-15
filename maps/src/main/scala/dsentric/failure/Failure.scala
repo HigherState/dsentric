@@ -1,10 +1,9 @@
 package dsentric.failure
 
-import dsentric.codecs.{DCodec, DCoproductCodec, DTypeContractCodec}
+import dsentric.codecs.{DCodec, DCoproductCodec}
 import dsentric.contracts.{ContractFor, PropertyLens}
 import dsentric.{DObject, Path, Raw, RawObject}
 import shapeless.HList
-import shapeless.UnaryTCConstraint.*->*
 
 import scala.util.matching.Regex
 
@@ -16,14 +15,9 @@ sealed trait Failure {
   def message:String
 }
 
-sealed trait StructuralFailure extends Failure {
-  def rebase[G <: DObject](rootContract:ContractFor[G], rootPath:Path):StructuralFailure
+sealed trait TypeFailure extends Failure
 
-}
-
-sealed trait TypeFailure extends StructuralFailure
-
-final case class ExpectedFailure[D <: DObject](contract: ContractFor[D], path:Path) extends StructuralFailure {
+final case class ExpectedFailure[D <: DObject](contract: ContractFor[D], path:Path) extends Failure {
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): ExpectedFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
 
@@ -45,35 +39,35 @@ final case class IncorrectKeyTypeFailure[D <: DObject, T](contract: ContractFor[
   def message = s"Type '${codec.typeDefinition.name} was expected for additional properties key, $foundRaw was found."
 }
 
-final case class ClosedContractFailure[D <: DObject](contract: ContractFor[D], path:Path, field:String) extends StructuralFailure {
+final case class ClosedContractFailure[D <: DObject](contract: ContractFor[D], path:Path, field:String) extends Failure {
   def message: String = s"Contract is closed and cannot have value for field '$field'."
 
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): ClosedContractFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
 }
 
-final case class ContractFieldFailure[D <: DObject](contract: ContractFor[D], path:Path, field:String) extends StructuralFailure {
+final case class ContractFieldFailure[D <: DObject](contract: ContractFor[D], path:Path, field:String) extends Failure {
   def message: String = s"Contract field '$field' is already defined and cannot be used for additional property."
 
-  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): StructuralFailure =
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): Failure =
     copy(contract = rootContract, path = rootPath ++ path)
 }
 
-final case class ContractTypeResolutionFailure[D <: DObject](contract: ContractFor[D], path:Path, foundRaw:RawObject) extends StructuralFailure {
+final case class ContractTypeResolutionFailure[D <: DObject](contract: ContractFor[D], path:Path, foundRaw:RawObject) extends Failure {
   def message: String = s"Contract type cannot be resolved with given object."
 
-  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): StructuralFailure =
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): Failure =
     copy(contract = rootContract, path = rootPath ++ path)
 }
 
-final case class MissingElementFailure[D <: DObject, T](contract: ContractFor[D], codec:DCodec[T], path:Path) extends StructuralFailure {
+final case class MissingElementFailure[D <: DObject, T](contract: ContractFor[D], codec:DCodec[T], path:Path) extends Failure {
   def message = s"Type '${codec.typeDefinition.name} was expected, nothing was found."
 
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  MissingElementFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
 }
 
-final case class UnexpectedValueFailure[D <: DObject, T](contract: ContractFor[D], codec:DCodec[T], expectedValue:Raw, unexpectedValue:Raw, path:Path) extends StructuralFailure {
+final case class UnexpectedValueFailure[D <: DObject, T](contract: ContractFor[D], codec:DCodec[T], expectedValue:Raw, unexpectedValue:Raw, path:Path) extends Failure {
   def message = s"Type '${codec.typeDefinition.name}' expected value $expectedValue value, but $unexpectedValue was found."
 
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  UnexpectedValueFailure[G, T] =
@@ -86,7 +80,7 @@ final case class CoproductTypeValueFailure[D <: DObject, T, H <: HList](
   path:Path,
   coproductFailures:List[Failure],
   foundRaw:Raw
-) extends StructuralFailure {
+) extends Failure {
   def message = s"Type '${codec.typeDefinition.name} was expected, $foundRaw was found."
 
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  CoproductTypeValueFailure[G, T, H] =
@@ -94,7 +88,7 @@ final case class CoproductTypeValueFailure[D <: DObject, T, H <: HList](
 
 }
 
-final case class DeltaNotSupportedFailure[D <: DObject, T](contract: ContractFor[D], codec:DCodec[T], path:Path) extends StructuralFailure {
+final case class DeltaNotSupportedFailure[D <: DObject, T](contract: ContractFor[D], codec:DCodec[T], path:Path) extends Failure {
   def message = s"Type '${codec.typeDefinition.name}' does not support Delta operation."
 
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): DeltaNotSupportedFailure[G, T] =

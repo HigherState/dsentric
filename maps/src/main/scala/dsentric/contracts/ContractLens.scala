@@ -1,7 +1,7 @@
 package dsentric.contracts
 
-import dsentric.{DObject, Delta, DeltaEmpty, DeltaFailed, DeltaInst, DeltaReduced, DeltaRemove, DeltaRemoving}
-import dsentric.failure.{StructuralFailure, ValidResult, ValidStructural}
+import dsentric.{DObject, Delta, DeltaEmpty, DeltaFailed, DeltaInst, DeltaReduced, DeltaRemove, DeltaRemoving, Failed, Found, NotFound, RawObject}
+import dsentric.failure.{Failure, ValidResult}
 
 trait ContractLens[D <: DObject] { this:ContractFor[D] =>
 
@@ -13,10 +13,16 @@ trait ContractLens[D <: DObject] { this:ContractFor[D] =>
    * @param obj
    * @return
    */
-  final def $reduce(obj:D, dropBadTypes:Boolean = false):ValidStructural[D] = {
+  final def $reduce(obj:D, dropBadTypes:Boolean = false):ValidResult[D] = {
     val badTypes = if (dropBadTypes) DropBadTypes else FailOnBadTypes
-    ObjectPropertyLensOps.reduce(this, obj.value, badTypes)
-      .map{obj.internalWrap(_).asInstanceOf[D]}
+    ObjectPropertyLensOps.reduce(this, obj.value, badTypes) match {
+      case Found(raw) =>
+        ValidResult.success(obj.internalWrap(raw).asInstanceOf[D])
+      case NotFound =>
+        ValidResult.success(obj.internalWrap(RawObject.empty).asInstanceOf[D])
+      case Failed(head, tail) =>
+        ValidResult.failure(head, tail)
+    }
   }
 
   final def $reduceDelta(obj:D, delta:Delta, dropBadTypes:Boolean = false):ValidResult[Delta] = {
@@ -38,9 +44,9 @@ trait ContractLens[D <: DObject] { this:ContractFor[D] =>
    * @param obj
    * @return
    */
-  final def $verify(obj:D):List[StructuralFailure] =
-    ObjectPropertyLensOps.reduce(this, obj.value, DropBadTypes) match {
-      case Left(nel) => nel.toList
+  final def $verify(obj:D):List[Failure] =
+    ObjectPropertyLensOps.reduce(this, obj.value, FailOnBadTypes) match {
+      case Failed(head, tail) => head :: tail
       case _ => Nil
     }
 

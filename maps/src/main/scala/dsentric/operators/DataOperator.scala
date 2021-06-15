@@ -2,9 +2,8 @@ package dsentric.operators
 
 import dsentric.contracts.ContractFor
 import dsentric.failure.ValidationFailures
-import dsentric.{DObject, Path, Raw}
+import dsentric.{Available, DObject, DeltaReduce, Path, Raw}
 import dsentric.schema.TypeDefinition
-
 
 sealed trait DataOperator[+T] {
   def definition[D <: TypeDefinition]:PartialFunction[D, D] = {
@@ -25,7 +24,14 @@ trait ContextTransform[C, +T] extends DataOperator[T] {
   def transform[S >: T](context:C, value:Option[S]):Option[S]
 }
 
-trait DeltaConstraint[+T] extends DataOperator[T] {
+trait Constraint[+T] extends DataOperator[T] {
+
+  def verify[D <: DObject](
+                            contract:ContractFor[D],
+                            path:Path,
+                            value:Available[Raw]
+                          ): ValidationFailures
+
   /**
    * Verify the reduced delta value against the current State
    * @param contract
@@ -36,12 +42,12 @@ trait DeltaConstraint[+T] extends DataOperator[T] {
    * @tparam D
    * @return
    */
-def verifyDelta[D <: DObject](
-                                 contract:ContractFor[D],
-                                 path:Path,
-                                 reducedDelta:Raw,
-                                 currentState: Raw
-                               ): ValidationFailures
+  def verify[D <: DObject](
+                           contract:ContractFor[D],
+                           path:Path,
+                           current: Raw,
+                           delta:DeltaReduce[Raw]
+                         ): ValidationFailures
 }
 
 trait Sanitizer[+T] extends DataOperator[T] {

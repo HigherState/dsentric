@@ -202,7 +202,7 @@ private final case class TraversedModifySetter[D <: DObject, T](getter:RawObject
       case PathEmptyMaybe => ValidResult.success(rawObject)
       case NotFound => ValidResult.success(Setter(rawObject, codec(f(None)), path))
       case Found(t) => ValidResult.success(Setter(rawObject, codec(f(Some(t))), path))
-      case Failed(f, tail) => ValidResult.structuralFailure(f, tail)
+      case Failed(f, tail) => ValidResult.failure(f, tail)
     }
 
   private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
@@ -214,7 +214,7 @@ private final case class TraversedModifySetter[D <: DObject, T](getter:RawObject
       case Found(t) =>
         ValidResult.success(Setter.deltaApply(rawObject, codec(f(Some(t))), path))
       case Failed(f, tail) =>
-        ValidResult.structuralFailure(f, tail)
+        ValidResult.failure(f, tail)
     }
 }
 
@@ -229,7 +229,7 @@ private final case class TraversedModifyValidSetter[D <: DObject, T](getter:RawO
       case Found(t) =>
         f(Some(t)).map(r => Setter(rawObject, codec(r), path))
       case Failed(f, tail) =>
-        ValidResult.structuralFailure(f, tail)
+        ValidResult.failure(f, tail)
     }
 
   private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
@@ -241,7 +241,7 @@ private final case class TraversedModifyValidSetter[D <: DObject, T](getter:RawO
       case Found(t) =>
         f(Some(t)).map(r => Setter.deltaApply(rawObject, codec(r), path))
       case Failed(f, tail) =>
-        ValidResult.structuralFailure(f, tail)
+        ValidResult.failure(f, tail)
     }
 }
 
@@ -254,7 +254,7 @@ private final case class RawTraversedModifyValidSetter[D <: DObject](getter:RawO
       case Found(t) =>
         f(t).map(Setter.apply(rawObject, _, path))
       case Failed(f, tail) =>
-        ValidResult.structuralFailure(f, tail)
+        ValidResult.failure(f, tail)
     }
 
   private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
@@ -264,7 +264,7 @@ private final case class RawTraversedModifyValidSetter[D <: DObject](getter:RawO
       case Found(t) =>
         f(t).map(r => Setter.deltaApply(rawObject, r, path))
       case Failed(f, tail) =>
-        ValidResult.structuralFailure(f, tail)
+        ValidResult.failure(f, tail)
     }
 }
 
@@ -312,7 +312,7 @@ private final case class TraversedModifyOrDropSetter[D <: DObject, T](getter:Raw
           }
         }
       case Failed(f, tail) =>
-        ValidResult.structuralFailure(f, tail)
+        ValidResult.failure(f, tail)
     }
 
   private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
@@ -335,7 +335,7 @@ private final case class TraversedModifyOrDropSetter[D <: DObject, T](getter:Raw
         }
 
       case Failed(f, tail) =>
-        ValidResult.structuralFailure(f, tail)
+        ValidResult.failure(f, tail)
     }
 }
 
@@ -360,7 +360,7 @@ private final case class TraversedModifyOrDropValidSetter[D <: DObject, T](gette
             vr.map(t => Setter(rawObject, codec(t), path))
         }
       case Failed(f, tail) =>
-        ValidResult.structuralFailure(f, tail)
+        ValidResult.failure(f, tail)
     }
 
   private[contracts] def rawDelta(rawObject: RawObject): ValidResult[RawObject] =
@@ -382,7 +382,7 @@ private final case class TraversedModifyOrDropValidSetter[D <: DObject, T](gette
             vr.map(t => Setter.deltaApply(rawObject, codec(t), path))
         }
       case Failed(f, tail) =>
-        ValidResult.structuralFailure(f, tail)
+        ValidResult.failure(f, tail)
     }
 }
 

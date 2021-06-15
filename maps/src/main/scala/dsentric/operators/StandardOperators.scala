@@ -1,7 +1,7 @@
 package dsentric.operators
 
 import dsentric.codecs.DCodec
-import dsentric.{DObject, Path, Raw}
+import dsentric.{Available, DObject, DeltaEmpty, DeltaFailed, DeltaReduce, DeltaReduced, Failed, NotFound, Path, Raw}
 import dsentric.contracts.ContractFor
 import dsentric.failure.{ImmutableFailure, MaskFailure, ReservedFailure, ValidationFailures}
 
@@ -9,25 +9,60 @@ trait StandardOperators {
   //Shouldnt be used in an And or Or validator
   val internal: Internal.type = Internal
 
-  val reserved: DeltaConstraint[Option[Nothing]] =
-    new DeltaConstraint[Option[Nothing]] {
+  val reserved: Constraint[Option[Nothing]] =
+    new Constraint[Option[Nothing]] {
 
-      def verifyDelta[D <: DObject](
-                                    contract:ContractFor[D],
-                                    path:Path,
-                                    reducedDelta:Raw,
-                                    currentState: Raw): ValidationFailures =
-        ValidationFailures(ReservedFailure(contract, path))
+      def verify[D <: DObject](contract: ContractFor[D], path: Path, value: Available[Raw]): ValidationFailures =
+        value match {
+          case NotFound | _:Failed =>
+            ValidationFailures.empty
+          case _ =>
+            ValidationFailures(ReservedFailure(contract, path))
+        }
+
+      /**
+       * Verify the reduced delta value against the current State
+       *
+       * @param contract
+       * @param path
+       * @param reducedDelta
+       * @param currentState
+       * @tparam S
+       * @tparam D
+       * @return
+       */
+      def verify[D <: DObject](contract:  ContractFor[D], path:  Path, current: Raw, delta:  DeltaReduce[Raw]): ValidationFailures =
+        delta match {
+          case DeltaEmpty =>
+            ValidationFailures.empty
+          case _ =>
+            ValidationFailures(ReservedFailure(contract, path))
+        }
     }
 
-  val immutable: DeltaConstraint[Nothing] =
-    new DeltaConstraint[Nothing] {
+  val immutable: Constraint[Nothing] =
+    new Constraint[Nothing] {
 
-      def verifyDelta[D <: DObject](contract:ContractFor[D],
-                                    path:Path,
-                                    reducedDelta:Raw,
-                                    currentState: Raw): ValidationFailures =
-          ValidationFailures(ImmutableFailure(contract, path))
+      def verify[D <: DObject](contract: ContractFor[D], path: Path, value: Available[Raw]): ValidationFailures = Nil
+
+      /**
+       * Verify the reduced delta value against the current State
+       *
+       * @param contract
+       * @param path
+       * @param reducedDelta
+       * @param currentState
+       * @tparam S
+       * @tparam D
+       * @return
+       */
+      def verify[D <: DObject](contract: ContractFor[D], path: Path, current: Raw, delta: DeltaReduce[Raw]): ValidationFailures =
+        delta match {
+          case DeltaEmpty | _:DeltaFailed =>
+            ValidationFailures.empty
+          case _ =>
+            ValidationFailures(ImmutableFailure(contract, path))
+        }
     }
 
 //  val increment: Constraint[Numeric] =
@@ -51,8 +86,8 @@ trait StandardOperators {
 //
 //    }
 
-  def mask[T](mask:T, maskIfEmpty:Boolean = false)(implicit D:DCodec[T]):DeltaConstraint[Optionable[Nothing]] with Sanitizer[Optionable[Nothing]] =
-    new DeltaConstraint[Optionable[Nothing]] with Sanitizer[Optionable[Nothing]] {
+  def mask[T](mask:T, maskIfEmpty:Boolean = false)(implicit D:DCodec[T]):Constraint[Optionable[Nothing]] with Sanitizer[Optionable[Nothing]] =
+    new Constraint[Optionable[Nothing]] with Sanitizer[Optionable[Nothing]] {
       private val dataMask:Raw = D(mask)
 
       def sanitize(value: Option[Raw]): Option[Raw] =
@@ -61,6 +96,9 @@ trait StandardOperators {
         else
           value.map(_ => dataMask)
 
+
+      def verify[D <: DObject](contract: ContractFor[D], path: Path, value: Available[Raw]): ValidationFailures =
+        ValidationFailures.empty
 
       /**
        * Verify the reduced delta value against the current State
@@ -73,11 +111,15 @@ trait StandardOperators {
        * @tparam D
        * @return
        */
-      def verifyDelta[D <: DObject](contract: ContractFor[D], path: Path, reducedDelta: Raw, currentState: Raw): ValidationFailures =
-        if (reducedDelta == dataMask)
-          ValidationFailures(MaskFailure(contract, path, mask))
-        else
-          ValidationFailures.empty
+      def verify[D <: DObject](contract:  ContractFor[D], path:  Path, current: Raw, delta:  DeltaReduce[Raw]): ValidationFailures =
+        delta match {
+          case DeltaReduced(delta) if delta == dataMask =>
+            ValidationFailures(MaskFailure(contract, path, mask))
+          case _ =>
+            ValidationFailures.empty
+        }
+
+
     }
 
   def maskTo[T, U](function:T => Option[U], default:Option[U])(implicit DT:DCodec[T], DU:DCodec[U]):Sanitizer[Optionable[T]] =

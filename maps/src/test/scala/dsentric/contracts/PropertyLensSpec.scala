@@ -1,10 +1,13 @@
 package dsentric.contracts
 
 import dsentric._
-import dsentric.failure.{ExpectedFailure, IncorrectTypeFailure}
+import dsentric.codecs.DCoproductCodec
+import dsentric.codecs.std.DValueCodecs
+import dsentric.failure.{CoproductTypeValueFailure, ExpectedFailure, IncorrectTypeFailure}
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
+import shapeless.HList
 
 class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
 
@@ -117,7 +120,18 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
           ExpectedStructure.nulled.$get(DObject.empty).left.value should contain(ExpectedFailure(ExpectedStructure.nulled))
         }
         it("Should fail with IncorrectType if nullable wrong type") {
-          ExpectedStructure.nulled.$get(DObject("nulled" := "wrong")).left.value should contain(IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.nulled._path, intCodec, "wrong"))
+          ExpectedStructure.nulled.$get(DObject("nulled" := "wrong")).left.value should contain(
+            CoproductTypeValueFailure(
+              ExpectedStructure,
+              ExpectedStructure.nulled._codec.asInstanceOf[DCoproductCodec[DNullable[Int], HList]],
+              ExpectedStructure.nulled._path,
+              List(
+                IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.nulled._path, DValueCodecs.dNullCodec, "wrong"),
+                IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.nulled._path, intCodec, "wrong")
+              ),
+              "wrong"
+            )
+          )
         }
         it("Should return null if nullable null") {
           ExpectedStructure.nulled.$get(DObject("nulled" := DNull)).value shouldBe DNull
@@ -359,7 +373,18 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
           val base3 = DObject.empty
           ExpectedStructure.nulled.$modify { case DNull => DSome(0); case DSome(x) => DSome(x + 1) }(base3).left.value should contain(ExpectedFailure(ExpectedStructure.nulled))
           val base4 = DObject("nulled" := "wrong")
-          ExpectedStructure.nulled.$modify { case DNull => DSome(0); case DSome(x) => DSome(x + 1) }(base4).left.value should contain(IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.nulled._path, intCodec, "wrong"))
+          ExpectedStructure.nulled.$modify { case DNull => DSome(0); case DSome(x) => DSome(x + 1) }(base4).left.value should contain(
+            CoproductTypeValueFailure(
+              ExpectedStructure,
+              ExpectedStructure.nulled._codec.asInstanceOf[DCoproductCodec[DNullable[Int], HList]],
+              ExpectedStructure.nulled._path,
+              List(
+                IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.nulled._path, DValueCodecs.dNullCodec, "wrong"),
+                IncorrectTypeFailure(ExpectedStructure, ExpectedStructure.nulled._path, intCodec, "wrong")
+              ),
+              "wrong"
+            )
+          )
         }
       }
       describe("In Expected Path") {
@@ -620,7 +645,18 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
         }
         it("Should fail with IncorrectType if nullable wrong type") {
           val base = DObject("nulled" := "wrong")
-          MaybeStructure.nulled.$get(base).left.value should contain(IncorrectTypeFailure(MaybeStructure, MaybeStructure.nulled._path, intCodec, "wrong"))
+          MaybeStructure.nulled.$get(base).left.value should contain(
+            CoproductTypeValueFailure(
+              MaybeStructure,
+              MaybeStructure.nulled._codec.asInstanceOf[DCoproductCodec[DNullable[Int], HList]],
+              MaybeStructure.nulled._path,
+              List(
+                IncorrectTypeFailure(MaybeStructure, MaybeStructure.nulled._path, DValueCodecs.dNullCodec, "wrong"),
+                IncorrectTypeFailure(MaybeStructure, MaybeStructure.nulled._path, intCodec, "wrong")
+              ),
+              "wrong"
+            )
+          )
         }
         it("Should return null if nullable null") {
           val base = DObject("nulled" := DNull)
@@ -700,7 +736,18 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
         }
         it("Should fail with IncorrectType if nullable wrong type") {
           val base = DObject("nulled" := "wrong")
-          MaybeStructure.nulled.$getOrElse(base, DSome(123)).left.value should contain(IncorrectTypeFailure(MaybeStructure, MaybeStructure.nulled._path, intCodec, "wrong"))
+          MaybeStructure.nulled.$getOrElse(base, DSome(123)).left.value should contain(
+            CoproductTypeValueFailure(
+              MaybeStructure,
+              MaybeStructure.nulled._codec.asInstanceOf[DCoproductCodec[DNullable[Int], HList]],
+              MaybeStructure.nulled._path,
+              List(
+                IncorrectTypeFailure(MaybeStructure, MaybeStructure.nulled._path, DValueCodecs.dNullCodec, "wrong"),
+                IncorrectTypeFailure(MaybeStructure, MaybeStructure.nulled._path, intCodec, "wrong")
+              ),
+              "wrong"
+            )
+          )
         }
         it("Should return null if nullable null") {
           val base = DObject("nulled" := DNull)
@@ -1544,7 +1591,18 @@ class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
           DefaultStructure.nulled.$get(DObject.empty).value shouldBe DSome(23)
         }
         it("Should fail with IncorrectTypeFailure if nullable wrong type") {
-          DefaultStructure.nulled.$get(DObject("nulled" := "wrong")).left.value should contain(IncorrectTypeFailure(DefaultStructure, DefaultStructure.nulled._path, intCodec, "wrong"))
+          DefaultStructure.nulled.$get(DObject("nulled" := "wrong")).left.value should contain(
+            CoproductTypeValueFailure(
+              DefaultStructure,
+              DefaultStructure.nulled._codec.asInstanceOf[DCoproductCodec[DNullable[Int], HList]],
+              DefaultStructure.nulled._path,
+              List(
+                IncorrectTypeFailure(DefaultStructure, DefaultStructure.nulled._path, DValueCodecs.dNullCodec, "wrong"),
+                IncorrectTypeFailure(DefaultStructure, DefaultStructure.nulled._path, intCodec, "wrong")
+              ),
+              "wrong"
+            )
+          )
         }
         it("Should return null if nullable null") {
           DefaultStructure.nulled.$get(DObject("nulled" := DNull)).value shouldBe DNull

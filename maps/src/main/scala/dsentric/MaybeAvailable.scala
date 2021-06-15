@@ -1,30 +1,30 @@
 package dsentric
 
 import dsentric.contracts.{BaseAux, ContractFor}
-import dsentric.failure.{Failure, StructuralFailure, ValidResult, ValidStructural}
+import dsentric.failure.{Failure, ValidResult}
 
 sealed trait MaybeAvailable[+T] {
-  def toValidOption:ValidStructural[Option[T]]
+  def toValidOption:ValidResult[Option[T]]
 
   def rebase(base:BaseAux):MaybeAvailable[T]
   def rebase[G <: DObject](rootContract:ContractFor[G], rootPath:Path):MaybeAvailable[T]
 
   def flatMap[A](f:T => MaybeAvailable[A]):MaybeAvailable[A]
 
-  def failNotFound(failure: => StructuralFailure):MaybeAvailable[T]
+  def failNotFound(failure: => Failure):MaybeAvailable[T]
 }
 sealed trait Available[+T] extends MaybeAvailable[T] {
   def rebase(base:BaseAux):Available[T]
   def rebase[G <: DObject](rootContract:ContractFor[G], rootPath:Path):Available[T]
-  def failNotFound(failure: => StructuralFailure):Available[T]
+  def failNotFound(failure: => Failure):Available[T]
 }
 
 sealed trait Valid[+T] extends Available[T] {
-  def toValid:ValidStructural[T]
+  def toValid:ValidResult[T]
 }
 
 case object PathEmptyMaybe extends MaybeAvailable[Nothing] {
-  def toValidOption: ValidStructural[Option[Nothing]] =
+  def toValidOption: ValidResult[Option[Nothing]] =
     ValidResult.none
 
   def rebase(baseContract:BaseAux): MaybeAvailable[Nothing] = this
@@ -32,12 +32,12 @@ case object PathEmptyMaybe extends MaybeAvailable[Nothing] {
 
   def flatMap[A](f: Nothing => MaybeAvailable[A]): MaybeAvailable[A] = this
 
-  def failNotFound(failure: => StructuralFailure):MaybeAvailable[Nothing] =
+  def failNotFound(failure: => Failure):MaybeAvailable[Nothing] =
     PathEmptyMaybe
 }
 
 case object NotFound extends Available[Nothing] {
-  def toValidOption: ValidStructural[Option[Nothing]] =
+  def toValidOption: ValidResult[Option[Nothing]] =
     ValidResult.none
 
   def rebase(base:BaseAux): Available[Nothing] = this
@@ -45,11 +45,11 @@ case object NotFound extends Available[Nothing] {
 
   def flatMap[A](f: Nothing => MaybeAvailable[A]): MaybeAvailable[A] = this
 
-  def failNotFound(failure: => StructuralFailure): Available[Nothing] = Failed(failure, Nil)
+  def failNotFound(failure: => Failure): Available[Nothing] = Failed(failure, Nil)
 }
 
 final case class Found[+T](value:T) extends Valid[T] {
-  def toValidOption: ValidStructural[Option[T]] =
+  def toValidOption: ValidResult[Option[T]] =
     ValidResult.success((Some(value)))
 
   def rebase(base:BaseAux): Found[T] = this
@@ -59,15 +59,15 @@ final case class Found[+T](value:T) extends Valid[T] {
     f(value)
 
 
-  def toValid: ValidStructural[T] =
+  def toValid: ValidResult[T] =
     ValidResult.success(value)
 
-  def failNotFound(failure: => StructuralFailure): Found[T] = this
+  def failNotFound(failure: => Failure): Found[T] = this
 }
 
-final case class Failed(failure: StructuralFailure, tail: List[StructuralFailure] = Nil) extends Valid[Nothing] {
-  def toValidOption: ValidStructural[Option[Nothing]] =
-    ValidResult.structuralFailure(failure, tail)
+final case class Failed(failure: Failure, tail: List[Failure] = Nil) extends Valid[Nothing] {
+  def toValidOption: ValidResult[Option[Nothing]] =
+    ValidResult.failure(failure, tail)
 
   def rebase(base:BaseAux): Failed =
     rebase(base._root, base._path)
@@ -76,10 +76,10 @@ final case class Failed(failure: StructuralFailure, tail: List[StructuralFailure
 
   def flatMap[A](f: Nothing => MaybeAvailable[A]): MaybeAvailable[A] = this
 
-  def toValid: ValidStructural[Nothing] =
-    ValidResult.structuralFailure(failure, tail)
+  def toValid: ValidResult[Nothing] =
+    ValidResult.failure(failure, tail)
 
-  def failNotFound(failure: => StructuralFailure): Failed = this
+  def failNotFound(failure: => Failure): Failed = this
 
   def ++(f:Failed):Failed =
     Failed(failure, tail ::: f.failure :: f.tail)

@@ -1244,7 +1244,7 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
           IncorrectTypeFailure(Additional, Path("property", "add1"), longCodec, "failed")
         )
       }
-      
+
       it("Should fail if nested contract fails to validate") {
         val base = DObject("codecProperty" ::= ("obj1" ::= ("expected" := "value", "maybe" := true)))
         val delta = Delta("codecProperty" ::= ("obj1" ::= ("expected" := DNull)))

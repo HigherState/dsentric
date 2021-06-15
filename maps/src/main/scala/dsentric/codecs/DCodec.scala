@@ -1,9 +1,8 @@
 package dsentric.codecs
 
 import dsentric._
-import dsentric.codecs.std.DMapCodecs.keyValueMapCodec
 import dsentric.contracts.Contract
-import dsentric.failure.StructuralFailure
+import dsentric.failure.Failure
 import dsentric.schema._
 import shapeless.HList
 import shapeless.UnaryTCConstraint.*->*
@@ -210,7 +209,7 @@ object DataCodec extends DValueCodec[Data]{
    * @param a
    * @return
    */
-  def verify(a: Raw): List[StructuralFailure] = Nil
+  def verify(a: Raw): List[Failure] = Nil
 
   def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[Raw] =
     (deltaValue -> currentValue) match {

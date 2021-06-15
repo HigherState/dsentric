@@ -3,6 +3,7 @@ package dsentric.contracts
 import dsentric.codecs.DCodec
 import dsentric.{RawObject, _}
 import dsentric.failure._
+import dsentric.operators.{Constraint, DataOperator}
 
 private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with ParameterisedAux[D] {
   def _key:String
@@ -10,6 +11,7 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
   def _codec: DCodec[T]
   def _parent: BaseContract[D]
   def _root: ContractFor[D] = _parent._root
+  def _dataOperators:List[DataOperator[_]]
 
   /**
    * Return the property value or failure
@@ -27,19 +29,48 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    * @param obj
    * @return
    */
-  private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidStructural[RawObject]
+  private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidResult[RawObject]
 
   private[contracts] def __reduceDelta(deltaObject:RawObject, currentObject:RawObject, dropBadTypes:Boolean):ValidResult[RawObject]
 
+  private[contracts] def __applyConstraints[R](reduce:Available[R], badTypes: BadTypes): Available[R] =
+    _dataOperators.flatMap {
+      case c:Constraint[_] =>
+        c.verify(_root, _path, reduce)
+      case _ =>
+        Nil
+    } match {
+      case Nil =>
+        reduce
+      case _ if badTypes == DropBadTypes =>
+        NotFound
+      case head :: tail =>
+        Failed(head, tail)
+    }
+
+  private[contracts] def __applyConstraints[R](current:R, deltaReduce:DeltaReduce[R], badTypes: BadTypes): DeltaReduce[R] =
+    _dataOperators.flatMap {
+      case c:Constraint[_] =>
+        c.verify(_root, _path, current, deltaReduce)
+      case _ =>
+        Nil
+    } match {
+      case Nil =>
+        deltaReduce
+      case _ if badTypes == DropBadTypes =>
+        DeltaEmpty
+      case head :: tail =>
+        DeltaFailed(head, tail)
+    }
 
 
-  def $get(delta:Delta):ValidStructural[Option[T]] = {
+  def $get(delta:Delta):ValidResult[Option[T]] = {
     TraversalOps.maybeTraverse(delta.value, this, false)
       .toValidOption.flatMap{
       case Some(raw) =>
         val unapply = _codec.unapply(raw)
         if (unapply.isEmpty)
-          ValidResult.structuralFailure(IncorrectTypeFailure(this, raw))
+          ValidResult.failure(IncorrectTypeFailure(this, raw))
          else
           ValidResult.success(unapply)
 
@@ -54,7 +85,7 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    * @param obj
    * @return
    */
-  def $verify(obj:D):List[StructuralFailure] =
+  def $verify(obj:D):List[Failure] =
     __get(obj.value, false) match {
       case Failed(head, tail) =>
         head :: tail
