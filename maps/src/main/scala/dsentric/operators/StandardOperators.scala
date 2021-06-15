@@ -1,7 +1,7 @@
 package dsentric.operators
 
 import dsentric.codecs.DCodec
-import dsentric.{Available, DObject, DeltaEmpty, DeltaFailed, DeltaReduce, DeltaReduced, Failed, NotFound, Path, Raw}
+import dsentric.{Available, DObject, DeltaEmpty, DeltaFailed, DeltaReduce, DeltaReduced, Failed, Found, NotFound, Path, Raw}
 import dsentric.contracts.ContractFor
 import dsentric.failure.{ImmutableFailure, MaskFailure, ReservedFailure, ValidationFailures}
 
@@ -98,7 +98,12 @@ trait StandardOperators {
 
 
       def verify[D <: DObject](contract: ContractFor[D], path: Path, value: Available[Raw]): ValidationFailures =
-        ValidationFailures.empty
+        value match {
+          case Found(delta) if delta == dataMask =>
+            ValidationFailures(MaskFailure(contract, path, mask))
+          case _ =>
+            ValidationFailures.empty
+        }
 
       /**
        * Verify the reduced delta value against the current State
@@ -130,3 +135,5 @@ trait StandardOperators {
   //Min max key constraint
   //Cant remove key constraint
 }
+
+object StandardOperators extends StandardOperators

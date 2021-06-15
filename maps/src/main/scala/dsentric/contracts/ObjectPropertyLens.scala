@@ -15,31 +15,6 @@ private[dsentric] sealed trait ObjectPropertyLens[D <: DObject]
     if (dropBadTypes) DropBadTypes
     else FailOnBadTypes
 
-  private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidResult[RawObject] = {
-    def reduce(rawObject:Map[String, Any]):Available[RawObject] = {
-      val reduce = ObjectPropertyLensOps.reduce(this, rawObject, isIgnore2BadTypes(dropBadTypes))
-      __applyConstraints(reduce, isIgnore2BadTypes(dropBadTypes))
-    }
-
-    (obj.get(_key) match {
-      case None =>
-        reduce(RawObject.empty)
-      case Some(rawObject:RawObject@unchecked) =>
-        reduce(rawObject)
-      case Some(_) if dropBadTypes =>
-        reduce(RawObject.empty)
-      case Some(r) =>
-        Failed(IncorrectTypeFailure(this, r))
-    }) match {
-      case NotFound =>
-        ValidResult.success(obj - _key)
-      case Found(r) =>
-        ValidResult.success(obj + (_key -> r))
-      case Failed(head, tail) =>
-        ValidResult.failure(head, tail)
-     }
-  }
-
   private[contracts] def __reduceDelta(deltaObject:RawObject, currentObject:RawObject, dropBadTypes:Boolean):ValidResult[RawObject] = {
     val badTypes = isIgnore2BadTypes(dropBadTypes)
     deltaObject.get(_key) -> currentObject.get(_key) match {
@@ -144,8 +119,62 @@ private[dsentric] sealed trait ObjectPropertyLens[D <: DObject]
 }
 
 sealed trait ExpectedObjectPropertyLensLike[D <: DObject] extends ObjectPropertyLens[D] {
+  private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidResult[RawObject] = {
+    def reduce(rawObject:Map[String, Any]):Available[RawObject] = {
+      val reduce = ObjectPropertyLensOps.reduce(this, rawObject, isIgnore2BadTypes(dropBadTypes))
+      __applyConstraints(reduce, isIgnore2BadTypes(dropBadTypes))
+    }
 
+    (obj.get(_key) match {
+      case None =>
+        reduce(RawObject.empty)
+      case Some(rawObject:RawObject@unchecked) =>
+        reduce(rawObject)
+      case Some(_) if dropBadTypes =>
+        reduce(RawObject.empty)
+      case Some(r) =>
+        Failed(IncorrectTypeFailure(this, r))
+    }) match {
+      case NotFound =>
+        ValidResult.success(obj - _key)
+      case Found(r) =>
+        ValidResult.success(obj + (_key -> r))
+      case Failed(head, tail) =>
+        ValidResult.failure(head, tail)
+    }
+  }
+
+  /**
+   * Operates like a get on the object, setting the new value, including defaults.
+   *
+   * @param rawObject
+   * @param dropBadTypes
+   * @return
+   */
+  private[contracts] def __apply(rawObject: RawObject, dropBadTypes: Boolean): ValidResult[RawObject] = {
+    def get(rawObject:RawObject):ValidResult[RawObject] =
+      ObjectPropertyLensOps.get(this, rawObject, isIgnore2BadTypes(dropBadTypes)) match {
+        case Found(r) =>
+          ValidResult.success(rawObject + (_key -> r))
+        case NotFound =>
+          ValidResult.success(rawObject + (_key -> RawObject.empty))
+        case f:Failed =>
+          f.toValid
+      }
+
+    rawObject.get(_key) match {
+      case None =>
+        get(RawObject.empty)
+      case Some(rawObject:RawObject@unchecked) =>
+        get(rawObject)
+      case Some(_) if dropBadTypes =>
+        get(RawObject.empty)
+      case Some(r) =>
+        ValidResult.failure(IncorrectTypeFailure(this, r))
+    }
+  }
 }
+
 /**
  * An Expected object doesnt necessarily have to be present if none of its properties
  * are expected.
@@ -153,9 +182,9 @@ sealed trait ExpectedObjectPropertyLensLike[D <: DObject] extends ObjectProperty
  */
 private[dsentric] trait ExpectedObjectPropertyLens[D <: DObject] extends ExpectedObjectPropertyLensLike[D] with ApplicativeLens[D, DObject]{
 
-  private[contracts] def __get(data:RawObject, dropBadTypes:Boolean):Valid[DObject] = {
-    def reduce(rawObject:Map[String, Any]):Valid[DObject] =
-      ObjectPropertyLensOps.reduce(this, rawObject, isIgnore2BadTypes(dropBadTypes)) match {
+  private[contracts] def __get(base:RawObject, dropBadTypes:Boolean):Valid[DObject] = {
+    def get(rawObject:RawObject):Valid[DObject] =
+      ObjectPropertyLensOps.get(this, rawObject, isIgnore2BadTypes(dropBadTypes)) match {
         case Found(rawObject) =>
           //its possible this will return an empty object.
           Found(new DObjectInst(rawObject))
@@ -165,13 +194,13 @@ private[dsentric] trait ExpectedObjectPropertyLens[D <: DObject] extends Expecte
           f
       }
 
-    TraversalOps.traverse(data, this, dropBadTypes) match {
+    TraversalOps.traverse(base, this, dropBadTypes) match {
       case NotFound  =>
-        reduce(RawObject.empty)
+        get(RawObject.empty)
       case Found(rawObject:RawObject@unchecked) =>
-        reduce(rawObject)
+        get(rawObject)
       case Found(_) if dropBadTypes =>
-        reduce(RawObject.empty)
+        get(RawObject.empty)
       case Found(r) =>
         Failed(IncorrectTypeFailure(this, r))
       case f:Failed =>
@@ -190,18 +219,18 @@ private[dsentric] trait ExpectedObjectPropertyLens[D <: DObject] extends Expecte
 
 private[dsentric] trait MaybeExpectedObjectPropertyLens[D <: DObject] extends ExpectedObjectPropertyLensLike[D] with ApplicativeLens[D, Option[DObject]]{
 
-  private[contracts] def __get(data:RawObject, dropBadTypes:Boolean):MaybeAvailable[DObject] = {
-    def reduce(rawObject:Map[String, Any]):MaybeAvailable[DObject] =
-      ObjectPropertyLensOps.reduce(this, rawObject, isIgnore2BadTypes(dropBadTypes))
+  private[contracts] def __get(base:RawObject, dropBadTypes:Boolean):MaybeAvailable[DObject] = {
+    def get(rawObject:Map[String, Any]):MaybeAvailable[DObject] =
+      ObjectPropertyLensOps.get(this, rawObject, isIgnore2BadTypes(dropBadTypes))
         .flatMap(a => Found(new DObjectInst(a)))
 
-    TraversalOps.maybeTraverse(data, this, dropBadTypes) match {
+    TraversalOps.maybeTraverse(base, this, dropBadTypes) match {
       case NotFound  =>
-        reduce(RawObject.empty)
+        get(RawObject.empty)
       case Found(rawObject:RawObject@unchecked) =>
-        reduce(rawObject)
+        get(rawObject)
       case Found(_) if dropBadTypes =>
-        reduce(RawObject.empty)
+        get(RawObject.empty)
       case Found(r) =>
         Failed(IncorrectTypeFailure(this, r))
       case f:Failed =>
@@ -210,6 +239,7 @@ private[dsentric] trait MaybeExpectedObjectPropertyLens[D <: DObject] extends Ex
         PathEmptyMaybe
     }
   }
+
 
   /**
    * Unapply is only ever a simple prism to the value and its decoding
@@ -233,18 +263,75 @@ private[dsentric] trait MaybeExpectedObjectPropertyLens[D <: DObject] extends Ex
  */
 private[dsentric] trait MaybeObjectPropertyLens[D <: DObject] extends ObjectPropertyLens[D] {
 
-  private[contracts] def __get(data:RawObject, dropBadTypes:Boolean):MaybeAvailable[DObject] = {
+  private[contracts] def __get(base:RawObject, dropBadTypes:Boolean):MaybeAvailable[DObject] = {
     def reduce(rawObject:Map[String, Any]):MaybeAvailable[DObject] =
       ObjectPropertyLensOps.reduce(this, rawObject, isIgnore2BadTypes(dropBadTypes))
         .flatMap(a => Found(new DObjectInst(a)))
 
-    TraversalOps.maybeTraverse(data, this, dropBadTypes).flatMap {
+    TraversalOps.maybeTraverse(base, this, dropBadTypes).flatMap {
       case rawObject:RawObject@unchecked =>
         reduce(rawObject)
       case _ if dropBadTypes =>
         NotFound
       case raw =>
         Failed(IncorrectTypeFailure(this, raw))
+    }
+  }
+
+  /**
+   * Operates like a get on the object, setting the new value, including defaults.
+   *
+   * @param rawObject
+   * @param dropBadTypes
+   * @return
+   */
+  private[contracts] def __apply(rawObject: RawObject, dropBadTypes: Boolean): ValidResult[RawObject] = {
+    def get(rawObject:RawObject):ValidResult[RawObject] =
+      ObjectPropertyLensOps.get(this, rawObject, isIgnore2BadTypes(dropBadTypes)) match {
+        case Found(r) if r.isEmpty =>
+          ValidResult.success(rawObject - _key)
+        case Found(r) =>
+          ValidResult.success(rawObject + (_key -> r))
+        case NotFound =>
+          ValidResult.success(rawObject - _key)
+        case f:Failed =>
+          f.toValid
+      }
+
+    rawObject.get(_key) match {
+      case None =>
+        ValidResult.success(rawObject)
+      case Some(rawObject:RawObject@unchecked) =>
+        get(rawObject)
+      case Some(_) if dropBadTypes =>
+        ValidResult.success(rawObject - _key)
+      case Some(r) =>
+        ValidResult.failure(IncorrectTypeFailure(this, r))
+    }
+  }
+
+  private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidResult[RawObject] = {
+    def reduce(rawObject:Map[String, Any]):Available[RawObject] = {
+      val reduce = ObjectPropertyLensOps.reduce(this, rawObject, isIgnore2BadTypes(dropBadTypes))
+      __applyConstraints(reduce, isIgnore2BadTypes(dropBadTypes))
+    }
+
+    (obj.get(_key) match {
+      case None =>
+        NotFound
+      case Some(rawObject:RawObject@unchecked) =>
+        reduce(rawObject)
+      case Some(_) if dropBadTypes =>
+        NotFound
+      case Some(r) =>
+        Failed(IncorrectTypeFailure(this, r))
+    }) match {
+      case NotFound =>
+        ValidResult.success(obj - _key)
+      case Found(r) =>
+        ValidResult.success(obj + (_key -> r))
+      case Failed(head, tail) =>
+        ValidResult.failure(head, tail)
     }
   }
 
@@ -264,11 +351,67 @@ private[dsentric] trait MaybeObjectPropertyLens[D <: DObject] extends ObjectProp
 
 }
 
-private[dsentric] object ObjectPropertyLensOps extends DeltaReduceOps {
-
+private[dsentric] object ObjectPropertyLensOps extends DeltaReduceOps with GetOps {
 
   /**
+   * Validates Types and structure, applies any defaults if empty
+   * */
+  def get[D <: DObject](baseContract:BaseContract[D], obj:RawObject, badTypes:BadTypes):Available[RawObject] = {
+    def getAdditionalProperties:ValidResult[RawObject] = {
+      val exclude = baseContract._fields.keySet
+      baseContract match {
+        case a:AdditionalProperties[Any, Any]@unchecked =>
+          val (baseObject, additionalObject) = obj.partition(p => exclude(p._1))
+          val codec = DCodecs.keyValueMapCodec(a._additionalKeyCodec, a._additionalValueCodec)
+          getMap(a._root, a._path, badTypes, codec, additionalObject)
+            .flatMap(t => Found(codec.apply(t))) match {
+            case Found(rawObject) if rawObject == additionalObject =>
+              ValidResult.success(obj)
+            case Found(rawObject) =>
+              ValidResult.success(baseObject ++ rawObject)
+            case NotFound =>
+              ValidResult.success(baseObject)
+            case Failed(head, tail) =>
+              ValidResult.failure(head, tail)
+          }
+        case _ if badTypes == DropBadTypes =>
+          ValidResult.success(obj.view.filterKeys(exclude).toMap)
+        case _ =>
+          obj.keys
+            .filterNot(exclude)
+            .map(k => ClosedContractFailure(baseContract._root, baseContract._path, k))
+            .toList match {
+            case head :: tail =>
+              ValidResult.failure(head, tail)
+            case Nil =>
+              ValidResult.success(obj)
+          }
+      }
+    }
+
+    val drop = badTypes.nest == DropBadTypes
+    baseContract._fields.foldLeft(getAdditionalProperties){
+      case (Right(d), (_, p)) =>
+        p.__apply(d, drop)
+      case (l@Left(nel), (_, p)) =>
+        p.__apply(obj, drop) match {
+          case Right(_) =>
+            l
+          case Left(nel2) =>
+            Left(nel ::: nel2)
+        }
+    } match {
+      case Right(obj) if obj.isEmpty =>
+        NotFound
+      case Right(obj) =>
+        Found(obj)
+      case Left(NonEmptyList(head, tail)) =>
+        Failed(head, tail)
+    }
+  }
+  /**
    * Reduces empty property fields, removing DCodec values that return NotFound
+   *
    * Ultimately clearing out empty Objects as well
    * Will also remove any nulls
    * */

@@ -20,7 +20,16 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    * @param obj
    * @return
    */
-  private[contracts] def __get(rawObject:RawObject, dropBadTypes:Boolean):MaybeAvailable[T]
+  private[contracts] def __get(base:RawObject, dropBadTypes:Boolean):MaybeAvailable[T]
+
+  /**
+   * Operates like a get on the object key pair, setting the new value, including defaults.
+   * Used by gets on ObjectProperties to resolve their child property values
+   * @param rawObject
+   * @param dropBadTypes
+   * @return
+   */
+  private[contracts] def __apply(rawObject:RawObject, dropBadTypes:Boolean):ValidResult[RawObject]
 
   /**
    * Verifies the direct property against the object.

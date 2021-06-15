@@ -1,7 +1,7 @@
 package dsentric.contracts
 
 import dsentric.codecs.{DContractCodec, DCoproductCodec, DTypeContractCodec, DValueCodec}
-import dsentric.failure.{ClosedContractFailure, ContractTypeResolutionFailure, CoproductTypeValueFailure, ExpectedFailure, IncorrectKeyTypeFailure, IncorrectTypeFailure, MissingElementFailure}
+import dsentric.failure.{ClosedContractFailure, ContractTypeResolutionFailure, CoproductTypeValueFailure, ExpectedFailure, ImmutableFailure, IncorrectKeyTypeFailure, IncorrectTypeFailure, MaskFailure, MissingElementFailure, ReservedFailure}
 import dsentric.schema.ObjectDefinition
 import dsentric.{DNull, DObject, Data, Delta, Path}
 import org.scalatest.EitherValues
@@ -381,11 +381,11 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
         val delta = Delta("property" ::= ("expected" := DNull))
         ContractCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty
       }
-      it("Should return failure if valid delta results in removing Expected object (Unusual case)") {
+      it("Should return delta if valid delta results in removing Expected object ") {
         val base = DObject("property" ::= ("maybe" := true))
         val delta = Delta("property" ::= ("maybe" := DNull))
-        ContractCodec.$reduceDelta(base, delta).left.value should contain (ExpectedFailure(ContractCodec.property))
-        ContractCodec.$reduceDelta(base, delta, true).left.value should contain (ExpectedFailure(ContractCodec.property))
+        ContractCodec.$reduceDelta(base, delta).value shouldBe delta
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe delta
       }
       it("Should return delta if valid delta results in leaving object still invalid") {
         val base = DObject("property" ::= ("expected" := 123, "maybe" := true))
@@ -801,6 +801,47 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
         val delta1 = Delta("property" ::= ("type" := "type1", "property1" := "value", "property2" := 123))
         TypeContractCodec.$reduceDelta(base1, delta1).value shouldBe Delta.empty
         TypeContractCodec.$reduceDelta(base1, delta1, true).value shouldBe Delta.empty
+      }
+    }
+
+    describe("Constraints") {
+      import dsentric.operators.StandardOperators._
+
+      object Constrained extends Contract {
+        val expected = \[String](immutable)
+        val maybe = \?[Int](internal)
+        val default = \![String]("value", mask("******"))
+
+        val expectedObject = new \\(immutable){
+          val property1 = \[Int]
+          val property2 = \?[String]
+        }
+      }
+
+      it("Should return delta if constraint not trigger") {
+        val base = DObject.empty
+        val delta = Delta("expected" := "value", "default" := "value")
+        Constrained.$reduceDelta(base, delta).value shouldBe delta
+      }
+      it("Should return failure if constraint triggered") {
+        val base = DObject("expected" := "value")
+        val delta = Delta("expected" := "value2", "default" := "******", "maybe" := 123)
+        Constrained.$reduceDelta(base, delta).left.value should contain allOf (
+          ImmutableFailure(Constrained, Path("expected")),
+          ReservedFailure(Constrained, Path("maybe")),
+          MaskFailure(Constrained, Path("default"), "******")
+        )
+      }
+
+      it("Should return delta if Object constraint not triggered") {
+        val base = DObject.empty
+        val delta = Delta("expectedObject" ::= ("property1" := 123, "property2" := "value" ))
+        Constrained.$reduceDelta(base, delta).value shouldBe delta
+      }
+      it("Should return failure if Object constraint triggered") {
+        val base = DObject("expectedObject" ::= ("property1" := 123, "property2" := "value" ))
+        val delta = Delta("expectedObject" ::= ("property2" := "value2"))
+        Constrained.$reduceDelta(base, delta).left.value should contain (ImmutableFailure(Constrained, Path("expectedObject")))
       }
     }
   }

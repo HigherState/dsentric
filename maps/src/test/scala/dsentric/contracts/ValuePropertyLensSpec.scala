@@ -9,7 +9,7 @@ import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 import shapeless.HList
 
-class PropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
+class ValuePropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
 
   import Dsentric._
   import dsentric.codecs.std.DCodecs._

@@ -1,6 +1,5 @@
 package dsentric.contracts
 
-import cats.data.NonEmptyList
 import dsentric.{Available, _}
 import dsentric.codecs.{DCodec, DCollectionCodec, DContractCodec, DCoproductCodec, DMapCodec, DTypeContractCodec, DValueCodec}
 import dsentric.failure._
@@ -30,6 +29,20 @@ sealed trait ExpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]{
     if (dropBadTypes) ToDropBadTypes
     else FailOnBadTypes
 
+  private[contracts] def __apply(rawObject:RawObject, dropBadTypes:Boolean):ValidResult[RawObject] =
+    rawObject.get(_key) match {
+      case None =>
+        ValidResult.failure(ExpectedFailure(this))
+      case Some(raw) =>
+        ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
+          case NotFound =>
+            ValidResult.failure(ExpectedFailure(this))
+          case Found(t) =>
+            ValidResult.success(rawObject + (_key -> _codec(t)))
+          case f:Failed =>
+            f.toValid
+        }
+    }
 
   private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidResult[RawObject] =
     obj.get(_key) match {
@@ -194,8 +207,8 @@ sealed trait UnexpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]
 
 private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D, T] with ApplicativeLens[D, T] {
 
-  private[contracts] def __get(rawObject:RawObject, dropBadTypes:Boolean):Valid[T] =
-    TraversalOps.traverse(rawObject, this, dropBadTypes) match {
+  private[contracts] def __get(base:RawObject, dropBadTypes:Boolean):Valid[T] =
+    TraversalOps.traverse(base, this, dropBadTypes) match {
       case NotFound  =>
         Failed(ExpectedFailure(this))
       case Found(raw) =>
@@ -210,7 +223,6 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D
       case f:Failed =>
         f
     }
-
 
   /**
    * Returns object if found and of correct type
@@ -238,8 +250,8 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D
  */
 private[dsentric] trait MaybeExpectedLens[D <: DObject, T] extends ExpectedLensLike[D, T] with ApplicativeLens[D, Option[T]] {
 
-  private[contracts] def __get(data:RawObject, dropBadTypes:Boolean):MaybeAvailable[T] =
-    TraversalOps.maybeTraverse(data, this, dropBadTypes) match {
+  private[contracts] def __get(base:RawObject, dropBadTypes:Boolean):MaybeAvailable[T] =
+    TraversalOps.maybeTraverse(base, this, dropBadTypes) match {
       case NotFound =>
         Failed(ExpectedFailure(this))
       case Found(raw) =>
@@ -286,9 +298,24 @@ private[dsentric] trait MaybeExpectedLens[D <: DObject, T] extends ExpectedLensL
 
 private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D, T] with ApplicativeLens[D, Option[T]] {
 
-  private[contracts] def __get(data:RawObject, dropBadTypes:Boolean):MaybeAvailable[T] =
-    TraversalOps.maybeTraverse(data, this, dropBadTypes).flatMap{ raw =>
+  private[contracts] def __get(base:RawObject, dropBadTypes:Boolean):MaybeAvailable[T] =
+    TraversalOps.maybeTraverse(base, this, dropBadTypes).flatMap{ raw =>
       ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(dropBadTypes))
+    }
+
+  private[contracts] def __apply(rawObject:RawObject, dropBadTypes:Boolean):ValidResult[RawObject] =
+    rawObject.get(_key) match {
+      case None =>
+        ValidResult.success(rawObject)
+      case Some(raw) =>
+        ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
+          case NotFound =>
+            ValidResult.success(rawObject - _key)
+          case Found(t) =>
+            ValidResult.success(rawObject + (_key -> _codec(t)))
+          case f:Failed =>
+            f.toValid
+        }
     }
 
   /**
@@ -424,6 +451,20 @@ sealed trait DefaultLensLike[D <: DObject, T] extends UnexpectedLensLike[D, T] {
 
   def _default:T
 
+  private[contracts] def __apply(rawObject:RawObject, dropBadTypes:Boolean):ValidResult[RawObject] =
+    rawObject.get(_key) match {
+      case None =>
+        ValidResult.success(rawObject + (_key -> _codec(_default)))
+      case Some(raw) =>
+        ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
+          case NotFound =>
+            ValidResult.success(rawObject + (_key -> _codec(_default)))
+          case Found(t) =>
+            ValidResult.success(rawObject + (_key -> _codec(t)))
+          case f:Failed =>
+            f.toValid
+        }
+    }
   /**
    * Modifies value for the property.
    * Uses Default value if value not found
@@ -461,10 +502,11 @@ sealed trait DefaultLensLike[D <: DObject, T] extends UnexpectedLensLike[D, T] {
     value.fold[PathSetter[D]](ValueDrop(_path))(v => ValueSetter(_path, _codec(v)))
 
 }
+
 private[dsentric] trait DefaultLens[D <: DObject, T] extends DefaultLensLike[D, T] with ApplicativeLens[D, T] {
 
-  private[contracts] def __get(data:RawObject, dropBadTypes:Boolean):Valid[T] =
-    TraversalOps.traverse(data, this, dropBadTypes) match {
+  private[contracts] def __get(base:RawObject, dropBadTypes:Boolean):Valid[T] =
+    TraversalOps.traverse(base, this, dropBadTypes) match {
       case NotFound =>
         Found(_default)
       case f:Failed =>
@@ -509,8 +551,8 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends DefaultLensLike[D, 
  */
 private[dsentric] trait MaybeDefaultLens[D <: DObject, T] extends DefaultLensLike[D, T] with ApplicativeLens[D, Option[T]] {
 
-  private[contracts] def __get(data:RawObject, dropBadTypes:Boolean):MaybeAvailable[T] =
-    TraversalOps.maybeTraverse(data, this, dropBadTypes).flatMap { raw =>
+  private[contracts] def __get(base:RawObject, dropBadTypes:Boolean):MaybeAvailable[T] =
+    TraversalOps.maybeTraverse(base, this, dropBadTypes).flatMap { raw =>
       ValuePropertyLensOps.get(this, raw, isIgnore2BadTypes(dropBadTypes))
     } match {
       case NotFound =>
@@ -678,13 +720,15 @@ private[dsentric] trait GetOps {
   }
 
   protected def getContract[D <: DObject](contract:ContractFor[D], path:Path, badTypes:BadTypes, codecContract:Contract, raw:RawObject):Available[DObject] =
-    codecContract.$reduce(new DObjectInst(raw), badTypes.nest == DropBadTypes) match {
-      case Right(d) =>
-        Found(d)
-      case Left(_) if badTypes == DropBadTypes =>
+    codecContract.__get(raw, badTypes.nest == DropBadTypes) match {
+      case Found(rawObject) =>
+        Found(new DObjectInst(rawObject))
+      case _:Failed if badTypes == DropBadTypes =>
         NotFound
-      case Left(NonEmptyList(head, tail)) =>
-        Failed(head, tail).rebase(contract, path)
+      case NotFound =>
+        NotFound
+      case f:Failed =>
+        f.rebase(contract, path)
     }
 
   protected def getTypeContract[D <: DObject](contract:ContractFor[D], path:Path, badTypes:BadTypes, typeCodecs:PartialFunction[DObject, Contract], raw:RawObject):Available[DObject] =
@@ -853,13 +897,15 @@ private[dsentric] trait ReduceOps {
   }
 
   protected def reduceContract[D <: DObject](contract:ContractFor[D], path:Path, badTypes:BadTypes, codecContract:Contract, raw:RawObject):Available[RawObject] =
-    codecContract.$reduce(new DObjectInst(raw), badTypes.nest == DropBadTypes) match {
-      case Right(d) =>
-        Found(d.value)
-      case Left(_) if badTypes == DropBadTypes =>
+    codecContract.__reduce(raw, badTypes.nest == DropBadTypes) match {
+      case f:Found[RawObject] =>
+        f
+      case _:Failed if badTypes == DropBadTypes =>
         NotFound
-      case Left(NonEmptyList(head, tail)) =>
-        Failed(head, tail).rebase(contract, path)
+      case f:Failed =>
+        f.rebase(contract, path)
+      case NotFound =>
+        NotFound
     }
 
   protected def reduceCoproduct[D <: DObject, T, H <: HList](contract:ContractFor[D], path:Path, badTypes:BadTypes, codec:DCoproductCodec[T, H], raw:Raw): Available[Raw] = {
@@ -1037,18 +1083,13 @@ private[dsentric] trait DeltaReduceOps extends ReduceOps {
   protected def deltaReduceContract[D <: DObject](contract:ContractFor[D], path:Path, badTypes:BadTypes, codecContract:Contract, deltaObject:RawObject, current:Raw):DeltaReduce[RawObject] =
     current match {
       case currentObject: RawObject@unchecked =>
-        codecContract.$reduceDelta(new DObjectInst(currentObject), new DeltaInst(deltaObject), badTypes.nest == DropBadTypes) match {
-          case Right(d) if d.isEmpty =>
+        codecContract.__reduceDelta(deltaObject, currentObject, badTypes.nest == DropBadTypes) match {
+          case _:DeltaFailed if badTypes == DropBadTypes =>
             DeltaEmpty
-          case Right(d) =>
-            if (RawObjectOps.rightReduceConcatMap(currentObject, d.value).isEmpty)
-              DeltaRemoving(d.value)
-            else
-              DeltaReduced(d.value)
-          case Left(_) if badTypes == DropBadTypes =>
-            DeltaEmpty
-          case Left(NonEmptyList(head, tail)) =>
-            DeltaFailed(head, tail).rebase(contract, path)
+          case d:DeltaFailed =>
+            d.rebase(contract, path)
+          case dr =>
+            dr
         }
       case _ =>
         available2DeltaReduce(reduceContract(contract, path, badTypes, codecContract, deltaObject))
