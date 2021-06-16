@@ -481,7 +481,7 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should ignore invalid key if its getting cleared out") {
         val base = DObject("property" ::= ("key2" := 1234, "key2" := "bob"))
-        val delta = Delta("property" ::= ("key35" := DNull))
+        val delta = Delta("property" ::= ("key35" := DNull, "key45" ::= ("nested" := DObject.empty)))
         MapCodec.$reduceDelta(base, delta).value shouldBe Delta.empty
       }
       it("should return failure if setting incorrect type even if its same type as current") {

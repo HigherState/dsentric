@@ -1,6 +1,6 @@
 package dsentric.contracts
 
-import dsentric.{Available, DObject, Delta, DeltaEmpty, DeltaFailed, DeltaInst, DeltaReduce, DeltaReduced, DeltaRemove, DeltaRemoving, Failed, Found, NotFound, RawObject}
+import dsentric.{Available, DObject, Delta, DeltaEmpty, DeltaFailed, DeltaInst, DeltaReduce, DeltaReduced, DeltaRemove, DeltaRemoving, Failed, Found, NotFound, RawObject, Valid}
 import dsentric.failure.{Failure, ValidResult}
 
 trait ContractLens[D <: DObject] { this:ContractFor[D] =>
@@ -8,7 +8,7 @@ trait ContractLens[D <: DObject] { this:ContractFor[D] =>
   def _fields: Map[String, Property[D, _]]
 
   //Currently not supportive of additional properties in D Constructor when nested
-  private[contracts] def __get(obj:RawObject, dropBadTypes:Boolean = false):Available[RawObject] = {
+  private[contracts] def __get(obj:RawObject, dropBadTypes:Boolean = false):Valid[RawObject] = {
     val badTypes = if (dropBadTypes) DropBadTypes else FailOnBadTypes
     ObjectPropertyLensOps.get(this, obj, badTypes)
   }
@@ -55,8 +55,6 @@ trait ContractLens[D <: DObject] { this:ContractFor[D] =>
     __get(obj.value, dropBadTypes) match {
       case Found(raw) =>
         ValidResult.success(obj.internalWrap(raw).asInstanceOf[D])
-      case NotFound =>
-        ValidResult.success(obj.internalWrap(RawObject.empty).asInstanceOf[D])
       case Failed(head, tail) =>
         ValidResult.failure(head, tail)
     }

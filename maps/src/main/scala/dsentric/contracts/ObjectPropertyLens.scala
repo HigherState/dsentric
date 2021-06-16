@@ -126,7 +126,7 @@ sealed trait ExpectedObjectPropertyLensLike[D <: DObject] extends ObjectProperty
     }
 
     (obj.get(_key) match {
-      case None =>
+      case None | Some(DNull) =>
         reduce(RawObject.empty)
       case Some(rawObject:RawObject@unchecked) =>
         reduce(rawObject)
@@ -156,8 +156,6 @@ sealed trait ExpectedObjectPropertyLensLike[D <: DObject] extends ObjectProperty
       ObjectPropertyLensOps.get(this, rawObject, isIgnore2BadTypes(dropBadTypes)) match {
         case Found(r) =>
           ValidResult.success(rawObject + (_key -> r))
-        case NotFound =>
-          ValidResult.success(rawObject + (_key -> RawObject.empty))
         case f:Failed =>
           f.toValid
       }
@@ -185,11 +183,12 @@ private[dsentric] trait ExpectedObjectPropertyLens[D <: DObject] extends Expecte
   private[contracts] def __get(base:RawObject, dropBadTypes:Boolean):Valid[DObject] = {
     def get(rawObject:RawObject):Valid[DObject] =
       ObjectPropertyLensOps.get(this, rawObject, isIgnore2BadTypes(dropBadTypes)) match {
+        case Found(rawObject) if rawObject.isEmpty =>
+          Found(DObject.empty)
         case Found(rawObject) =>
           //its possible this will return an empty object.
           Found(new DObjectInst(rawObject))
-        case NotFound =>
-          Found(DObject.empty)
+
         case f:Failed =>
           f
       }
@@ -292,8 +291,6 @@ private[dsentric] trait MaybeObjectPropertyLens[D <: DObject] extends ObjectProp
           ValidResult.success(rawObject - _key)
         case Found(r) =>
           ValidResult.success(rawObject + (_key -> r))
-        case NotFound =>
-          ValidResult.success(rawObject - _key)
         case f:Failed =>
           f.toValid
       }
@@ -317,7 +314,9 @@ private[dsentric] trait MaybeObjectPropertyLens[D <: DObject] extends ObjectProp
     }
 
     (obj.get(_key) match {
-      case None =>
+      case None | Some(DNull) =>
+        NotFound
+      case Some(rawObject:RawObject@unchecked) if rawObject.isEmpty =>
         NotFound
       case Some(rawObject:RawObject@unchecked) =>
         reduce(rawObject)
@@ -330,6 +329,8 @@ private[dsentric] trait MaybeObjectPropertyLens[D <: DObject] extends ObjectProp
         ValidResult.success(obj - _key)
       case Found(r) =>
         ValidResult.success(obj + (_key -> r))
+      case f:Failed if dropBadTypes =>
+        ValidResult.success(obj - _key)
       case Failed(head, tail) =>
         ValidResult.failure(head, tail)
     }
@@ -356,7 +357,7 @@ private[dsentric] object ObjectPropertyLensOps extends DeltaReduceOps with GetOp
   /**
    * Validates Types and structure, applies any defaults if empty
    * */
-  def get[D <: DObject](baseContract:BaseContract[D], obj:RawObject, badTypes:BadTypes):Available[RawObject] = {
+  def get[D <: DObject](baseContract:BaseContract[D], obj:RawObject, badTypes:BadTypes):Valid[RawObject] = {
     def getAdditionalProperties:ValidResult[RawObject] = {
       val exclude = baseContract._fields.keySet
       baseContract match {
@@ -401,8 +402,6 @@ private[dsentric] object ObjectPropertyLensOps extends DeltaReduceOps with GetOp
             Left(nel ::: nel2)
         }
     } match {
-      case Right(obj) if obj.isEmpty =>
-        NotFound
       case Right(obj) =>
         Found(obj)
       case Left(NonEmptyList(head, tail)) =>
@@ -422,28 +421,33 @@ private[dsentric] object ObjectPropertyLensOps extends DeltaReduceOps with GetOp
       baseContract match {
         case a:AdditionalProperties[Any, Any]@unchecked =>
           val (baseObject, additionalObject) = obj.partition(p => exclude(p._1))
-          reduceMap(a._root, a._path, badTypes, DCodecs.keyValueMapCodec(a._additionalKeyCodec, a._additionalValueCodec), additionalObject) match {
-            case Found(rawObject) if rawObject == additionalObject =>
-              ValidResult.success(obj)
-            case Found(rawObject) =>
-              ValidResult.success(baseObject ++ rawObject)
-            case NotFound =>
-              ValidResult.success(baseObject)
-            case Failed(head, tail) =>
-              ValidResult.failure(head, tail)
+          if (additionalObject.isEmpty) ValidResult.success(baseObject)
+          else {
+            reduceMap(a._root, a._path, badTypes, DCodecs.keyValueMapCodec(a._additionalKeyCodec, a._additionalValueCodec), additionalObject) match {
+              case Found(rawObject) if rawObject == additionalObject =>
+                ValidResult.success(obj)
+              case Found(rawObject) =>
+                ValidResult.success(baseObject ++ rawObject)
+              case NotFound =>
+                ValidResult.success(baseObject)
+              case Failed(head, tail) =>
+                ValidResult.failure(head, tail)
+            }
           }
         case _ if badTypes == DropBadTypes =>
           ValidResult.success(obj.view.filterKeys(exclude).toMap)
         case _ =>
-          obj.keys
-            .filterNot(exclude)
-            .map(k => ClosedContractFailure(baseContract._root, baseContract._path, k))
-            .toList match {
-            case head :: tail =>
-              ValidResult.failure(head, tail)
-            case Nil =>
-              ValidResult.success(obj)
-          }
+          val closed = obj.view.filterKeys(key => !exclude.contains(key))
+
+          if (closed.isEmpty) ValidResult.success(obj)
+          else RawObjectOps.reduceMap(closed.toMap)
+            .toList
+            .flatMap(_.keys.map(key => ClosedContractFailure(baseContract._root, baseContract._path, key))) match {
+              case head :: tail =>
+                ValidResult.failure(head, tail)
+              case Nil =>
+                ValidResult.success(obj -- closed.keys)
+            }
       }
     }
 

@@ -282,6 +282,7 @@ private[dsentric] trait MaybeExpectedLens[D <: DObject, T] extends ExpectedLensL
   /**
    * Unapply is only ever a simple prism to the value and its decoding
    * Matches success None when the maybe path is empty
+   * Returns None if type is wrong
    * @param obj
    * @return
    */
@@ -290,7 +291,7 @@ private[dsentric] trait MaybeExpectedLens[D <: DObject, T] extends ExpectedLensL
       case PathEmptyMaybe =>
         Some(None)
       case Found(r) =>
-        _codec.unapply(r).map(Some(_))
+        _codec.unapply(r).map(Some.apply)
       case _ =>
         None
     }
@@ -438,12 +439,17 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
 
   /**
    * Unapply is only ever a simple prism to the value and its decoding
-   * Will return Some(None) on incorrect type
+   * Like Expected Properties, will return None on incorrect type
    * @param obj
    * @return
    */
   final def unapply(obj:D):Option[Option[T]] =
-    Some(PathLensOps.traverse(obj.value, _path).flatMap(_codec.unapply))
+    PathLensOps.traverse(obj.value, _path) match {
+      case None =>
+        Some(None)
+      case Some(v) =>
+        _codec.unapply(v).map(Some.apply)
+    }
 }
 
 
@@ -725,8 +731,6 @@ private[dsentric] trait GetOps {
         Found(new DObjectInst(rawObject))
       case _:Failed if badTypes == DropBadTypes =>
         NotFound
-      case NotFound =>
-        NotFound
       case f:Failed =>
         f.rebase(contract, path)
     }
@@ -834,12 +838,16 @@ private[dsentric] trait ReduceOps {
     val nest = badTypes.nest
     raw.view.map { p =>
       val key =
-        codec.keyCodec.unapply(p._1) match {
-          case None if nest == DropBadTypes =>
+        codec.keyCodec.unapply(p._1) -> p._2 match {
+          case (None, _) if nest == DropBadTypes =>
             NotFound
-          case None =>
+          case (None, DNull) =>
+            NotFound
+          case (None, r:RawObject@unchecked) if RawObjectOps.reducesEmpty(r) =>
+            NotFound
+          case (None, _) =>
             Failed(IncorrectKeyTypeFailure(contract, path, codec.keyCodec, p._1))
-          case Some(_) =>
+          case (Some(_), _) =>
             Found(p._1)
         }
       val value = reduceCodec(contract, path \ p._1, nest)(codec.valueCodec -> p._2)
@@ -913,7 +921,7 @@ private[dsentric] trait ReduceOps {
       case (a:Found[Raw], _) =>
         a
       case (a, c) =>
-        reduceCodec(contract, path, FailOnBadTypes)(c -> raw) match {
+        reduceCodec(contract, path, badTypes)(c -> raw) match {
           case f:Failed =>
             a match {
               case f2:Failed => f2 ++ f

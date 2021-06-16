@@ -2234,10 +2234,10 @@ class ValuePropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
         Objects.maybeObjects.$get(base).value shouldBe maybes
       }
 
-      it("Should not include any defaults") {
+      it("Should include any defaults") {
         val defaults = Vector(DObject.empty, DObject("property" := "test"), DObject("property" := "test2"))
         val base = DObject("defaultObjects" := defaults)
-        Objects.defaultObjects.$get(base).value shouldBe Vector(DObject(), DObject("property" := "test"), DObject("property" := "test2"))
+        Objects.defaultObjects.$get(base).value shouldBe Vector(DObject("property" := "default"), DObject("property" := "test"), DObject("property" := "test2"))
       }
     }
 

@@ -6,7 +6,7 @@ import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 
-class PropertyObjectPropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
+class ObjectPropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
   import Dsentric._
   import dsentric.Implicits._
   import dsentric.codecs.std.DCodecs._
@@ -68,7 +68,6 @@ class PropertyObjectPropertyLensSpec extends AnyFunSpec with Matchers with Eithe
     }
 
     object ExpectedStructure extends Contract with ExpectedContract
-
 
     describe("$verify") {
       describe("No Path") {
@@ -191,9 +190,9 @@ class PropertyObjectPropertyLensSpec extends AnyFunSpec with Matchers with Eithe
           val base = DObject("withExpected" ::= ("default" := 2, "maybe" := "value"))
           ExpectedStructure.withExpected.$get(base).left.value should contain (ExpectedFailure(ExpectedStructure.withExpected.expected))
         }
-        it("Should not provide default values if not set") {
+        it("Should provide default values if not set") {
           val base = DObject("withExpected" ::= ("expected" := "value", "maybe" := "value"))
-          ExpectedStructure.withExpected.$get(base).value shouldBe Some(DObject("expected" := "value", "maybe" := "value"))
+          ExpectedStructure.withExpected.$get(base).value shouldBe Some(DObject("expected" := "value", "maybe" := "value","default" := 1))
         }
         it("Should return IncorrectTypeFailure for any properties with incorrect types") {
           val base = DObject("withExpected" ::= ("expected" := "value", "default" := "four", "maybe" := false))
@@ -228,11 +227,11 @@ class PropertyObjectPropertyLensSpec extends AnyFunSpec with Matchers with Eithe
       describe("Additional properties") {
         it("Should return object if additional properties") {
           val base = DObject("withExpected" ::= ("expected" := "value", "additional" := 1))
-          ExpectedStructure.withExpected.$get(base).value shouldBe Some(DObject("expected" := "value", "additional" := 1))
+          ExpectedStructure.withExpected.$get(base).value shouldBe Some(DObject("expected" := "value", "additional" := 1,"default" := 1))
         }
         it("Should return object if additional properties and nested") {
           val base = DObject("withExpected" ::= ("expected" := "value", "additional" := 1))
-          ExpectedStructure.withExpected.$get(base).value shouldBe Some(DObject("expected" := "value", "additional" := 1))
+          ExpectedStructure.withExpected.$get(base).value shouldBe Some(DObject("expected" := "value", "additional" := 1,"default" := 1))
         }
       }
       describe("Additional values") {
@@ -567,7 +566,7 @@ class PropertyObjectPropertyLensSpec extends AnyFunSpec with Matchers with Eithe
           val maybe = \?[String]
         }
       }
-      val closedObject = new  \\ {
+      val closedObject = new  \\{
         val expected = \[String]
         val maybe = \?[Int]
       }
@@ -775,9 +774,9 @@ class PropertyObjectPropertyLensSpec extends AnyFunSpec with Matchers with Eithe
           val base = DObject("objects" ::= ("expected" := "value", "add10" ::= ("default" := "value1"), "add2" ::= ("default" := "value2")))
           MaybeStructure.objects.$get(base).left.value should contain (IncorrectKeyTypeFailure(MaybeStructure, MaybeStructure.objects._path, Length4String.fixedLength4StringCodec, "add10"))
         }
-        it("Should not apply contract defaults") {
+        it("Should apply contract defaults") {
           val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("value" := 123)))
-          MaybeStructure.objects.$get(base).value shouldBe Some(DObject("expected" := "value", "add1" ::= ("value" := 123)))
+          MaybeStructure.objects.$get(base).value shouldBe Some(DObject("expected" := "value", "add1" ::= ("value" := 123,"default" := 999)))
         }
       }
     }
