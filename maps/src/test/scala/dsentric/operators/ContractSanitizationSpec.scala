@@ -54,7 +54,7 @@ class ContractSanitizationSpec extends AnyFunSpec with Matchers with EitherValue
       }
 
       it("Empty default values should set mask") {
-        DefaultSanitize.$sanitize(DObject.empty) shouldBe DObject("maskToDefault" := "***", "maskToDefault" := 5)
+        DefaultSanitize.$sanitize(DObject.empty) shouldBe DObject("maskDefault" := "***", "maskToDefault" := 5)
       }
       it("Default values should mask") {
         DefaultSanitize.$sanitize(DefaultSanitize.$create(_.maskDefault.$set(2))) shouldBe DObject("maskDefault" := "***", "maskToDefault" := 5)
@@ -105,105 +105,122 @@ class ContractSanitizationSpec extends AnyFunSpec with Matchers with EitherValue
       }
     }
 
-//    describe("Objects sanitization") {
-//      describe("Empty object") {
-//        object EmptyContract extends Contract
-//
-//        object EmptyObjectsSanitize extends Contract {
-//          val objects = \::(EmptyContract)
-//          val objectsMask = \::(EmptyContract, mask("***"))
-//        }
-//
-//        it("Should be empty if empty") {
-//          EmptyObjectsSanitize.$sanitize(DObject.empty) shouldBe DObject.empty
-//        }
-//        it("Should return objects unchanged") {
-//          val ob1 = DObject("value" := 3)
-//          val ob2 = DObject("value" := 5)
-//          val ob3 = DObject("another" := false)
-//          val obj = EmptyObjectsSanitize.$createValid(_.objects.$set(Vector(ob1, ob2, ob3))).right.value
-//
-//          EmptyObjectsSanitize.$sanitize(obj) shouldBe obj
-//        }
-//        it("Should sanitize objects mask") {
-//          val ob1 = DObject("value" := 3)
-//          val ob2 = DObject("value" := 5)
-//          val ob3 = DObject("another" := false)
-//          val obj = EmptyObjectsSanitize.$createValid(_.objectsMask.$set(Vector(ob1, ob2, ob3))).right.value
-//          EmptyObjectsSanitize.$sanitize(obj) shouldBe DObject("objectsMask" := "***")
-//        }
-//      }
-//      describe("With sanitizing properties") {
-//        object MaybeMaskContract extends Contract {
-//          val maybeMask = \?[String](mask("***"))
-//          val maybeInternal = \?[Long](internal)
-//        }
-//
-//        object ObjectsSanitize extends Contract {
-//          val objects = \::(MaybeMaskContract)
-//        }
-//
-//        it("Should sanitize objects that require sanitizing") {
-//          val ob1 = DObject("value" := 123)
-//          val ob2 = MaybeMaskContract.$create(_.maybeInternal.$set(1234L))
-//          val ob3 = MaybeMaskContract.$create(_.maybeMask.$set("value"))
-//          val ob4 = MaybeMaskContract.$create(c => c.maybeInternal.$set(1234L) ~ c.maybeMask.$set("value") ~+ ("value" := 123))
-//          val obj = ObjectsSanitize.$createValid(_.objects.$set(Vector(ob1, ob2, ob3, ob4))).right.get
-//          val result = ObjectsSanitize.$createValid(_.objects.$set(Vector(ob1, DObject.empty, DObject("maybeMask" := "***"), DObject("maybeMask" := "***", "value" := 123)))).right.get
-//          ObjectsSanitize.$sanitize(obj) shouldBe result
-//        }
-//      }
-//    }
-//
-//    describe("Map objects sanitization") {
-//      describe("Empty map") {
-//        object EmptyContract extends Contract
-//
-//        object EmptyMapSanitize extends Contract {
-//          val objects = \->(EmptyContract)
-//          val objectsMask = \->(EmptyContract, mask("***"))
-//        }
-//
-//        it("Should be empty if empty") {
-//          EmptyMapSanitize.$sanitize(DObject.empty) shouldBe DObject.empty
-//        }
-//        it("Should return objects unchanged") {
-//          val ob1 = DObject("value" := 3)
-//          val ob2 = DObject("value" := 5)
-//          val ob3 = DObject("another" := false)
-//          val obj = EmptyMapSanitize.$createValid(_.objects.$set(Map("one" -> ob1, "two" -> ob2, "three" -> ob3))).right.get
-//
-//          EmptyMapSanitize.$sanitize(obj) shouldBe obj
-//        }
-//        it("Should sanitize objects mask") {
-//          val ob1 = DObject("value" := 3)
-//          val ob2 = DObject("value" := 5)
-//          val ob3 = DObject("another" := false)
-//          val obj = EmptyMapSanitize.$createValid(_.objectsMask.$set(Map("one" -> ob1, "two" -> ob2, "three" -> ob3))).right.get
-//          EmptyMapSanitize.$sanitize(obj) shouldBe DObject("objectsMask" := "***")
-//        }
-//      }
-//      describe("With sanitizing properties") {
-//        object MaybeMaskContract extends Contract {
-//          val maybeMask = \?[String](mask("***"))
-//          val maybeInternal = \?[Long](internal)
-//        }
-//
-//        object MapSanitize extends Contract {
-//          val objects = \->(MaybeMaskContract)
-//        }
-//
-//        it("Should sanitize objects that require sanitizing") {
-//          val ob1 = DObject("value" := 123)
-//          val ob2 = MaybeMaskContract.$create(_.maybeInternal.$set(1234L))
-//          val ob3 = MaybeMaskContract.$create(_.maybeMask.$set("value"))
-//          val ob4 = MaybeMaskContract.$create(c => c.maybeInternal.$set(1234L) ~ c.maybeMask.$set("value") ~+ ("value" := 123))
-//          val obj = MapSanitize.$createValid(_.objects.$set(Map("one" -> ob1, "two" -> ob2, "three" -> ob3, "four" -> ob4))).right.get
-//          val result = MapSanitize.$createValid(_.objects.$set(Map("one" -> ob1, "three" -> DObject("maybeMask" := "***"), "four" -> DObject("maybeMask" := "***", "value" := 123)))).right.get
-//          MapSanitize.$sanitize(obj) shouldBe result
-//        }
-//      }
-//    }
+    describe("Codec sanitization") {
+      object MaybeMaskContract extends Contract {
+        val maybeMask = \?[String](mask("***"))
+        val maybeInternal = \?[Long](internal)
+      }
+      object WithContract extends Contract {
+        val contractObject = \[DObject](MaybeMaskContract)
+      }
+      it("Should ignore if empty") {
+        WithContract.$sanitize(DObject.empty) shouldBe DObject.empty
+      }
+      it("Should apply if object set") {
+        val obj = DObject("contractObject" ::= ("maybeMask" := "value", "maybeInternal" := 1234))
+        val result = DObject("contractObject" ::= ("maybeMask" := "***"))
+        WithContract.$sanitize(obj) shouldBe result
+      }
+    }
+    describe("Collection sanitization") {
+      describe("Empty object") {
+        object EmptyContract extends Contract
+
+        object EmptyObjectsSanitize extends Contract {
+          val objects = \[Vector[DObject]](EmptyContract)
+          val objectsMask = \[Vector[DObject]](mask("***"))(EmptyContract)
+        }
+
+        it("Should be empty if empty") {
+          EmptyObjectsSanitize.$sanitize(DObject.empty) shouldBe DObject.empty
+        }
+        it("Should return objects unchanged") {
+          val ob1 = DObject("value" := 3)
+          val ob2 = DObject("value" := 5)
+          val ob3 = DObject("another" := false)
+          val obj = EmptyObjectsSanitize.$create(_.objects.$set(Vector(ob1, ob2, ob3)))
+
+          EmptyObjectsSanitize.$sanitize(obj) shouldBe obj
+        }
+        it("Should sanitize objects mask") {
+          val ob1 = DObject("value" := 3)
+          val ob2 = DObject("value" := 5)
+          val ob3 = DObject("another" := false)
+          val obj = EmptyObjectsSanitize.$create(_.objectsMask.$set(Vector(ob1, ob2, ob3)))
+          EmptyObjectsSanitize.$sanitize(obj) shouldBe DObject("objectsMask" := "***")
+        }
+      }
+      describe("With sanitizing properties") {
+        object MaybeMaskContract extends Contract {
+          val maybeMask = \?[String](mask("***"))
+          val maybeInternal = \?[Long](internal)
+        }
+
+        object ObjectsSanitize extends Contract {
+          val objects = \[Vector[DObject]](MaybeMaskContract)
+        }
+
+        it("Should sanitize objects that require sanitizing") {
+          val ob1 = DObject("value" := 123)
+          val ob2 = MaybeMaskContract.$create(_.maybeInternal.$set(1234L))
+          val ob3 = MaybeMaskContract.$create(_.maybeMask.$set("value"))
+          val ob4 = MaybeMaskContract.$create(c => c.maybeInternal.$set(1234L) ~ c.maybeMask.$set("value") ~+ ("value" := 123))
+          val obj = ObjectsSanitize.$create(_.objects.$set(Vector(ob1, ob2, ob3, ob4)))
+          val result = ObjectsSanitize.$create(_.objects.$set(Vector(ob1, DObject.empty, DObject("maybeMask" := "***"), DObject("maybeMask" := "***", "value" := 123))))
+          ObjectsSanitize.$sanitize(obj) shouldBe result
+        }
+      }
+    }
+
+    describe("Map objects sanitization") {
+      describe("Empty map") {
+        object EmptyContract extends Contract
+
+        object EmptyMapSanitize extends Contract {
+          val objects = \[Map[String, DObject]](mapContractCodec[String](EmptyContract))
+          val objectsMask = \[Map[String, DObject]](mask("***"))(mapContractCodec[String](EmptyContract))
+        }
+
+        it("Should be empty if empty") {
+          EmptyMapSanitize.$sanitize(DObject.empty) shouldBe DObject.empty
+        }
+        it("Should return objects unchanged") {
+          val ob1 = DObject("value" := 3)
+          val ob2 = DObject("value" := 5)
+          val ob3 = DObject("another" := false)
+          val obj = EmptyMapSanitize.$create(_.objects.$set(Map("one" -> ob1, "two" -> ob2, "three" -> ob3)))
+
+          EmptyMapSanitize.$sanitize(obj) shouldBe obj
+        }
+        it("Should sanitize objects mask") {
+          val ob1 = DObject("value" := 3)
+          val ob2 = DObject("value" := 5)
+          val ob3 = DObject("another" := false)
+          val obj = EmptyMapSanitize.$create(_.objectsMask.$set(Map("one" -> ob1, "two" -> ob2, "three" -> ob3)))
+          EmptyMapSanitize.$sanitize(obj) shouldBe DObject("objectsMask" := "***")
+        }
+      }
+      describe("With sanitizing properties") {
+        object MaybeMaskContract extends Contract {
+          val maybeMask = \?[String](mask("***"))
+          val maybeInternal = \?[Long](internal)
+        }
+
+        object MapSanitize extends Contract {
+          val objects = \[Map[String, DObject]](MaybeMaskContract)
+        }
+
+        it("Should sanitize objects that require sanitizing") {
+          val ob1 = DObject("value" := 123)
+          val ob2 = MaybeMaskContract.$create(_.maybeInternal.$set(1234L))
+          val ob3 = MaybeMaskContract.$create(_.maybeMask.$set("value"))
+          val ob4 = MaybeMaskContract.$create(c => c.maybeInternal.$set(1234L) ~ c.maybeMask.$set("value") ~+ ("value" := 123))
+          val obj = MapSanitize.$create(_.objects.$set(Map("one" -> ob1, "two" -> ob2, "three" -> ob3, "four" -> ob4)))
+          val result = MapSanitize.$create(_.objects.$set(Map("one" -> ob1, "three" -> DObject("maybeMask" := "***"), "four" -> DObject("maybeMask" := "***", "value" := 123))))
+          MapSanitize.$sanitize(obj) shouldBe result
+        }
+      }
+    }
   }
 
 }

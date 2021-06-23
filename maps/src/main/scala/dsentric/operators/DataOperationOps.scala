@@ -2,7 +2,7 @@ package dsentric.operators
 
 import dsentric.codecs.{DCodec, DCollectionCodec, DContractCodec, DCoproductCodec, DMapCodec, DTypeContractCodec}
 import dsentric.contracts.{BaseContract, CustomPathSetter, DefaultProperty, ExpectedObjectProperty, MaybeExpectedObjectProperty, MaybeObjectProperty, PathSetter, Property}
-import dsentric.{DObject, DObjectInst, Raw, RawArray, RawObject}
+import dsentric.{DNull, DObject, DObjectInst, Raw, RawArray, RawObject, RawObjectOps}
 
 trait DataOperationOps{
 
@@ -12,10 +12,18 @@ trait DataOperationOps{
         case (s:Sanitizer[Any], _, maybeRaw) =>
           s.sanitize(maybeRaw)
       },
-      d => d
+      { d =>
+        val r = transform(contract) {
+          case (s: Sanitizer[Any], _, maybeRaw) =>
+            s.sanitize(maybeRaw)
+        }(d)
+        RawObjectOps
+          .calculateDeltaRaw(d, r)
+          .getOrElse(RawObject.empty)
+      }
     )
 
-  def transform[D0 <: DObject](contract:BaseContract[D0], isDelta:Boolean)(pf:PartialFunction[(DataOperator[_], Property[_, _], Option[Raw]), Option[Raw]]):Function[RawObject, RawObject] = { d0 =>
+  def transform[D0 <: DObject](contract:BaseContract[D0])(pf:PartialFunction[(DataOperator[_], Property[_, _], Option[Raw]), Option[Raw]]):Function[RawObject, RawObject] = { d0 =>
 
     def objectTransform[D <: DObject](contract:BaseContract[D], rawObject:RawObject):Option[RawObject] = {
       def transformObjectValue[T](obj:RawObject, key:String, property:Property[D, T]):Option[RawObject] =  {
@@ -131,6 +139,7 @@ trait DataOperationOps{
     objectTransform(contract, d0)
       .getOrElse(d0)
   }
+
 }
 
 object DataOperationOps extends DataOperationOps

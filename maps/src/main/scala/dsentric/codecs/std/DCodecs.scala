@@ -13,6 +13,9 @@ object DCodecs
   with DCoproductCodecs
   with DCodecSyntax {
 
+  def contractCodec(contract:Contract):DCodec[DObject] =
+    DContractCodec(contract)
+
   def mapContractCodec[K](contract:Contract)(implicit K:DStringCodec[K]): DCodec[Map[K, DObject]] =
     keyValueMapCodec[K, DObject](K, DContractCodec(contract))
 
@@ -23,7 +26,7 @@ object DCodecs
     vectorCodec(DContractCodec(contract))
 
   def arrayContractCodec(contract:Contract):DCodec[Array[DObject]] =
-    arrayCodec[DObject](contract, implicitly[ClassTag[DObject]])
+    arrayCodec[DObject](DContractCodec(contract), implicitly[ClassTag[DObject]])
 
   def rightContractCodec[L](contract:Contract)(implicit L:DCodec[L]):DCodec[Either[L, DObject]] =
     eitherCodec[L, DObject](L, DContractCodec(contract))

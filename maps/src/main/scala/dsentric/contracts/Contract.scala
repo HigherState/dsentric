@@ -34,8 +34,6 @@ trait SubContract extends SubContractFor[DObject]
 trait Contract extends ContractFor[DObject] {
   def $create(f:this.type => DObject => DObject):DObject =
     f(this)(DObject.empty)
-  def $createValid(f:this.type => ValidPathSetter[DObject]):ValidResult[DObject] =
-    f(this)(DObject.empty)
 }
 
 
