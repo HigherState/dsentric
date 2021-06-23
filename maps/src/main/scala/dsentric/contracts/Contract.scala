@@ -21,8 +21,8 @@ trait ContractFor[D <: DObject]
 
   def _path:Path = Path.empty
 
-  val $ops:DataOperationOps[D] =
-    new DataOperationOps[D](this)
+  def $sanitize:PathSetter[D] =
+    DataOperationOps.sanitize(this)
 
   override protected def __self: BaseContract[D] = this
   def _root: ContractFor[D] = this

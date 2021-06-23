@@ -29,6 +29,7 @@ sealed trait DCodec[T] {
 
   def typeDefinition:TypeDefinition
 
+  def containsContractCodec:Boolean
   @inline
   protected def deltaNull(deltaValue:Raw):Boolean =
     deltaValue.isInstanceOf[DNull.type]
@@ -36,7 +37,7 @@ sealed trait DCodec[T] {
 
 trait DValueCodec[T] extends DCodec[T] {
   override def apply(t:T):RawValue
-
+  def containsContractCodec:Boolean = false
 //  /**
 //   * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
 //   * @param a
@@ -110,6 +111,8 @@ trait DMapCodec[M, K, T] extends DCodec[M] {
       case _ =>
         None
     }
+  def containsContractCodec:Boolean =
+    valueCodec.containsContractCodec
 
   def typeDefinition: TypeDefinition = ???
 }
@@ -141,6 +144,9 @@ trait DCollectionCodec[S, T] extends DCodec[S] {
         None
     }
 
+  def containsContractCodec:Boolean =
+    valueCodec.containsContractCodec
+
   def typeDefinition: TypeDefinition =
     ArrayDefinition(items = Vector(valueCodec.typeDefinition))
 }
@@ -158,6 +164,8 @@ case class DContractCodec(contract:Contract) extends DCodec[DObject] {
 
   def apply(t: DObject): Raw =
     t.value
+
+  def containsContractCodec:Boolean = true
 
   def typeDefinition: TypeDefinition = ???
 }
@@ -177,6 +185,9 @@ case class DTypeContractCodec(typeDefinition: TypeDefinition)(val contracts:Part
         None
     }
 
+  def containsContractCodec:Boolean =
+    true
+
   def apply(t: DObject): Raw =
     t.value
 }
@@ -185,6 +196,9 @@ abstract class DCoproductCodec[T, H <: HList : *->*[DCodec]#λ](val codecs:H)(im
   def codecsList: List[DCodec[_]] = codecs.toList
 
   def lift[A](a:A, codec:DCodec[A]):Option[T]
+
+  def containsContractCodec:Boolean =
+    codecsList.exists(_.containsContractCodec)
 }
 
 object DataCodec extends DValueCodec[Data]{

@@ -511,6 +511,7 @@ sealed trait DefaultLensLike[D <: DObject, T] extends UnexpectedLensLike[D, T] {
 
 private[dsentric] trait DefaultLens[D <: DObject, T] extends DefaultLensLike[D, T] with ApplicativeLens[D, T] {
 
+  private[dsentric] def __rawDefault: Raw = _codec(_default)
   private[contracts] def __get(base:RawObject, dropBadTypes:Boolean):Valid[T] =
     TraversalOps.traverse(base, this, dropBadTypes) match {
       case NotFound =>
@@ -1029,10 +1030,11 @@ private[dsentric] trait DeltaReduceOps extends ReduceOps {
       case currentObject: RawObject@unchecked =>
         val nest = badTypes.nest
         deltaObject.map{
-          case (key, DNull) if (currentObject.contains(key)) =>
-            key -> DeltaRemove
-          case (key, DNull)  =>
+          case (key, deltaValue) if !currentObject.contains(key) && RawOps.reducesEmpty(deltaValue) =>
             key -> DeltaEmpty
+          case (key, DNull) =>
+            //cannot be Empty as checked above
+            key -> DeltaRemove
           case (key, deltaValue) =>
             codec.keyCodec.unapply(key) -> currentObject.get(key) match {
               case (None, _) if nest == DropBadTypes =>

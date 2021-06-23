@@ -386,6 +386,12 @@ private final case class TraversedModifyOrDropValidSetter[D <: DObject, T](gette
     }
 }
 
+final case class CustomPathSetter[D <: DObject](_rawApply:RawObject => RawObject, _rawDelta:RawObject => RawObject) extends PathSetter[D] {
+  private[contracts] def rawApply(rawObject: RawObject): RawObject = _rawApply(rawObject)
+
+  private[contracts] def rawDelta(rawObject: RawObject): RawObject = _rawDelta(rawObject)
+}
+
 private[contracts] object Setter {
 
   def apply[T](obj:RawObject, value:Raw, path:Path):RawObject = {
