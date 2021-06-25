@@ -2,7 +2,7 @@ package dsentric.operators
 
 import dsentric.codecs.{DCodec, DCollectionCodec, DContractCodec, DCoproductCodec, DMapCodec, DTypeContractCodec}
 import dsentric.contracts.{BaseContract, CustomPathSetter, DefaultProperty, ExpectedObjectProperty, MaybeExpectedObjectProperty, MaybeObjectProperty, PathSetter, Property}
-import dsentric.{DNull, DObject, DObjectInst, Raw, RawArray, RawObject, RawObjectOps}
+import dsentric.{DObject, DObjectInst, Raw, RawArray, RawObject, RawObjectOps}
 
 trait DataOperationOps{
 
@@ -23,6 +23,17 @@ trait DataOperationOps{
       }
     )
 
+  /**
+   * Traverses the cntract and object structure and applies point transformations to the values of the properties dependent
+   * on the partial function
+   * This does not reduce empty objects or null values
+   *
+   * Could introduce a reduce empty object flag
+   * @param contract
+   * @param pf
+   * @tparam D0
+   * @return
+   */
   def transform[D0 <: DObject](contract:BaseContract[D0])(pf:PartialFunction[(DataOperator[_], Property[_, _], Option[Raw]), Option[Raw]]):Function[RawObject, RawObject] = { d0 =>
 
     def objectTransform[D <: DObject](contract:BaseContract[D], rawObject:RawObject):Option[RawObject] = {
@@ -73,29 +84,41 @@ trait DataOperationOps{
               .map{newNested => propertyObject + (key -> newNested)}
         }
 
-      def checkCodecs[T](rawObject:RawObject, key:String, codec:DCodec[T]):Option[RawObject] =
-        rawObject.get(key) -> codec match {
-          case (Some(rawObject:RawObject@unchecked), DContractCodec(codecContract)) =>
-            objectTransform(codecContract, rawObject)
-              .map{newObject => rawObject + (key -> newObject)}
-          case (Some(rawObject:RawObject@unchecked), d:DTypeContractCodec) =>
-            d.contracts.lift(new DObjectInst(rawObject)).flatMap{typeContract =>
-              objectTransform(typeContract, rawObject)
-                .map{newObject => rawObject + (key -> newObject)}
-            }
-          case (Some(rawObject:RawObject@unchecked), d:DMapCodec[T, _, _]) if d.containsContractCodec =>
-            rawObject.keys.foldLeft(Option.empty[RawObject]){ (maybeChangedObject, mapKey) =>
-              checkCodecs(maybeChangedObject.getOrElse(rawObject), mapKey, d.valueCodec)
-                .orElse(maybeChangedObject)
-            }
-          case (Some(rawArray: RawArray@unchecked), d:DCollectionCodec[T, _]) if d.containsContractCodec =>
-            ???
+      def transformObjectCodecs[T](rawObject:RawObject, key:String, codec:DCodec[T]):Option[RawObject] =
+        rawObject.get(key)
+          .flatMap(raw => transformCodec(raw -> codec))
+          .map{newObject => rawObject + (key -> newObject)}
 
-          case (Some(raw), d:DCoproductCodec[T, _]) if d.containsContractCodec =>
-            ???
-          case _ =>
-            None
-        }
+      def transformCodec[T]:Function[(Raw, DCodec[T]), Option[Raw]] = {
+        case (nestedObject:RawObject@unchecked, DContractCodec(codecContract)) =>
+          objectTransform(codecContract, nestedObject)
+        case (nestedObject:RawObject@unchecked, d:DTypeContractCodec) =>
+          d.contracts.lift(new DObjectInst(nestedObject)).flatMap{typeContract =>
+            objectTransform(typeContract, nestedObject)
+          }
+        case (nestedObject:RawObject@unchecked, d:DMapCodec[T, _, _]) if d.containsContractCodec =>
+          nestedObject.keys.foldLeft(Option.empty[RawObject]) { (maybeChangedObject, mapKey) =>
+            transformObjectCodecs(maybeChangedObject.getOrElse(nestedObject), mapKey, d.valueCodec)
+              .orElse(maybeChangedObject)
+          }
+
+        case (nestedArray: RawArray@unchecked, d:DCollectionCodec[T, _]) if d.containsContractCodec =>
+          nestedArray.zipWithIndex.foldLeft(Option.empty[RawArray]){ case (maybeChangedArray, (raw, index)) =>
+            transformCodec(raw -> d.valueCodec)
+              .map{ newElement => maybeChangedArray.getOrElse(nestedArray).updated(index, newElement)}
+              .orElse(maybeChangedArray)
+          }
+
+        case (raw:Raw, d:DCoproductCodec[T, _]) if d.containsContractCodec =>
+          d.codecsList.flatMap{c =>
+            c.unapply(raw).flatMap { t =>
+              transformCodec(raw -> c.asInstanceOf[DCodec[Any]])
+            }
+          }.headOption
+        case _ =>
+          None
+      }
+
 
       contract._fields.foldLeft[Option[RawObject]](None){
         case (maybeChange, (key, p:MaybeObjectProperty[D])) =>
@@ -124,14 +147,14 @@ trait DataOperationOps{
           val maybeTransformed =
             transformObjectValueWithDefault(maybeChange.getOrElse(rawObject), key, p, p.__rawDefault)
               .orElse(maybeChange)
-          checkCodecs(maybeTransformed.getOrElse(rawObject), key, p._codec)
+          transformObjectCodecs(maybeTransformed.getOrElse(rawObject), key, p._codec)
             .orElse(maybeTransformed)
 
         case (maybeChange, (key, p:Property[D, _])) =>
           val maybeTransformed =
             transformObjectValue(maybeChange.getOrElse(rawObject), key, p)
               .orElse(maybeChange)
-          checkCodecs(maybeTransformed.getOrElse(rawObject), key, p._codec)
+          transformObjectCodecs(maybeTransformed.getOrElse(rawObject), key, p._codec)
             .orElse(maybeTransformed)
       }
     }

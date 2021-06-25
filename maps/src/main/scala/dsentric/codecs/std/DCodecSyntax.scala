@@ -22,4 +22,11 @@ trait DCodecSyntax {
 
   implicit def contract2ListCodec(contract:Contract):DCodec[List[DObject]] =
     DCollectionCodecs.listCodec(DContractCodec(contract))
+
+  implicit def contract2LeftCodec[R](contract:Contract)(implicit D:DCodec[R]):DCodec[Either[DObject, R]] =
+    DCoproductCodecs.eitherCodec(DContractCodec(contract), D)
+
+  implicit def contract2RightCodec[L](contract:Contract)(implicit D:DCodec[L]):DCodec[Either[L, DObject]] =
+    DCoproductCodecs.eitherCodec(D, DContractCodec(contract))
+
 }

@@ -157,7 +157,7 @@ case class DContractCodec(contract:Contract) extends DCodec[DObject] {
     a match {
       case m:RawObject@unchecked =>
         //TODO could be a disconnect between unapply in ObjectLens
-        contract.$reduce(new DObjectInst(m)).toOption
+        Some(new DObjectInst(m))
       case _ =>
         None
     }
@@ -178,9 +178,10 @@ case class DTypeContractCodec(typeDefinition: TypeDefinition)(val contracts:Part
   def unapply(a: Raw): Option[DObject] =
     a match {
       case m:RawObject@unchecked =>
+        val d = new DObjectInst(m)
         contracts
-          .lift(new DObjectInst(m))
-          .flatMap(_.$reduce(new DObjectInst(m)).toOption)
+          .lift(d)
+          .map(_ => d)
       case _ =>
         None
     }

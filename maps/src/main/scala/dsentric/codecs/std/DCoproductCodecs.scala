@@ -60,3 +60,5 @@ trait DCoproductCodecs {
       }
     }
 }
+
+object DCoproductCodecs extends DCoproductCodecs
