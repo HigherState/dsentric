@@ -67,12 +67,18 @@ final case class MissingElementFailure[D <: DObject, T](contract: ContractFor[D]
     copy(contract = rootContract, path = rootPath ++ path)
 }
 
+final case class AdditionalElementFailure[D <: DObject](contract: ContractFor[D], path:Path) extends Failure {
+  def message = s"Array contained unexpected element."
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  AdditionalElementFailure[G] =
+    copy(contract = rootContract, path = rootPath ++ path)
+}
+
 final case class UnexpectedValueFailure[D <: DObject, T](contract: ContractFor[D], codec:DCodec[T], expectedValue:Raw, unexpectedValue:Raw, path:Path) extends Failure {
   def message = s"Type '${codec.typeDefinition.name}' expected value $expectedValue value, but $unexpectedValue was found."
 
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path):  UnexpectedValueFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
-
 }
 final case class CoproductTypeValueFailure[D <: DObject, T, H <: HList](
   contract: ContractFor[D],
@@ -94,6 +100,14 @@ final case class DeltaNotSupportedFailure[D <: DObject, T](contract: ContractFor
   def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): DeltaNotSupportedFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
 
+}
+
+object EmptyPropertyFailure extends Failure {
+  def path: Path = Path.empty
+
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): Failure = this
+
+  def message: String = "Unexpected operation performed on an empty property"
 }
 
 object ExpectedFailure {

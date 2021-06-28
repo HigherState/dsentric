@@ -4,7 +4,7 @@ import dsentric._
 import dsentric.contracts.Contract
 import dsentric.failure.Failure
 import dsentric.schema._
-import shapeless.HList
+import shapeless.{HList, HNil}
 import shapeless.UnaryTCConstraint.*->*
 import shapeless.ops.hlist.ToTraversable
 
@@ -36,42 +36,19 @@ sealed trait DCodec[T] {
 }
 
 trait DValueCodec[T] extends DCodec[T] {
-  override def apply(t:T):RawValue
+  def apply(t:T):RawValue
   def containsContractCodec:Boolean = false
-//  /**
-//   * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
-//   * @param a
-//   * @return
-//   */
-//  def verify(a:Raw):List[StructuralFailure] =
-//    unapply(a) match {
-//      case None =>
-//        List(DCodecTypeFailure(this, a))
-//      case _ =>
-//        Nil
-//    }
-//
-//  def verifyAndReduceDelta(value:Raw):Option[Raw] =
-//    deltaValue
+}
+//Required for handling bridge generation of value classes
+trait DValueBridge[T] extends DValueCodec[T] {
+  def bridge(t:T):Data
 
-//  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[Raw] =
-//    if (deltaNull(deltaValue)){
-//      if (currentValue.isEmpty)
-//        DeltaEmpty
-//      else
-//        DeltaRemove
-//    }
-//    else verify(deltaValue) match {
-//      case head :: tail =>
-//        DeltaFailed(head, tail)
-//      case _ =>
-//        DeltaReduced(deltaValue)
-//    }
-
+  def apply(t:T):RawValue =
+    bridge(t).value
 }
 
 trait DStringCodec[T] extends DValueCodec[T] {
-  override def apply(t:T):String
+  def apply(t:T):String
 
   def unapply(a:Raw): Option[T] =
     a match {
@@ -91,7 +68,7 @@ trait DMapCodec[M, K, T] extends DCodec[M] {
   def keyCodec:DStringCodec[K]
   def valueCodec:DCodec[T]
 
-  def build(m:Map[K, T]):M
+  def build(m:Map[K, T]):Option[M]
 
   def extract(m:M):Map[K,T]
 
@@ -107,20 +84,18 @@ trait DMapCodec[M, K, T] extends DCodec[M] {
             Some(mb.addOne(k -> v))
           case _ =>
             None
-        }.map(mb => build(mb.result()))
+        }.flatMap(mb => build(mb.result()))
       case _ =>
         None
     }
   def containsContractCodec:Boolean =
     valueCodec.containsContractCodec
-
-  def typeDefinition: TypeDefinition = ???
 }
 
 trait DCollectionCodec[S, T] extends DCodec[S] {
   def valueCodec:DCodec[T]
 
-  def build(t:Vector[T]):S
+  def build(t:Vector[T]):Option[S]
 
   def extract(s:S):Vector[T]
 
@@ -139,16 +114,33 @@ trait DCollectionCodec[S, T] extends DCodec[S] {
         s.map(valueCodec.unapply).foldLeft[Option[VectorBuilder[T]]](Some(new VectorBuilder[T])){
           case (Some(vb), Some(t)) => Some(vb += t)
           case _ => None
-        }.map(vb => build(vb.result()))
+        }.flatMap(vb => build(vb.result()))
       case _ =>
         None
     }
 
   def containsContractCodec:Boolean =
     valueCodec.containsContractCodec
+}
+
+case class DValueClassCodec[S, T](
+  from:S => T,
+  to:T => Option[S],
+  typeDefinitionOverride:Option[TypeDefinition] = None
+)(implicit D:DCodec[T]) extends DCodec[S] {
+  def unapply(a: Raw): Option[S] =
+    D.unapply(a)
+      .flatMap(to)
+
+  def apply(s:S):Raw =
+    D(from(s))
+
+  def internalCodec:DCodec[T] = D
 
   def typeDefinition: TypeDefinition =
-    ArrayDefinition(items = Vector(valueCodec.typeDefinition))
+    typeDefinitionOverride.getOrElse(D.typeDefinition)
+
+  def containsContractCodec: Boolean = D.containsContractCodec
 }
 
 case class DContractCodec(contract:Contract) extends DCodec[DObject] {
@@ -193,8 +185,36 @@ case class DTypeContractCodec(typeDefinition: TypeDefinition)(val contracts:Part
     t.value
 }
 
+abstract class DProductCodec[T, E <: HList, H <: HList : *->*[DCodec]#λ](val codecs:H)(implicit T:ToTraversable.Aux[H, Array, DCodec[_]]) extends DCodec[T] {
+
+  def apply(t: T): RawArray
+
+  def unapply(a: Raw): Option[T] =
+    a match {
+      case rawArray: RawArray if rawArray.size == codecsArray.length =>
+        rawArray.zip(codecsArray).foldRight[Option[HList]](Some(HNil)){(p, h) =>
+          h.flatMap{hlist =>
+            p._2.unapply(p._1).map(_ :: hlist)
+          }
+        }.flatMap(h => build(h.asInstanceOf[E]))
+      case _ =>
+        None
+    }
+
+  def build(e:E): Option[T]
+
+  val codecsArray: Array[DCodec[_]] =
+    codecs.toArray
+
+  def containsContractCodec:Boolean =
+    codecsArray.exists(_.containsContractCodec)
+
+  def typeDefinition:ArrayDefinition =
+    ArrayDefinition(codecsArray.map(_.typeDefinition).toVector)
+}
+
 abstract class DCoproductCodec[T, H <: HList : *->*[DCodec]#λ](val codecs:H)(implicit T:ToTraversable.Aux[H, List, DCodec[_]]) extends DCodec[T] {
-  def codecsList: List[DCodec[_]] = codecs.toList
+  val codecsList: List[DCodec[_]] = codecs.toList
 
   def lift[A](a:A, codec:DCodec[A]):Option[T]
 
@@ -218,36 +238,12 @@ object DataCodec extends DValueCodec[Data]{
         Some(new DValue(j))
     }
 
-  /**
-   * Standard type failure check, override for targeted behaviour, like NotFound if wrong type
-   *
-   * @param a
-   * @return
-   */
-  def verify(a: Raw): List[Failure] = Nil
-
-  def verifyAndReduceDelta(deltaValue:Raw, currentValue:Option[Raw]):DeltaReduce[Raw] =
-    (deltaValue -> currentValue) match {
-      case (deltaObject: RawObject@unchecked, Some(currentObject:RawObject@unchecked)) =>
-        DeltaReduced(RawObjectOps.rightDifferenceReduceMap(currentObject, deltaObject))
-      case (deltaObject: RawObject@unchecked, _) =>
-        DeltaReduced(RawObjectOps.reduceMap(deltaObject))
-      case (d, Some(v)) if d == v =>
-        DeltaEmpty
-      case (DNull, None) =>
-        DeltaEmpty
-      case (DNull, _) =>
-        DeltaRemove
-      case (d, _) =>
-        DeltaReduced(d)
-    }
-
-
   def typeDefinition: TypeDefinition =
     TypeDefinition.anyDefinition
 }
 
 object DValueCodec {
+
   def literal[T](t:T)(implicit D:DValueCodec[T]):DValueCodec[T] =
    new DValueCodec[T] {
      private val rawT:Raw = D.apply(t)
@@ -258,6 +254,11 @@ object DValueCodec {
        if (a == rawT) Some(t)
        else None
 
-     def typeDefinition: TypeDefinition = ???
+     def typeDefinition: TypeDefinition = D.typeDefinition match {
+       case s:StringDefinition => s.copy(enum = List(rawT))
+       case i:IntegerDefinition => i.copy(enum = List(rawT))
+       case n:NumberDefinition => n.copy(enum = List(rawT))
+       case t => t
+     }
    }
 }

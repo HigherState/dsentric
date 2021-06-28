@@ -407,7 +407,7 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
       object MapCodec extends Contract {
         val property = \[Map[Length4String, Int]]
 
-        val codecProperty = \?[Map[String, DObject]](mapContractCodec[String](Nested))
+        val codecProperty = \?[Map[String, DObject]](Nested)
       }
       it("Should return delta if current empty and delta satisfies contract conditions") {
         val base = DObject.empty
@@ -469,13 +469,13 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
         MapCodec.$reduceDelta(base, delta).left.value should contain (ExpectedFailure(MapCodec.property))
         MapCodec.$reduceDelta(base, delta, true).left.value should contain (ExpectedFailure(MapCodec.property))
       }
-      it("Should return delta if valid delta results in leaving object still invalid") {
+      it("Should not return delta if valid delta results in leaving object still invalid") {
         val base = DObject("property" ::= ("key25" := 1234, "key2" := "bob"))
         val delta = Delta("property" ::= ("key4" := 45434))
-        MapCodec.$reduceDelta(base, delta).value shouldBe delta
+        MapCodec.$reduceDelta(base, delta).left.value should contain (IncorrectTypeFailure(MapCodec.property, Map("key25" -> 1234, "key2" -> "bob", "key4" -> 45434)))
       }
       it("Should allow removal of invalid key even though even key is used to remove") {
-        val base = DObject("property" ::= ("key25" := 1234, "key2" := "bob"))
+        val base = DObject("property" ::= ("key25" := 1234, "key2" := 41234))
         val delta = Delta("property" ::= ("key25" := DNull))
         MapCodec.$reduceDelta(base, delta).value shouldBe delta
       }
@@ -525,7 +525,7 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
       object CollectionCodec extends Contract {
         val property = \[List[Int]]
 
-        val codecProperty = \?[List[DObject]](listContractCodec(Nested))
+        val codecProperty = \?[List[DObject]](Nested)
       }
       it("Should return delta if current empty and delta satisfies contract conditions") {
         val base = DObject.empty
@@ -599,7 +599,7 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
       object CoproductCodec extends Contract {
         val property = \[Either[Int, String]]
 
-        val codecProperty = \?[Either[Long, DObject]](rightContractCodec[Long](Nested))
+        val codecProperty = \?[Either[Long, DObject]](Nested)
       }
       it("Should return delta if current empty and delta satisfies a condition") {
         val base = DObject.empty

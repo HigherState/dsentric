@@ -17,14 +17,37 @@ object PathLensOps {
       case PathKey(head, PathEnd) =>
         map.get(head)
       case PathKey(head, tail) =>
-        map
-          .get(head)
-          .collect{case m:RawObject@unchecked => m} match {
-            case None => None
-            case Some(m) => traverse(m, tail)
+        map.get(head) match {
+            case Some(m:RawObject@unchecked) =>
+              traverse(m, tail)
+            case Some(a:RawArray@unchecked) =>
+              traverse(a, tail)
+            case _ =>
+              None
           }
-      case _ =>
+      case PathEnd =>
         Some(map)
+      case _ =>
+        None
+    }
+
+  private[dsentric] final def traverse(array:RawArray, path:Path):Option[Raw] =
+    path match {
+      case PathIndex(head, PathEnd) =>
+        array.lift(head)
+      case PathIndex(head, tail) =>
+        array.lift(head) match {
+          case Some(m:RawObject@unchecked) =>
+            traverse(m, tail)
+          case Some(a:RawArray@unchecked) =>
+            traverse(a, tail)
+          case _ =>
+            None
+        }
+      case PathEnd =>
+        Some(array)
+      case _ =>
+        None
     }
 
   @tailrec

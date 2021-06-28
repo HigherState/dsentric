@@ -178,8 +178,8 @@ class ContractSanitizationSpec extends AnyFunSpec with Matchers with EitherValue
         object EmptyContract extends Contract
 
         object EmptyMapSanitize extends Contract {
-          val objects = \[Map[String, DObject]](mapContractCodec[String](EmptyContract))
-          val objectsMask = \[Map[String, DObject]](mask("***"))(mapContractCodec[String](EmptyContract))
+          val objects = \[Map[String, DObject]](EmptyContract)
+          val objectsMask = \[Map[String, DObject]](mask("***"))(EmptyContract)
         }
 
         it("Should be empty if empty") {

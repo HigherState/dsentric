@@ -1,6 +1,7 @@
 package dsentric.codecs.std
 
 import dsentric.codecs.{DCodec, DMapCodec, DStringCodec}
+import dsentric.schema.{ObjectDefinition, TypeDefinition}
 
 trait DMapCodecs {
 
@@ -10,11 +11,14 @@ trait DMapCodecs {
 
       def keyCodec: DStringCodec[K] = K
 
-      def build(m: Map[K, V]): Map[K, V] =
-        m
+      def build(m: Map[K, V]): Option[Map[K, V]] =
+        Some(m)
 
       def extract(m: Map[K, V]): Map[K, V] =
         m
+
+      def typeDefinition: TypeDefinition =
+        ObjectDefinition(additionalProperties = Right(V.typeDefinition), propertyNames = Some(K.typeDefinition))
     }
 }
 

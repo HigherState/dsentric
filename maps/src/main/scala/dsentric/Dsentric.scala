@@ -1,8 +1,8 @@
 package dsentric
 
-import dsentric.contracts.PropertyOps
+import dsentric.contracts.PropertySyntax
 
-object Dsentric extends DataMatchers with AndMatcher with PropertyOps[DObject] with ToExtensionOps {
+object Dsentric extends DataMatchers with AndMatcher with Syntax with PropertySyntax {
 
   type Contract = contracts.Contract
   type SubContract = contracts.SubContract

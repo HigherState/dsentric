@@ -3,6 +3,7 @@ package dsentric
 import dsentric.codecs.{DCodec, DataCodec}
 import dsentric.contracts.{PathSetter, ValidPathSetter}
 import dsentric.failure.ValidResult
+import dsentric.filter.DFilter
 
 import scala.collection.{Iterable, IterableFactory, IterableOps, mutable}
 
@@ -206,8 +207,8 @@ trait DObjectOps[+C <: DObjectOps[C] with DObject]
   def deltaDiff(delta:DObject):Option[DObject] =
     RawObjectOps.rightDifferenceReduceMap(this.value, delta.value).map(new DObjectInst(_))
 
-  def toQuery:DQuery =
-    DQuery(value)
+  def toQuery:DFilter =
+    DFilter(value)
 
   def select(projection:DProjection):C =
     wrap(RawObjectOps.selectMap(value, projection.value))
@@ -247,50 +248,6 @@ final class DObjectInst private[dsentric](val value:RawObject) extends AnyVal wi
 final class DeltaInst private[dsentric](val value:RawObject) extends AnyVal with Delta {
 
   protected def wrap(value: RawObject): Delta = new DeltaInst(value)
-}
-
-final class DQuery private[dsentric](val value:RawObject) extends AnyVal with DObject with DObjectOps[DQuery]{
-
-  protected def wrap(value: RawObject) = new DQuery(value)
-
-  def isMatch(j:DObject, valueNotFoundAsNull:Boolean = false):Boolean =
-    Query(Some(j.value), value, valueNotFoundAsNull)
-
-  def &&(d:DQuery):DQuery =
-    (value.get("$and"), d.value.get("$and")) match {
-      case (None, None) =>
-        if (value.contains("$or") || d.value.contains("$or"))
-          new DQuery(Map("$and" -> Vector(value, d.value)))
-        else
-          new DQuery(RawObjectOps.concatMap(value, d.value))
-      case (None, Some(vr:RawArray@unchecked)) =>
-        new DQuery(Map("$and" -> (value +: vr)))
-      case (Some(vl:RawArray@unchecked), None) =>
-        new DQuery(Map("$and" -> (vl :+ d.value)))
-      case (Some(vl:RawArray@unchecked), Some(vr:RawArray@unchecked)) =>
-        new DQuery(Map("$and" -> (vl ++ vr)))
-      case _ =>
-        new DQuery(Map("$and" -> Vector(value, d.value)))
-    }
-
-
-  def ||(d:DQuery):DQuery =
-    (value.get("$or"), d.value.get("$or")) match {
-      case (None, Some(vr:RawArray@unchecked)) =>
-        new DQuery(Map("$or" -> (value +: vr)))
-      case (Some(vl:RawArray@unchecked), None) =>
-        new DQuery(Map("$or" -> (vl :+ d.value)))
-      case (Some(vl:RawArray@unchecked), Some(vr:RawArray@unchecked)) =>
-        new DQuery(Map("$or" -> (vl ++ vr)))
-      case _ =>
-        new DQuery(Map("$or" -> Vector(value, d.value)))
-    }
-
-  def ! :DQuery =
-    new DQuery(Map("$not" -> value))
-
-  def not:DQuery = this.!
-
 }
 
 final class DProjection private[dsentric](val value:RawObject) extends AnyVal with DObject with DObjectOps[DProjection] {
@@ -418,18 +375,7 @@ object DArray{
     new DArray(values.map(codec.apply).toVector)
 }
 
-object DQuery{
 
-  //TODO confirm is valid query structure
-  def apply(values:(String, Data)*):DQuery =
-    new DQuery(values.iterator.map(p => p._1 -> p._2.value).toMap)
-
-
-  private[dsentric] def apply(value:RawObject):DQuery =
-    new DQuery(value)
-
-  val empty = new DQuery(Map.empty)
-}
 
 object DProjection {
 
@@ -471,7 +417,7 @@ object ForceWrapper {
     new DArray(value)
 
   def dQuery(value:RawObject) =
-    new DQuery(value)
+    new DFilter(value)
 
   def dProjection(value:RawObject) =
     new DProjection(value)

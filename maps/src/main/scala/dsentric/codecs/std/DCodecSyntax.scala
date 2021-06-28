@@ -1,11 +1,12 @@
 package dsentric.codecs.std
 
+import cats.data.NonEmptyList
 import dsentric.DObject
 import dsentric.codecs.{DCodec, DContractCodec, DStringCodec}
 import dsentric.contracts.Contract
+
 import scala.reflect.ClassTag
 
-//Dunno if named correct
 trait DCodecSyntax {
 
   implicit def contract2MapCodec[K](contract:Contract)(implicit D:DStringCodec[K]):DCodec[Map[K, DObject]] =
@@ -23,10 +24,14 @@ trait DCodecSyntax {
   implicit def contract2ListCodec(contract:Contract):DCodec[List[DObject]] =
     DCollectionCodecs.listCodec(DContractCodec(contract))
 
+  implicit def contract2NonEmptyListCodec(contract:Contract):DCodec[NonEmptyList[DObject]] =
+    DCollectionCodecs.nonEmptyListCodec(DContractCodec(contract))
+
   implicit def contract2LeftCodec[R](contract:Contract)(implicit D:DCodec[R]):DCodec[Either[DObject, R]] =
     DCoproductCodecs.eitherCodec(DContractCodec(contract), D)
 
   implicit def contract2RightCodec[L](contract:Contract)(implicit D:DCodec[L]):DCodec[Either[L, DObject]] =
     DCoproductCodecs.eitherCodec(D, DContractCodec(contract))
+
 
 }

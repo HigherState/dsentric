@@ -1,5 +1,6 @@
 package dsentric
 
+import scala.annotation.tailrec
 import scala.util.Try
 
 /**
@@ -26,6 +27,9 @@ sealed trait Path {
     PathKey(key, this)
   def ::(index:Int):Path =
     PathIndex(index, this)
+
+  def \\(path:Path):Path =
+    this ++ path
   def ++ (path:Path):Path =
     this match {
       case PathEnd =>
@@ -90,6 +94,35 @@ sealed trait Path {
         scala.collection.immutable.::(Left(index), tail.toList)
     }
 
+  def apply(d:Data):Option[Data] =
+    unapply(d)
+
+  def unapply(d:Data):Option[Data] = {
+    d.value match {
+      case _ if this.isEmpty => Some(d)
+      case o:RawObject@unchecked =>
+        PathLensOps.traverse(o, this)
+          .map(ForceWrapper.data)
+      case a:RawArray@unchecked =>
+        PathLensOps.traverse(a, this)
+          .map(ForceWrapper.data)
+      case _ =>
+        None
+    }
+  }
+
+  @tailrec
+  final def tailKeyOption:Option[String] =
+    this match {
+      case PathKey(key, PathEnd) =>
+        Some(key)
+      case PathEnd =>
+        None
+      case PathKey(_, p) =>
+        p.tailKeyOption
+      case PathIndex(_, p) =>
+        p.tailKeyOption
+    }
 }
 
 case object PathEnd extends Path {

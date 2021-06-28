@@ -2,6 +2,8 @@ package dsentric.contracts
 
 import dsentric._
 import dsentric.codecs.DCodec
+import dsentric.codecs.std.DValueCodecs
+import dsentric.failure.{EmptyPropertyFailure, ValidResult}
 import dsentric.operators.DataOperator
 
 sealed trait Property[D <: DObject, T <: Any] extends PropertyLens[D, T] {
@@ -116,3 +118,18 @@ trait MaybeObjectProperty[D <: DObject]
   def _dataOperators:List[DataOperator[Option[DObject]]]
 }
 
+private[dsentric] case class EmptyProperty[D <: DObject, T](_codec:DCodec[T], override val _key: String, override val _path:Path, override val _root:ContractFor[D]) extends Property[D, T] {
+  private[contracts] def __nameOverride: Option[String] = None
+
+  def _dataOperators: List[DataOperator[_]] = Nil
+
+  def _parent: BaseContract[D] = new ContractFor[D]  {}
+  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean): MaybeAvailable[T] =
+    Failed(EmptyPropertyFailure)
+  private[contracts] def __apply(rawObject: RawObject, dropBadTypes: Boolean): ValidResult[RawObject] =
+    ValidResult.failure(EmptyPropertyFailure)
+  private[contracts] def __reduce(obj: RawObject, dropBadTypes: Boolean): ValidResult[RawObject] =
+    ValidResult.failure(EmptyPropertyFailure)
+  private[contracts] def __reduceDelta(deltaObject: RawObject, currentObject: RawObject, dropBadTypes: Boolean): ValidResult[RawObject] =
+    ValidResult.failure(EmptyPropertyFailure)
+}

@@ -9,7 +9,7 @@ import dsentric.Raw
 trait DirectCodec[T]  {
   this:DCodec[T] =>
 
-  override def apply(t: T): T =
+  def apply(t: T): T =
     t
 }
 

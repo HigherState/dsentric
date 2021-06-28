@@ -192,7 +192,7 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
 
       }
       object MaybeMapCodec extends Contract {
-        val property = \?[Map[Length4String, DObject]](mapContractCodec[Length4String](Nested))
+        val property = \?[Map[Length4String, DObject]](Nested)
       }
       it("Should return object if values are correct") {
         val base = DObject("property" ::= ("key1" := 1234, "key2" := 5678))
@@ -261,7 +261,7 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
         val property = \[List[Int]]
       }
       object MaybeCollectionCodec extends Contract {
-        val property = \?[List[DObject]](listContractCodec(Nested))
+        val property = \?[List[DObject]](Nested)
       }
       it("Should return object if values are correct") {
         val base = DObject("property" := Vector(1234, 5678))
@@ -309,7 +309,7 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
         val property = \[Either[Int, String]]
       }
       object MaybeCoproductCodec extends Contract {
-        val property = \?[Either[Long, DObject]](rightContractCodec[Long](Nested))
+        val property = \?[Either[Long, DObject]](Nested)
       }
       it("Should return object if values are correct") {
         val base = DObject("property" := 123)

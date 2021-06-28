@@ -3,7 +3,7 @@ import sbt.Keys._
 lazy val buildSettings = Seq(
   organization       := "io.higherState",
   scalaVersion       := "2.13.1",
-  version            := "1.0.0-RC1",
+  version            := "1.0.0-RC2",
   scalacOptions     ++= Seq(
     "-deprecation",
     "-encoding", "UTF-8",
@@ -45,8 +45,15 @@ lazy val maps = project
   .settings(libraryDependencies ++= Seq(reflect, shapeless, scalatest, cats))
   .dependsOn(core, core % "test -> test")
 
-lazy val graphql = project
-  .settings(moduleName := "dsentric-graphql")
+lazy val macros = project
+  .settings(moduleName := "dsentric-macros")
   .settings(settings)
+  .settings(  scalacOptions ++= Seq(
+    "-Ymacro-annotations",
+    "-Xmacro-settings:materialize-derivations",
+    "-Ywarn-macros:after",
+    "-Ywarn-unused:explicits",
+    "-language:reflectiveCalls"
+  ))
   .settings(libraryDependencies ++= Seq(reflect, shapeless, scalatest, commons_math))
-  .dependsOn(core, maps, core % "test -> test")
+  .dependsOn(core, maps)

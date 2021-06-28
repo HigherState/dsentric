@@ -1,10 +1,39 @@
 package dsentric.codecs.std
 
-import dsentric.{DArray, DNull, DObject, DObjectInst, DProjection, DQuery, Data, NumericPartialFunctions, Path, Raw, RawArray, RawObject, RawValue}
-import dsentric.codecs.{DCodec, DStringCodec, DValueCodec, DataCodec, DirectCodec, MatchCodec}
-import dsentric.schema.{ArrayDefinition, BooleanDefinition, IntegerDefinition, NullDefinition, NumberDefinition, ObjectDefinition, StringDefinition, TypeDefinition}
+import dsentric._
+import dsentric.codecs._
+import dsentric.filter.DFilter
+import dsentric.schema._
 
 trait DValueCodecs {
+
+  implicit val dataCodec:DCodec[Data] =
+    DataCodec
+
+  implicit val anyCodec:DValueCodec[Any] =
+    new DValueCodec[Any] with DirectCodec[Any] {
+      def unapply(a: Raw): Option[Any] =
+        Some(a)
+
+      def typeDefinition: TypeDefinition =
+        TypeDefinition.anyDefinition
+    }
+
+  implicit val dValueCodec: DValueCodec[DValue] =
+    new DValueBridge[DValue] {
+
+      def bridge(t: DValue): DValue = t
+
+      def unapply(a: Raw): Option[DValue] =
+        a match {
+          case _: Vector[_] => None
+          case _: Map[_, _] => None
+          case v            => Some(ForceWrapper.dValue(v))
+        }
+
+      def typeDefinition: TypeDefinition = TypeDefinition.anyVal
+    }
+
   implicit val stringCodec:DStringCodec[String] with DirectCodec[String] =
     new DStringCodec[String] with DirectCodec[String] {
 
@@ -13,6 +42,21 @@ trait DValueCodecs {
 
       def typeDefinition:StringDefinition =
         StringDefinition.empty
+    }
+
+  implicit val charCodec:DStringCodec[Char] =
+    new DStringCodec[Char] {
+
+      def apply(t: Char): String =
+        t.toString
+
+      def fromString(s: String): Option[Char] =
+        if (s.size == 1)
+           s.headOption
+        else None
+
+      def typeDefinition: StringDefinition =
+        StringDefinition(maxLength = Some(1))
     }
 
   implicit val booleanCodec:DValueCodec[Boolean] =
@@ -142,16 +186,16 @@ trait DValueCodecs {
         ArrayDefinition(items = Vector(TypeDefinition.anyDefinition))
     }
 
-  implicit val dQueryCodec:DValueCodec[DQuery] =
-    new DValueCodec[DQuery]{
+  implicit val dFilterCodec:DValueCodec[DFilter] =
+    new DValueCodec[DFilter]{
 
-      def apply(t: DQuery): RawValue =
+      def apply(t: DFilter): RawValue =
         t.value
 
-      def unapply(a: Raw): Option[DQuery] =
+      def unapply(a: Raw): Option[DFilter] =
         a match {
           case r:RawObject@unchecked =>
-            Some(new DQuery(r))
+            Some(new DFilter(r))
           case _ =>
             None
         }
@@ -199,8 +243,6 @@ trait DValueCodecs {
         StringDefinition.empty
     }
 
-  implicit val dataCodec:DCodec[Data] =
-    DataCodec
 }
 
 object DValueCodecs extends DValueCodecs

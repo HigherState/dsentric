@@ -1,10 +1,10 @@
-package dsentric.schema
-
-import dsentric.contracts.{Contract}
-import dsentric.Dsentric._
-import org.scalatest.funspec.AnyFunSpec
-import org.scalatest.matchers.should.Matchers
-
+//package dsentric.schema
+//
+//import dsentric.contracts.{Contract}
+//import dsentric.Dsentric._
+//import org.scalatest.funspec.AnyFunSpec
+//import org.scalatest.matchers.should.Matchers
+//
 
 //Annotations cant be resolved if nested in test
 //TODO annotation specific tests

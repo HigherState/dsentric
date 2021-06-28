@@ -67,7 +67,7 @@ final class ValidFunctionOps[D <: DObjectOps[D] with DObject](val f:D => ValidRe
   def |>(d:D):ValidResult[D] = f(d)
 }
 
-trait ToExtensionOps {
+trait Syntax {
 
   implicit def toStringOps(s: String): StringOps =
     new StringOps(s)
