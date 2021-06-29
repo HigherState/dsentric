@@ -24,7 +24,7 @@ trait DFilterOps {
       case ("$like", v: String) =>
         value.collect {
           case s: String =>
-            ("(?i)" + v.replace("%", ".*")).r.pattern.matcher(s).matches
+            ("(?i)" + v.replace("%", ".*")).r.pattern.matcher(string2RegexEscapedString(s)).matches
         }.getOrElse(false)
       case ("$lt", v) =>
         value.exists(x => order(x -> v).contains(-1))
@@ -70,6 +70,18 @@ trait DFilterOps {
 
   private val order = DValueOps.order.lift
 
+  private val regexChars = Set('\\', '^', '$', '.', '*', '+', '?', '(', ')', '[', ']', '{', '}', '|')
+
+  def string2RegexEscapedString(s:String):String =
+    if (s.exists(regexChars.contains)) {
+      val sb = new StringBuilder
+      s.foreach { c =>
+        if (regexChars.contains(c)) sb.append("\\")
+        sb.append(c)
+      }
+      sb.result()
+    } else
+      s
 }
 
 object DFilterOps extends DFilterOps

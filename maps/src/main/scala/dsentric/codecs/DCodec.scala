@@ -2,7 +2,6 @@ package dsentric.codecs
 
 import dsentric._
 import dsentric.contracts.Contract
-import dsentric.failure.Failure
 import dsentric.schema._
 import shapeless.{HList, HNil}
 import shapeless.UnaryTCConstraint.*->*

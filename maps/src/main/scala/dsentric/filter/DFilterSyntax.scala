@@ -7,7 +7,7 @@ import dsentric.operators.Optionable
 
 import scala.util.matching.Regex
 
-sealed trait PropertyFilterExtension[T] extends Any {
+sealed trait PropertyFilterOps[T] extends Any {
   def prop:Property[_, T]
   protected def nest(value:Any):DFilter =
     new DFilter(PathLensOps.pathToMap(prop._path, value))
@@ -36,7 +36,7 @@ trait DFilterSyntax {
 
 }
 
-final class IterableFilterOps[R <: DObject, T, C[_] <: Iterable[_]](val prop: Property[R, C[T]]) extends AnyVal with PropertyFilterExtension[C[T]]  {
+final class IterableFilterOps[R <: DObject, T, C[_] <: Iterable[_]](val prop: Property[R, C[T]]) extends AnyVal with PropertyFilterOps[C[T]]  {
 
   def $elemMatch(f:Property[R, T] => DFilter):DFilter = {
     val codec = prop._codec.asInstanceOf[DCollectionCodec[C[T], T]].valueCodec
@@ -44,7 +44,7 @@ final class IterableFilterOps[R <: DObject, T, C[_] <: Iterable[_]](val prop: Pr
   }
 }
 
-final class DArrayFilterOps[R <: DObject](val prop: ExpectedProperty[R, DArray]) extends AnyVal with PropertyFilterExtension[DArray]  {
+final class DArrayFilterOps[R <: DObject](val prop: ExpectedProperty[R, DArray]) extends AnyVal with PropertyFilterOps[DArray]  {
 
   def $elemMatch(f:Property[R, Data] => DFilter):DFilter =
     nest(Map("$elemMatch" -> f(EmptyProperty(DataCodec, "", Path.empty, prop._root)).value))
@@ -52,7 +52,7 @@ final class DArrayFilterOps[R <: DObject](val prop: ExpectedProperty[R, DArray])
   def $exists(isTrue:Boolean):DFilter =
     nest(Map("$exists" -> isTrue))
 }
-final class ValueFilterOps[T](val prop: Property[_, T]) extends AnyVal with PropertyFilterExtension[T] {
+final class ValueFilterOps[T](val prop: Property[_, T]) extends AnyVal with PropertyFilterOps[T] {
 
   def $eq(value:T): DFilter =
     if (prop._path.isEmpty)
@@ -69,11 +69,11 @@ final class ValueFilterOps[T](val prop: Property[_, T]) extends AnyVal with Prop
 
 }
 
-final class MaybeFilterOps[T](val prop:MaybeProperty[_, T]) extends AnyVal with PropertyFilterExtension[T] {
+final class MaybeFilterOps[T](val prop:MaybeProperty[_, T]) extends AnyVal with PropertyFilterOps[T] {
   def $exists(value:Boolean): DFilter = nest(Map("$exists" -> value))
 }
 
-final class NumericFilterOps[T >: dsentric.operators.Numeric](val prop: Property[_, T]) extends AnyVal with PropertyFilterExtension[T] {
+final class NumericFilterOps[T >: dsentric.operators.Numeric](val prop: Property[_, T]) extends AnyVal with PropertyFilterOps[T] {
 
   def $lt(value:Double): DFilter = nest(Map("$lt" -> value))
   def $lt(value:Long): DFilter = nest(Map("$lt" -> value))
@@ -88,13 +88,19 @@ final class NumericFilterOps[T >: dsentric.operators.Numeric](val prop: Property
   def $gte(value:Long): DFilter = nest(Map("$gte" -> value))
 }
 
-final class StringFilterOps[T >: Optionable[String]](val prop:Property[_, T]) extends AnyVal with PropertyFilterExtension[T] {
+final class StringFilterOps[T >: Optionable[String]](val prop:Property[_, T]) extends AnyVal with PropertyFilterOps[T] {
 
   def $regex(value:String): DFilter = nest(Map("$regex" -> value))
   def $regex(value:String, options:String): DFilter = nest(Map("$regex" -> value, "$options" -> options))
   def $regex(r:Regex): DFilter = nest(Map("$regex" -> r.regex))
   def $like(value:String): DFilter = nest(Map("$like" -> value))
 
+}
+
+final class CaseInsensitiveFilterOps[T](val prop:Property[_, T]) extends PropertyFilterOps[T] {
+
+  def $eq(value: T): DFilter =
+    nest(Map("$regex" -> ("^" + DFilterOps.string2RegexEscapedString(value.toString) + "$"), "$options" -> "i"))
 }
 
 object DFilterSyntax extends DFilterSyntax
