@@ -35,6 +35,12 @@ sealed trait ValidPathSetter[D <: DObject] extends Function[D, ValidResult[D]] {
   def ~(pathSetter:PathSetter[D]):ValidPathSetter[D] =
     CompositeValidSetter(this, LiftedSetter(pathSetter))
 
+  def ~(pathSetter:ValidPathSetter[D]):ValidPathSetter[D] =
+    CompositeValidSetter(this, pathSetter)
+
+  def ~(f:Function[D, D]):Function[D, ValidResult[D]] =
+    d => this(d).map(f)
+
   private[contracts] def rawApply(rawObject:RawObject):ValidResult[RawObject]
 
   private[contracts] def rawDelta(rawObject:RawObject):ValidResult[RawObject]

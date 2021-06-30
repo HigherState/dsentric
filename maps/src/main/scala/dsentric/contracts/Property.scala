@@ -48,6 +48,8 @@ sealed trait Property[D <: DObject, T <: Any] extends PropertyLens[D, T] {
     }
 }
 
+sealed trait ObjectProperty[D <: DObject] extends Property[D, DObject]
+
 class ExpectedProperty[D <: DObject, T] private[contracts]
   (private[contracts] val __nameOverride:Option[String],
    val _parent:BaseContract[D],
@@ -87,7 +89,7 @@ class MaybeDefaultProperty[D <: DObject, T] private[contracts]
 
 
 trait ExpectedObjectProperty[D <: DObject]
-  extends Property[D, DObject]
+  extends ObjectProperty[D]
     with ExpectedObjectPropertyLens[D]
     with ExpectedPropertyObjectOps[D]
     with ExpectedPropertyOps[D]
@@ -98,7 +100,7 @@ trait ExpectedObjectProperty[D <: DObject]
 }
 
 trait MaybeExpectedObjectProperty[D <: DObject]
-  extends Property[D, DObject]
+  extends ObjectProperty[D]
     with MaybeExpectedObjectPropertyLens[D]
     with MaybeExpectedPropertyObjectOps[D]
     with MaybeExpectedPropertyOps[D]
@@ -108,7 +110,7 @@ trait MaybeExpectedObjectProperty[D <: DObject]
 }
 
 trait MaybeObjectProperty[D <: DObject]
-  extends Property[D, DObject]
+  extends ObjectProperty[D]
     with MaybeObjectPropertyLens[D]
     with MaybeExpectedPropertyObjectOps[D]
     with MaybeExpectedPropertyOps[D]
@@ -118,7 +120,7 @@ trait MaybeObjectProperty[D <: DObject]
   def _dataOperators:List[DataOperator[Option[DObject]]]
 }
 
-private[dsentric] case class EmptyProperty[D <: DObject, T](_codec:DCodec[T], override val _key: String, override val _path:Path, override val _root:ContractFor[D]) extends Property[D, T] {
+private[dsentric] case class DynamicProperty[D <: DObject, T](_codec:DCodec[T], override val _key: String, override val _path:Path, override val _root:ContractFor[D]) extends Property[D, T] {
   private[contracts] def __nameOverride: Option[String] = None
 
   def _dataOperators: List[DataOperator[_]] = Nil

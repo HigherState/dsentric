@@ -2,7 +2,6 @@ package dsentric.contracts
 
 import dsentric.operators.DataOperationOps
 import dsentric._
-import dsentric.failure.ValidResult
 
 trait SubContractFor[D <: DObject]
   extends BaseContract[D]
@@ -32,27 +31,6 @@ trait ContractFor[D <: DObject]
 trait SubContract extends SubContractFor[DObject]
 
 trait Contract extends ContractFor[DObject] {
-  def $create(f:this.type => DObject => DObject):DObject =
+  def $create[R](f:this.type => DObject => R):R =
     f(this)(DObject.empty)
-}
-
-
-abstract class ContractTypeFor[D <: DObject](val $typeKey:String, val $keyMatcher:Matcher = ExistenceMatcher) extends ContractFor[D] {
-  val $isType = new MatcherUnapply($typeKey, $keyMatcher)
-}
-
-abstract class ContractType(override val $typeKey:String, override val $keyMatcher:Matcher = ExistenceMatcher) extends ContractTypeFor[DObject]($typeKey, $keyMatcher) {
-  //TODO create has matcher if possible.
-  def $create():DObject = {
-    val seed = $keyMatcher match {
-      case ExistenceMatcher =>
-        true
-      case v:ValueMatcher[_]@unchecked =>
-        v.default
-    }
-    new DObjectInst(Map($typeKey -> seed))
-  }
-
-  def $create(f:this.type => DObject => DObject):DObject =
-    f(this)($create())
 }

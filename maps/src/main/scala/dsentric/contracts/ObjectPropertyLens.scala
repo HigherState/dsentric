@@ -171,6 +171,7 @@ sealed trait ExpectedObjectPropertyLensLike[D <: DObject] extends ObjectProperty
         ValidResult.failure(IncorrectTypeFailure(this, r))
     }
   }
+
 }
 
 /**
@@ -350,6 +351,8 @@ private[dsentric] trait MaybeObjectPropertyLens[D <: DObject] extends ObjectProp
       case Failed(_, _) => None
     }
 
+  final def $drop: PathSetter[D] =
+    ValueDrop(_path)
 }
 
 private[dsentric] object ObjectPropertyLensOps extends DeltaReduceOps with GetOps {

@@ -10,7 +10,4 @@ object Dsentric extends DataMatchers with AndMatcher with Syntax with PropertySy
   type ContractFor[D <: DObject] = contracts.ContractFor[D]
   type SubContractFor[D <: DObject] = contracts.SubContractFor[D]
 
-  type ContractType = contracts.ContractType
-  type ContractTypeFor[D <: DObject] = contracts.ContractTypeFor[D]
-
 }

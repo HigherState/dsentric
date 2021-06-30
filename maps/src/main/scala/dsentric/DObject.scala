@@ -181,12 +181,6 @@ trait DObjectOps[+C <: DObjectOps[C] with DObject]
     }
   }
 
-  /*
-  Value on the left hand side is the selection by the projection, the value on the right has the values exluded
-   */
-  def partition(projection:DProjection):(DObject, DObject) =
-    this.select(projection) -> this.omit(projection)
-
   override def toIterable:Iterable[(String, Data)] =
     value.view.mapValues(ForceWrapper.data)
 
@@ -194,6 +188,9 @@ trait DObjectOps[+C <: DObjectOps[C] with DObject]
     value.values.map(ForceWrapper.data)
 
   def applyDelta(delta:DObject):C =
+    wrap(RawObjectOps.rightReduceConcatMap(this.value, delta.value))
+
+  def applyDelta(delta:Delta):C =
     wrap(RawObjectOps.rightReduceConcatMap(this.value, delta.value))
 
   def reduce:Option[C] =
@@ -209,12 +206,6 @@ trait DObjectOps[+C <: DObjectOps[C] with DObject]
 
   def toQuery:DFilter =
     DFilter(value)
-
-  def select(projection:DProjection):C =
-    wrap(RawObjectOps.selectMap(value, projection.value))
-
-  def omit(projection:DProjection):C =
-    wrap(RawObjectOps.omitMap(value, projection.value))
 
   def filterKeys(p:String => Boolean):C =
     wrap(value.view.filterKeys(p).toMap)
@@ -271,8 +262,19 @@ final class DProjection private[dsentric](val value:RawObject) extends AnyVal wi
   def &(d:DProjection):DProjection =
     new DProjection(RawObjectOps.concatMap(value, d.value))
 
-  def select[D <: DObjectOps[D] with DObject](obj:D):D =
-    obj.internalWrap(RawObjectOps.selectMap(obj.value, value))
+  def select[D <: DObject]:Function[D, D] = {obj =>
+    obj.internalWrap (RawObjectOps.selectMap (obj.value, this.value) ).asInstanceOf[D]
+  }
+
+  def omit[D <: DObject]:Function[D, D] = { obj =>
+    obj.internalWrap(RawObjectOps.omitMap(obj.value, this.value)).asInstanceOf[D]
+  }
+
+    /*
+  Value on the left hand side is the selection by the projection, the value on the right has the values exluded
+   */
+  def partition[D <: DObject](obj:D):(D, D) =
+    this.select(obj) -> this.omit(obj)
 
   def toPaths:Set[Path] =
     getPaths(value, Path.empty).getOrElse(Set.empty)
@@ -410,15 +412,18 @@ object ForceWrapper {
   def dObject(value:RawObject):DObject =
     new DObjectInst(value)
 
-  def dValue(value:Raw) =
+  def delta(value:RawObject):Delta =
+    new DeltaInst(value)
+
+  def dValue(value:Raw):DValue =
     new DValue(value)
 
-  def dArray(value:RawArray) =
+  def dArray(value:RawArray):DArray =
     new DArray(value)
 
-  def dQuery(value:RawObject) =
+  def dFilter(value:RawObject):DFilter =
     new DFilter(value)
 
-  def dProjection(value:RawObject) =
+  def dProjection(value:RawObject):DProjection =
     new DProjection(value)
 }

@@ -1,6 +1,6 @@
 package dsentric.operators
 
-import dsentric.codecs.{DCodec, DCollectionCodec, DContractCodec, DCoproductCodec, DMapCodec, DTypeContractCodec, DValueClassCodec}
+import dsentric.codecs.{DCodec, DCollectionCodec, DContractCodec, DCoproductCodec, DMapCodec, DProductCodec, DTypeContractCodec, DValueClassCodec}
 import dsentric.contracts.{BaseContract, CustomPathSetter, DefaultProperty, ExpectedObjectProperty, MaybeExpectedObjectProperty, MaybeObjectProperty, PathSetter, Property}
 import dsentric.{DObject, DObjectInst, Raw, RawArray, RawObject, RawObjectOps}
 
@@ -110,6 +110,14 @@ trait DataOperationOps{
           }
         case (raw:Raw, d:DValueClassCodec[T, _]) if d.containsContractCodec =>
           transformCodec(raw -> d.internalCodec)
+        case (nestedArray: RawArray@unchecked, d:DProductCodec[T, _, _]) if d.containsContractCodec =>
+          nestedArray.zipWithIndex.foldLeft(Option.empty[RawArray]){ case (maybeChangedArray, (raw, index)) =>
+            if (index >= d.codecsArray.length) maybeChangedArray
+            else
+              transformCodec(raw -> d.codecsArray(index))
+                .map{ newElement => maybeChangedArray.getOrElse(nestedArray).updated(index, newElement)}
+                .orElse(maybeChangedArray)
+          }
         case (raw:Raw, d:DCoproductCodec[T, _]) if d.containsContractCodec =>
           d.codecsList.flatMap{c =>
             c.unapply(raw).flatMap { t =>

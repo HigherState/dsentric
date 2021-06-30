@@ -2,7 +2,7 @@ package dsentric.filter
 
 import dsentric.{DArray, DObject, Data, Path, PathLensOps}
 import dsentric.codecs.{DCollectionCodec, DataCodec}
-import dsentric.contracts.{EmptyProperty, ExpectedProperty, MaybeProperty, Property}
+import dsentric.contracts.{DynamicProperty, ExpectedProperty, MaybeProperty, Property}
 import dsentric.operators.Optionable
 
 import scala.util.matching.Regex
@@ -19,8 +19,11 @@ trait DFilterSyntax {
   implicit def toValueFilterOps[T](prop:Property[_, T]):ValueFilterOps[T] =
     new ValueFilterOps(prop)
 
-  implicit def toMaybeFilterOps[T](prop:MaybeProperty[_, T]):MaybeFilterOps[T] =
-    new MaybeFilterOps(prop)
+  implicit def toMaybeFilterOps[T](prop:MaybeProperty[_, T]):ExistsFilterOps[T] =
+    new ExistsFilterOps(prop)
+
+  implicit def toEmptyFilterOps[T](prop:DynamicProperty[_, T]):ExistsFilterOps[T] =
+    new ExistsFilterOps(prop)
 
   implicit def toNumericFilterOps[T >: dsentric.operators.Numeric](prop:Property[_, T]):NumericFilterOps[T] =
     new NumericFilterOps(prop)
@@ -40,17 +43,15 @@ final class IterableFilterOps[R <: DObject, T, C[_] <: Iterable[_]](val prop: Pr
 
   def $elemMatch(f:Property[R, T] => DFilter):DFilter = {
     val codec = prop._codec.asInstanceOf[DCollectionCodec[C[T], T]].valueCodec
-    nest(Map("$elemMatch" -> f(EmptyProperty(codec, "", Path.empty, prop._root)).value))
+    nest(Map("$elemMatch" -> f(DynamicProperty(codec, "", Path.empty, prop._root)).value))
   }
 }
 
 final class DArrayFilterOps[R <: DObject](val prop: ExpectedProperty[R, DArray]) extends AnyVal with PropertyFilterOps[DArray]  {
 
   def $elemMatch(f:Property[R, Data] => DFilter):DFilter =
-    nest(Map("$elemMatch" -> f(EmptyProperty(DataCodec, "", Path.empty, prop._root)).value))
+    nest(Map("$elemMatch" -> f(DynamicProperty(DataCodec, "", Path.empty, prop._root)).value))
 
-  def $exists(isTrue:Boolean):DFilter =
-    nest(Map("$exists" -> isTrue))
 }
 final class ValueFilterOps[T](val prop: Property[_, T]) extends AnyVal with PropertyFilterOps[T] {
 
@@ -69,9 +70,10 @@ final class ValueFilterOps[T](val prop: Property[_, T]) extends AnyVal with Prop
 
 }
 
-final class MaybeFilterOps[T](val prop:MaybeProperty[_, T]) extends AnyVal with PropertyFilterOps[T] {
+final class ExistsFilterOps[T](val prop:Property[_, T]) extends AnyVal with PropertyFilterOps[T] {
   def $exists(value:Boolean): DFilter = nest(Map("$exists" -> value))
 }
+
 
 final class NumericFilterOps[T >: dsentric.operators.Numeric](val prop: Property[_, T]) extends AnyVal with PropertyFilterOps[T] {
 

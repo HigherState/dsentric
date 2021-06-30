@@ -22,6 +22,19 @@ sealed trait ValuePropertyLens[D <: DObject, T] extends PropertyLens[D, T] {
       ValueSetter(_path, _codec(v))
     }
 
+  final def $validSet(value:ValidResult[T]):ValidPathSetter[D] =
+    ValidValueSetter(_path, value.map(_codec.apply))
+
+  final def $validMaybeSet(value:ValidResult[Option[T]]):ValidPathSetter[D] = {
+    value match {
+      case Right(None) =>
+        IdentityValidSetter[D]()
+      case Right(Some(v)) =>
+        ValidValueSetter(_path, Right(_codec.apply(v)))
+      case Left(failed) =>
+        ValidValueSetter(_path, Left(failed))
+    }
+  }
 }
 
 sealed trait ExpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]{
@@ -120,6 +133,7 @@ sealed trait ExpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]{
 
   final def $modifyWith(f:T => ValidResult[T], dropBadTypes:Boolean = false):ValidPathSetter[D] =
     ModifyValidSetter(d => __get(d, dropBadTypes).toValidOption, f, _codec, _path)
+
 }
 
 sealed trait UnexpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]{

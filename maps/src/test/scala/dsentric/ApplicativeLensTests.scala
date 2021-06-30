@@ -52,54 +52,6 @@ class ApplicativeLensTests extends AnyFunSuite with Matchers {
     }
   }
 
-  object MatcherContract extends ContractType("req", "check") {
-    val req = \[String]
-    val int = \[Int]
-    val string = \[String]
-
-    lazy val one = this.$isType @: string
-    lazy val two = this.$isType @: int @: string
-  }
-
-  test("Matcher one applicative") {
-    val isMatch = DObject("req" := "check", "int" := 3, "string" := "s")
-    val notMatch = DObject("req" := "cross", "int" := 3, "string" := "s")
-
-    isMatch match {
-      case MatcherContract.one(s) =>
-        s should equal ("s")
-    }
-
-    notMatch match {
-      case MatcherContract.one(s) =>
-        assert(false)
-      case _ =>
-
-    }
-
-   // MatcherContract.one.$set("ss")(isMatch) should be (DObject("req" := "check", "int" := 3, "string" := "ss"))
-  }
-
-  test("Matcher two applicative") {
-    val isMatch = DObject("req" := "check", "int" := 3, "string" := "s")
-    val notMatch = DObject("req" := "cross", "int" := 3, "string" := "s")
-
-    isMatch match {
-      case MatcherContract.two((i, s)) =>
-        i should equal (3)
-        s should equal ("s")
-    }
-
-    notMatch match {
-      case MatcherContract.two((i, s)) =>
-        assert(false)
-      case _ =>
-
-    }
-
-    //MatcherContract.two.$set((5, "ss"))(isMatch) should be (DObject("req" := "check", "int" := 5, "string" := "ss"))
-  }
-
   object MatcherMaybe extends Contract {
     val maybeInt = \?[Int]
     val string = \[String]

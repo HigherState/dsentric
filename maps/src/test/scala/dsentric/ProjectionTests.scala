@@ -53,8 +53,8 @@ class ProjectionTests extends AnyFunSuite with Matchers {
       c.nested2.field4.$set(5) ~
       c.field5.$set("three")
     }
-    result.omit(p) shouldBe DObject("field" := "one", "nested" -> DObject("field2" :="two"), "nested2" -> DObject("field4" := 5))
-    result.omit(p & Query1.nested2.field4.$) shouldBe DObject("field" := "one", "nested" -> DObject("field2" :="two"))
+    p.omit(result) shouldBe DObject("field" := "one", "nested" -> DObject("field2" :="two"), "nested2" -> DObject("field4" := 5))
+    (p & Query1.nested2.field4.$).omit(result) shouldBe DObject("field" := "one", "nested" -> DObject("field2" :="two"))
   }
 
   test("Contains") {
