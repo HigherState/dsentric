@@ -45,7 +45,7 @@ object NumberDefinition {
 }
 
 case class StringDefinition(enum:List[Any] = Nil,
-                            format:Option[String] = None,
+                            format:Option[String] = None,  //should be an enum
                             pattern:Option[String] = None,
                             minLength:Option[Int] = None,
                             maxLength:Option[Int] = None,

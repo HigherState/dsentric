@@ -33,12 +33,18 @@ final class PathOps(val self:Path) extends AnyVal {
 
 }
 
-final class FunctionOps[D <: DObjectOps[D] with DObject](val f:D => D) extends AnyVal with LensCompositor[D] {
+final class FunctionOps[D <: DObjectOps[D] with DObject](val f:D => D) extends AnyVal {
   def ~+(kv:(String, Data)):D => D =
     f andThen (_ + kv)
 
   def ~++(kv:Seq[(String, Data)]):D => D =
     f andThen (_ ++ kv)
+
+  def ~(f2:D => D):D => D =
+    d => f2(f(d))
+
+  def |>(d:D):D =
+    f(d)
 }
 
 final class ValidFunctionOps[D <: DObjectOps[D] with DObject](val f:D => ValidResult[D]) extends AnyVal  {

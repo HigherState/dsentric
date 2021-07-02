@@ -120,8 +120,18 @@ trait MaybeObjectProperty[D <: DObject]
   def _dataOperators:List[DataOperator[Option[DObject]]]
 }
 
-private[dsentric] case class DynamicProperty[D <: DObject, T](_codec:DCodec[T], override val _key: String, override val _path:Path, override val _root:ContractFor[D]) extends Property[D, T] {
+private[dsentric] case class DynamicProperty[D <: DObject, T](_codec:DCodec[T], override val _key: String, override val _path:Path, override val _root:ContractFor[D])
+  extends Property[D, T] with ApplicativeLens[D, Option[T]]{
   private[contracts] def __nameOverride: Option[String] = None
+
+
+  def unapply(data: D): Option[Option[T]] =
+    PathLensOps.traverse(data.value, _path) match {
+      case None =>
+        Some(None)
+      case Some(v) =>
+        _codec.unapply(v).map(Some.apply)
+    }
 
   def _dataOperators: List[DataOperator[_]] = Nil
 

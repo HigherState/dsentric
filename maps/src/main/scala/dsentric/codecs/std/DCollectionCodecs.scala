@@ -1,6 +1,6 @@
 package dsentric.codecs.std
 
-import cats.data.NonEmptyList
+import cats.data.{NonEmptyList, NonEmptyVector}
 import dsentric.codecs.{DCodec, DCollectionCodec}
 import dsentric.schema.{ArrayDefinition, TypeDefinition}
 
@@ -64,6 +64,22 @@ trait DCollectionCodecs {
 
       def extract(s: NonEmptyList[T]): Vector[T] =
         s.toList.toVector
+
+      def typeDefinition: TypeDefinition =
+        ArrayDefinition(Vector(D.typeDefinition), Some(1))
+    }
+
+  implicit def nonEmptyVectorCodec[T](implicit D:DCodec[T]):DCollectionCodec[NonEmptyVector[T], T] =
+    new DCollectionCodec[NonEmptyVector[T], T] {
+      def valueCodec: DCodec[T] = D
+
+      def build(t: Vector[T]): Option[NonEmptyVector[T]] =
+        t.headOption.map{head =>
+          NonEmptyVector(head, t.tail)
+        }
+
+      def extract(s: NonEmptyVector[T]): Vector[T] =
+        s.toVector
 
       def typeDefinition: TypeDefinition =
         ArrayDefinition(Vector(D.typeDefinition), Some(1))

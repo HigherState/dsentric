@@ -1,23 +1,17 @@
 package dsentric.codecs.std
 
+import cats.data.NonEmptySet
 import dsentric._
 import dsentric.codecs._
 import dsentric.filter.DFilter
 import dsentric.schema._
 
+import scala.collection.immutable.SortedSet
+
 trait DValueCodecs {
 
   implicit val dataCodec:DCodec[Data] =
     DataCodec
-
-  implicit val anyCodec:DValueCodec[Any] =
-    new DValueCodec[Any] with DirectCodec[Any] {
-      def unapply(a: Raw): Option[Any] =
-        Some(a)
-
-      def typeDefinition: TypeDefinition =
-        TypeDefinition.anyDefinition
-    }
 
   implicit val dValueCodec: DValueCodec[DValue] =
     new DValueBridge[DValue] {
@@ -145,6 +139,27 @@ trait DValueCodecs {
               case _ =>
                 None
             }
+          case _ =>
+            None
+        }
+
+      def typeDefinition: TypeDefinition = ???
+    }
+
+  implicit def nonEmptySetCodec[T](implicit D:DStringCodec[T], O:Ordering[T]):DValueCodec[NonEmptySet[T]] =
+    new DValueCodec[NonEmptySet[T]] {
+      def apply(t: NonEmptySet[T]): RawObject =
+        t.toNonEmptyList.toList.map(D.apply(_) -> 1).toMap
+
+      def unapply(a: Raw): Option[NonEmptySet[T]] =
+        a match {
+          case obj:RawObject@unchecked if obj.nonEmpty =>
+            obj.foldLeft(Option(SortedSet.empty[T])){
+              case (Some(a), (key, 1)) =>
+                D.unapply(key).map(a + _)
+              case _ =>
+                None
+            }.flatMap(NonEmptySet.fromSet)
           case _ =>
             None
         }

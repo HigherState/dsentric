@@ -365,7 +365,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
     ValueDrop(_path)
 
   /**
-   * Sets or Replaces vale for the Property if provided
+   * Sets or Replaces value for the Property if provided
    * Will create object path to Property if objects dont exist.
    * If None is provided it will remove the property value from the object if it exists.
    * If the removed property is contained in an otherwise empty nested object, it
@@ -376,6 +376,17 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
    */
   final def $setOrDrop(value:Option[T]):PathSetter[D] =
     value.fold[PathSetter[D]](ValueDrop(_path))(v => ValueSetter(_path, _codec(v)))
+
+  /**
+   * Sets value for the Property if provided
+   * Will create object path to Property if objects dont exist.
+   * Is not concerned with correct type of value.
+   * @param value
+   * @param dropBadTypes
+   * @return
+   */
+  final def $setIfEmpty(value:T, dropBadTypes:Boolean = false):PathSetter[D] =
+    ValueIfEmptySetter(_path, value)
 
   /**
    * Modifies value for the property.

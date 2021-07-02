@@ -261,7 +261,7 @@ private[dsentric] trait MaybeExpectedObjectPropertyLens[D <: DObject] extends Ex
  * Object lens for a Property which contains an object or could be empty.
  * @tparam D
  */
-private[dsentric] trait MaybeObjectPropertyLens[D <: DObject] extends ObjectPropertyLens[D] {
+private[dsentric] trait MaybeObjectPropertyLens[D <: DObject] extends ObjectPropertyLens[D]  with ApplicativeLens[D, Option[DObject]] {
 
   private[contracts] def __get(base:RawObject, dropBadTypes:Boolean):MaybeAvailable[DObject] = {
     def reduce(rawObject:Map[String, Any]):MaybeAvailable[DObject] =

@@ -1,6 +1,6 @@
 package dsentric.codecs.std
 
-import cats.data.NonEmptyList
+import cats.data.{NonEmptyList, NonEmptyVector}
 import dsentric.DObject
 import dsentric.codecs.{DCodec, DContractCodec, DStringCodec}
 import dsentric.contracts.Contract
@@ -26,6 +26,9 @@ trait DCodecSyntax {
 
   implicit def contract2NonEmptyListCodec(contract:Contract):DCodec[NonEmptyList[DObject]] =
     DCollectionCodecs.nonEmptyListCodec(DContractCodec(contract))
+
+  implicit def contract2NonEmptyVectorCodec(contract:Contract):DCodec[NonEmptyVector[DObject]] =
+    DCollectionCodecs.nonEmptyVectorCodec(DContractCodec(contract))
 
   implicit def contract2LeftCodec[R](contract:Contract)(implicit D:DCodec[R]):DCodec[Either[DObject, R]] =
     DCoproductCodecs.eitherCodec(DContractCodec(contract), D)

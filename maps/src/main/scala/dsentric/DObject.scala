@@ -365,6 +365,9 @@ object DObject{
   def apply(values:(String, Data)*):DObject =
     new DObjectInst(values.iterator.map(p => p._1 -> p._2.value).toMap)
 
+  def apply(values:Iterator[(String, Data)]):DObject =
+    new DObjectInst(values.map(p => p._1 -> p._2.value).toMap)
+
   def apply(map:Map[String, Data]):DObject =
     new DObjectInst(map.view.mapValues(_.value).toMap)
 }
@@ -372,6 +375,9 @@ object DObject{
 object DArray{
 
   val empty = new DArray(Vector.empty)
+
+  def apply(values:Iterator[Data]):DArray =
+    new DArray(values.map(_.value).toVector)
 
   def apply[T](values:T*)(implicit codec:DCodec[T]) =
     new DArray(values.map(codec.apply).toVector)
@@ -393,6 +399,12 @@ object Delta {
 
   def apply(values:(String, Data)*):Delta =
     new DeltaInst(values.iterator.map(p => p._1 -> p._2.value).toMap)
+
+  def apply(values:Iterator[(String, Data)]):Delta =
+    new DeltaInst(values.map(p => p._1 -> p._2.value).toMap)
+
+  def fromObject(d:DObject):Delta =
+    new DeltaInst(d.value)
 }
 
 object ForceWrapper {
