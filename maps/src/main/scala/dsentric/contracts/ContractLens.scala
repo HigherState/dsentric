@@ -1,6 +1,6 @@
 package dsentric.contracts
 
-import dsentric.{Available, DObject, Delta, DeltaEmpty, DeltaFailed, DeltaInst, DeltaReduce, DeltaReduced, DeltaRemove, DeltaRemoving, Failed, Found, NotFound, RawObject, Valid}
+import dsentric.{Available, DObject, Delta, DeltaEmpty, DeltaFailed, DeltaInst, DeltaReduce, DeltaReduced, DeltaRemove, DeltaRemoving, Failed, Found, NotFound, RawObject, Valid, Validated}
 import dsentric.failure.{Failure, ValidResult}
 
 trait ContractLens[D <: DObject] { this:ContractFor[D] =>
@@ -37,6 +37,9 @@ trait ContractLens[D <: DObject] { this:ContractFor[D] =>
         ValidResult.failure(head, tail)
     }
   }
+
+  final def $validated(obj:D, dropBadTypes:Boolean = false):ValidResult[Validated[D]] =
+    $reduce(obj, dropBadTypes).map(new Validated(_))
 
   final def $reduceDelta(obj:D, delta:Delta, dropBadTypes:Boolean = false):ValidResult[Delta] = {
     __reduceDelta(delta.value, obj.value, dropBadTypes) match {

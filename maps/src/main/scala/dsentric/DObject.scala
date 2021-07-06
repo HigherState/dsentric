@@ -58,7 +58,7 @@ trait Data extends Any {
 
 class DValue private[dsentric](val value:Raw) extends AnyVal with Data
 
-trait DObjectOps[+C <: DObjectOps[C] with DObject]
+trait DObjectOps[+C <: DObjectOps[C]]
   extends Any with Data with IterableOps[(String, Data), Iterable, C] {
 
   def value:RawObject
@@ -224,7 +224,7 @@ trait DObject extends Any with DObjectOps[DObject] {
   override protected def coll: this.type = this
 }
 
-trait Delta extends Any with DObject with DObjectOps[Delta] {
+trait Delta extends Any  with DObjectOps[Delta] {
   override def toString:String =
     s"Delta :- ${super.toString}"
 }
@@ -237,8 +237,10 @@ final class DObjectInst private[dsentric](val value:RawObject) extends AnyVal wi
 }
 
 final class DeltaInst private[dsentric](val value:RawObject) extends AnyVal with Delta {
+  override protected def coll: this.type = this
 
   protected def wrap(value: RawObject): Delta = new DeltaInst(value)
+
 }
 
 final class DProjection private[dsentric](val value:RawObject) extends AnyVal with DObject with DObjectOps[DProjection] {
@@ -331,16 +333,35 @@ class DArray(val value:RawArray) extends AnyVal with Data {
 
 sealed trait DNullable[+T] {
   def isNull: Boolean
+  def toOption:Option[T]
+  def map[S](f:T => S):DNullable[S] =
+    flatMap(t => DSome(f(t)))
+  def flatMap[S](f: T => DNullable[S]):DNullable[S]
+  def getOrElse[S >: T](default: => S):S
 }
 
 case object DNull extends Data with DNullable[Nothing] {
   override def value:Data = this
   override def toString:String = "null"
   override def isNull: Boolean = true
+
+  def toOption: Option[Nothing] = None
+
+  def flatMap[S](f: Nothing => DNullable[S]): DNullable[S] = DNull
+
+  def getOrElse[S >: Nothing](default: => S):S = default
 }
 
 final case class DSome[T](t:T) extends DNullable[T] {
   override def isNull: Boolean = false
+
+  def toOption: Option[T] = Some(t)
+
+  def flatMap[S](f: T => DNullable[S]): DNullable[S] =
+    f(t)
+
+  def getOrElse[S >: T](default: => S): S =
+    default
 }
 
 object Data{

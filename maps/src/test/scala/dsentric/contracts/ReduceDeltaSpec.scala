@@ -429,7 +429,7 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
         MapCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty
       }
       it("Should return empty if current set and delta is the same") {
-        val base = Delta("property" ::= ("key1" := 1234, "key2" := 5678))
+        val base = DObject("property" ::= ("key1" := 1234, "key2" := 5678))
         val delta = Delta("property" ::= ("key1" := 1234, "key2" := 5678))
          MapCodec.$reduceDelta(base, delta).value shouldBe Delta.empty
          MapCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty
@@ -446,13 +446,13 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
         MapCodec.$reduceDelta(base, delta, true).value shouldBe Delta("property" ::= ("key4" := 567))
       }
       it("Should return delta if changing current values") {
-        val base = Delta("property" ::= ("key1" := 567, "key2" := 0, "key3" := 7891))
+        val base =  DObject("property" ::= ("key1" := 567, "key2" := 0, "key3" := 7891))
         val delta = Delta("property" ::= ("key1" := 778, "key2" := DNull, "key4" := 56))
         MapCodec.$reduceDelta(base, delta).value shouldBe delta
         MapCodec.$reduceDelta(base, delta, true).value shouldBe delta
       }
       it("Should return empty if removing not existing keys") {
-        val base = Delta("property" ::= ("key1" := 567, "key2" := 0))
+        val base =  DObject("property" ::= ("key1" := 567, "key2" := 0))
         val delta = Delta("property" ::= ("key3" := DNull))
         MapCodec.$reduceDelta(base, delta).value shouldBe Delta.empty
         MapCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty

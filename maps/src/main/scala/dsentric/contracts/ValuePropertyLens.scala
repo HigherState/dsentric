@@ -134,6 +134,12 @@ sealed trait ExpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]{
   final def $modifyWith(f:T => ValidResult[T], dropBadTypes:Boolean = false):ValidPathSetter[D] =
     ModifyValidSetter(d => __get(d, dropBadTypes).toValidOption, f, _codec, _path)
 
+  final def unapply(d:Delta):Option[Option[T]] =
+    PathLensOps.traverse(d.value, _path) match {
+      case None => Some(None)
+      case Some(r) =>
+        _codec.unapply(r).map(Some(_))
+    }
 }
 
 sealed trait UnexpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]{
@@ -248,6 +254,11 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D
   final def $get(obj:D, dropBadTypes:Boolean = false):ValidResult[T] =
     __get(obj.value, dropBadTypes).toValid
 
+  final def $get(validated:Validated[D]):T =
+    PathLensOps.traverse(validated.validObject.value, _path)
+      .flatMap(_codec.unapply).get
+
+
   /**
    * Unapply is only ever a simple prism to the value and its decoding
    * @param obj
@@ -255,6 +266,12 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D
    */
   final def unapply(obj:D):Option[T] =
     PathLensOps.traverse(obj.value, _path).flatMap(_codec.unapply)
+
+  final def unapply(validated:Validated[D]):Some[T] =
+    Some {
+      PathLensOps.traverse(validated.validObject.value, _path)
+        .flatMap(_codec.unapply).get
+    }
 }
 
 /**
@@ -307,6 +324,16 @@ private[dsentric] trait MaybeExpectedLens[D <: DObject, T] extends ExpectedLensL
       case Found(r) =>
         _codec.unapply(r).map(Some.apply)
       case _ =>
+        None
+    }
+
+  final def unapply(obj:Validated[D]):Option[T] =
+    TraversalOps.maybeTraverse(obj.validObject.value, this, false) match {
+      case PathEmptyMaybe =>
+        None
+      case Found(r) =>
+        Some(_codec.unapply(r).get)
+      case _ => //Should not occur, maybe need a throw case?
         None
     }
 }
@@ -475,6 +502,23 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
       case Some(v) =>
         _codec.unapply(v).map(Some.apply)
     }
+
+  final def unapply(validated:Validated[D]):Some[Option[T]] =
+    PathLensOps.traverse(validated.validObject.value, _path) match {
+      case None =>
+        Some(None)
+      case Some(v) =>
+        Some(_codec.unapply(v))
+    }
+
+  final def unapply(d:Delta):Option[Option[DNullable[T]]] =
+    PathLensOps.traverse(d.value, _path) match {
+      case None => Some(None)
+      case Some(DNull) =>
+        Some(Some(DNull))
+      case Some(r) =>
+        _codec.unapply(r).map(t => Some(DSome(t)))
+    }
 }
 
 
@@ -532,6 +576,14 @@ sealed trait DefaultLensLike[D <: DObject, T] extends UnexpectedLensLike[D, T] {
   final def $setOrRestore(value:Option[T]):PathSetter[D] =
     value.fold[PathSetter[D]](ValueDrop(_path))(v => ValueSetter(_path, _codec(v)))
 
+  final def unapply(d:Delta):Option[Option[DNullable[T]]] =
+    PathLensOps.traverse(d.value, _path) match {
+      case None => Some(None)
+      case Some(DNull) =>
+        Some(Some(DNull))
+      case Some(r) =>
+        _codec.unapply(r).map(t => Some(DSome(t)))
+    }
 }
 
 private[dsentric] trait DefaultLens[D <: DObject, T] extends DefaultLensLike[D, T] with ApplicativeLens[D, T] {
@@ -573,7 +625,12 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends DefaultLensLike[D, 
    * @return
    */
   final def unapply(obj:D):Option[T] =
-    Some(PathLensOps.traverse(obj.value, _path).flatMap(_codec.unapply).getOrElse(_default))
+    PathLensOps.traverse(obj.value, _path)
+      .fold[Option[T]](Some(_default))(_codec.unapply)
+
+  final def unapply(obj:Validated[D]):Some[T] =
+    Some(PathLensOps.traverse(obj.validObject.value, _path)
+      .map(_codec.unapply(_).get).getOrElse(_default))
 }
 
 /**
@@ -614,7 +671,19 @@ private[dsentric] trait MaybeDefaultLens[D <: DObject, T] extends DefaultLensLik
       case PathEmptyMaybe =>
         Some(None)
       case Found(r) =>
-        Some(Some(_codec.unapply(r).getOrElse(_default)))
+        _codec.unapply(r).map{v =>
+          Some(v)
+        }
+      case _ =>
+        Some(Some(_default))
+    }
+
+  final def unapply(obj:Validated[D]):Some[Option[T]] =
+    TraversalOps.maybeTraverse(obj.validObject.value, this, false) match {
+      case PathEmptyMaybe =>
+        Some(None)
+      case Found(r) =>
+        Some(Some(_codec.unapply(r).get))
       case _ =>
         Some(Some(_default))
     }
