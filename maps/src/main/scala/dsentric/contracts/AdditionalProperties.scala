@@ -169,4 +169,16 @@ abstract class DefinedAdditionalProperties[K, V](
   def this(contract: Contract, additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
           (implicit keyCodec:DStringCodec[K], evidence: V =:= DObject) =
     this(additionalPropertyDataOperators.toList, keyCodec, DContractCodec(contract).asInstanceOf[DCodec[V]])
+
+  def this(valueCodec:DCodec[V], additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
+          (implicit keyCodec:DStringCodec[K]) =
+    this(additionalPropertyDataOperators.toList, keyCodec, valueCodec)
+}
+
+/**
+ * By default Contracts and nested objects are closed, this trait can be set on abstract properties to prevent
+ * Them being inherited open
+ */
+trait Closed {
+  def _additionalDataOperators: Nil.type = Nil
 }

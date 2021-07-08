@@ -2,8 +2,8 @@ import sbt.Keys._
 
 lazy val buildSettings = Seq(
   organization       := "io.higherState",
-  scalaVersion       := "2.13.1",
-  version            := "1.0.0-RC3",
+  scalaVersion       := "2.13.6",
+  version            := "1.0.0-RC4",
   scalacOptions     ++= Seq(
     "-deprecation",
     "-encoding", "UTF-8",
@@ -24,7 +24,7 @@ lazy val buildSettings = Seq(
   )
 )
 
-lazy val reflect = "org.scala-lang" % "scala-reflect" % "2.13.5"
+lazy val reflect = "org.scala-lang" % "scala-reflect" % "2.13.6"
 lazy val shapeless = "com.chuusai" %% "shapeless" % "2.3.3"
 lazy val scalatest = "org.scalatest" %% "scalatest" % "3.2.7" % "test"
 lazy val cats = "org.typelevel" %% "cats-core" % "2.4.2"

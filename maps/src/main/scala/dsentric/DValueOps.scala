@@ -21,9 +21,9 @@ trait DValueOps {
     case (x:Boolean, y:Boolean) =>
       Ordering.Boolean.compare(x, y)
     case (x:Double, y:Long) =>
-      Ordering.Double.TotalOrdering.compare(x, y)
+      Ordering.Double.TotalOrdering.compare(x, y.toDouble)
     case (x:Long, y:Double) =>
-      Ordering.Double.TotalOrdering.compare(x, y)
+      Ordering.Double.TotalOrdering.compare(x.toDouble, y)
   }
 }
 

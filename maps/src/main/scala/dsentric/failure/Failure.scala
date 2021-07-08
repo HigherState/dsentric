@@ -102,6 +102,11 @@ final case class DeltaNotSupportedFailure[D <: DObject, T](contract: ContractFor
 
 }
 
+final case class CustomPathFailure[D <: DObject, T](contract: ContractFor[D], path:Path, message:String) extends Failure {
+  def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): Failure =
+    copy(contract = rootContract, path = rootPath ++ path)
+}
+
 object EmptyPropertyFailure extends Failure {
   def path: Path = Path.empty
 

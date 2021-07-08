@@ -90,10 +90,10 @@ trait DataOperationOps{
           .map{newObject => rawObject + (key -> newObject)}
 
       def transformCodec[T]:Function[(Raw, DCodec[T]), Option[Raw]] = {
-        case (nestedObject:RawObject@unchecked, DContractCodec(codecContract)) =>
-          objectTransform(codecContract, nestedObject)
-        case (nestedObject:RawObject@unchecked, d:DTypeContractCodec) =>
-          d.contracts.lift(new DObjectInst(nestedObject)).flatMap{typeContract =>
+        case (nestedObject:RawObject@unchecked, d:DContractCodec[_]) =>
+          objectTransform(d.contract, nestedObject)
+        case (nestedObject:RawObject@unchecked, d:DTypeContractCodec[_]) =>
+          d.contracts.lift(d.cstr(nestedObject)).flatMap{typeContract =>
             objectTransform(typeContract, nestedObject)
           }
         case (nestedObject:RawObject@unchecked, d:DMapCodec[T, _, _]) if d.containsContractCodec =>

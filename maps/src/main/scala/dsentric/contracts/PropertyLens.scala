@@ -42,6 +42,8 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
 
   private[contracts] def __reduceDelta(deltaObject:RawObject, currentObject:RawObject, dropBadTypes:Boolean):ValidResult[RawObject]
 
+  private[contracts] def __verify(obj: RawObject):List[Failure]
+
   private[contracts] def __applyConstraints[R](reduce:Available[R], badTypes: BadTypes): Available[R] =
     _dataOperators.flatMap {
       case c:Constraint[_] =>

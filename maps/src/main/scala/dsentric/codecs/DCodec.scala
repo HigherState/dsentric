@@ -1,7 +1,7 @@
 package dsentric.codecs
 
 import dsentric._
-import dsentric.contracts.Contract
+import dsentric.contracts.{Contract, ContractFor}
 import dsentric.schema._
 import shapeless.{HList, HNil}
 import shapeless.UnaryTCConstraint.*->*
@@ -122,7 +122,7 @@ trait DCollectionCodec[S, T] extends DCodec[S] {
     valueCodec.containsContractCodec
 }
 
-case class DValueClassCodec[S, T](
+final case class DValueClassCodec[S, T](
   from:S => T,
   to:T => Option[S],
   typeDefinitionOverride:Option[TypeDefinition] = None
@@ -142,34 +142,43 @@ case class DValueClassCodec[S, T](
   def containsContractCodec: Boolean = D.containsContractCodec
 }
 
-case class DContractCodec(contract:Contract) extends DCodec[DObject] {
+/**
+ * For cases where D is simply a new Box around the RawObject
+ * @param contract
+ * @param cstr
+ * @tparam D
+ */
+final case class DContractCodec[D <: DObject](contract:ContractFor[D], cstr: RawObject => D) extends DCodec[D] {
+  def containsContractCodec:Boolean = true
 
-  def unapply(a: Raw): Option[DObject] =
+  def unapply(a: Raw): Option[D] =
     a match {
       case m:RawObject@unchecked =>
-        //TODO could be a disconnect between unapply in ObjectLens
-        Some(new DObjectInst(m))
+        Some(cstr(m))
       case _ =>
         None
     }
 
-  def apply(t: DObject): Raw =
+  def apply(t: D): RawObject =
     t.value
 
-  def containsContractCodec:Boolean = true
 
   def typeDefinition: TypeDefinition = ???
 }
 
-case class DTypeContractCodec(typeDefinition: TypeDefinition)(val contracts:PartialFunction[DObject, Contract]) extends DCodec[DObject] {
+object DContractCodec {
+  val dObjectCstr:RawObject => DObject = new DObjectInst(_)
 
-  def this(contracts:PartialFunction[DObject, Contract]) =
-    this(ObjectDefinition.empty)(contracts)
+  def apply(contract:Contract):DContractCodec[DObject] =
+    DContractCodec(contract, dObjectCstr)
+}
 
-  def unapply(a: Raw): Option[DObject] =
+final case class DTypeContractCodec[D <: DObject](typeDefinition: TypeDefinition, cstr: RawObject => D)(val contracts:PartialFunction[D, ContractFor[D]]) extends DCodec[D] {
+
+  def unapply(a: Raw): Option[D] =
     a match {
       case m:RawObject@unchecked =>
-        val d = new DObjectInst(m)
+        val d = cstr(m)
         contracts
           .lift(d)
           .map(_ => d)
@@ -180,8 +189,16 @@ case class DTypeContractCodec(typeDefinition: TypeDefinition)(val contracts:Part
   def containsContractCodec:Boolean =
     true
 
-  def apply(t: DObject): Raw =
+  def apply(t: D): RawObject =
     t.value
+}
+
+object DTypeContractCodec {
+  def apply(typeDefinition: TypeDefinition)(contracts:PartialFunction[DObject, Contract]):DTypeContractCodec[DObject] =
+    DTypeContractCodec(typeDefinition, DContractCodec.dObjectCstr)(contracts)
+
+  def apply(contracts:PartialFunction[DObject, Contract]):DTypeContractCodec[DObject] =
+    DTypeContractCodec(ObjectDefinition.empty, DContractCodec.dObjectCstr)(contracts)
 }
 
 abstract class DProductCodec[T, E <: HList, H <: HList : *->*[DCodec]#λ](val codecs:H)(implicit T:ToTraversable.Aux[H, Array, DCodec[_]]) extends DCodec[T] {

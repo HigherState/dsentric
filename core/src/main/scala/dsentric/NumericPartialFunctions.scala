@@ -47,8 +47,8 @@ object NumericPartialFunctions {
 
   def float:PartialFunction[Any, Float] = {
     case n:Float => n
-    case n:Int => n
-    case n:Long => n
+    case n:Int => n.toFloat
+    case n:Long => n.toFloat
     case n:Double if n <= Float.MaxValue && n >= Float.MinValue => n.toFloat
     case n:Short => n
     case n:Byte => n
@@ -56,7 +56,7 @@ object NumericPartialFunctions {
 
   def double:PartialFunction[Any, Double] = {
     case n:Double => n
-    case n:Long => n
+    case n:Long => n.toDouble
     case n:Float => n
     case n:Int => n
     case n:Short => n

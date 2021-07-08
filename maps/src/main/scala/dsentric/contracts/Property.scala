@@ -3,7 +3,7 @@ package dsentric.contracts
 import dsentric._
 import dsentric.codecs.DCodec
 import dsentric.codecs.std.DValueCodecs
-import dsentric.failure.{EmptyPropertyFailure, ValidResult}
+import dsentric.failure.{EmptyPropertyFailure, Failure, ValidResult}
 import dsentric.operators.DataOperator
 
 sealed trait Property[D <: DObject, T <: Any] extends PropertyLens[D, T] {
@@ -142,6 +142,8 @@ private[dsentric] case class DynamicProperty[D <: DObject, T](_codec:DCodec[T], 
     ValidResult.failure(EmptyPropertyFailure)
   private[contracts] def __reduce(obj: RawObject, dropBadTypes: Boolean): ValidResult[RawObject] =
     ValidResult.failure(EmptyPropertyFailure)
+  private[contracts] def __verify(obj: RawObject): List[Failure] =
+    List(EmptyPropertyFailure)
   private[contracts] def __reduceDelta(deltaObject: RawObject, currentObject: RawObject, dropBadTypes: Boolean): ValidResult[RawObject] =
     ValidResult.failure(EmptyPropertyFailure)
 }

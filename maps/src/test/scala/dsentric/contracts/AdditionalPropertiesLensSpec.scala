@@ -12,7 +12,7 @@ class AdditionalPropertiesLensSpec extends AnyFunSpec with Matchers with EitherV
   import dsentric.codecs.std.DCodecs._
   import dsentric.Implicits._
 
-  object Simple extends Contract with Open{
+  object Simple extends Contract with Open {
     val default = \![Int](999)
   }
 

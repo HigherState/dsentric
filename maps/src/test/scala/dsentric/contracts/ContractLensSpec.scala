@@ -25,17 +25,17 @@ class ContractLensSpec extends AnyFunSpec with Matchers with EitherValues {
     describe("Closed for additional properties") {
       it("Should return empty list if no additional properties") {
         val base = DObject("expected" := "value")
-        ClosedContract.$verify(base) shouldBe empty
+        ClosedContract.$verify(base) shouldBe Symbol("right")
       }
       it("Should return ClosedContractFailure if additional properties") {
         val base = DObject("expected" := "value", "additional" := 1)
-        ClosedContract.$verify(base) should contain (ClosedContractFailure(ClosedContract, PathEnd, "additional"))
+        ClosedContract.$verify(base).left.value should contain (ClosedContractFailure(ClosedContract, PathEnd, "additional"))
       }
     }
     describe("Additional properties") {
       it("Should return empty list if additional properties") {
         val base = DObject("expected" := "value", "additional" := 1)
-        OpenContract.$verify(base) shouldBe empty
+        OpenContract.$verify(base) shouldBe Symbol("right")
       }
     }
   }
