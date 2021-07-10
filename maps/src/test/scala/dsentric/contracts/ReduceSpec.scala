@@ -22,8 +22,8 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should return failure if empty") {
         val base = DObject.empty
-        Expected.$reduce(base).left.value should contain (ExpectedFailure(Expected.property))
-        Expected.$reduce(base, true).left.value should contain (ExpectedFailure(Expected.property))
+        Expected.$reduce(base).left.value should contain(ExpectedFailure(Expected.property))
+        Expected.$reduce(base, true).left.value should contain(ExpectedFailure(Expected.property))
       }
       it("Should return object if expected set correctly") {
         val base = DObject("property" := 123)
@@ -32,18 +32,18 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should return incorrect type failure if incorrect type value") {
         val base = DObject("property" := "failed")
-        Expected.$reduce(base).left.value should contain (IncorrectTypeFailure(Expected.property, "failed"))
-        Expected.$reduce(base, true).left.value should contain (IncorrectTypeFailure(Expected.property, "failed"))
+        Expected.$reduce(base).left.value should contain(IncorrectTypeFailure(Expected.property, "failed"))
+        Expected.$reduce(base, true).left.value should contain(IncorrectTypeFailure(Expected.property, "failed"))
       }
       it("Should return expected type failure if value null") {
         val base = DObject("property" := DNull)
-        Expected.$reduce(base).left.value should contain (ExpectedFailure(Expected.property))
-        Expected.$reduce(base, true).left.value should contain (ExpectedFailure(Expected.property))
+        Expected.$reduce(base).left.value should contain(ExpectedFailure(Expected.property))
+        Expected.$reduce(base, true).left.value should contain(ExpectedFailure(Expected.property))
       }
       it("Should return expected type failure if value empty object") {
         val base = DObject("property" := DObject.empty)
-        Expected.$reduce(base).left.value should contain (ExpectedFailure(Expected.property))
-        Expected.$reduce(base, true).left.value should contain (ExpectedFailure(Expected.property))
+        Expected.$reduce(base).left.value should contain(ExpectedFailure(Expected.property))
+        Expected.$reduce(base, true).left.value should contain(ExpectedFailure(Expected.property))
       }
     }
 
@@ -63,7 +63,7 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should return incorrect type failure if incorrect type value") {
         val base = DObject("property" := "failed")
-        Maybe.$reduce(base).left.value should contain (IncorrectTypeFailure(Maybe.property, "failed"))
+        Maybe.$reduce(base).left.value should contain(IncorrectTypeFailure(Maybe.property, "failed"))
       }
       it("Should return empty object if incorrect type value with DropBadTypes is true") {
         val base = DObject("property" := "failed")
@@ -102,7 +102,7 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should return incorrect type failure if incorrect type value") {
         val base = DObject("property" := "failed")
-        Default.$reduce(base).left.value should contain (IncorrectTypeFailure(Default.property, "failed"))
+        Default.$reduce(base).left.value should contain(IncorrectTypeFailure(Default.property, "failed"))
       }
       it("Should return empty object if incorrect type value with DropBadTypes is true") {
         val base = DObject("property" := "failed")
@@ -122,19 +122,19 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
 
     describe("Contract Codec Type") {
 
-      object Nested extends Contract with Open{
+      object Nested               extends Contract with Open {
         val expected = \[String]
-        val maybe = \?[Boolean]
-        val default = \![Int](0)
+        val maybe    = \?[Boolean]
+        val default  = \![Int](0)
       }
-      object Blank extends Contract with Open
-      object ContractCodec extends Contract {
+      object Blank                extends Contract with Open
+      object ContractCodec        extends Contract           {
         val property = \[DObject](DContractCodec(Nested))
       }
-      object MaybeContractCodec extends Contract {
+      object MaybeContractCodec   extends Contract           {
         val property = \?[DObject](DContractCodec(Nested))
       }
-      object UnusualContractCodec extends Contract {
+      object UnusualContractCodec extends Contract           {
         val property = \[DObject](DContractCodec(Blank))
       }
       it("Should return object if contract values correct") {
@@ -144,27 +144,35 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should return failure if expected object missing") {
         val base = DObject.empty
-        ContractCodec.$reduce(base).left.value should contain (ExpectedFailure(ContractCodec, Path("property")))
-        ContractCodec.$reduce(base, true).left.value should contain (ExpectedFailure(ContractCodec, Path("property")))
+        ContractCodec.$reduce(base).left.value should contain(ExpectedFailure(ContractCodec, Path("property")))
+        ContractCodec.$reduce(base, true).left.value should contain(ExpectedFailure(ContractCodec, Path("property")))
       }
       it("Should return failure if expected object is empty") {
         val base = DObject("property" := DObject.empty)
-        ContractCodec.$reduce(base).left.value should contain (ExpectedFailure(ContractCodec, Path("property")))
-        ContractCodec.$reduce(base, true).left.value should contain (ExpectedFailure(ContractCodec, Path("property")))
+        ContractCodec.$reduce(base).left.value should contain(ExpectedFailure(ContractCodec, Path("property")))
+        ContractCodec.$reduce(base, true).left.value should contain(ExpectedFailure(ContractCodec, Path("property")))
       }
       it("Should return failure if expected object missing is empty, even if empty satisfies contract") {
         val base = DObject.empty
-        UnusualContractCodec.$reduce(base).left.value should contain (ExpectedFailure(UnusualContractCodec, Path("property")))
-        UnusualContractCodec.$reduce(base, true).left.value should contain (ExpectedFailure(UnusualContractCodec, Path("property")))
+        UnusualContractCodec.$reduce(base).left.value should contain(
+          ExpectedFailure(UnusualContractCodec, Path("property"))
+        )
+        UnusualContractCodec.$reduce(base, true).left.value should contain(
+          ExpectedFailure(UnusualContractCodec, Path("property"))
+        )
       }
       it("Should return failure if expected object does not satisfy contract conditions") {
         val base = DObject("property" ::= ("maybe" := false))
-        ContractCodec.$reduce(base).left.value should contain (ExpectedFailure(ContractCodec, Path("property", "expected")))
-        ContractCodec.$reduce(base, true).left.value should contain (ExpectedFailure(ContractCodec, Path("property", "expected")))
+        ContractCodec.$reduce(base).left.value should contain(ExpectedFailure(ContractCodec, Path("property", "expected")))
+        ContractCodec.$reduce(base, true).left.value should contain(
+          ExpectedFailure(ContractCodec, Path("property", "expected"))
+        )
       }
       it("Should return failure if maybe object does not satisfy contract conditions") {
         val base = DObject("property" ::= ("maybe" := false))
-        MaybeContractCodec.$reduce(base).left.value should contain (ExpectedFailure(MaybeContractCodec, Path("property", "expected")))
+        MaybeContractCodec.$reduce(base).left.value should contain(
+          ExpectedFailure(MaybeContractCodec, Path("property", "expected"))
+        )
       }
       it("Should return empty if current empty if delta does not satisfy contract conditions and contract is maybe under dropBadTypes is true") {
         val base = DObject("property" ::= ("maybe" := false))
@@ -175,23 +183,29 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
         ContractCodec.$reduce(base, true).value shouldBe DObject("property" ::= ("expected" := "value"))
       }
       it("Should return reduce null and empty object values in contract") {
-        val base = DObject("property" ::= ("expected" := "value", "maybe" := false, "default" := 0, "add1" := DNull, "add2" := DObject.empty))
-        ContractCodec.$reduce(base).value shouldBe DObject("property" ::= ("expected" := "value", "maybe" := false, "default" := 0))
-        ContractCodec.$reduce(base, true).value shouldBe DObject("property" ::= ("expected" := "value", "maybe" := false, "default" := 0))
+        val base = DObject(
+          "property" ::= ("expected" := "value", "maybe" := false, "default" := 0, "add1" := DNull, "add2" := DObject.empty)
+        )
+        ContractCodec.$reduce(base).value shouldBe DObject(
+          "property" ::= ("expected" := "value", "maybe" := false, "default" := 0)
+        )
+        ContractCodec.$reduce(base, true).value shouldBe DObject(
+          "property" ::= ("expected" := "value", "maybe" := false, "default" := 0)
+        )
       }
     }
 
     describe("Map Codec Type") {
-      object Nested extends Contract with Open {
+      object Nested        extends Contract with Open {
         val expected = \[String]
-        val maybe = \?[Boolean]
-        val default = \![Int](0)
+        val maybe    = \?[Boolean]
+        val default  = \![Int](0)
       }
-      object MapCodec extends Contract {
+      object MapCodec      extends Contract           {
         val property = \[Map[Length4String, Int]]
 
       }
-      object MaybeMapCodec extends Contract {
+      object MaybeMapCodec extends Contract           {
         val property = \?[Map[Length4String, DObject]](Nested)
       }
       it("Should return object if values are correct") {
@@ -201,13 +215,13 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should return failure if map key does not satisfy contract conditions") {
         val base = DObject("property" ::= ("key25" := 1234, "key2" := 131))
-        MapCodec.$reduce(base).left.value should contain (
-          IncorrectKeyTypeFailure(MapCodec, Path("property"), Length4String.fixedLength4StringCodec, "key25"),
+        MapCodec.$reduce(base).left.value should contain(
+          IncorrectKeyTypeFailure(MapCodec, Path("property"), Length4String.fixedLength4StringCodec, "key25")
         )
       }
       it("Should return failure if map value does not satisfy contract conditions") {
         val base = DObject("property" ::= ("key2" := 1234, "key2" := "bob"))
-        MapCodec.$reduce(base).left.value should contain (
+        MapCodec.$reduce(base).left.value should contain(
           IncorrectTypeFailure(MapCodec, Path("property", "key2"), intCodec, "bob")
         )
       }
@@ -220,47 +234,59 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
         MapCodec.$reduce(base, true).value shouldBe DObject("property" ::= ("key1" := 1234))
       }
       it("Should return failure if expected map reduces to empty") {
-        val base = DObject("property" ::= ("key1" := DNull))
-        MapCodec.$reduce(base).left.value should contain (ExpectedFailure(MapCodec.property))
-        MapCodec.$reduce(base, true).left.value should contain (ExpectedFailure(MapCodec.property))
+        val base  = DObject("property" ::= ("key1" := DNull))
+        MapCodec.$reduce(base).left.value should contain(ExpectedFailure(MapCodec.property))
+        MapCodec.$reduce(base, true).left.value should contain(ExpectedFailure(MapCodec.property))
         val base2 = DObject("property" ::= ("key1" := DObject.empty))
-        MapCodec.$reduce(base2).left.value should contain (ExpectedFailure(MapCodec.property))
-        MapCodec.$reduce(base2, true).left.value should contain (ExpectedFailure(MapCodec.property))
+        MapCodec.$reduce(base2).left.value should contain(ExpectedFailure(MapCodec.property))
+        MapCodec.$reduce(base2, true).left.value should contain(ExpectedFailure(MapCodec.property))
       }
       it("Should return empty if maybe property reduces to empty") {
         val base = DObject("property" ::= ("key1" := DNull, "key2" := DObject.empty))
-         MaybeMapCodec.$reduce(base).value shouldBe DObject.empty
-         MaybeMapCodec.$reduce(base, true).value shouldBe DObject.empty
+        MaybeMapCodec.$reduce(base).value shouldBe DObject.empty
+        MaybeMapCodec.$reduce(base, true).value shouldBe DObject.empty
       }
       it("Should return reduced object if maybe property reduces to empty even if keys are invalid") {
-        val base = DObject("property" ::= ("key1" := 3, "key11" := DNull, "key21" := DObject.empty, "key22" ::= ("empty" := DObject.empty)))
+        val base = DObject(
+          "property" ::= ("key1" := 3, "key11" := DNull, "key21" := DObject.empty, "key22" ::= ("empty" := DObject.empty))
+        )
         MapCodec.$reduce(base).value shouldBe DObject("property" ::= ("key1" := 3))
         MapCodec.$reduce(base, true).value shouldBe DObject("property" ::= ("key1" := 3))
       }
       it("Should return failure with contract failures") {
         val base = DObject("property" ::= ("key3" := DObject("maybe" := false)))
-        MaybeMapCodec.$reduce(base).left.value should contain (ExpectedFailure(MaybeMapCodec, Path("property", "key3", "expected")))
+        MaybeMapCodec.$reduce(base).left.value should contain(
+          ExpectedFailure(MaybeMapCodec, Path("property", "key3", "expected"))
+        )
       }
       it("Should return empty if maybe property contains only invalid key pairs and DropBadType is true") {
-        val base = DObject("property" ::= ("key1" := false, "key24" := DObject("expected" := "value"), "key3" := DObject("maybe" := false)))
+        val base = DObject(
+          "property" ::= ("key1" := false, "key24" := DObject("expected" := "value"), "key3" := DObject("maybe" := false))
+        )
         MaybeMapCodec.$reduce(base, true).value shouldBe DObject.empty
       }
       it("Should return reduce null and empty object values in contract") {
-        val base = DObject("property" ::= ("key1" ::= ("expected" := "value", "maybe" := false, "default" := 0, "add1" := DNull, "add2" := DObject.empty)))
-        MaybeMapCodec.$reduce(base).value shouldBe DObject("property" ::= ("key1" ::= ("expected" := "value", "maybe" := false, "default" := 0)))
-        MaybeMapCodec.$reduce(base, true).value shouldBe DObject("property" ::= ("key1" ::= ("expected" := "value", "maybe" := false, "default" := 0)))
+        val base = DObject(
+          "property" ::= ("key1" ::= ("expected" := "value", "maybe" := false, "default" := 0, "add1" := DNull, "add2" := DObject.empty))
+        )
+        MaybeMapCodec.$reduce(base).value shouldBe DObject(
+          "property" ::= ("key1" ::= ("expected" := "value", "maybe" := false, "default" := 0))
+        )
+        MaybeMapCodec.$reduce(base, true).value shouldBe DObject(
+          "property" ::= ("key1" ::= ("expected" := "value", "maybe" := false, "default" := 0))
+        )
       }
     }
     describe("Collection Codec Type") {
-      object Nested extends Contract with Open{
+      object Nested               extends Contract with Open {
         val expected = \[String]
-        val maybe = \?[Boolean]
-        val default = \![Int](0)
+        val maybe    = \?[Boolean]
+        val default  = \![Int](0)
       }
-      object CollectionCodec extends Contract {
+      object CollectionCodec      extends Contract           {
         val property = \[List[Int]]
       }
-      object MaybeCollectionCodec extends Contract {
+      object MaybeCollectionCodec extends Contract           {
         val property = \?[List[DObject]](Nested)
       }
       it("Should return object if values are correct") {
@@ -270,13 +296,13 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should return failure if element does not satisfy contract conditions") {
         val base = DObject("property" := Vector(Data(1234), Data("bob")))
-        CollectionCodec.$reduce(base).left.value should contain (
-          IncorrectTypeFailure(CollectionCodec, Path("property", 1), intCodec, "bob")
+        CollectionCodec.$reduce(base).left.value should contain(
+          IncorrectTypeFailure(CollectionCodec, "property" :: 1 :: PathEnd, intCodec, "bob")
         )
       }
       it("Should return element missing failure if expected value does not satisfy contract conditions with DropBadType is true") {
         val base = DObject("property" := Vector(Data(1234), Data("bob")))
-        CollectionCodec.$reduce(base, true).left.value should contain (
+        CollectionCodec.$reduce(base, true).left.value should contain(
           MissingElementFailure(CollectionCodec, CollectionCodec.property._codec, Path("property", 1))
         )
       }
@@ -287,32 +313,42 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should return failure with contract failures") {
         val base = DObject("property" := Vector(DObject("maybe" := false)))
-        MaybeCollectionCodec.$reduce(base).left.value should contain (ExpectedFailure(MaybeCollectionCodec, Path("property", 0, "expected")))
+        MaybeCollectionCodec.$reduce(base).left.value should contain(
+          ExpectedFailure(MaybeCollectionCodec, Path("property", 0, "expected"))
+        )
       }
       it("Should return empty if maybe property contains an invalid value with DropBadTypes is true") {
-        val base = DObject("property"  := Vector(DObject("expected" := "value"), Data("bob")))
+        val base = DObject("property" := Vector(DObject("expected" := "value"), Data("bob")))
         MaybeCollectionCodec.$reduce(base, true).value shouldBe DObject.empty
       }
       it("Should return reduce null and empty object values in contract") {
-        val base = DObject("property" := Vector(DObject("expected" := "value", "maybe" := false, "default" := 0, "add1" := DNull, "add2" := DObject.empty)))
-         MaybeCollectionCodec.$reduce(base).value shouldBe DObject("property" := Vector(DObject("expected" := "value", "maybe" := false, "default" := 0)))
-         MaybeCollectionCodec.$reduce(base, true).value shouldBe DObject("property" := Vector(DObject("expected" := "value", "maybe" := false, "default" := 0)))
+        val base = DObject(
+          "property" := Vector(
+            DObject("expected" := "value", "maybe" := false, "default" := 0, "add1" := DNull, "add2" := DObject.empty)
+          )
+        )
+        MaybeCollectionCodec.$reduce(base).value shouldBe DObject(
+          "property" := Vector(DObject("expected" := "value", "maybe" := false, "default" := 0))
+        )
+        MaybeCollectionCodec.$reduce(base, true).value shouldBe DObject(
+          "property" := Vector(DObject("expected" := "value", "maybe" := false, "default" := 0))
+        )
       }
     }
     describe("Coproduct Codec Type") {
-      object Nested extends Contract with Open {
+      object Nested              extends Contract with Open {
         val expected = \[String]
-        val maybe = \?[Boolean]
-        val default = \![Int](0)
+        val maybe    = \?[Boolean]
+        val default  = \![Int](0)
       }
-      object CoproductCodec extends Contract {
+      object CoproductCodec      extends Contract           {
         val property = \[Either[Int, String]]
       }
-      object MaybeCoproductCodec extends Contract {
+      object MaybeCoproductCodec extends Contract           {
         val property = \?[Either[Long, DObject]](Nested)
       }
       it("Should return object if values are correct") {
-        val base = DObject("property" := 123)
+        val base  = DObject("property" := 123)
         CoproductCodec.$reduce(base).value shouldBe base
         CoproductCodec.$reduce(base, true).value shouldBe base
         val base2 = DObject("property" := "value")
@@ -321,8 +357,11 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should return failure if incorrect type") {
         val base = DObject("property" := false)
-        CoproductCodec.$reduce(base).left.value should contain (
-          CoproductTypeValueFailure(CoproductCodec, CoproductCodec.property._codec.asInstanceOf[DCoproductCodec[Either[Int, String], HList]], Path("property"),
+        CoproductCodec.$reduce(base).left.value should contain(
+          CoproductTypeValueFailure(
+            CoproductCodec,
+            CoproductCodec.property._codec.asInstanceOf[DCoproductCodec[Either[Int, String], HList]],
+            Path("property"),
             List(
               IncorrectTypeFailure(CoproductCodec, Path("property"), intCodec, false),
               IncorrectTypeFailure(CoproductCodec, Path("property"), stringCodec, false)
@@ -330,8 +369,11 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
             false
           )
         )
-        CoproductCodec.$reduce(base, true).left.value should contain (
-          CoproductTypeValueFailure(CoproductCodec, CoproductCodec.property._codec.asInstanceOf[DCoproductCodec[Either[Int, String], HList]], Path("property"),
+        CoproductCodec.$reduce(base, true).left.value should contain(
+          CoproductTypeValueFailure(
+            CoproductCodec,
+            CoproductCodec.property._codec.asInstanceOf[DCoproductCodec[Either[Int, String], HList]],
+            Path("property"),
             List(
               IncorrectTypeFailure(CoproductCodec, Path("property"), intCodec, false),
               IncorrectTypeFailure(CoproductCodec, Path("property"), stringCodec, false)
@@ -342,16 +384,30 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
 
       it("Should reduce down contract values") {
-        val base = DObject("property" ::= ("expected" := "value", "maybe" := false, "default" := 0, "add1" := DNull, "add2" := DObject.empty))
-        MaybeCoproductCodec.$reduce(base).value shouldBe DObject("property" ::= ("expected" := "value", "maybe" := false, "default" := 0))
-        MaybeCoproductCodec.$reduce(base, true).value shouldBe DObject("property" ::= ("expected" := "value", "maybe" := false, "default" := 0))
+        val base = DObject(
+          "property" ::= ("expected" := "value", "maybe" := false, "default" := 0, "add1" := DNull, "add2" := DObject.empty)
+        )
+        MaybeCoproductCodec.$reduce(base).value shouldBe DObject(
+          "property" ::= ("expected" := "value", "maybe" := false, "default" := 0)
+        )
+        MaybeCoproductCodec.$reduce(base, true).value shouldBe DObject(
+          "property" ::= ("expected" := "value", "maybe" := false, "default" := 0)
+        )
       }
       it("Should return contract failures") {
         val base = DObject("property" ::= ("maybe" := false, "default" := 0, "add1" := DNull, "add2" := DObject.empty))
-        MaybeCoproductCodec.$reduce(base).left.value should contain (
-          CoproductTypeValueFailure(MaybeCoproductCodec, MaybeCoproductCodec.property._codec.asInstanceOf[DCoproductCodec[Either[Long, DObject], HList]], Path("property"),
+        MaybeCoproductCodec.$reduce(base).left.value should contain(
+          CoproductTypeValueFailure(
+            MaybeCoproductCodec,
+            MaybeCoproductCodec.property._codec.asInstanceOf[DCoproductCodec[Either[Long, DObject], HList]],
+            Path("property"),
             List(
-              IncorrectTypeFailure(MaybeCoproductCodec, Path("property"), longCodec, DObject("maybe" := false, "default" := 0, "add1" := DNull, "add2" := DObject.empty).value),
+              IncorrectTypeFailure(
+                MaybeCoproductCodec,
+                Path("property"),
+                longCodec,
+                DObject("maybe" := false, "default" := 0, "add1" := DNull, "add2" := DObject.empty).value
+              ),
               ExpectedFailure(MaybeCoproductCodec, Path("property", "expected"))
             ),
             DObject("maybe" := false, "default" := 0, "add1" := DNull, "add2" := DObject.empty).value
@@ -360,35 +416,37 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should return reduce contract failure if DropBadTypes is true") {
         val base = DObject("property" ::= ("expected" := "value", "maybe" := 1234, "default" := 0))
-        MaybeCoproductCodec.$reduce(base, true).value shouldBe DObject("property" ::= ("expected" := "value", "default" := 0))
+        MaybeCoproductCodec.$reduce(base, true).value shouldBe DObject(
+          "property" ::= ("expected" := "value", "default" := 0)
+        )
       }
     }
     describe("Type Contract Codec Type") {
 
-      object Type1 extends Contract with Open{
-        val _type = \[String]("type")(DValueCodec.literal("type1"))
+      object Type1                  extends Contract with Open {
+        val _type     = \[String]("type")(DValueCodec.literal("type1"))
         val property1 = \[String]
         val property2 = \?[Int]
       }
-      object Type2 extends Contract with Open{
-        val _type = \[String]("type")(DValueCodec.literal("type2"))
+      object Type2                  extends Contract with Open {
+        val _type     = \[String]("type")(DValueCodec.literal("type2"))
         val property1 = \[Int]
         val property2 = \?[String]
       }
-      object TypeContractCodec extends Contract {
-        val property = \[DObject](DTypeContractCodec(ObjectDefinition.empty){
+      object TypeContractCodec      extends Contract           {
+        val property = \[DObject](DTypeContractCodec(ObjectDefinition.empty) {
           case Type1._type(_) => Type1
           case Type2._type(_) => Type2
         })
       }
-      object MaybeTypeContractCodec extends Contract {
-        val property = \?[DObject](DTypeContractCodec(ObjectDefinition.empty){
+      object MaybeTypeContractCodec extends Contract           {
+        val property = \?[DObject](DTypeContractCodec(ObjectDefinition.empty) {
           case Type1._type(_) => Type1
           case Type2._type(_) => Type2
         })
       }
       it("Should return object if target contract satisfied") {
-        val base = DObject("property" := DObject("type" := "type1", "property1" := "value"))
+        val base  = DObject("property" := DObject("type" := "type1", "property1" := "value"))
         TypeContractCodec.$reduce(base).value shouldBe base
         TypeContractCodec.$reduce(base, true).value shouldBe base
         val base2 = DObject("property" := DObject("type" := "type2", "property1" := 34532, "property2" := "value"))
@@ -396,35 +454,47 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
         TypeContractCodec.$reduce(base2, true).value shouldBe base2
       }
       it("Should return failure if target contract not satisfied") {
-        val base = DObject("property" := DObject("type" := "type2", "property1" := "value"))
-        TypeContractCodec.$reduce(base).left.value should contain (IncorrectTypeFailure(TypeContractCodec, Path("property", "property1"), intCodec, "value"))
-        TypeContractCodec.$reduce(base, true).left.value should contain (IncorrectTypeFailure(TypeContractCodec, Path("property", "property1"), intCodec, "value"))
+        val base  = DObject("property" := DObject("type" := "type2", "property1" := "value"))
+        TypeContractCodec.$reduce(base).left.value should contain(
+          IncorrectTypeFailure(TypeContractCodec, Path("property", "property1"), intCodec, "value")
+        )
+        TypeContractCodec.$reduce(base, true).left.value should contain(
+          IncorrectTypeFailure(TypeContractCodec, Path("property", "property1"), intCodec, "value")
+        )
         val base2 = DObject("property" := DObject("type" := "type1", "property2" := 1234))
-        TypeContractCodec.$reduce(base2).left.value should contain (ExpectedFailure(TypeContractCodec, Path("property", "property1")))
-        TypeContractCodec.$reduce(base2, true).left.value should contain (ExpectedFailure(TypeContractCodec, Path("property", "property1")))
+        TypeContractCodec.$reduce(base2).left.value should contain(
+          ExpectedFailure(TypeContractCodec, Path("property", "property1"))
+        )
+        TypeContractCodec.$reduce(base2, true).left.value should contain(
+          ExpectedFailure(TypeContractCodec, Path("property", "property1"))
+        )
       }
       it("Should return failure if expected property is empty") {
         val base = DObject.empty
-        TypeContractCodec.$reduce(base).left.value should contain (ExpectedFailure(TypeContractCodec, Path("property")))
-        TypeContractCodec.$reduce(base, true).left.value should contain (ExpectedFailure(TypeContractCodec, Path("property")))
+        TypeContractCodec.$reduce(base).left.value should contain(ExpectedFailure(TypeContractCodec, Path("property")))
+        TypeContractCodec.$reduce(base, true).left.value should contain(
+          ExpectedFailure(TypeContractCodec, Path("property"))
+        )
       }
       it("Should return failure if expected object is empty") {
         val base = DObject("property" := DObject.empty)
-        TypeContractCodec.$reduce(base).left.value should contain (ExpectedFailure(TypeContractCodec, Path("property")))
-        TypeContractCodec.$reduce(base, true).left.value should contain (ExpectedFailure(TypeContractCodec, Path("property")))
+        TypeContractCodec.$reduce(base).left.value should contain(ExpectedFailure(TypeContractCodec, Path("property")))
+        TypeContractCodec.$reduce(base, true).left.value should contain(
+          ExpectedFailure(TypeContractCodec, Path("property"))
+        )
       }
       it("Should return empty if maybe target contract not expected satisfied and DropBadTypes is true") {
-        val base = DObject("property" := DObject("type" := "type2", "property1" := "value"))
+        val base  = DObject("property" := DObject("type" := "type2", "property1" := "value"))
         MaybeTypeContractCodec.$reduce(base, true).value shouldBe DObject.empty
         val base2 = DObject("property" := DObject("type" := "type1", "property2" := 1234))
         MaybeTypeContractCodec.$reduce(base2, true).value shouldBe DObject.empty
       }
       it("Should fail if target contract cannot be resolved") {
         val base = DObject("property" := DObject("property1" := "value"))
-        TypeContractCodec.$reduce(base).left.value should contain (
+        TypeContractCodec.$reduce(base).left.value should contain(
           ContractTypeResolutionFailure(TypeContractCodec, Path("property"), DObject("property1" := "value").value)
         )
-        TypeContractCodec.$reduce(base, true).left.value should contain (
+        TypeContractCodec.$reduce(base, true).left.value should contain(
           ContractTypeResolutionFailure(TypeContractCodec, Path("property"), DObject("property1" := "value").value)
         )
       }
@@ -433,13 +503,21 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
         MaybeTypeContractCodec.$reduce(base, true).value shouldBe DObject.empty
       }
       it("Should reduce elements in target contract") {
-        val base = DObject("property" := DObject("type" := "type1", "property1" := "value", "add1" := DNull, "add2" := DObject.empty))
-        TypeContractCodec.$reduce(base).value shouldBe DObject("property" := DObject("type" := "type1", "property1" := "value"))
-        TypeContractCodec.$reduce(base, true).value shouldBe DObject("property" := DObject("type" := "type1", "property1" := "value"))
+        val base = DObject(
+          "property" := DObject("type" := "type1", "property1" := "value", "add1" := DNull, "add2" := DObject.empty)
+        )
+        TypeContractCodec.$reduce(base).value shouldBe DObject(
+          "property" := DObject("type" := "type1", "property1" := "value")
+        )
+        TypeContractCodec.$reduce(base, true).value shouldBe DObject(
+          "property" := DObject("type" := "type1", "property1" := "value")
+        )
       }
       it("Should reduce failed types in target contract with DropBadTypes is true") {
         val base = DObject("property" := DObject("type" := "type2", "property1" := 1234, "property2" := false))
-        MaybeTypeContractCodec.$reduce(base, true).value shouldBe DObject("property" := DObject("type" := "type2", "property1" := 1234))
+        MaybeTypeContractCodec.$reduce(base, true).value shouldBe DObject(
+          "property" := DObject("type" := "type2", "property1" := 1234)
+        )
       }
     }
 
@@ -448,10 +526,10 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
 
       object Constrained extends Contract {
         val expected = \[String](immutable)
-        val maybe = \?[Int](internal)
-        val default = \![String]("value", mask("******"))
+        val maybe    = \?[Int](internal)
+        val default  = \![String]("value", mask("******"))
 
-        val expectedObject = new \\?(reserved){
+        val expectedObject = new \\?(reserved) {
           val property1 = \[Int]
           val property2 = \?[String]
         }
@@ -470,8 +548,8 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
 
       it("Should return failure if Object constraint triggered") {
-        val base = DObject("expectedObject" ::= ("property1" := 123, "property2" := "value" ))
-        Constrained.$reduce(base).left.value should contain (ReservedFailure(Constrained, Path("expectedObject")))
+        val base = DObject("expectedObject" ::= ("property1" := 123, "property2" := "value"))
+        Constrained.$reduce(base).left.value should contain(ReservedFailure(Constrained, Path("expectedObject")))
       }
     }
   }
@@ -480,15 +558,15 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
     import dsentric.codecs.std.DCodecs._
 
     describe("Expected property") {
-      object ExpectedObject extends Contract {
-        val property = new \\ with Open{
+      object ExpectedObject      extends Contract {
+        val property = new \\ with Open {
           val expected = \[String]
-          val maybe = \?[Int]
+          val maybe    = \?[Int]
         }
       }
       object ExpectedMaybeObject extends Contract {
-        val property = new \\ with Open{
-          val maybe = \?[String]
+        val property = new \\ with Open {
+          val maybe  = \?[String]
           val maybe2 = \?[Int]
         }
       }
@@ -499,43 +577,31 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should fail if object is empty and requires expected properties") {
         val base = DObject.empty
-        ExpectedObject.$reduce(base).left.value should contain (
-          ExpectedFailure(ExpectedObject.property.expected)
-        )
-        ExpectedObject.$reduce(base, true).left.value should contain (
-          ExpectedFailure(ExpectedObject.property.expected)
-        )
+        ExpectedObject.$reduce(base).left.value should contain(ExpectedFailure(ExpectedObject.property.expected))
+        ExpectedObject.$reduce(base, true).left.value should contain(ExpectedFailure(ExpectedObject.property.expected))
       }
       it("Should fail if expected object is empty and requires expected properties") {
         val base = DObject("property" := DObject.empty)
-        ExpectedObject.$reduce(base).left.value should contain (
-          ExpectedFailure(ExpectedObject.property.expected)
-        )
-        ExpectedObject.$reduce(base, true).left.value should contain (
-          ExpectedFailure(ExpectedObject.property.expected)
-        )
+        ExpectedObject.$reduce(base).left.value should contain(ExpectedFailure(ExpectedObject.property.expected))
+        ExpectedObject.$reduce(base, true).left.value should contain(ExpectedFailure(ExpectedObject.property.expected))
       }
       it("Should fail if expected object is null and requires expected properties") {
         val base = DObject("property" := DNull)
-        ExpectedObject.$reduce(base).left.value should contain (
-          ExpectedFailure(ExpectedObject.property.expected)
-        )
-        ExpectedObject.$reduce(base, true).left.value should contain (
-          ExpectedFailure(ExpectedObject.property.expected)
-        )
+        ExpectedObject.$reduce(base).left.value should contain(ExpectedFailure(ExpectedObject.property.expected))
+        ExpectedObject.$reduce(base, true).left.value should contain(ExpectedFailure(ExpectedObject.property.expected))
       }
       it("Should fail if expected object expected properties fail to satisfy conditions") {
         val base = DObject("property" := DObject("expected" := 12341, "maybe" := "fail"))
-        ExpectedObject.$reduce(base).left.value should contain (
+        ExpectedObject.$reduce(base).left.value should contain(
           IncorrectTypeFailure(ExpectedObject.property.expected, 12341)
         )
-        ExpectedObject.$reduce(base, true).left.value should contain (
+        ExpectedObject.$reduce(base, true).left.value should contain(
           IncorrectTypeFailure(ExpectedObject.property.expected, 12341)
         )
       }
       it("Should fail if expected object maybe properties fail to satisfy conditions") {
         val base = DObject("property" := DObject("expected" := "value", "maybe" := "fail"))
-        ExpectedObject.$reduce(base).left.value should contain (
+        ExpectedObject.$reduce(base).left.value should contain(
           IncorrectTypeFailure(ExpectedObject.property.maybe, "fail")
         )
       }
@@ -569,15 +635,15 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
     }
     describe("Maybe property") {
-      object MaybeObject extends Contract {
-        val property = new \\? with Open{
+      object MaybeObject      extends Contract {
+        val property = new \\? with Open {
           val expected = \[String]
-          val maybe = \?[Int]
+          val maybe    = \?[Int]
         }
       }
       object MaybeMaybeObject extends Contract {
         val notExpected = new \\? with Open {
-          val maybe = \?[String]
+          val maybe  = \?[String]
           val maybe2 = \?[Int]
         }
       }
@@ -603,11 +669,11 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should return failure if maybe object expected properties fail to satisfy conditions") {
         val base = DObject("property" := DObject("expected" := 12341, "maybe" := 134))
-        MaybeObject.$reduce(base).left.value should contain (
-          IncorrectTypeFailure(MaybeObject.property.expected, 12341)
-        )
+        MaybeObject.$reduce(base).left.value should contain(IncorrectTypeFailure(MaybeObject.property.expected, 12341))
       }
-      it("Should return empty if maybe object expected properties fail to satisfy conditions with DropBadTypes = true") {
+      it(
+        "Should return empty if maybe object expected properties fail to satisfy conditions with DropBadTypes = true"
+      ) {
         val base = DObject("property" := DObject("expected" := 12341, "maybe" := 134))
         MaybeObject.$reduce(base, true).value shouldBe DObject.empty
       }
@@ -622,9 +688,7 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should return failure if contains null and empty object property values only") {
         val base = DObject("property" := DObject("maybe" := DNull, "additional" := DObject.empty))
-        MaybeObject.$reduce(base).left.value should contain (
-          ExpectedFailure(MaybeObject.property.expected)
-        )
+        MaybeObject.$reduce(base).left.value should contain(ExpectedFailure(MaybeObject.property.expected))
       }
       it("Should reduce to empty if contains null and empty object property values only with DropBadTypes is true") {
         val base = DObject("property" := DObject("maybe" := DNull, "additional" := DObject.empty))
@@ -648,12 +712,14 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should fail if object contains additional properties") {
         val base = DObject("property" ::= ("additional" := "value"))
-        Closed.$reduce(base).left.value should contain (
-          ClosedContractFailure(Closed, Path("property"), "additional")
-        )
+        Closed.$reduce(base).left.value should contain(ClosedContractFailure(Closed, Path("property"), "additional"))
       }
       it("Should return empty object if object contains additional properties which are null or empty") {
-        val base = DObject("property" ::= ("additional" := DNull, "additional2" := DObject.empty, "additional3" := DObject("nested" := DNull)))
+        val base = DObject(
+          "property" ::= ("additional" := DNull, "additional2" := DObject.empty, "additional3" := DObject(
+            "nested" := DNull
+          ))
+        )
         Closed.$reduce(base).value shouldBe DObject.empty
         Closed.$reduce(base, true).value shouldBe DObject.empty
       }
@@ -663,12 +729,12 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
     }
     describe("Open object") {
-      object Nested extends Contract {
+      object Nested     extends Contract {
         val expected = \[String]
-        val maybe = \?[Boolean]
+        val maybe    = \?[Boolean]
       }
       object Additional extends Contract {
-        val property = new \\\?[Length4String, Long]()() {
+        val property      = new \\\?[Length4String, Long]()() {
           val maybe = \?[String]
         }
         val codecProperty = new \\\?[String, DObject](DContractCodec(Nested))() {
@@ -677,7 +743,7 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should return fail if additional properties have invalid key ") {
         val base = DObject("property" ::= ("failed" := 1234))
-        Additional.$reduce(base).left.value should contain (
+        Additional.$reduce(base).left.value should contain(
           IncorrectKeyTypeFailure(Additional, Path("property"), Length4String.fixedLength4StringCodec, "failed")
         )
       }
@@ -687,7 +753,7 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should return fail if additional properties have invalid value") {
         val base = DObject("property" ::= ("add1" := "failed"))
-        Additional.$reduce(base).left.value should contain (
+        Additional.$reduce(base).left.value should contain(
           IncorrectTypeFailure(Additional, Path("property", "add1"), longCodec, "failed")
         )
       }
@@ -696,7 +762,11 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
         Additional.$reduce(base, true).value shouldBe DObject.empty
       }
       it("Should return empty if additional properties have null or reduced values even if key not satisfied") {
-        val base = DObject("property" ::= ("additional" := DNull, "additional2" := DObject.empty, "additional3" := DObject("nested" := DNull)))
+        val base = DObject(
+          "property" ::= ("additional" := DNull, "additional2" := DObject.empty, "additional3" := DObject(
+            "nested" := DNull
+          ))
+        )
         Additional.$reduce(base).value shouldBe DObject.empty
         Additional.$reduce(base, true).value shouldBe DObject.empty
       }
@@ -708,21 +778,25 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       }
       it("Should return failure if additional property value is satisfied but overlays defined field") {
         val base = DObject("property" ::= ("maybe" := 1412L))
-        Additional.$reduce(base).left.value should contain (
-          IncorrectTypeFailure(Additional.property.maybe,1412L)
-        )
+        Additional.$reduce(base).left.value should contain(IncorrectTypeFailure(Additional.property.maybe, 1412L))
       }
 
       it("Should fail if nested contract fails to validate") {
         val base = DObject("codecProperty" ::= ("obj1" ::= ("maybe" := true)))
-        Additional.$reduce(base).left.value should contain (ExpectedFailure(Additional, Path("codecProperty", "obj1", "expected")))
+        Additional.$reduce(base).left.value should contain(
+          ExpectedFailure(Additional, Path("codecProperty", "obj1", "expected"))
+        )
       }
       it("Should return empty if nested contract expected fails under drop under bad type ") {
         val base = DObject("codecProperty" ::= ("obj1" ::= ("maybe" := true)))
         Additional.$reduce(base, true).value shouldBe DObject.empty
       }
       it("Should return reduce object if nested contract valid but contains nulls and empty objects") {
-        val base = DObject("codecProperty" ::= ("obj1" ::= ("expected" := "value", "maybe" := DNull, "additional2" := DObject.empty, "additional3" := DObject("nested" := DNull))))
+        val base = DObject(
+          "codecProperty" ::= ("obj1" ::= ("expected" := "value", "maybe" := DNull, "additional2" := DObject.empty, "additional3" := DObject(
+            "nested" := DNull
+          )))
+        )
         Additional.$reduce(base).value shouldBe DObject("codecProperty" ::= ("obj1" ::= ("expected" := "value")))
         Additional.$reduce(base, true).value shouldBe DObject("codecProperty" ::= ("obj1" ::= ("expected" := "value")))
       }

@@ -1,7 +1,20 @@
 package dsentric.operators
 
+import com.github.ghik.silencer.silent
 import dsentric.codecs.DCodec
-import dsentric.{Available, DObject, DeltaEmpty, DeltaFailed, DeltaReduce, DeltaReduced, Failed, Found, NotFound, Path, Raw}
+import dsentric.{
+  Available,
+  DObject,
+  DeltaEmpty,
+  DeltaFailed,
+  DeltaReduce,
+  DeltaReduced,
+  Failed,
+  Found,
+  NotFound,
+  Path,
+  Raw
+}
 import dsentric.contracts.ContractFor
 import dsentric.failure.{ImmutableFailure, MaskFailure, ReservedFailure, ValidationFailures}
 
@@ -14,9 +27,9 @@ trait StandardOperators {
 
       def verify[D <: DObject](contract: ContractFor[D], path: Path, value: Available[Raw]): ValidationFailures =
         value match {
-          case NotFound | _:Failed =>
+          case NotFound | _: Failed =>
             ValidationFailures.empty
-          case _ =>
+          case _                    =>
             ValidationFailures(ReservedFailure(contract, path))
         }
 
@@ -31,11 +44,16 @@ trait StandardOperators {
        * @tparam D
        * @return
        */
-      def verify[D <: DObject](contract:  ContractFor[D], path:  Path, current: Raw, delta:  DeltaReduce[Raw]): ValidationFailures =
+      def verify[D <: DObject](
+        contract: ContractFor[D],
+        path: Path,
+        current: Raw,
+        delta: DeltaReduce[Raw]
+      ): ValidationFailures =
         delta match {
           case DeltaEmpty =>
             ValidationFailures.empty
-          case _ =>
+          case _          =>
             ValidationFailures(ReservedFailure(contract, path))
         }
     }
@@ -56,11 +74,16 @@ trait StandardOperators {
        * @tparam D
        * @return
        */
-      def verify[D <: DObject](contract: ContractFor[D], path: Path, current: Raw, delta: DeltaReduce[Raw]): ValidationFailures =
+      def verify[D <: DObject](
+        contract: ContractFor[D],
+        path: Path,
+        current: Raw,
+        delta: DeltaReduce[Raw]
+      ): ValidationFailures =
         delta match {
-          case DeltaEmpty | _:DeltaFailed =>
+          case DeltaEmpty | _: DeltaFailed =>
             ValidationFailures.empty
-          case _ =>
+          case _                           =>
             ValidationFailures(ImmutableFailure(contract, path))
         }
     }
@@ -86,9 +109,11 @@ trait StandardOperators {
 //
 //    }
 
-  def mask[T](mask:T, maskIfEmpty:Boolean = false)(implicit D:DCodec[T]):Constraint[Optionable[Nothing]] with Sanitizer[Optionable[Nothing]] =
+  def mask[T](mask: T, maskIfEmpty: Boolean = false)(implicit
+    D: DCodec[T]
+  ): Constraint[Optionable[Nothing]] with Sanitizer[Optionable[Nothing]] =
     new Constraint[Optionable[Nothing]] with Sanitizer[Optionable[Nothing]] {
-      private val dataMask:Raw = D(mask)
+      private val dataMask: Raw = D(mask)
 
       def sanitize(value: Option[Raw]): Option[Raw] =
         if (maskIfEmpty)
@@ -96,12 +121,11 @@ trait StandardOperators {
         else
           value.map(_ => dataMask)
 
-
       def verify[D <: DObject](contract: ContractFor[D], path: Path, value: Available[Raw]): ValidationFailures =
         value match {
           case Found(delta) if delta == dataMask =>
             ValidationFailures(MaskFailure(contract, path, mask))
-          case _ =>
+          case _                                 =>
             ValidationFailures.empty
         }
 
@@ -116,20 +140,26 @@ trait StandardOperators {
        * @tparam D
        * @return
        */
-      def verify[D <: DObject](contract:  ContractFor[D], path:  Path, current: Raw, delta:  DeltaReduce[Raw]): ValidationFailures =
+      def verify[D <: DObject](
+        contract: ContractFor[D],
+        path: Path,
+        current: Raw,
+        delta: DeltaReduce[Raw]
+      ): ValidationFailures =
         delta match {
           case DeltaReduced(delta) if delta == dataMask =>
             ValidationFailures(MaskFailure(contract, path, mask))
-          case _ =>
+          case _                                        =>
             ValidationFailures.empty
         }
 
-
     }
-
-  def maskTo[T, U](function:T => Option[U], default:Option[U])(implicit DT:DCodec[T], DU:DCodec[U]):Sanitizer[Optionable[T]] =
+  @silent
+  def maskTo[T, U](function: T => Option[U], default: Option[U])(implicit
+    DT: DCodec[T],
+    DU: DCodec[U]
+  ): Sanitizer[Optionable[T]]                                            =
     (value: Option[Raw]) => value.flatMap(DT.unapply).fold(default)(function)
-
 
   //Include:
   //Min max key constraint

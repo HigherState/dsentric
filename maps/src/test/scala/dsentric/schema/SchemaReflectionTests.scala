@@ -1,7 +1,6 @@
 package dsentric.schema
 
 import dsentric.Dsentric._
-import dsentric._
 import namespaced.{AnotherNested, AnotherNested2, InheritedNested}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
@@ -22,7 +21,6 @@ object Query1 extends Contract {
   @Type("FLOATIES")
   @Description("Its a float")
   val fieldX = \[Float]("actualName")
-
 
   val nested = new \\? {
 
@@ -47,7 +45,6 @@ object Query1 extends Contract {
 
 }
 
-
 object Query2 extends Contract with AnotherNested with AnotherNested2
 
 object Query3 extends Contract with InheritedNested {
@@ -69,8 +66,13 @@ class SchemaReflectionTests extends AnyFunSuite with Matchers {
   }
   test("Inherited annotation") {
     val (query2, _) = SchemaReflection.getContractInfo(Query2)
-    query2.inherits.find(_.displayName.contains("AnotherNested"))
-      .get.fields("prop") shouldBe SchemaAnnotations(None, None, false, Nil, Some("Another nested prop"))
+    query2.inherits.find(_.displayName.contains("AnotherNested")).get.fields("prop") shouldBe SchemaAnnotations(
+      None,
+      None,
+      false,
+      Nil,
+      Some("Another nested prop")
+    )
   }
 
   //Not supported by reflection
@@ -82,8 +84,13 @@ class SchemaReflectionTests extends AnyFunSuite with Matchers {
   test("internal inherited annotations") {
     val (inherited, _) = SchemaReflection.getContractInfo(Query1.inherited)
     inherited.fields.get("prop") shouldBe None
-    inherited.inherits.find(_.displayName.contains("AnotherNested"))
-      .get.fields("prop") shouldBe SchemaAnnotations(None, None, false, Nil, Some("Another nested prop"))
+    inherited.inherits.find(_.displayName.contains("AnotherNested")).get.fields("prop") shouldBe SchemaAnnotations(
+      None,
+      None,
+      false,
+      Nil,
+      Some("Another nested prop")
+    )
   }
   test("Contract Info") {
     val (query1, _) = SchemaReflection.getContractInfo(Query1)
@@ -92,23 +99,23 @@ class SchemaReflectionTests extends AnyFunSuite with Matchers {
   }
   test("Inherited Name") {
     val (query1, _) = SchemaReflection.getContractInfo(Query1)
-    val schema = query1.fields
-    val s = schema("inherited")
-    val o = schema("overwritten")
-    val n = schema("renamed")
-    val on = schema("overwrittenRenamed")
+    val schema      = query1.fields
+    val s           = schema("inherited")
+    val o           = schema("overwritten")
+    val n           = schema("renamed")
+    val on          = schema("overwrittenRenamed")
     s.description shouldBe Some("This is inherited")
     s.typeName shouldBe None
     o.typeName shouldBe Some("Overwritten")
     n.typeName shouldBe None
     on.typeName shouldBe Some("OverwrittenRenamed")
 
-    val (renamed,_) = SchemaReflection.getContractInfo(Query1.renamed)
+    val (renamed, _) = SchemaReflection.getContractInfo(Query1.renamed)
     renamed.schemaAnnotations.typeName shouldBe None
   }
 
   test("Properties across subContracts") {
-    val (schema, _) = SchemaReflection.getContractInfo(Query2)
+    val (schema, _)   = SchemaReflection.getContractInfo(Query2)
     schema.fields.get("prop") shouldBe None
     schema.fields.get("prop2") shouldBe None
     val anotherNested = schema.inherits.find(_.displayName.contains("AnotherNested")).get

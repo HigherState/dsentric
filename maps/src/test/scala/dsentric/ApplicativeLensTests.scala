@@ -11,8 +11,8 @@ class ApplicativeLensTests extends AnyFunSuite with Matchers {
   import dsentric.codecs.std.DCodecs._
 
   object TestObj extends Contract {
-    val int = \[Int]
-    val bool = \[Boolean]
+    val int    = \[Int]
+    val bool   = \[Boolean]
     val string = \[String]("string")
 
     lazy val triple = TestObj.string @: TestObj.int @: TestObj.bool
@@ -23,17 +23,19 @@ class ApplicativeLensTests extends AnyFunSuite with Matchers {
 
     json match {
       case WithTest.triple(s, i, b) =>
-        s should equal ("Test")
-        i should equal (1)
-        b should equal (false)
+        s should equal("Test")
+        i should equal(1)
+        b should equal(false)
+      case _                        =>
+        assert(false)
     }
 
-   // WithTest.triple.$set(("string", 3, true))(json) should be (DObject("int" := 3, "bool" := true, "string" := "string"))
+    // WithTest.triple.$set(("string", 3, true))(json) should be (DObject("int" := 3, "bool" := true, "string" := "string"))
   }
 
   trait TestSubObject extends SubContract {
-    val int = \[Int]
-    val bool = \[Boolean]
+    val int    = \[Int]
+    val bool   = \[Boolean]
     val string = \[String]("string")
 
     lazy val triple = TestObj.string @: TestObj.int @: TestObj.bool
@@ -46,15 +48,17 @@ class ApplicativeLensTests extends AnyFunSuite with Matchers {
 
     json match {
       case WithTest.triple(s, i, b) =>
-        s should equal ("Test")
-        i should equal (1)
-        b should equal (false)
+        s should equal("Test")
+        i should equal(1)
+        b should equal(false)
+      case _                        =>
+        assert(false)
     }
   }
 
   object MatcherMaybe extends Contract {
-    val maybeInt = \?[Int]
-    val string = \[String]
+    val maybeInt     = \?[Int]
+    val string       = \[String]
     val maybeBoolean = \?[Boolean]
 
     lazy val compo = maybeBoolean @: string
@@ -64,11 +68,12 @@ class ApplicativeLensTests extends AnyFunSuite with Matchers {
 
   test("Maybe Applicative") {
     val empty = DObject("string" := "s")
-    val full = DObject("string" := "s", "maybeInt" := 4, "maybeBoolean" := false)
 
     empty match {
       case MatcherMaybe.comp1((None, s, None)) =>
-        s should equal ("s")
+        s should equal("s")
+      case _                                   =>
+        assert(false)
     }
   }
 }

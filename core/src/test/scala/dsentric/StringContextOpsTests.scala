@@ -9,7 +9,10 @@ class StringContextOpsTests extends AnyFunSuite with Matchers {
 
   test("Ignore case pattern match") {
 
-    ("hello" match { case i"Hello" => true }) shouldBe true
-    ("hello" match { case i"Hell0" => true case _ => false}) shouldBe false
+    ("hello" match { case i"Hello" => true; case _ => false }) shouldBe true
+    ("hello" match {
+      case i"Hell0" => true
+      case _        => false
+    }) shouldBe false
   }
 }

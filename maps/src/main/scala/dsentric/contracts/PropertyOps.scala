@@ -17,7 +17,6 @@ trait PropertyOps[D <: DObject] {
   def \?[T](name:String, dataOperators: DataOperator[Option[T]]*)(implicit codec:DCodec[T]):MaybeProperty[D, T] =
     new MaybeProperty[D, T](Some(name), __self, codec, dataOperators.toList)
 
-
 }
 
 trait ExpectedPropertyOps[D <: DObject] extends PropertyOps[D] {
@@ -66,10 +65,10 @@ trait PropertyObjectOps[D <: DObject] { __internal:BaseContract[D] =>
    * @param _codec
    * @param _dataOperators
    */
-  class \\? private(override private[contracts] val __nameOverride:Option[String],
+  abstract class \\? private(override private[contracts] val __nameOverride:Option[String],
                     override val _codec:DCodec[DObject],
                     override val _dataOperators:List[DataOperator[Option[DObject]]]
-                   ) extends MaybeObjectProperty[D] {
+                   ) extends MaybeObjectProperty[D] with FieldResolver[D] with PropertyResolver[D, DObject] {
 
     def this(dataOperators: DataOperator[Option[DObject]]*)(implicit codec:DCodec[DObject]) =
       this(None, codec, dataOperators.toList)
@@ -92,13 +91,16 @@ trait PropertyObjectOps[D <: DObject] { __internal:BaseContract[D] =>
    * @tparam K
    * @tparam V
    */
-  class \\\?[K, V] private(override private[contracts] val __nameOverride:Option[String],
+  abstract class \\\?[K, V] private(override private[contracts] val __nameOverride:Option[String],
                            override val _codec:DCodec[DObject],
                            override val _dataOperators:List[DataOperator[Option[DObject]]],
                            val _additionalDataOperators:List[DataOperator[Option[Map[K, V]]]],
                            val _additionalKeyCodec:DStringCodec[K],
                            val _additionalValueCodec:DCodec[V]
-                          ) extends AdditionalProperties[K, V] with MaybeObjectProperty[D] {
+                          ) extends AdditionalProperties[K, V]
+    with MaybeObjectProperty[D]
+    with FieldResolver[D]
+    with PropertyResolver[D, DObject]{
 
     def this(dataOperators: DataOperator[Option[DObject]]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
             (implicit codec:DCodec[DObject], keyCodec:DStringCodec[K], valueCodec:DCodec[V]) =
@@ -129,10 +131,10 @@ trait ExpectedPropertyObjectOps[D <: DObject] extends PropertyObjectOps[D] {__in
    * @param _codec
    * @param _dataOperators
    */
-  class \\ private(override private[contracts] val __nameOverride:Option[String],
+  abstract class \\ private(override private[contracts] val __nameOverride:Option[String],
                    override val _codec:DCodec[DObject],
                    override val _dataOperators:List[DataOperator[DObject]]
-                  ) extends ExpectedObjectProperty[D] {
+                  ) extends ExpectedObjectProperty[D] with FieldResolver[D] with PropertyResolver[D, DObject]{
 
     def this(dataOperators: DataOperator[DObject]*)(implicit codec:DCodec[DObject]) =
       this(None, codec, dataOperators.toList)
@@ -154,13 +156,13 @@ trait ExpectedPropertyObjectOps[D <: DObject] extends PropertyObjectOps[D] {__in
    * @tparam K
    * @tparam V
    */
-  class \\\[K, V] private(override private[contracts] val __nameOverride:Option[String],
+  abstract class \\\[K, V] private(override private[contracts] val __nameOverride:Option[String],
                           override val _codec:DCodec[DObject],
                           override val _dataOperators:List[DataOperator[DObject]],
                           val _additionalDataOperators:List[DataOperator[Option[Map[K, V]]]],
                           val _additionalKeyCodec:DStringCodec[K],
                           val _additionalValueCodec:DCodec[V]
-                         ) extends AdditionalProperties[K, V] with ExpectedObjectProperty[D] {
+                         ) extends AdditionalProperties[K, V] with ExpectedObjectProperty[D] with FieldResolver[D] with PropertyResolver[D, DObject]{
 
     def this(dataOperators: DataOperator[DObject]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
             (implicit codec:DCodec[DObject], keyCodec:DStringCodec[K], valueCodec:DCodec[V]) =
@@ -191,10 +193,10 @@ trait MaybeExpectedPropertyObjectOps[D <: DObject] extends PropertyObjectOps[D] 
    * @param _codec
    * @param _dataOperators
    */
-  class \\ private(override private[contracts] val __nameOverride:Option[String],
+  abstract class \\ private(override private[contracts] val __nameOverride:Option[String],
                    override val _codec:DCodec[DObject],
                    override val _dataOperators:List[DataOperator[DObject]]
-                  ) extends MaybeExpectedObjectProperty[D] {
+                  ) extends MaybeExpectedObjectProperty[D] with FieldResolver[D] with PropertyResolver[D, DObject]{
 
     def this(dataOperators: DataOperator[DObject]*)(implicit codec:DCodec[DObject]) =
       this(None, codec, dataOperators.toList)
@@ -216,13 +218,13 @@ trait MaybeExpectedPropertyObjectOps[D <: DObject] extends PropertyObjectOps[D] 
    * @tparam K
    * @tparam V
    */
-  class \\\[K, V] private(override private[contracts] val __nameOverride:Option[String],
+  abstract class \\\[K, V] private(override private[contracts] val __nameOverride:Option[String],
                           override val _codec:DCodec[DObject],
                           override val _dataOperators:List[DataOperator[DObject]],
                           val _additionalDataOperators:List[DataOperator[Option[Map[K, V]]]],
                           val _additionalKeyCodec:DStringCodec[K],
                           val _additionalValueCodec:DCodec[V]
-                         ) extends AdditionalProperties[K, V] with MaybeExpectedObjectProperty[D] {
+                         ) extends AdditionalProperties[K, V] with MaybeExpectedObjectProperty[D] with FieldResolver[D] with PropertyResolver[D, DObject]{
 
     def this(dataOperators: DataOperator[DObject]*)(additionalPropertyDataOperators:DataOperator[Option[Map[K, V]]]*)
             (implicit codec:DCodec[DObject], keyCodec:DStringCodec[K], valueCodec:DCodec[V]) =

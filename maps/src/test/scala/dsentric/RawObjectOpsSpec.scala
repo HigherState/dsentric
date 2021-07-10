@@ -1,9 +1,10 @@
 package dsentric
 
+import com.github.ghik.silencer.silent
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 
-
+@silent("a type was inferred to be `Any`; this may indicate a programming error.")
 class RawObjectOpsSpec extends AnyFunSpec with Matchers {
 
   describe("rightDifferenceReduceMap") {
@@ -84,10 +85,10 @@ class RawObjectOpsSpec extends AnyFunSpec with Matchers {
         RawObjectOps.rightReduceConcatMap(single, delta) shouldBe single
       }
     }
-    describe("nested")  {
+    describe("nested") {
       val nested = Map("one" -> 1, "two" -> Map("two-one" -> Map("two-one-one" -> 3), "two-two" -> false))
       it("Should replace a nested value") {
-        val delta = Map("two" -> Map("two-two" -> true ))
+        val delta = Map("two" -> Map("two-two" -> true))
         RawObjectOps.rightReduceConcatMap(nested, delta) shouldBe
           Map("one" -> 1, "two" -> Map("two-one" -> Map("two-one-one" -> 3), "two-two" -> true))
       }
@@ -116,10 +117,17 @@ class RawObjectOpsSpec extends AnyFunSpec with Matchers {
       }
       describe("New nested object") {
         it("Should create a whole nested object if not matched") {
-          val delta = Map("two" -> Map("two-four" -> Map("two-four-one" -> 1, "two-four-two" -> Map("two-four-two-one" -> false))))
+          val delta =
+            Map("two" -> Map("two-four" -> Map("two-four-one" -> 1, "two-four-two" -> Map("two-four-two-one" -> false))))
           RawObjectOps.rightReduceConcatMap(nested, delta) shouldBe
-            Map("one" -> 1, "two" -> Map("two-one" -> Map("two-one-one" -> 3), "two-two" -> false,
-              "two-four" -> Map("two-four-one" -> 1, "two-four-two" -> Map("two-four-two-one" -> false))))
+            Map(
+              "one" -> 1,
+              "two" -> Map(
+                "two-one"  -> Map("two-one-one" -> 3),
+                "two-two"  -> false,
+                "two-four" -> Map("two-four-one" -> 1, "two-four-two" -> Map("two-four-two-one" -> false))
+              )
+            )
 
         }
         it("Should not create a nested object if only empty of null") {
@@ -127,11 +135,23 @@ class RawObjectOpsSpec extends AnyFunSpec with Matchers {
           RawObjectOps.rightReduceConcatMap(nested, delta) shouldBe nested
         }
         it("Should remove any empty of null values if nested object created") {
-          val delta = Map("two" -> Map("two-four" -> Map("two-four-one" -> DNull,
-            "two-four-two" -> Map("two-four-two-one" -> false, "tow-four-two-two" -> Map.empty))))
+          val delta = Map(
+            "two" -> Map(
+              "two-four" -> Map(
+                "two-four-one" -> DNull,
+                "two-four-two" -> Map("two-four-two-one" -> false, "tow-four-two-two" -> Map.empty)
+              )
+            )
+          )
           RawObjectOps.rightReduceConcatMap(nested, delta) shouldBe
-            Map("one" -> 1, "two" -> Map("two-one" -> Map("two-one-one" -> 3), "two-two" -> false,
-              "two-four" -> Map("two-four-two" -> Map("two-four-two-one" -> false))))
+            Map(
+              "one" -> 1,
+              "two" -> Map(
+                "two-one"  -> Map("two-one-one" -> 3),
+                "two-two"  -> false,
+                "two-four" -> Map("two-four-two" -> Map("two-four-two-one" -> false))
+              )
+            )
         }
       }
     }

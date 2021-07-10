@@ -3,7 +3,7 @@ package dsentric.contracts
 import dsentric._
 import dsentric.failure.IncorrectTypeFailure
 
-trait TraversalOps{
+private[dsentric] trait TraversalOps {
 
   /**
    * Extracts value from object following the Property Pathway.
@@ -14,10 +14,14 @@ trait TraversalOps{
    * @tparam T
    * @return
    */
-  def maybeTraverse[D <: DObject, T](value:RawObject, property:PropertyLens[D, T], ignoreBadTypes:Boolean):MaybeAvailable[Raw] =
-    maybeTraverseRaw(value, property._parent, ignoreBadTypes).flatMap{ rawObject =>
+  def maybeTraverse[D <: DObject, T](
+    value: RawObject,
+    property: PropertyLens[D, T],
+    ignoreBadTypes: Boolean
+  ): MaybeAvailable[Raw] =
+    maybeTraverseRaw(value, property._parent, ignoreBadTypes).flatMap { rawObject =>
       rawObject.get(property._key) match {
-        case None =>
+        case None      =>
           NotFound
         case Some(raw) =>
           Found(raw)
@@ -33,20 +37,19 @@ trait TraversalOps{
    * @tparam T
    * @return
    */
-  def traverse[D <: DObject, T](value:RawObject, property:PropertyLens[D, T], ignoreBadTypes:Boolean):Available[Raw] =
+  def traverse[D <: DObject, T](value: RawObject, property: PropertyLens[D, T], ignoreBadTypes: Boolean): Available[Raw] =
     traverseRaw(value, property._parent, ignoreBadTypes) match {
       case Found(rawObject) =>
         rawObject.get(property._key) match {
-          case None =>
+          case None      =>
             NotFound
           case Some(raw) =>
             Found(raw)
         }
-      case f:Failed =>
+      case f: Failed        =>
         f
     }
 
-
   /**
    * Traverses the Property parents list.  Parents should always return a RawObject.  In the case where a property is
    * expected, but no value is found for the property, an empty object is returned.
@@ -56,34 +59,33 @@ trait TraversalOps{
    * @tparam T
    * @return
    */
-  def maybeTraverseRaw(value:RawObject, base:BaseContractAux, ignoreBadTypes:Boolean):MaybeAvailable[RawObject] = {
+  def maybeTraverseRaw(value: RawObject, base: BaseContractAux, ignoreBadTypes: Boolean): MaybeAvailable[RawObject] =
     base match {
-      case expected:ExpectedObjectPropertyLensLike[base.AuxD]@unchecked =>
+      case expected: ExpectedObjectPropertyLensLike[base.AuxD] @unchecked =>
         maybeTraverseRaw(value, expected._parent, ignoreBadTypes).flatMap { traversedObject =>
           traversedObject.get(expected._key) match {
-            case Some(rawObject: RawObject@unchecked) =>
+            case Some(rawObject: RawObject @unchecked) =>
               Found(rawObject)
-            case Some(raw) if !ignoreBadTypes =>
+            case Some(raw) if !ignoreBadTypes          =>
               Failed(IncorrectTypeFailure(expected, raw))
-            case _ =>
+            case _                                     =>
               Found(RawObject.empty)
           }
         }
-      case maybe:MaybeObjectPropertyLens[base.AuxD]@unchecked =>
+      case maybe: MaybeObjectPropertyLens[base.AuxD] @unchecked           =>
         maybeTraverseRaw(value, maybe._parent, ignoreBadTypes).flatMap { traversedObject =>
           traversedObject.get(maybe._key) match {
-            case Some(rawObject: RawObject@unchecked) =>
+            case Some(rawObject: RawObject @unchecked) =>
               Found(rawObject)
-            case Some(raw) if !ignoreBadTypes =>
+            case Some(raw) if !ignoreBadTypes          =>
               Failed(IncorrectTypeFailure(maybe, raw))
-            case _ =>
+            case _                                     =>
               PathEmptyMaybe
           }
         }
-      case _:ContractFor[base.AuxD]@unchecked =>
+      case _                                                              =>
         Found(value)
     }
-  }
 
   /**
    * Traverses the Property parents list.  Parents should always return a RawObject.  In the case where a property is
@@ -94,26 +96,25 @@ trait TraversalOps{
    * @tparam T
    * @return
    */
-  def traverseRaw[T](value:RawObject, base:BaseContractAux, ignoreBadTypes:Boolean):Valid[RawObject] = {
+  def traverseRaw[T](value: RawObject, base: BaseContractAux, ignoreBadTypes: Boolean): Valid[RawObject] =
     base match {
-      case prop:ObjectPropertyLens[base.AuxD]@unchecked =>
+      case prop: ObjectPropertyLens[base.AuxD] @unchecked =>
         traverseRaw(value, prop._parent, ignoreBadTypes) match {
           case Found(traversedObject) =>
             traversedObject.get(prop._key) match {
-              case Some(rawObject: RawObject@unchecked) =>
+              case Some(rawObject: RawObject @unchecked) =>
                 Found(rawObject)
-              case Some(raw) if !ignoreBadTypes =>
+              case Some(raw) if !ignoreBadTypes          =>
                 Failed(IncorrectTypeFailure(prop, raw))
-              case _ =>
+              case _                                     =>
                 Found(RawObject.empty)
             }
-          case f: Failed =>
+          case f: Failed              =>
             f
         }
-      case _:ContractFor[base.AuxD]@unchecked =>
+      case _                                              =>
         Found(value)
     }
-  }
 }
 
-object TraversalOps extends TraversalOps
+private[dsentric] object TraversalOps extends TraversalOps
