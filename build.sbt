@@ -6,8 +6,6 @@ lazy val buildSettings = Seq(
   version := "1.0.0-RC4",
   scalacOptions ++= Seq(
     "-deprecation",
-    "-encoding",
-    "UTF-8",
     "-feature",
     "-language:implicitConversions",
     "-language:higherKinds",

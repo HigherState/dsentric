@@ -22,8 +22,8 @@ trait StandardOperators {
   //Shouldnt be used in an And or Or validator
   val internal: Internal.type = Internal
 
-  val reserved: Constraint[Option[Nothing]] =
-    new Constraint[Option[Nothing]] {
+  val reserved: Constraint[Nothing] with Optional =
+    new Constraint[Nothing] with Optional {
 
       def verify[D <: DObject](contract: ContractFor[D], path: Path, value: Available[Raw]): ValidationFailures =
         value match {
@@ -58,8 +58,8 @@ trait StandardOperators {
         }
     }
 
-  val immutable: Constraint[Nothing] =
-    new Constraint[Nothing] {
+  val immutable: Constraint[Nothing] with Optional with Expected =
+    new Constraint[Nothing] with Optional with Expected {
 
       def verify[D <: DObject](contract: ContractFor[D], path: Path, value: Available[Raw]): ValidationFailures = Nil
 
@@ -109,10 +109,8 @@ trait StandardOperators {
 //
 //    }
 
-  def mask[T](mask: T, maskIfEmpty: Boolean = false)(implicit
-    D: DCodec[T]
-  ): Constraint[Optionable[Nothing]] with Sanitizer[Optionable[Nothing]] =
-    new Constraint[Optionable[Nothing]] with Sanitizer[Optionable[Nothing]] {
+  def mask[T](mask: T, maskIfEmpty: Boolean = false)(implicit D: DCodec[T]): Constraint[Nothing] with Sanitizer[Nothing] =
+    new Constraint[Nothing] with Sanitizer[Nothing] {
       private val dataMask: Raw = D(mask)
 
       def sanitize(value: Option[Raw]): Option[Raw] =
@@ -155,10 +153,7 @@ trait StandardOperators {
 
     }
   @silent
-  def maskTo[T, U](function: T => Option[U], default: Option[U])(implicit
-    DT: DCodec[T],
-    DU: DCodec[U]
-  ): Sanitizer[Optionable[T]]                                            =
+  def maskTo[T, U](function: T => Option[U], default: Option[U])(implicit DT: DCodec[T], DU: DCodec[U]): Sanitizer[T]    =
     (value: Option[Raw]) => value.flatMap(DT.unapply).fold(default)(function)
 
   //Include:

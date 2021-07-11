@@ -140,15 +140,6 @@ sealed case class PathKey(key: String, next: Path) extends Path {
     else PathKey(key, next.take(index - 1))
 }
 
-final private[dsentric] class ExpectedPathKey(override val key: String, override val next: Path)
-    extends PathKey(key, next) {
-  override def isExpected: Boolean = next.isExpected
-
-  override def take(index: Int): Path =
-    if (index <= 0) PathEnd
-    else new ExpectedPathKey(key, next.take(index - 1))
-}
-
 final case class PathIndex(index: Int, next: Path) extends Path {
   def isEmpty: Boolean = false
 
