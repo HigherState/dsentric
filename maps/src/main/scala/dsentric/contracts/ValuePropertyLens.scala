@@ -268,11 +268,8 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D
   final def $get(obj: D, dropBadTypes: Boolean = false): ValidResult[T] =
     __get(obj.value, dropBadTypes).toValid
 
-  final def $get(validated: Validated[D]): T =
-    PathLensOps
-      .traverse(validated.validObject.value, _path)
-      .flatMap(_codec.unapply)
-      .get
+  final def $get[D2 <: D](validated: Validated[D2]): T =
+    __get(validated.validObject.value, false).toOption.get
 
   /**
    * Unapply is only ever a simple prism to the value and its decoding
@@ -328,6 +325,9 @@ private[dsentric] trait MaybeExpectedLens[D <: DObject, T]
    */
   final def $get(obj: D, dropBadTypes: Boolean = false): ValidResult[Option[T]] =
     __get(obj.value, dropBadTypes).toValidOption
+
+  final def $get[D2 <: D](validated: Validated[D2]): Option[T] =
+    __get(validated.validObject.value, false).toOption
 
   /**
    * Unapply is only ever a simple prism to the value and its decoding
@@ -389,6 +389,9 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
   final def $get(obj: D, dropBadTypes: Boolean = false): ValidResult[Option[T]] =
     __get(obj.value, dropBadTypes).toValidOption
 
+  final def $get[D2 <: D](validated: Validated[D2]): Option[T] =
+    __get(validated.validObject.value, false).toOption
+
   /**
    * Gets value for the property if found in passed object, otherwise returns default.
    * Returns failure if value is of unexpected type,
@@ -398,6 +401,9 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
    */
   final def $getOrElse(obj: D, default: => T, dropBadTypes: Boolean = false): ValidResult[T] =
     __get(obj.value, dropBadTypes).toValidOption.map(_.getOrElse(default))
+
+  final def $getOrElse[D2 <: D](validated: Validated[D2], default: => T): T =
+    __get(validated.validObject.value, false).toOption.getOrElse(default)
 
   /**
    * Removes the property value from the object if it exists.
@@ -624,6 +630,9 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends DefaultLensLike[D, 
   final def $get(obj: D, dropBadTypes: Boolean = false): ValidResult[T] =
     __get(obj.value, dropBadTypes).toValid
 
+  final def $get[D2 <: D](validated: Validated[D2]): T =
+    __get(validated.validObject.value, false).toOption.getOrElse(_default)
+
   /**
    * Unapply is only ever a simple prism to the value and its decoding
    * Returns Some(default) if not found
@@ -672,6 +681,13 @@ private[dsentric] trait MaybeDefaultLens[D <: DObject, T]
    */
   final def $get(obj: D, dropBadTypes: Boolean = false): ValidResult[Option[T]] =
     __get(obj.value, dropBadTypes).toValidOption
+
+  final def $get[D2 <: D](validated: Validated[D2]): Option[T] =
+    __get(validated.validObject.value, false) match {
+      case PathEmptyMaybe => None
+      case Found(t)       => Some(t)
+      case _              => Some(_default)
+    }
 
   /**
    * Unapply is only ever a simple prism to the value and its decoding

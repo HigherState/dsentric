@@ -2,7 +2,6 @@ package namespaced
 
 import dsentric.Dsentric._
 import dsentric.schema.{Description, Examples, Nested, Type}
-
 import dsentric.codecs.std.DCodecs._
 
 trait AnotherNested extends SubContract {
@@ -26,4 +25,3 @@ trait ToRename extends SubContract with AnotherNested with AnotherNested2 {
   @Examples("one", "two")
   val propHigher = \?[String]
 }
-

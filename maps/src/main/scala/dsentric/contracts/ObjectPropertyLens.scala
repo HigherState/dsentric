@@ -95,21 +95,6 @@ sealed private[dsentric] trait ObjectPropertyLens[D <: DObject] extends BaseCont
   def $verify(obj: D): List[Failure]
 
   /**
-   * Returns object for this property.
-   * Will return failure if any of the properties would fail
-   * or the additional properties are invalid
-   * Returns None if there is a path with Maybes Object Properties that have no values
-   * Default properties that havent been defined will be provided in the object
-   *
-   * Tricky expected missing on maybe when no object vs expected missing when there is an object....
-   *
-   * @param obj
-   * @return
-   */
-  final def $get(obj: D, dropBadTypes: Boolean = false): ValidResult[Option[DObject]] =
-    __get(obj.value, dropBadTypes).toValidOption
-
-  /**
    * Sets the object content to the passed value.
    * Does nothing if None is passed.
    * @param obj
@@ -238,6 +223,21 @@ private[dsentric] trait ExpectedObjectPropertyLens[D <: DObject]
       case None             =>
         Some(DObject.empty)
     }
+
+  /**
+   * Returns object for this property.
+   * Will return failure if any of the properties would fail
+   * or the additional properties are invalid
+   * Default properties that havent been defined will be provided in the object
+   *
+   * @param obj
+   * @return
+   */
+  final def $get(obj: D, dropBadTypes: Boolean = false): ValidResult[DObject] =
+    __get(obj.value, dropBadTypes).toValid
+
+  final def $get[D2 <: D](validated: Validated[D2]): DObject =
+    __get(validated.validObject.value, false).toOption.getOrElse(DObject.empty)
 }
 
 private[dsentric] trait MaybeExpectedObjectPropertyLens[D <: DObject]
@@ -290,6 +290,26 @@ private[dsentric] trait MaybeExpectedObjectPropertyLens[D <: DObject]
       case _              =>
         Some(Some(DObject.empty))
     }
+
+  final def $get[D2 <: D](validated: Validated[D2]): Option[DObject] =
+    __get(validated.validObject.value, false) match {
+      case PathEmptyMaybe => None
+      case Found(d)       => Some(d)
+      case _              => Some(DObject.empty)
+    }
+
+  /**
+   * Returns object for this property.
+   * Will return failure if any of the properties would fail
+   * or the additional properties are invalid
+   * Returns None if there is a path with Maybes Object Properties that have no values
+   * Default properties that havent been defined will be provided in the object
+   *
+   * @param obj
+   * @return
+   */
+  final def $get(obj: D, dropBadTypes: Boolean = false): ValidResult[Option[DObject]] =
+    __get(obj.value, dropBadTypes).toValidOption
 }
 
 /**
@@ -408,4 +428,27 @@ private[dsentric] trait MaybeObjectPropertyLens[D <: DObject]
 
   final def $drop: PathSetter[D] =
     ValueDrop(_path)
+
+  /**
+   * Returns object for this property.
+   * Will return failure if any of the properties would fail
+   * or the additional properties are invalid
+   * Returns None if there is a path with Maybes Object Properties that have no values
+   * Default properties that havent been defined will be provided in the object
+   *
+   * @param obj
+   * @return
+   */
+  final def $get(obj: D, dropBadTypes: Boolean = false): ValidResult[Option[DObject]] =
+    __get(obj.value, dropBadTypes).toValidOption
+
+  final def $get[D2 <: D](validated: Validated[D2]): Option[DObject] =
+    __get(validated.validObject.value, false) match {
+      case PathEmptyMaybe => None
+      case Found(d)       => Some(d)
+      case _              => None
+    }
+
+  final def $getOrElse(default: DObject)(obj: D, dropBadTypes: Boolean = false): ValidResult[DObject] =
+    __get(obj.value, dropBadTypes).toValidOption.map(_.getOrElse(default))
 }

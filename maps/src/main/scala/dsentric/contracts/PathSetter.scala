@@ -21,6 +21,9 @@ sealed trait PathSetter[D <: DObject] extends Function[D, D] {
   def apply(v1: D): D =
     v1.internalWrap(rawApply(v1.value)).asInstanceOf[D]
 
+  def applyAs[D2 <: D](obj: D2): D2 =
+    obj.internalWrap(rawApply(obj.value)).asInstanceOf[D2]
+
   def apply(delta: Delta): Delta =
     new DeltaInst(rawApply(delta.value))
 
@@ -47,6 +50,9 @@ sealed trait ValidPathSetter[D <: DObject] extends Function[D, ValidResult[D]] {
 
   def apply(v1: D): ValidResult[D] =
     rawApply(v1.value).map(result => v1.internalWrap(result).asInstanceOf[D])
+
+  def applyAs[D2 <: D](v1: D2): ValidResult[D2] =
+    rawApply(v1.value).map(result => v1.internalWrap(result).asInstanceOf[D2])
 
   def apply(delta: Delta): ValidResult[Delta] =
     rawApply(delta.value).map(result => new DeltaInst(result))

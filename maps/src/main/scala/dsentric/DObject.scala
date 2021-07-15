@@ -204,6 +204,9 @@ trait DObjectOps[+C <: DObjectOps[C]] extends Any with Data with IterableOps[(St
   def deltaDiff(delta: DObject): Option[DObject] =
     RawObjectOps.rightDifferenceReduceMap(this.value -> delta.value).map(new DObjectInst(_))
 
+  def deltaDiff(delta: Delta): Option[Delta]     =
+    RawObjectOps.rightDifferenceReduceMap(this.value -> delta.value).map(new DeltaInst(_))
+
   def toQuery: DFilter                           =
     DFilter(value)
 

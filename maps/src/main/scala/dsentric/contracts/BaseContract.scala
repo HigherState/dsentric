@@ -42,9 +42,9 @@ private[dsentric] trait BaseContract[D <: DObject] extends BaseContractAux with 
 
 private[contracts] trait FieldResolver[D <: DObject] {
 
-  private var __fields: Map[String, Property[D, Any]] = _
+  private[contracts] var __fields: Map[String, Property[D, _]] = _
   @volatile
-  private var _bitmap0: Boolean                       = false
+  private var _bitmap0: Boolean                                = false
 
   final def _fields: Map[String, Property[D, _]] =
     if (_bitmap0) __fields

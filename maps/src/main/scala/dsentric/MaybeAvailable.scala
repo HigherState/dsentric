@@ -12,6 +12,7 @@ sealed trait MaybeAvailable[+T] {
   def flatMap[A](f: T => MaybeAvailable[A]): MaybeAvailable[A]
 
   def failNotFound(failure: => Failure): MaybeAvailable[T]
+  def toOption: Option[T]
 }
 sealed trait Available[+T] extends MaybeAvailable[T] {
   private[dsentric] def rebase(base: BaseAux): Available[T]
@@ -21,11 +22,14 @@ sealed trait Available[+T] extends MaybeAvailable[T] {
 
 sealed trait Valid[+T] extends Available[T] {
   def toValid: ValidResult[T]
+
 }
 
 case object PathEmptyMaybe extends MaybeAvailable[Nothing] {
   def toValidOption: ValidResult[Option[Nothing]] =
     ValidResult.none
+  def toOption: Option[Nothing]                   =
+    None
 
   private[dsentric] def rebase(baseContract: BaseAux): MaybeAvailable[Nothing]                                      = this
   private[dsentric] def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): MaybeAvailable[Nothing] =
@@ -38,9 +42,10 @@ case object PathEmptyMaybe extends MaybeAvailable[Nothing] {
 }
 
 case object NotFound extends Available[Nothing] {
-  def toValidOption: ValidResult[Option[Nothing]] =
+  def toValidOption: ValidResult[Option[Nothing]]                                                              =
     ValidResult.none
-
+  def toOption: Option[Nothing]                                                                                =
+    None
   private[dsentric] def rebase(base: BaseAux): Available[Nothing]                                              = this
   private[dsentric] def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): Available[Nothing] = this
 
@@ -62,6 +67,9 @@ final case class Found[+T](value: T) extends Valid[T] {
   def toValid: ValidResult[T] =
     ValidResult.success(value)
 
+  def toOption: Option[T] =
+    Some(value)
+
   def failNotFound(failure: => Failure): Found[T] = this
 }
 
@@ -78,6 +86,9 @@ final case class Failed(failure: Failure, tail: List[Failure] = Nil) extends Val
 
   def toValid: ValidResult[Nothing] =
     ValidResult.failure(failure, tail)
+
+  def toOption: Option[Nothing] =
+    None
 
   def failNotFound(failure: => Failure): Failed = this
 
