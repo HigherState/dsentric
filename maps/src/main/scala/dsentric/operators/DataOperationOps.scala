@@ -35,7 +35,7 @@ trait DataOperationOps {
           s.sanitize(maybeRaw)
         }(d)
         RawObjectOps
-          .calculateDeltaRaw(d -> r)
+          .calculateDelta(d -> r)
           .getOrElse(RawObject.empty)
       }
     )

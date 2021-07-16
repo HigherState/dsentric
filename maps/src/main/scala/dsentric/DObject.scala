@@ -187,27 +187,23 @@ trait DObjectOps[+C <: DObjectOps[C]] extends Any with Data with IterableOps[(St
   def values: Iterable[Data] =
     value.values.map(ForceWrapper.data)
 
-  def applyDelta(delta: DObject): C =
-    wrap(RawObjectOps.rightReduceConcatMap(this.value, delta.value))
+  def traverseConcat(additional: DObject): C =
+    wrap(RawObjectOps.traverseConcat(this.value, additional.value))
 
   def applyDelta(delta: Delta): C =
-    wrap(RawObjectOps.rightReduceConcatMap(this.value, delta.value))
+    wrap(RawObjectOps.deltaTraverseConcat(this.value, delta.value))
 
   def reduce: Option[C] =
     RawObjectOps.reduceMap(this.value).map(wrap)
 
   //Returns the differences in the compare object
-  def diff(compare: DObject): DObject            =
-    RawObjectOps.rightDifferenceMap(value -> compare.value).fold(DObject.empty)(new DObjectInst(_))
+  def diff(compare: DObject): DObject        =
+    RawObjectOps.rightDifference(value -> compare.value).fold(DObject.empty)(new DObjectInst(_))
 
-  //Returns the minimal delta object. Removed duplicate changes and unnecessary nulls and empty objects
-  def deltaDiff(delta: DObject): Option[DObject] =
-    RawObjectOps.rightDifferenceReduceMap(this.value -> delta.value).map(new DObjectInst(_))
+  def deltaDiff(delta: Delta): Option[Delta] =
+    RawObjectOps.differenceDelta(this.value -> delta.value).map(new DeltaInst(_))
 
-  def deltaDiff(delta: Delta): Option[Delta]     =
-    RawObjectOps.rightDifferenceReduceMap(this.value -> delta.value).map(new DeltaInst(_))
-
-  def toQuery: DFilter                           =
+  def toQuery: DFilter                       =
     DFilter(value)
 
   def filterKeys(p: String => Boolean): C =
@@ -229,6 +225,11 @@ trait DObject extends Any with DObjectOps[DObject] {
   override protected def coll: this.type = this
 }
 
+/**
+ * Deltas are collection of changes to apply to a DObject
+ * The are neither Commutative or Associative
+ * Deltas should never be combined to give a new Delta as information can be lost
+ */
 trait Delta extends Any with DObjectOps[Delta] {
   override def toString: String =
     s"Delta :- ${super.toString}"
@@ -267,7 +268,7 @@ final class DProjection private[dsentric] (val value: RawObject) extends AnyVal 
     wrap(PathLensOps.pathToMap(path, value))
 
   def &(d: DProjection): DProjection =
-    new DProjection(RawObjectOps.concatMap(value, d.value))
+    new DProjection(RawObjectOps.traverseConcat(value, d.value))
 
   def select[D <: DObject]: Function[D, D] = { obj =>
     obj.internalWrap(RawObjectOps.selectMap(obj.value, this.value)).asInstanceOf[D]
@@ -412,7 +413,7 @@ object DProjection {
     new DProjection(
       paths
         .map(p => PathLensOps.pathToMap(p, 1))
-        .foldLeft(Map.empty[String, Any])(RawObjectOps.concatMap)
+        .foldLeft(Map.empty[String, Any])(RawObjectOps.traverseConcat)
     )
 }
 

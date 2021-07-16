@@ -142,7 +142,7 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
             DeltaFailed(nel.head, nel.tail)
           case Right(delta) =>
             if (delta.isEmpty) DeltaEmpty
-            else if (RawObjectOps.rightReduceConcatMap(currentObject, currentObject).isEmpty) //TODO improve performance
+            else if (RawObjectOps.deltaTraverseConcat(currentObject, currentObject).isEmpty) //TODO improve performance
               DeltaRemoving(delta)
             else
               DeltaReduced(delta)
@@ -221,11 +221,11 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
   ): DeltaReduce[Raw] =
     (delta, current) match {
       case (deltaObject: RawObject @unchecked, currentObject: RawObject @unchecked) =>
-        RawObjectOps.rightDifferenceReduceMap(currentObject -> deltaObject) match {
+        RawObjectOps.differenceDelta(currentObject -> deltaObject) match {
           case None               =>
             DeltaEmpty
           case Some(reducedDelta) =>
-            val newState = RawObjectOps.rightReduceConcatMap(currentObject, reducedDelta)
+            val newState = RawObjectOps.deltaTraverseConcat(currentObject, reducedDelta)
             if (newState.isEmpty)
               DeltaRemoving(reducedDelta)
             else
@@ -319,7 +319,7 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
             val map = mb.result()
             if (map.isEmpty) DeltaEmpty
             else {
-              val applyDelta = RawObjectOps.rightReduceConcatMap(currentObject, map)
+              val applyDelta = RawObjectOps.deltaTraverseConcat(currentObject, map)
               if (codec.unapply(applyDelta).isEmpty) {
                 if (badTypes == DropBadTypes)
                   DeltaEmpty
@@ -368,7 +368,7 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
   ): DeltaReduce[RawObject] =
     current match {
       case currentObject: RawObject @unchecked =>
-        val newState = RawObjectOps.rightReduceConcatMap(currentObject, deltaObject)
+        val newState = RawObjectOps.deltaTraverseConcat(currentObject, deltaObject)
         typeCodecs.lift(d2Cstr(currentObject)) -> typeCodecs.lift(d2Cstr(newState)) match {
           case (_, None)                =>
             DeltaFailed(ContractTypeResolutionFailure(contract, path, deltaObject))
@@ -379,7 +379,7 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
           case (_, Some(deltaContract)) =>
             deltaReduceContract(contract, path, badTypes, deltaContract, deltaObject, current) match {
               case DeltaReduced(delta) =>
-                val newReducedState = RawObjectOps.rightReduceConcatMap(currentObject, delta)
+                val newReducedState = RawObjectOps.deltaTraverseConcat(currentObject, delta)
                 reduceContract(contract, path, FailOnBadTypes, deltaContract, newReducedState) match {
                   case _: Failed if badTypes == DropBadTypes =>
                     DeltaEmpty

@@ -9,7 +9,7 @@ class RawObjectOpsTests extends AnyFunSuite with Matchers {
   import Dsentric._
 
   test("Type structure in collection") {
-    val obj         = DObject("one" := 1, "two" := "two")
+    val obj         = Delta("one" := 1, "two" := "two")
     val collection  = List(1 -> obj, 2 -> obj)
     val collection2 = collection.map(p => p._1 -> p._2.applyDelta(obj))
     collection.flatMap { _ =>

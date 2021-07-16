@@ -237,6 +237,23 @@ trait DValueCodecs {
         ObjectDefinition.empty
     }
 
+  implicit val deltaCodec: DValueCodec[Delta] =
+    new DValueCodec[Delta] {
+
+      def apply(t: Delta): RawValue =
+        t.value
+
+      def unapply(a: Raw): Option[Delta] =
+        a match {
+          case r: RawObject @unchecked =>
+            Some(new DeltaInst(r))
+          case _                       =>
+            None
+        }
+      def typeDefinition: TypeDefinition =
+        ObjectDefinition.empty
+    }
+
   implicit val dNullCodec: DCodec[DNull.type] =
     new MatchCodec[DNull.type] {
 

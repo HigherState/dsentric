@@ -166,7 +166,7 @@ final private case class CompositeSetter[D <: DObject](leftSetter: PathSetter[D]
     rightSetter.rawApply(leftSetter.rawApply(rawObject))
 
   private[contracts] def rawDelta(rawObject: RawObject): RawObject =
-    RawObjectOps.concatMap(leftSetter.rawDelta(rawObject), rightSetter.rawDelta(rawObject))
+    RawObjectOps.traverseConcat(leftSetter.rawDelta(rawObject), rightSetter.rawDelta(rawObject))
 
 }
 
@@ -182,7 +182,7 @@ final private case class CompositeValidSetter[D <: DObject](
     for {
       left  <- leftSetter.rawDelta(rawObject)
       right <- rightSetter.rawDelta(rawObject)
-    } yield RawObjectOps.concatMap(left, right)
+    } yield RawObjectOps.traverseConcat(left, right)
 
 }
 /*
@@ -493,7 +493,7 @@ private[contracts] object Setter {
         RawObject.empty
       case (Some(r: RawObject @unchecked), v: RawObject @unchecked) =>
         RawObjectOps
-          .calculateDeltaRaw(r -> v)
+          .calculateDelta(r -> v)
           .map(d => PathLensOps.pathToMap(path, d))
           .getOrElse(RawObject.empty)
       case _                                                        =>

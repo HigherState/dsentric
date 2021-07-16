@@ -16,7 +16,7 @@ final class DFilter private[dsentric] (val value: RawObject) extends AnyVal with
         if (value.contains("$or") || d.value.contains("$or"))
           new DFilter(Map("$and" -> Vector(value, d.value)))
         else
-          new DFilter(RawObjectOps.concatMap(value, d.value))
+          new DFilter(RawObjectOps.traverseConcat(value, d.value))
       case (None, Some(vr: RawArray @unchecked))                          =>
         new DFilter(Map("$and" -> (value +: vr)))
       case (Some(vl: RawArray @unchecked), None)                          =>
