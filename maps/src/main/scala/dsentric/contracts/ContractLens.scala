@@ -19,6 +19,7 @@ import dsentric.{
   Validated
 }
 import dsentric.failure.{Failure, ValidResult}
+import dsentric.operators.DataOperationOps
 
 trait ContractLens[D <: DObject] { this: BaseContract[D] =>
 
@@ -110,4 +111,7 @@ trait ContractLens[D <: DObject] { this: BaseContract[D] =>
 
   final def $delta(f: this.type => DObject => DObject): DObject =
     f(this)(DObject.empty)
+
+  final def $sanitize: PathSetter[D] =
+    DataOperationOps.sanitize(this)
 }

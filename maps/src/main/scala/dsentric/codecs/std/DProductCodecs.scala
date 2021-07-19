@@ -6,7 +6,7 @@ import shapeless.{::, HNil}
 
 trait DProductCodecs {
 
-  def tupleCodec[T1, T2](implicit
+  implicit def tupleCodec[T1, T2](implicit
     D1: DCodec[T1],
     D2: DCodec[T2]
   ): DProductCodec[(T1, T2), T1 :: T2 :: HNil, DCodec[T1] :: DCodec[T2] :: HNil] =
@@ -18,7 +18,7 @@ trait DProductCodecs {
         Some(e.tupled)
     }
 
-  def tuple3Codec[T1, T2, T3](implicit
+  implicit def tuple3Codec[T1, T2, T3](implicit
     D1: DCodec[T1],
     D2: DCodec[T2],
     D3: DCodec[T3]

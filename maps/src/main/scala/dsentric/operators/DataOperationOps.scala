@@ -12,7 +12,6 @@ import dsentric.codecs.{
 }
 import dsentric.contracts.{
   BaseContract,
-  ContractFor,
   CustomPathSetter,
   DefaultProperty,
   ExpectedObjectProperty,
@@ -25,7 +24,7 @@ import dsentric.{DObject, Raw, RawArray, RawObject, RawObjectOps}
 
 trait DataOperationOps {
 
-  def sanitize[D <: DObject](contract: ContractFor[D]): PathSetter[D] =
+  private[dsentric] def sanitize[D <: DObject](contract: BaseContract[D]): PathSetter[D] =
     CustomPathSetter(
       transform(contract) { case (s: Sanitizer[Any], _, maybeRaw) =>
         s.sanitize(maybeRaw)
@@ -51,7 +50,7 @@ trait DataOperationOps {
    * @tparam D0
    * @return
    */
-  def transform[D0 <: DObject](contract: ContractFor[D0])(
+  private[dsentric] def transform[D0 <: DObject](contract: BaseContract[D0])(
     pf: PartialFunction[(DataOperator[_], Property[_, _], Option[Raw]), Option[Raw]]
   ): Function[RawObject, RawObject] = { d0 =>
     def objectTransform[D <: DObject](contract: BaseContract[D], rawObject: RawObject): Option[RawObject] = {
