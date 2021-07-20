@@ -1,5 +1,6 @@
 package dsentric.contracts
 
+import dsentric.codecs.{DCodec, DStringCodec}
 import dsentric.operators.{DataOperator, Expected, Optional}
 import dsentric.{DObject, Path}
 
@@ -9,22 +10,51 @@ class AspectFor[D <: DObject, D2 <: D](_source: ContractFor[D])(
     with ContractLens[D2] {
   def _path: Path = Path.empty
 
-  def \\(
-    property: ObjectProperty[D]
-  )(f: PartialFunction[Property[D, _], Option[AspectProperty[D2, _]]]): ExpectedObjectAspectProperty[D2] = {
-    val fields           = Aspect.getFields(property)(f)
-    val expectedProperty = ExpectedObjectAspectProperty[D2](property._key, property._path, fields, property._codec, Nil)
+  //TODO: name override
+  //TODO: DataOperators
+  def \\(property: ObjectProperty[D], merged: ObjectProperty[D]*)(
+    f: PartialFunction[Property[D, _], Option[AspectProperty[D2, _]]] = PartialFunction.empty
+  ): ExpectedObjectAspectProperty[D2] = {
+    val fields           = Aspect.getFields(property)(f) ++ merged.flatMap(Aspect.getFields(_)(f))
+    val expectedProperty = new ExpectedObjectAspectProperty[D2](property._codec, Nil)
     fields.foreach(_._2.__setParent(expectedProperty))
+    expectedProperty.__setFields(fields)
     expectedProperty.__setParent(this)
     expectedProperty
   }
 
-  def \\?(
-    property: ObjectProperty[D]
-  )(f: PartialFunction[Property[D, _], Option[AspectProperty[D2, _]]]): MaybeObjectAspectProperty[D2] = {
-    val fields        = Aspect.getFields(property)(f)
-    val maybeProperty = MaybeObjectAspectProperty[D2](property._key, property._path, fields, property._codec, Nil)
+  //TODO support pulling from property if has withAdditional
+  def \\\[Key, Value](property: ObjectProperty[D], merged: ObjectProperty[D]*)(
+    f: PartialFunction[Property[D, _], Option[AspectProperty[D2, _]]] = PartialFunction.empty
+  )(implicit K: DStringCodec[Key], V: DCodec[Value]): ExpectedObjectAspectPropertyWithAdditional[D2, Key, Value] = {
+    val fields           = Aspect.getFields(property)(f) ++ merged.flatMap(Aspect.getFields(_)(f))
+    val expectedProperty =
+      new ExpectedObjectAspectPropertyWithAdditional[D2, Key, Value](property._codec, Nil, Nil, K, V)
+    fields.foreach(_._2.__setParent(expectedProperty))
+    expectedProperty.__setFields(fields)
+    expectedProperty.__setParent(this)
+    expectedProperty
+  }
+
+  def \\?(property: ObjectProperty[D], merged: ObjectProperty[D]*)(
+    f: PartialFunction[Property[D, _], Option[AspectProperty[D2, _]]] = PartialFunction.empty
+  ): MaybeObjectAspectProperty[D2] = {
+    val fields        = Aspect.getFields(property)(f) ++ merged.flatMap(Aspect.getFields(_)(f))
+    val maybeProperty = new MaybeObjectAspectProperty[D2](property._codec, Nil)
     fields.foreach(_._2.__setParent(maybeProperty))
+    maybeProperty.__setFields(fields)
+    maybeProperty.__setParent(this)
+    maybeProperty
+  }
+
+  //TODO support pulling from property if has withAdditional
+  def \\\?[Key, Value](property: ObjectProperty[D], merged: ObjectProperty[D]*)(
+    f: PartialFunction[Property[D, _], Option[AspectProperty[D2, _]]]
+  )(implicit K: DStringCodec[Key], V: DCodec[Value]): MaybeObjectAspectPropertyWithAdditional[D2, Key, Value] = {
+    val fields        = Aspect.getFields(property)(f) ++ merged.flatMap(Aspect.getFields(_)(f))
+    val maybeProperty = new MaybeObjectAspectPropertyWithAdditional[D2, Key, Value](property._codec, Nil, Nil, K, V)
+    fields.foreach(_._2.__setParent(maybeProperty))
+    maybeProperty.__setFields(fields)
     maybeProperty.__setParent(this)
     maybeProperty
   }
@@ -55,6 +85,7 @@ class AspectFor[D <: DObject, D2 <: D](_source: ContractFor[D])(
                 case prop: PropertyResolver[D2, Any] @unchecked =>
                   Some(prop.__nameOverride.getOrElse(m.getName) -> prop)
                 case prop: ObjectAspectProperty[D2] @unchecked  =>
+                  prop.__setKey(m.getName)
                   Some(prop._key -> prop)
                 case _                                          =>
                   None
@@ -66,6 +97,7 @@ class AspectFor[D <: DObject, D2 <: D](_source: ContractFor[D])(
       }
       __fields
     }
+
 }
 
 class Aspect[D <: DObject](_source: ContractFor[D])(
@@ -89,15 +121,15 @@ object Aspect {
     }
     def mapValueProperty[T]: Function[ValueProperty[D, T], ValueAspectProperty[D2, T]]           = {
       case e: ExpectedProperty[D, T]      =>
-        ExpectedAspectProperty(e._key, e._path, e._codec, e._dataOperators)
+        ExpectedAspectProperty(e._key, e._codec, e._dataOperators)
       case e: MaybeExpectedProperty[D, T] =>
-        ExpectedAspectProperty(e._key, e._path, e._codec, e._dataOperators)
+        ExpectedAspectProperty(e._key, e._codec, e._dataOperators)
       case m: MaybeProperty[D, T]         =>
-        MaybeAspectProperty(m._key, m._path, m._codec, m._dataOperators)
+        MaybeAspectProperty(m._key, m._codec, m._dataOperators)
       case d: DefaultProperty[D, T]       =>
-        DefaultAspectProperty(d._key, d._path, d._default, d._codec, d._dataOperators)
+        DefaultAspectProperty(d._key, d._default, d._codec, d._dataOperators)
       case d: MaybeDefaultProperty[D, T]  =>
-        DefaultAspectProperty(d._key, d._path, d._default, d._codec, d._dataOperators)
+        DefaultAspectProperty(d._key, d._default, d._codec, d._dataOperators)
       case _: ValueAspectProperty[D, T]   =>
         ???
     }
@@ -106,15 +138,15 @@ object Aspect {
         f.lift(pair._2) -> pair._2 match {
           case (None, o: ExpectedObjectProperty[D])                            =>
             val fields         = transformFields(o._fields)
-            val aspectProperty = ExpectedObjectAspectProperty(o._key, o._path, fields, o._codec, o._dataOperators)
+            val aspectProperty = ExpectedObjectAspectProperty(o, fields, o._dataOperators)
             Some(pair._1 -> reparent(aspectProperty, fields))
           case (None, o: MaybeExpectedObjectProperty[D])                       =>
             val fields         = transformFields(o._fields)
-            val aspectProperty = ExpectedObjectAspectProperty(o._key, o._path, fields, o._codec, o._dataOperators)
+            val aspectProperty = ExpectedObjectAspectProperty(o, fields, o._dataOperators)
             Some(pair._1 -> reparent(aspectProperty, fields))
           case (None, o: MaybeObjectProperty[D])                               =>
             val fields         = transformFields(o._fields)
-            val aspectProperty = MaybeObjectAspectProperty(o._key, o._path, fields, o._codec, o._dataOperators)
+            val aspectProperty = MaybeObjectAspectProperty(o, fields, o._dataOperators)
             Some(pair._1 -> reparent(aspectProperty, fields))
           case (None, p: ValueProperty[D, _])                                  =>
             Some(pair._1 -> mapValueProperty(p))
@@ -136,7 +168,8 @@ object Aspect {
 
 trait DAspectSyntax {
 
-  type AspectPropertyFunction[D <: DObject] = PartialFunction[Property[D, _], Option[AspectProperty[D, _]]]
+  type AspectPropertyFunction[D <: DObject, D2 <: DObject] =
+    PartialFunction[Property[D, _], Option[AspectProperty[D2, _]]]
 
   implicit def toPropertyAspectOps[D <: DObject](p: Property[D, _]): PropertyAspectOps[D, _] =
     new PropertyAspectOps(p)
@@ -210,7 +243,7 @@ final class ObjectPropertyAspectOps[D <: DObject](val p: ObjectProperty[D]) exte
   def $asExpected[D2 <: D](
     dataOperators: List[DataOperator[DObject] with Expected] = Nil
   ): ExpectedObjectAspectProperty[D2] =
-    ExpectedObjectAspectProperty[D2](p._key, p._path, p._codec, dataOperators)
+    ExpectedObjectAspectProperty[D2](p, dataOperators)
 
   def $asExpected[D2 <: D](
     dataOperator: DataOperator[DObject] with Expected,
@@ -219,11 +252,11 @@ final class ObjectPropertyAspectOps[D <: DObject](val p: ObjectProperty[D]) exte
     val dataOperators =
       p._dataOperators
         .collect { case d: DataOperator[DObject] with Expected => d } ::: dataOperator :: tail.toList
-    ExpectedObjectAspectProperty[D2](p._key, p._path, p._codec, dataOperators)
+    ExpectedObjectAspectProperty[D2](p, dataOperators)
   }
 
   def $asMaybe[D2 <: D](dataOperators: List[DataOperator[DObject] with Optional] = Nil): MaybeObjectAspectProperty[D2] =
-    MaybeObjectAspectProperty[D2](p._key, p._path, p._codec, dataOperators)
+    MaybeObjectAspectProperty[D2](p, dataOperators)
 
   def $asMaybe[D2 <: D](
     dataOperator: DataOperator[DObject] with Optional,
@@ -232,7 +265,7 @@ final class ObjectPropertyAspectOps[D <: DObject](val p: ObjectProperty[D]) exte
     val dataOperators =
       p._dataOperators
         .collect { case d: DataOperator[DObject] with Optional => d } ::: dataOperator :: tail.toList
-    MaybeObjectAspectProperty[D2](p._key, p._path, p._codec, dataOperators)
+    MaybeObjectAspectProperty[D2](p, dataOperators)
   }
 
 }
@@ -240,7 +273,7 @@ final class ObjectPropertyAspectOps[D <: DObject](val p: ObjectProperty[D]) exte
 final class ValuePropertyAspectOps[D <: DObject, T](val p: ValueProperty[D, T]) extends AnyVal {
 
   def $asExpected[D2 <: D](dataOperators: List[DataOperator[T] with Expected] = Nil): ExpectedAspectProperty[D2, T] =
-    ExpectedAspectProperty(p._key, p._path, p._codec, dataOperators)
+    ExpectedAspectProperty(p._key, p._codec, dataOperators)
 
   def $asExpected[D2 <: D](
     dataOperator: DataOperator[T] with Expected,
@@ -249,11 +282,11 @@ final class ValuePropertyAspectOps[D <: DObject, T](val p: ValueProperty[D, T]) 
     val dataOperators =
       p._dataOperators
         .collect { case d: DataOperator[T] with Expected => d } ::: dataOperator :: tail.toList
-    ExpectedAspectProperty(p._key, p._path, p._codec, dataOperators)
+    ExpectedAspectProperty(p._key, p._codec, dataOperators)
   }
 
   def $asMaybe[D2 <: D](dataOperators: List[DataOperator[T] with Optional] = Nil): MaybeAspectProperty[D2, T] =
-    MaybeAspectProperty(p._key, p._path, p._codec, dataOperators)
+    MaybeAspectProperty(p._key, p._codec, dataOperators)
 
   def $asMaybe[D2 <: D](
     dataOperator: DataOperator[T] with Optional,
@@ -262,14 +295,14 @@ final class ValuePropertyAspectOps[D <: DObject, T](val p: ValueProperty[D, T]) 
     val dataOperators =
       p._dataOperators
         .collect { case d: DataOperator[T] with Optional => d } ::: dataOperator :: tail.toList
-    MaybeAspectProperty(p._key, p._path, p._codec, dataOperators)
+    MaybeAspectProperty(p._key, p._codec, dataOperators)
   }
 
   def $asDefault[D2 <: D](
     default: T,
     dataOperators: List[DataOperator[T] with Optional] = Nil
   ): DefaultAspectProperty[D2, T] =
-    DefaultAspectProperty(p._key, p._path, default, p._codec, dataOperators)
+    DefaultAspectProperty(p._key, default, p._codec, dataOperators)
 
   def $asDefault[D2 <: D](
     default: T,
@@ -279,55 +312,55 @@ final class ValuePropertyAspectOps[D <: DObject, T](val p: ValueProperty[D, T]) 
     val operators =
       p._dataOperators
         .collect { case d: DataOperator[T] with Optional => d } ::: dataOperator :: tail.toList
-    DefaultAspectProperty(p._key, p._path, default, p._codec, operators)
+    DefaultAspectProperty(p._key, default, p._codec, operators)
   }
 }
 
 final class ExpectedPropertyAspectOps[D <: DObject, T](val p: ExpectedProperty[D, T]) extends AnyVal {
   def $appendDataOperators[D2 <: D](dataOperators: DataOperator[T] with Expected*): ExpectedAspectProperty[D2, T] =
-    ExpectedAspectProperty(p._key, p._path, p._codec, p._dataOperators ++ dataOperators)
+    ExpectedAspectProperty(p._key, p._codec, p._dataOperators ++ dataOperators)
 
   def $setDataOperators[D2 <: D](dataOperators: DataOperator[T] with Expected*): ExpectedAspectProperty[D2, T] =
-    ExpectedAspectProperty(p._key, p._path, p._codec, dataOperators.toList)
+    ExpectedAspectProperty(p._key, p._codec, dataOperators.toList)
 }
 
 final class MaybeExpectedPropertyAspectOps[D <: DObject, T](val p: MaybeExpectedProperty[D, T]) extends AnyVal {
   def $appendDataOperators[D2 <: D](dataOperators: DataOperator[T] with Expected*): ExpectedAspectProperty[D2, T] =
-    ExpectedAspectProperty(p._key, p._path, p._codec, p._dataOperators ++ dataOperators)
+    ExpectedAspectProperty(p._key, p._codec, p._dataOperators ++ dataOperators)
 
   def $setDataOperators[D2 <: D](dataOperators: DataOperator[T] with Expected*): ExpectedAspectProperty[D2, T] =
-    ExpectedAspectProperty(p._key, p._path, p._codec, dataOperators.toList)
+    ExpectedAspectProperty(p._key, p._codec, dataOperators.toList)
 }
 
 final class MaybePropertyAspectOps[D <: DObject, T](val p: MaybeProperty[D, T]) extends AnyVal {
   def $appendDataOperators[D2 <: D](dataOperators: DataOperator[T] with Optional*): MaybeAspectProperty[D2, T] =
-    MaybeAspectProperty(p._key, p._path, p._codec, p._dataOperators ++ dataOperators)
+    MaybeAspectProperty(p._key, p._codec, p._dataOperators ++ dataOperators)
 
   def $setDataOperators[D2 <: D](dataOperators: DataOperator[T] with Optional*): MaybeAspectProperty[D2, T] =
-    MaybeAspectProperty(p._key, p._path, p._codec, dataOperators.toList)
+    MaybeAspectProperty(p._key, p._codec, dataOperators.toList)
 }
 
 final class DefaultPropertyAspectOps[D <: DObject, T](val p: DefaultProperty[D, T]) extends AnyVal {
 
   def $changeDefault[D2 <: D](default: T): DefaultAspectProperty[D2, T] =
-    DefaultAspectProperty(p._key, p._path, default, p._codec, p._dataOperators)
+    DefaultAspectProperty(p._key, default, p._codec, p._dataOperators)
 
   def $appendDataOperators[D2 <: D](dataOperators: DataOperator[T] with Optional*): DefaultAspectProperty[D2, T] =
-    DefaultAspectProperty(p._key, p._path, p._default, p._codec, p._dataOperators ++ dataOperators)
+    DefaultAspectProperty(p._key, p._default, p._codec, p._dataOperators ++ dataOperators)
 
   def $setDataOperators[D2 <: D](dataOperators: DataOperator[T] with Optional*): DefaultAspectProperty[D2, T] =
-    DefaultAspectProperty(p._key, p._path, p._default, p._codec, dataOperators.toList)
+    DefaultAspectProperty(p._key, p._default, p._codec, dataOperators.toList)
 }
 
 final class MaybeDefaultPropertyAspectOps[D <: DObject, T](val p: MaybeDefaultProperty[D, T]) extends AnyVal {
   def $changeDefault[D2 <: D](default: T): DefaultAspectProperty[D2, T] =
-    DefaultAspectProperty(p._key, p._path, default, p._codec, p._dataOperators)
+    DefaultAspectProperty(p._key, default, p._codec, p._dataOperators)
 
   def $appendDataOperators[D2 <: D](dataOperators: DataOperator[T] with Optional*): DefaultAspectProperty[D2, T] =
-    DefaultAspectProperty(p._key, p._path, p._default, p._codec, p._dataOperators ++ dataOperators)
+    DefaultAspectProperty(p._key, p._default, p._codec, p._dataOperators ++ dataOperators)
 
   def $setDataOperators[D2 <: D](dataOperators: DataOperator[T] with Optional*): DefaultAspectProperty[D2, T] =
-    DefaultAspectProperty(p._key, p._path, p._default, p._codec, dataOperators.toList)
+    DefaultAspectProperty(p._key, p._default, p._codec, dataOperators.toList)
 }
 
 final class ExpectedObjectAspectOps[D <: DObject](val p: ExpectedObjectProperty[D]) extends AnyVal {
@@ -335,32 +368,32 @@ final class ExpectedObjectAspectOps[D <: DObject](val p: ExpectedObjectProperty[
   def $appendDataOperators[D2 <: D](
     dataOperators: DataOperator[DObject] with Expected*
   ): ExpectedObjectAspectProperty[D2] =
-    ExpectedObjectAspectProperty(p._key, p._path, p._codec, p._dataOperators ++ dataOperators)
+    ExpectedObjectAspectProperty(p, p._dataOperators ++ dataOperators)
 
   def $setDataOperators[D2 <: D](
     dataOperators: DataOperator[DObject] with Expected*
   ): ExpectedObjectAspectProperty[D2] =
-    ExpectedObjectAspectProperty(p._key, p._path, p._codec, dataOperators.toList)
+    ExpectedObjectAspectProperty(p, dataOperators.toList)
 }
 
 final class MaybeExpectedObjectAspectOps[D <: DObject](val p: MaybeExpectedObjectProperty[D]) extends AnyVal {
   def $appendDataOperators[D2 <: D](
     dataOperators: DataOperator[DObject] with Expected*
   ): ExpectedObjectAspectProperty[D2] =
-    ExpectedObjectAspectProperty(p._key, p._path, p._codec, p._dataOperators ++ dataOperators)
+    ExpectedObjectAspectProperty(p, p._dataOperators ++ dataOperators)
 
   def $setDataOperators[D2 <: D](
     dataOperators: DataOperator[DObject] with Expected*
   ): ExpectedObjectAspectProperty[D2] =
-    ExpectedObjectAspectProperty(p._key, p._path, p._codec, dataOperators.toList)
+    ExpectedObjectAspectProperty(p, dataOperators.toList)
 }
 
 final class MaybeObjectAspectOps[D <: DObject](val p: MaybeObjectProperty[D]) extends AnyVal {
   def $appendDataOperators[D2 <: D](
     dataOperators: DataOperator[DObject] with Optional*
   ): MaybeObjectAspectProperty[D2] =
-    MaybeObjectAspectProperty(p._key, p._path, p._codec, p._dataOperators ++ dataOperators)
+    MaybeObjectAspectProperty(p, p._dataOperators ++ dataOperators)
 
   def $setDataOperators[D2 <: D](dataOperators: DataOperator[DObject] with Optional*): MaybeObjectAspectProperty[D2] =
-    MaybeObjectAspectProperty(p._key, p._path, p._codec, dataOperators.toList)
+    MaybeObjectAspectProperty(p, dataOperators.toList)
 }

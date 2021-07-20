@@ -1,6 +1,7 @@
 package dsentric.contracts
 
-import dsentric.{DObject, RawObject}
+import dsentric.contracts.DAspectSyntax.AspectPropertyFunction
+import dsentric.{DObject, Data, RawObject}
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
@@ -23,6 +24,15 @@ class AspectSpec extends AnyFunSpec with Matchers with EitherValues {
   object Nested extends Contract {
     val nested = new \\ {
       val property1 = \[String]
+      val property2 = \[Int]
+    }
+  }
+
+  object Double extends Contract {
+    val open   = new \\ with Open {
+      val property1 = \[String]
+    }
+    val closed = new \\ {
       val property2 = \[Int]
     }
   }
@@ -76,11 +86,39 @@ class AspectSpec extends AnyFunSpec with Matchers with EitherValues {
       }
 
     it("Should verify") {
-      println(a.$verify(DObject("nested" ::= ("property2" := 1))))
-      println(a.nested.$get(DObject("nested" ::= ("property2" := 1))))
-      println(a.$verify(DObject("nested" ::= ("property1" := 1))))
-      println(a.nested.$get(DObject("nested" ::= ("property1" := 1))))
-      println(b.nested.$get(DObject("nested" ::= ("property1" := 1))))
+      a.$verify(DObject("nested" ::= ("property2" := 1))).isRight shouldBe true
+      a.nested.$get(DObject("nested" ::= ("property2" := 1))).isRight shouldBe true
+      a.$verify(DObject("nested" ::= ("property1" := 1))).isLeft shouldBe true
+      a.nested.$get(DObject("nested" ::= ("property1" := 1))).isLeft shouldBe true
+      b.nested.$get(DObject("nested" ::= ("property1" := 1))).isLeft shouldBe true
+    }
+  }
+  describe("Merging") {
+    val f: AspectPropertyFunction[DObject, DObject] = {
+      case Double.open   => None
+      case Double.closed => None
+    }
+    val openLead                                    = new Aspect(Double)(f) {
+      val myOpen = \\\[String, Data](Double.open, Double.closed)()
+    }
+
+    val closedLead = new Aspect(Double)(f) {
+      val myClosed = \\(Double.closed, Double.open)()
+    }
+    it("Should verify") {
+      openLead.$verify(DObject("myOpen" ::= ("property1" := "string", "property2" := 1))).isRight shouldBe true
+      openLead.$verify(DObject("myOpen" ::= ("property2" := 1))).isRight shouldBe false
+      openLead.$verify(DObject("myOpen" ::= ("property1" := "string"))).isRight shouldBe false
+      openLead
+        .$verify(DObject("myOpen" ::= ("property1" := "string", "property2" := 1, "Additional" := true)))
+        .isRight shouldBe true
+
+      closedLead.$verify(DObject("myClosed" ::= ("property1" := "string", "property2" := 1))).isRight shouldBe true
+      closedLead.$verify(DObject("myClosed" ::= ("property2" := 1))).isRight shouldBe false
+      closedLead.$verify(DObject("myClosed" ::= ("property1" := "string"))).isRight shouldBe false
+      closedLead
+        .$verify(DObject("myClosed" ::= ("property1" := "string", "property2" := 1, "Additional" := true)))
+        .isRight shouldBe false
     }
   }
 }
