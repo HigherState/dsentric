@@ -6,7 +6,7 @@ import scala.collection.GenTraversable
 
 object Implicits {
 
-  implicit def nonEmptyListContaining[T]:Containing[NonEmptyList[T]] =
+  implicit def nonEmptyListContaining[T]: Containing[NonEmptyList[T]] =
     new Containing[NonEmptyList[T]] {
       def contains(container: NonEmptyList[T], element: Any): Boolean =
         container.head == element || container.tail.contains(element)
@@ -18,7 +18,7 @@ object Implicits {
         !elements.exists(e => contains(container, e))
     }
 
-  implicit def nonEmptyListAggregating[T]:Aggregating[NonEmptyList[T]] =
+  implicit def nonEmptyListAggregating[T]: Aggregating[NonEmptyList[T]] =
     new Aggregating[NonEmptyList[T]] {
       def containsAtLeastOneOf(aggregation: NonEmptyList[T], eles: collection.Seq[Any]): Boolean =
         eles.exists(e => aggregation.head == e || aggregation.tail.contains(e))
@@ -27,8 +27,7 @@ object Implicits {
       def containsTheSameElementsAs(leftAggregation: NonEmptyList[T], rightAggregation: GenTraversable[Any]): Boolean =
         if (leftAggregation.size == rightAggregation.size) {
           leftAggregation.toList.zip(rightAggregation).forall(p => p._1 == p._2)
-        }
-        else false
+        } else false
 
       def containsOnly(aggregation: NonEmptyList[T], eles: collection.Seq[Any]): Boolean =
         aggregation.size == eles.size && containsAllOf(aggregation, eles)
@@ -37,7 +36,7 @@ object Implicits {
         eles.forall(e => aggregation.head == e || aggregation.tail.contains(e))
 
       def containsAtMostOneOf(aggregation: NonEmptyList[T], eles: collection.Seq[Any]): Boolean =
-        eles.foldLeft(0){
+        eles.foldLeft(0) {
           case (2, _) => 2
           case (i, e) =>
             if (aggregation.head == e || aggregation.tail.contains(e)) i + 1

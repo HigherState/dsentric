@@ -5,14 +5,23 @@ import dsentric.failure.ValidResult
 import dsentric._
 
 sealed trait PathSetter[D <: DObject] extends Function[D, D] {
-  def ~(pathSetter: PathSetter[D]): PathSetter[D] =
+  def ~[D0 >: D <: DObject](pathSetter: PathSetter[D0]): PathSetter[D] =
     CompositeSetter(this, pathSetter)
 
-  def ~(pathSetter: ValidPathSetter[D]): ValidPathSetter[D] =
+  def ~[D0 >: D <: DObject](pathSetter: ValidPathSetter[D0]): ValidPathSetter[D] =
     CompositeValidSetter(LiftedSetter(this), pathSetter)
 
-  def ~(f: Function[D, D]): Function[D, D] =
-    this.andThen(f)
+  def ~+(kv: (String, Data)): PathSetter[D] =
+    CompositeSetter(this, ValueSetter(Path(kv._1), kv._2.value))
+
+  def ~+(path: Path, data: Data): PathSetter[D] =
+    CompositeSetter(this, ValueSetter(path, data.value))
+
+  def ~++(kv: Iterator[(String, Data)]): PathSetter[D] =
+    CompositeSetter(this, ConcatSetter(kv.map(p => p._1 -> p._2.value)))
+
+  def |>[D2 <: D](obj: D2): D2                         =
+    applyAs(obj)
 
   private[contracts] def rawApply(rawObject: RawObject): RawObject
 
@@ -35,14 +44,23 @@ sealed trait PathSetter[D <: DObject] extends Function[D, D] {
 }
 
 sealed trait ValidPathSetter[D <: DObject] extends Function[D, ValidResult[D]] {
-  def ~(pathSetter: PathSetter[D]): ValidPathSetter[D] =
+  def ~[D0 >: D <: DObject](pathSetter: PathSetter[D0]): ValidPathSetter[D] =
     CompositeValidSetter(this, LiftedSetter(pathSetter))
 
-  def ~(pathSetter: ValidPathSetter[D]): ValidPathSetter[D] =
+  def ~[D0 >: D <: DObject](pathSetter: ValidPathSetter[D0]): ValidPathSetter[D] =
     CompositeValidSetter(this, pathSetter)
 
-  def ~(f: Function[D, D]): Function[D, ValidResult[D]] =
-    d => this(d).map(f)
+  def ~+(kv: (String, Data)): ValidPathSetter[D] =
+    CompositeValidSetter(this, LiftedSetter(ValueSetter(Path(kv._1), kv._2.value)))
+
+  def ~+(path: Path, data: Data): ValidPathSetter[D] =
+    CompositeValidSetter(this, LiftedSetter(ValueSetter(path, data.value)))
+
+  def ~++(kv: Iterator[(String, Data)]): ValidPathSetter[D] =
+    CompositeValidSetter(this, LiftedSetter(ConcatSetter(kv.map(p => p._1 -> p._2.value))))
+
+  def |>[D2 <: D](obj: D2): ValidResult[D2]                 =
+    applyAs(obj)
 
   private[contracts] def rawApply(rawObject: RawObject): ValidResult[RawObject]
 
@@ -96,6 +114,15 @@ final private case class ValueSetter[D <: DObject](path: Path, value: Raw) exten
 
   private[contracts] def rawDelta(rawObject: RawObject): RawObject =
     PathLensOps.pathToMap(path, value)
+}
+
+final private case class ConcatSetter[D <: DObject](values: Iterator[(String, Raw)]) extends PathSetter[D] {
+
+  private[contracts] def rawApply(rawObject: RawObject): RawObject =
+    rawObject ++ values
+
+  private[contracts] def rawDelta(rawObject: RawObject): RawObject =
+    values.filterNot(p => rawObject.get(p._1).contains(p._2)).toMap
 }
 
 final private case class ValueIfEmptySetter[D <: DObject](path: Path, value: Raw) extends PathSetter[D] {
@@ -159,8 +186,10 @@ final private case class ValidDrop[D <: DObject](validPath: ValidResult[Path]) e
     validPath.map(Setter.deltaIgnoreOrNull(rawObject, _))
 }
 
-final private case class CompositeSetter[D <: DObject](leftSetter: PathSetter[D], rightSetter: PathSetter[D])
-    extends PathSetter[D] {
+final private case class CompositeSetter[D <: DObject, D0 >: D <: DObject](
+  leftSetter: PathSetter[D],
+  rightSetter: PathSetter[D0]
+) extends PathSetter[D] {
 
   private[contracts] def rawApply(rawObject: RawObject): RawObject =
     rightSetter.rawApply(leftSetter.rawApply(rawObject))
@@ -170,9 +199,9 @@ final private case class CompositeSetter[D <: DObject](leftSetter: PathSetter[D]
 
 }
 
-final private case class CompositeValidSetter[D <: DObject](
+final private case class CompositeValidSetter[D <: DObject, D0 >: D <: DObject](
   leftSetter: ValidPathSetter[D],
-  rightSetter: ValidPathSetter[D]
+  rightSetter: ValidPathSetter[D0]
 ) extends ValidPathSetter[D] {
 
   private[contracts] def rawApply(rawObject: RawObject): ValidResult[RawObject] =
@@ -454,6 +483,22 @@ final private case class TraversedModifyOrDropValidSetter[D <: DObject, T](
       case Failed(f, tail) =>
         ValidResult.failure(f, tail)
     }
+}
+
+final case class SelectPathSetter[D <: DObject](projection: DProjection) extends PathSetter[D] {
+  private[contracts] def rawApply(rawObject: RawObject): RawObject =
+    RawObjectOps.selectMap(rawObject, projection.value)
+
+  private[contracts] def rawDelta(rawObject: RawObject): RawObject =
+    ???
+}
+
+final case class OmitPathSetter[D <: DObject](projection: DProjection) extends PathSetter[D] {
+  private[contracts] def rawApply(rawObject: RawObject): RawObject =
+    RawObjectOps.omitMap(rawObject, projection.value)
+
+  private[contracts] def rawDelta(rawObject: RawObject): RawObject =
+    ???
 }
 
 final case class CustomPathSetter[D <: DObject](_rawApply: RawObject => RawObject, _rawDelta: RawObject => RawObject)

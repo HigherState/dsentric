@@ -1,7 +1,7 @@
 package dsentric
 
 import dsentric.codecs.{DCodec, DataCodec}
-import dsentric.contracts.{PathSetter, ValidPathSetter}
+import dsentric.contracts.{OmitPathSetter, PathSetter, SelectPathSetter, ValidPathSetter}
 import dsentric.failure.ValidResult
 import dsentric.filter.DFilter
 
@@ -250,6 +250,7 @@ final class DeltaInst private[dsentric] (val value: RawObject) extends AnyVal wi
 }
 
 final class DProjection private[dsentric] (val value: RawObject) extends AnyVal with DObject with DObjectOps[DProjection] {
+  projection =>
 
   protected def wrap(value: RawObject) = new DProjection(value)
 
@@ -270,13 +271,11 @@ final class DProjection private[dsentric] (val value: RawObject) extends AnyVal 
   def &(d: DProjection): DProjection =
     new DProjection(RawObjectOps.traverseConcat(value, d.value))
 
-  def select[D <: DObject]: Function[D, D] = { obj =>
-    obj.internalWrap(RawObjectOps.selectMap(obj.value, this.value)).asInstanceOf[D]
-  }
+  def select[D <: DObject]: PathSetter[D] =
+    SelectPathSetter(this)
 
-  def omit[D <: DObject]: Function[D, D] = { obj =>
-    obj.internalWrap(RawObjectOps.omitMap(obj.value, this.value)).asInstanceOf[D]
-  }
+  def omit[D <: DObject]: PathSetter[D] =
+    OmitPathSetter(this)
 
   /*
   Value on the left hand side is the selection by the projection, the value on the right has the values exluded

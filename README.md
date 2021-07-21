@@ -244,15 +244,15 @@ Delta
 == NotFound
 
 TODO: 
- Delta testing
- Santization and testing
+
+ Projections PAthSetters Delta Function
+
  Review Projections - 
     simply properties and projections, so can do use a property as a project
     Projections
     Projections Should support WildCard key match, or regex key match
     maybe "$/*/"
     Projection building ie  DProjection("nested" -> {​​​​​​​DProjection}​​​​​​​)
-  Delta
 
 ADD: Contract.property.$contains()
 
