@@ -1,5 +1,8 @@
 package dsentric
 
+import dsentric.codecs.DCodec
+import dsentric.contracts.PathSetter
+
 import scala.annotation.tailrec
 import scala.util.Try
 
@@ -122,6 +125,9 @@ sealed trait Path {
       case PathIndex(_, p)       =>
         p.tailKeyOption
     }
+
+  def :=>[D <: DObject, T: DCodec](t: T): PathSetter[D] =
+    dsentric.contracts.ValueSetter(this, implicitly[DCodec[T]].apply(t))
 }
 
 case object PathEnd extends Path {

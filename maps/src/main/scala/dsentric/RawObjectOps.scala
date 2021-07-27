@@ -251,6 +251,13 @@ trait RawObjectOps {
         false
     }
 
+  def leafMap(target: RawObject)(f: Raw => Raw): RawObject =
+    target.map {
+      case (k, o: RawObject @unchecked) =>
+        k -> leafMap(o)(f)
+      case (k, v)                       =>
+        k -> f(v)
+    }
 }
 
 object RawObjectOps extends RawObjectOps
