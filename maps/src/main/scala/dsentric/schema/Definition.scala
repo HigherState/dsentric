@@ -224,13 +224,13 @@ object Definition {
     info: ContractInfo,
     nestedOverride: Boolean
   ): Iterable[(String, Property[D, _], SchemaAnnotations)] =
-    fields.flatMap { field =>
+    fields.flatMap { case (key, value) =>
       val schema =
         if (nestedOverride || info.schemaAnnotations.nested)
-          info.getInheritedFieldAnnotation(field._1)
+          info.getInheritedFieldAnnotation(key)
         else
-          info.fields.get(field._1)
-      schema.map(s => (field._1, field._2, s))
+          info.fields.get(key)
+      schema.map((key, value, _))
     }
 
   private def additionalPropertiesDefinition[D <: DObject](

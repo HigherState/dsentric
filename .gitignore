@@ -30,3 +30,13 @@ logs
 # SBT
 /.history
 publish.sbt
+
+# Metals
+metals.sbt
+/.metals
+
+# Bloop
+.bloop/
+project/.bloop
+project/project/
+/.bsp
