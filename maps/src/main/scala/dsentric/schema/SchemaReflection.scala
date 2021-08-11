@@ -133,21 +133,23 @@ object SchemaReflection  {
         propertyType
       ) && !m.isClass && m.owner == t && (t.isTrait || !m.isMethod) && m.overrides.isEmpty
     )
-    members.map { p =>
-      val rawObj: Any = (p.isTerm, p.isMethod) match {
+    members.collect { p =>
+      (p.isTerm, p.isMethod) match {
         case (_, true) => {
           val methodSymbol = p.asMethod
-          instanceMirror.reflectMethod(methodSymbol).apply()
+          val rawObj = instanceMirror.reflectMethod(methodSymbol).apply()
+          val keyName = rawObj.asInstanceOf[Property[_, _]]._key
+          val annotations = getSchemaAnnotation(p.annotations)
+          keyName.toString.trim() -> annotations
         }
         case (true, _) => {
           val termSymbol = p.asTerm
-          instanceMirror.reflectField(termSymbol).get
+          val rawObj = instanceMirror.reflectField(termSymbol).get
+          val keyName = rawObj.asInstanceOf[Property[_, _]]._key
+          val annotations = getSchemaAnnotation(p.annotations)
+          keyName.toString.trim() -> annotations
         }
-        case (false, false) => ??? // todo: how do we handle error's?
       }
-      val keyName = rawObj.asInstanceOf[Property[_, _]]._key
-      val annotations = getSchemaAnnotation(p.annotations)
-      keyName.toString.trim() -> annotations
     }.toMap
   }
 
