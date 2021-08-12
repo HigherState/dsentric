@@ -196,7 +196,7 @@ object Definition {
     p._dataOperators.contains(Internal)
 
   private def isRequired[D <: DObject](p: Property[D, _]): Boolean =
-    p.isInstanceOf[ExpectedProperty[D, _]] || p.isInstanceOf[ExpectedObjectProperty[D]]
+    p.isInstanceOf[ExpectedProperty[D, _]] || p.isInstanceOf[ExpectedObjectProperty[D]] || p.isInstanceOf[MaybeExpectedProperty[D, _]]
 
   private def inheritFold[D <: DObject](
     fields: Map[String, Property[D, _]],

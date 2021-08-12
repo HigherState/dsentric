@@ -73,13 +73,15 @@ object SchemaReflection  {
     contract: BaseContract[A],
     current: Vector[ContractInfo] = Vector.empty
   ): (ContractInfo, Vector[ContractInfo]) = {
-    val mirror = scala.reflect.runtime.universe.runtimeMirror(contract.getClass.getClassLoader)
-    val typ      = mirror.classSymbol(contract.getClass)
+    val mirror         = scala.reflect.runtime.universe.runtimeMirror(contract.getClass.getClassLoader)
+    val typ            = mirror.classSymbol(contract.getClass)
     val instanceMirror = mirror.reflect(contract)
     getContractInfo(typ, current)(instanceMirror)
   }
 
-  private def getContractInfo(t: ClassSymbol, current: Vector[ContractInfo])(instanceMirror: InstanceMirror): (ContractInfo, Vector[ContractInfo]) = {
+  private def getContractInfo(t: ClassSymbol, current: Vector[ContractInfo])(
+    instanceMirror: InstanceMirror
+  ): (ContractInfo, Vector[ContractInfo]) = {
     val fullName = t.fullName
     current.find(_.fullName == fullName) match {
       case Some(ci) =>
@@ -92,7 +94,7 @@ object SchemaReflection  {
             val (ici, nv) = getContractInfo(e.asClass, v)(instanceMirror)
             (b :+ ici) -> nv
           }
-        val annotationFields                  = getFieldsSchemaAnnotations(t)(instanceMirror)
+        val annotationFields        = getFieldsSchemaAnnotations(t)(instanceMirror)
         val displayName             =
           schema.typeName.orElse {
             if (t.name.toString.startsWith("$anon$"))
@@ -133,22 +135,20 @@ object SchemaReflection  {
         propertyType
       ) && !m.isClass && m.owner == t && (t.isTrait || !m.isMethod) && m.overrides.isEmpty
     )
-    members.collect { p =>
+    members.collect { (p: TypeSymbol) =>
       (p.isTerm, p.isMethod) match {
-        case (_, true) => {
+        case (_, true) =>
           val methodSymbol = p.asMethod
-          val rawObj = instanceMirror.reflectMethod(methodSymbol).apply()
-          val keyName = rawObj.asInstanceOf[Property[_, _]]._key
+          val rawObj       = instanceMirror.reflectMethod(methodSymbol).apply()
+          val keyName      = rawObj.asInstanceOf[Property[_, _]]._key
+          val annotations  = getSchemaAnnotation(p.annotations)
+          keyName.toString.trim() -> annotations
+        case (true, _) =>
+          val termSymbol  = p.asTerm
+          val rawObj      = instanceMirror.reflectField(termSymbol).get
+          val keyName     = rawObj.asInstanceOf[Property[_, _]]._key
           val annotations = getSchemaAnnotation(p.annotations)
           keyName.toString.trim() -> annotations
-        }
-        case (true, _) => {
-          val termSymbol = p.asTerm
-          val rawObj = instanceMirror.reflectField(termSymbol).get
-          val keyName = rawObj.asInstanceOf[Property[_, _]]._key
-          val annotations = getSchemaAnnotation(p.annotations)
-          keyName.toString.trim() -> annotations
-        }
       }
     }.toMap
   }

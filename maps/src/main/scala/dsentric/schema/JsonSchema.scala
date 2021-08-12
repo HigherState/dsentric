@@ -21,7 +21,7 @@ object JsonSchema {
     )
 
 
-  private def convertPropertyDefinition(propertyDefinition: PropertyDefinition):(String, Map[String, Any]) = {
+  private[schema] def convertPropertyDefinition(propertyDefinition: PropertyDefinition):(String, Map[String, Any]) = {
     val m = convertTypeDefinition(propertyDefinition.typeDefinition)
     propertyDefinition.description.foreach(p => m += "description" -> p)
     propertyDefinition.examples.foreach(p => m += "example" -> p)
