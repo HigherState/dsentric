@@ -5,23 +5,23 @@ import scala.collection.mutable
 
 object JsonSchema {
 
-  private val $SCHEMA = "$schema" -> "http://json-schema.org/schema#"
+  private val $SCHEMA = "$schema" -> "https://json-schema.org/draft/2020-12/schema"
 
   def convertObjectDefinition(objectDefinition:ObjectDefinition):DObject =
     ForceWrapper.dObject(convertTypeDefinition(objectDefinition).toMap + $SCHEMA)
 
-  def convertObjectDefinitions(objectDefinitions:(ObjectDefinition, Definition.Definitions)):DObject =
-    if (objectDefinitions._2.isEmpty)
-      convertObjectDefinition(objectDefinitions._1)
+  def convertObjectDefinitions(schema:ObjectDefinition, definitions: Definition.Definitions):DObject =
+    if (definitions.isEmpty)
+      convertObjectDefinition(schema)
     else
     ForceWrapper.dObject(
-      convertTypeDefinition(objectDefinitions._1).toMap +
-      ("definitions" -> objectDefinitions._2.map(d => d.definition.getOrElse(throw SchemaGenerationException("Definition name expected")) -> convertTypeDefinition(d).toMap).toMap) +
+      convertTypeDefinition(schema).toMap +
+      ("definitions" -> definitions.map(d => d.definition.getOrElse(throw SchemaGenerationException("Definition name expected")) -> convertTypeDefinition(d).toMap).toMap) +
       $SCHEMA
     )
 
 
-  private def convertPropertyDefinition(propertyDefinition: PropertyDefinition):(String, Map[String, Any]) = {
+  private[schema] def convertPropertyDefinition(propertyDefinition: PropertyDefinition):(String, Map[String, Any]) = {
     val m = convertTypeDefinition(propertyDefinition.typeDefinition)
     propertyDefinition.description.foreach(p => m += "description" -> p)
     propertyDefinition.examples.foreach(p => m += "example" -> p)

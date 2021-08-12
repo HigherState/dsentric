@@ -56,7 +56,7 @@ class SchemaReflectionTests extends AnyFunSuite with Matchers {
   test("field annotations") {
     val (contractInfo, _) = SchemaReflection.getContractInfo(Query1)
     contractInfo.fields("field") shouldBe SchemaAnnotations(None, None, false, List(123, "Pants"), None)
-    contractInfo.fields("fieldX") shouldBe SchemaAnnotations(Some("FLOATIES"), None, false, Nil, Some("Its a float"))
+    contractInfo.fields("actualName") shouldBe SchemaAnnotations(Some("FLOATIES"), None, false, Nil, Some("Its a float"))
     contractInfo.fields("nested") shouldBe SchemaAnnotations(None, None, false, Nil, None)
     contractInfo.fields("renamed") shouldBe SchemaAnnotations(None, None, true, Nil, None)
 
@@ -76,10 +76,10 @@ class SchemaReflectionTests extends AnyFunSuite with Matchers {
   }
 
   //Not supported by reflection
-//  test("Internal nested annotations") {
-//    val (nestedInfo, _) = SchemaReflection.getContractInfo(Query1.nested)
-//    nestedInfo.fields("field2") shouldBe SchemaAnnotations(None, None, false, Nil, Some("nested field"))
-//  }
+ // test("Internal nested annotations") {
+ //   val (nestedInfo, _) = SchemaReflection.getContractInfo(Query1.nested)
+ //   nestedInfo.fields("field2") shouldBe SchemaAnnotations(None, None, false, Nil, Some("nested field"))
+ // }
 
   test("internal inherited annotations") {
     val (inherited, _) = SchemaReflection.getContractInfo(Query1.inherited)
