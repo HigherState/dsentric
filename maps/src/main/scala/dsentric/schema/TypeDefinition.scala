@@ -113,7 +113,7 @@ case class ObjectDefinition(
                              description:Option[String] = None,
                              referencedDefinitions:Vector[String] = Vector.empty,
                              properties:Set[PropertyDefinition] = Set.empty,
-                             additionalProperties:Either[Boolean, TypeDefinition] = Left(true), // can be object
+                             additionalProperties:Either[Boolean, TypeDefinition] = Left(false), // can be object
                              propertyNames:Option[StringDefinition] = None,
                              minProperties:Option[Int] = None,
                              maxProperties:Option[Int] = None,
