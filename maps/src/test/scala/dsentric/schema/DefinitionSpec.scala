@@ -162,21 +162,22 @@ class DefinitionSpec extends AnyFunSpec with Matchers {
       }
       val arrayContractDef =
         ObjectDefinition(
+          definition = Some("ArrayContract"),
           properties = Set(
             PropertyDefinition(
               "prop1",
-              IntegerDefinition(exclusiveMinimum = Some(0), exclusiveMaximum = Some(12)),
+              IntegerDefinition(minimum = Some(Int.MinValue), maximum = Some(Int.MaxValue)),
               Nil,
               None,
               false,
               None
             ),
-            PropertyDefinition("prop2", StringDefinition(List("one", "two", "three")), Nil, Some("one"), false, None)
+            PropertyDefinition("prop2", StringDefinition(List.empty), Nil, Some("one"), false, None)
           ),
           additionalProperties = Left(false)
         )
       val arrayDef =
-        ArrayDefinition(Vector(arrayContractDef), Some(2), None, false)
+        ArrayDefinition(Vector(arrayContractDef), None, None, false)
 
       Definition.nestedContractObjectDefinition(WithArray) shouldBe
         ObjectDefinition(

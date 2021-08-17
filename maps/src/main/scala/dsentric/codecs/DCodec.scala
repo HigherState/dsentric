@@ -166,7 +166,8 @@ final case class DContractCodec[D <: DObject](contract: ContractFor[D], cstr: Ra
   def apply(t: D): RawObject =
     t.value
 
-  def typeDefinition: TypeDefinition = ???
+  def typeDefinition: TypeDefinition = 
+    Definition.nestedContractObjectDefinition(contract)
 }
 
 object DContractCodec {
