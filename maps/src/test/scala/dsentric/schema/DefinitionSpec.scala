@@ -66,7 +66,7 @@ class DefinitionSpec extends AnyFunSpec with Matchers {
         None,
         Vector.empty,
         Set.empty,
-        Left(true)
+        Right(BooleanDefinition)
       )
     }
 
