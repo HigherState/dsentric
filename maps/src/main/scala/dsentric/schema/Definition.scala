@@ -189,6 +189,8 @@ object Definition {
     p match {
       case d: DefaultProperty[_, Any] @unchecked =>
         Some(d._codec(d._default))
+      case d: MaybeDefaultProperty[_, Any] @unchecked =>
+        Some(d._codec(d._default))
       case _                                     => None
     }
 
