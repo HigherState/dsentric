@@ -5,6 +5,7 @@ import dsentric.codecs.{
   DCollectionCodec,
   DContractCodec,
   DCoproductCodec,
+  DKeyContractCollectionCodec,
   DMapCodec,
   DProductCodec,
   DTypeContractCodec,
@@ -40,7 +41,7 @@ trait DataOperationOps {
     )
 
   /**
-   * Traverses the cntract and object structure and applies point transformations to the values of the properties dependent
+   * Traverses the contract and object structure and applies point transformations to the values of the properties dependent
    * on the partial function
    * This does not reduce empty objects or null values
    *
@@ -123,6 +124,14 @@ trait DataOperationOps {
       def transformCodec[T]: Function[(Raw, DCodec[T]), Option[Raw]]                                       = {
         case (nestedObject: RawObject @unchecked, d: DContractCodec[_])                             =>
           objectTransform(d.contract, nestedObject)
+        case (nestedObject: RawObject @unchecked, d: DKeyContractCollectionCodec[T, _])             =>
+          nestedObject.keys.foldLeft(Option.empty[RawObject]) { (maybeChangedObject, mapKey) =>
+            maybeChangedObject
+              .getOrElse(nestedObject)
+              .get(mapKey)
+              .collect { case rawObject: RawObject @unchecked => objectTransform(d.contract, rawObject) }
+              .map(newObject => rawObject + (mapKey -> newObject))
+          }
         case (nestedObject: RawObject @unchecked, d: DTypeContractCodec[_])                         =>
           d.contracts.lift(d.cstr(nestedObject)).flatMap { typeContract =>
             objectTransform(typeContract, nestedObject)

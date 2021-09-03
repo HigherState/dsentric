@@ -142,13 +142,13 @@ object SchemaReflection  {
           val rawObj       = instanceMirror.reflectMethod(methodSymbol).apply()
           val keyName      = rawObj.asInstanceOf[Property[_, _]]._key
           val annotations  = getSchemaAnnotation(p.annotations)
-          keyName.toString.trim() -> annotations
+          keyName.trim() -> annotations
         case (true, _) =>
           val termSymbol  = p.asTerm
           val rawObj      = instanceMirror.reflectField(termSymbol).get
           val keyName     = rawObj.asInstanceOf[Property[_, _]]._key
           val annotations = getSchemaAnnotation(p.annotations)
-          keyName.toString.trim() -> annotations
+          keyName.trim() -> annotations
       }
     }.toMap
   }

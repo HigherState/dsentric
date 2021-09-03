@@ -1,7 +1,7 @@
 package dsentric.contracts
 
 import dsentric._
-import dsentric.codecs.{DContractCodec, DCoproductCodec, DTypeContractCodec, DValueCodec}
+import dsentric.codecs.{DContractCodec, DCoproductCodec, DKeyContractCollectionCodec, DTypeContractCodec, DValueCodec}
 import dsentric.failure.{ClosedContractFailure, _}
 import dsentric.schema.ObjectDefinition
 import org.scalatest.EitherValues
@@ -149,6 +149,91 @@ class VerifySpec extends AnyFunSpec with Matchers with EitherValues {
       it("Should return leave null and empty object values") {
         val base = DObject(
           "property" ::= ("expected" := "value", "maybe" := false, "default" := 0, "add1" := DNull, "add2" := DObject.empty)
+        )
+        ContractCodec.$verify(base).value.validObject shouldBe base
+      }
+    }
+
+    describe("Contract Key Collection Codec Type") {
+
+      case class WithKey(key: String, value: Map[String, Any]) extends DObject {
+        protected def wrap(value: RawObject): DObject = this.copy(value = value)
+      }
+      case class WithKeys(values: Vector[WithKey])
+      case class AtleastTwoWithKeys(values: Vector[WithKey])
+
+      object WithKeyContract extends ContractFor[WithKey] with Open {
+        val expected = \[String]
+        val maybe    = \?[Boolean]
+        val default  = \![Int](0)
+      }
+      object BlankContract   extends ContractFor[WithKey] with Open
+      implicit val D: DKeyContractCollectionCodec[WithKeys, WithKey]            = DKeyContractCollectionCodec[WithKeys, WithKey](
+        WithKeyContract,
+        WithKey(_, _),
+        w => w.key -> w.value,
+        a => Some(WithKeys(a)),
+        _.values
+      )
+      implicit val D2: DKeyContractCollectionCodec[AtleastTwoWithKeys, WithKey] =
+        DKeyContractCollectionCodec[AtleastTwoWithKeys, WithKey](
+          BlankContract,
+          WithKey(_, _),
+          w => w.key -> w.value,
+          a => if (a.size <= 1) None else Some(AtleastTwoWithKeys(a)),
+          _.values
+        )
+
+      object ContractCodec           extends Contract {
+        val property = \[WithKeys]
+      }
+      object ContractAtLeastTwoCodec extends Contract {
+        val property = \?[AtleastTwoWithKeys]
+      }
+
+      it("Should return object if contract values correct") {
+        val base = DObject("property" ::= ("one" ::= ("expected" := "value", "maybe" := false)))
+        ContractCodec.$verify(base).value.validObject shouldBe base
+      }
+      it("Should return failure if expected object properties missing") {
+        val base = DObject.empty
+        ContractCodec.$verify(base).left.value should contain(ExpectedFailure(ContractCodec, Path("property")))
+      }
+      it("Should return object if expected object is empty") {
+        val base = DObject("property" := DObject.empty)
+        ContractCodec.$verify(base).value.validObject shouldBe base
+      }
+      it("Should not reduce key value if expected object is empty and contract allows empty") {
+        val base = DObject(
+          "property" ::= ("empty" := DObject.empty, "nonEmpty" := DObject("one" := 1), "nonEmpty2" := DObject("two" := 2))
+        )
+        ContractAtLeastTwoCodec.$verify(base).value.validObject shouldBe base
+      }
+      it("Should fail if expected object is empty and contract doesnt allow empty") {
+        val base = DObject("property" ::= ("empty" := DObject.empty, "nonEmpty" := DObject("one" := 1)))
+        ContractCodec.$verify(base).left.value should contain(
+          ExpectedFailure(ContractCodec, Path("property", "empty", "expected"))
+        )
+      }
+      it("Should return failure if expected object does not satisfy contract conditions") {
+        val base = DObject("property" ::= ("failure" ::= ("maybe" := "one")))
+        ContractCodec.$verify(base).left.value should contain allOf (
+          ExpectedFailure(ContractCodec, Path("property", "failure", "expected")),
+          IncorrectTypeFailure(ContractCodec, Path("property", "failure", "maybe"), booleanCodec, "one")
+        )
+
+      }
+      it("Should return failure if collection entity fails") {
+        val content = DObject("onlyOne" := DObject("one" := 1))
+        val base    = DObject("property" := content)
+        ContractAtLeastTwoCodec.$verify(base).left.value should contain(
+          IncorrectTypeFailure(ContractAtLeastTwoCodec, Path("property"), D2, content.value)
+        )
+      }
+
+      it("Should return null and empty object values in contract") {
+        val base = DObject(
+          "property" ::= ("reducing" ::= ("expected" := "value", "maybe" := false, "default" := 0, "add1" := DNull, "add2" := DObject.empty))
         )
         ContractCodec.$verify(base).value.validObject shouldBe base
       }

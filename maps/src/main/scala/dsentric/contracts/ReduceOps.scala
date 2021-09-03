@@ -8,6 +8,7 @@ import dsentric.codecs.{
   DCollectionCodec,
   DContractCodec,
   DCoproductCodec,
+  DKeyContractCollectionCodec,
   DMapCodec,
   DProductCodec,
   DTypeContractCodec,
@@ -130,6 +131,8 @@ private[contracts] trait ReduceOps {
       reduceCollection(contract, path, badTypes, d, rawArray)
     case (d: DContractCodec[_], rawObject: RawObject @unchecked)                      =>
       reduceContract(contract, path, badTypes, d.contract, rawObject)
+    case (d: DKeyContractCollectionCodec[C, _], rawObject: RawObject @unchecked)      =>
+      reduceKeyContractCollection(contract, path, badTypes, d, rawObject)
     case (d: DValueClassCodec[C, _], raw)                                             =>
       reduceCodec(contract, path, badTypes)(d.internalCodec -> raw)
     case (d: DProductCodec[C, _, _], rawArray: RawArray @unchecked)                   =>
@@ -346,6 +349,54 @@ private[contracts] trait ReduceOps {
         f.rebase(contract, path)
       case NotFound                              =>
         NotFound
+    }
+
+  protected def reduceKeyContractCollection[S, D <: DObject, D2 <: DObject](
+    contract: ContractFor[D],
+    path: Path,
+    badTypes: BadTypes,
+    codec: DKeyContractCollectionCodec[S, D2],
+    raw: RawObject
+  ): Available[RawObject] =
+    raw.foldLeft[Either[ListBuffer[Failure], mutable.Builder[(String, Raw), Map[String, Raw]]]](
+      Right(Map.newBuilder[String, Raw])
+    ) {
+      case (Right(b), (key, value: RawObject @unchecked)) =>
+        val entity = codec.cstr(key, value)
+        codec.contract.__reduce(entity.value, badTypes.nest == DropBadTypes) match {
+          case Found(rawObject)                      =>
+            Right(b.addOne(codec.dstr(entity.internalWrap(rawObject).asInstanceOf[D2])))
+          case _: Failed if badTypes == DropBadTypes =>
+            Right(b)
+          case NotFound                              =>
+            Right(b)
+          case f: Failed                             =>
+            val rebase = f.rebase(contract, path \ key)
+            Left(new ListBuffer[Failure].addAll(rebase.failure :: rebase.tail))
+        }
+      case (Left(vf), (key, value: RawObject @unchecked)) =>
+        Left(vf.addAll(codec.contract.__verify(codec.cstr(key, value).value).map(_.rebase(contract, path \ key))))
+      case (Right(_), (key, value))                       =>
+        Left(new ListBuffer[Failure].addOne(IncorrectTypeFailure(contract, path \ key, DCodecs.dObjectCodec, value)))
+      case (Left(vf), (key, value))                       =>
+        Left(vf.addOne(IncorrectTypeFailure(contract, path \ key, DCodecs.dObjectCodec, value)))
+    } match {
+      case Right(mb)                           =>
+        val newRawObject = mb.result()
+        if (newRawObject.isEmpty)
+          NotFound
+        else if (codec.unapply(newRawObject).isEmpty)
+          if (badTypes == DropBadTypes)
+            NotFound
+          else
+            Failed(IncorrectTypeFailure(contract, path, codec, newRawObject))
+        else
+          Found(newRawObject)
+      case Left(_) if badTypes == DropBadTypes =>
+        NotFound
+      case Left(lb)                            =>
+        val head :: tail = lb.result()
+        Failed(head, tail)
     }
 
   protected def reduceCoproduct[D <: DObject, T, H <: HList](

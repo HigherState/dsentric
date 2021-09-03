@@ -8,6 +8,7 @@ import dsentric.codecs.{
   DCollectionCodec,
   DContractCodec,
   DCoproductCodec,
+  DKeyContractCollectionCodec,
   DMapCodec,
   DProductCodec,
   DTypeContractCodec,
@@ -100,27 +101,30 @@ private[contracts] trait GetOps {
     path: Path,
     badTypes: BadTypes
   ): Function[(DCodec[C], Raw), Available[C]]                                                                 = {
-    case (d: DValueCodec[C], raw)                                    =>
+    case (d: DValueCodec[C], raw)                                                =>
       getValue(contract, path, badTypes, d, raw)
-    case (d: DMapCodec[C, _, _], rawObject: RawObject @unchecked)    =>
+    case (d: DMapCodec[C, _, _], rawObject: RawObject @unchecked)                =>
       getMap(contract, path, badTypes, d, rawObject)
-    case (d: DCollectionCodec[C, _], rawArray: RawArray @unchecked)  =>
+    case (d: DCollectionCodec[C, _], rawArray: RawArray @unchecked)              =>
       getCollection(contract, path, badTypes, d, rawArray)
-    case (d: DContractCodec[_], rawObject: RawObject @unchecked)     =>
+    case (d: DContractCodec[_], rawObject: RawObject @unchecked)                 =>
       getContract(contract, path, badTypes, d.contract, d.cstr, rawObject)
         .asInstanceOf[Available[C]]
-    case (d: DTypeContractCodec[_], rawObject: RawObject @unchecked) =>
+    case (d: DKeyContractCollectionCodec[C, _], rawObject: RawObject @unchecked) =>
+      getKeyContractCollection(contract, path, badTypes, d, rawObject)
+        .asInstanceOf[Available[C]]
+    case (d: DTypeContractCodec[_], rawObject: RawObject @unchecked)             =>
       getTypeContract(contract, path, badTypes, d.contracts, d.cstr, rawObject)
         .asInstanceOf[Available[C]]
-    case (d: DValueClassCodec[C, _], raw)                            =>
+    case (d: DValueClassCodec[C, _], raw)                                        =>
       getValueClass(contract, path, badTypes, d, raw)
-    case (d: DProductCodec[C, _, _], rawArray: RawArray @unchecked)  =>
+    case (d: DProductCodec[C, _, _], rawArray: RawArray @unchecked)              =>
       getProduct(contract, path, badTypes, d, rawArray)
-    case (d: DCoproductCodec[C, _], raw)                             =>
+    case (d: DCoproductCodec[C, _], raw)                                         =>
       getCoproduct(contract, path, badTypes, d, raw)
-    case _ if badTypes == DropBadTypes                               =>
+    case _ if badTypes == DropBadTypes                                           =>
       NotFound
-    case (d, raw)                                                    =>
+    case (d, raw)                                                                =>
       Failed(IncorrectTypeFailure(contract, path, d, raw))
   }
 
@@ -249,6 +253,49 @@ private[contracts] trait GetOps {
         NotFound
       case f: Failed                             =>
         f.rebase(contract, path)
+    }
+
+  protected def getKeyContractCollection[D <: DObject, D2 <: DObject, S](
+    contract: ContractFor[D],
+    path: Path,
+    badTypes: BadTypes,
+    codec: DKeyContractCollectionCodec[S, D2],
+    raw: RawObject
+  ): Available[S] =
+    raw.foldLeft[Either[ListBuffer[Failure], mutable.Builder[D2, Vector[D2]]]](Right(Vector.newBuilder[D2])) {
+      case (Right(b), (key, value: RawObject @unchecked)) =>
+        val entity = codec.cstr(key, value)
+        codec.contract.__get(entity.value, badTypes.nest == DropBadTypes) match {
+          case Found(rawObject)                      =>
+            Right(b.addOne(entity.internalWrap(rawObject).asInstanceOf[D2]))
+          case _: Failed if badTypes == DropBadTypes =>
+            Right(b)
+          case f: Failed                             =>
+            val rebase = f.rebase(contract, path \ key)
+            Left(new ListBuffer[Failure].addAll(rebase.failure :: rebase.tail))
+        }
+      case (Left(vf), (key, value: RawObject @unchecked)) =>
+        Left(vf.addAll(codec.contract.__verify(codec.cstr(key, value).value).map(_.rebase(contract, path \ key))))
+      case (Right(_), (key, value))                       =>
+        Left(new ListBuffer[Failure].addOne(IncorrectTypeFailure(contract, path \ key, DCodecs.dObjectCodec, value)))
+      case (Left(vf), (key, value))                       =>
+        Left(vf.addOne(IncorrectTypeFailure(contract, path \ key, DCodecs.dObjectCodec, value)))
+    } match {
+      case Right(vb)                           =>
+        val newVector = vb.result()
+        codec.build(newVector) match {
+          case Some(m)                          =>
+            Found(m)
+          case None if badTypes == DropBadTypes =>
+            NotFound
+          case None                             =>
+            Failed(IncorrectTypeFailure(contract, path, codec, raw))
+        }
+      case Left(_) if badTypes == DropBadTypes =>
+        NotFound
+      case Left(lb)                            =>
+        val head :: tail = lb.result()
+        Failed(head, tail)
     }
 
   protected def getTypeContract[D <: DObject, D2 <: DObject](

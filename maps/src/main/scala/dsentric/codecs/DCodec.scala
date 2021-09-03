@@ -169,6 +169,48 @@ final case class DContractCodec[D <: DObject](contract: ContractFor[D], cstr: Ra
   def typeDefinition: TypeDefinition = ???
 }
 
+/**
+ * May want to generalise away from being Contract when we have Case Class DCodecs
+ * @param contract
+ * @param cstr
+ * @param dstr
+ * @param build
+ * @param extract
+ * @tparam S
+ * @tparam D
+ */
+final case class DKeyContractCollectionCodec[S, D <: DObject](
+  contract: ContractFor[D],
+  cstr: (String, RawObject) => D,
+  dstr: D => (String, RawObject),
+  build: Vector[D] => Option[S],
+  extract: S => Vector[D]
+) extends DCodec[S] {
+  def unapply(a: Raw): Option[S] =
+    a match {
+      case m: RawObject @unchecked =>
+        m.view
+          .foldLeft(Option(Vector.newBuilder[D])) {
+            case (Some(b), (key, value: RawObject @unchecked)) =>
+              Some(b.addOne(cstr(key, value)))
+            case _                                             =>
+              None
+          }
+          .flatMap(b => build(b.result()))
+      case _                       =>
+        None
+    }
+
+  def apply(s: S): RawObject =
+    extract(s).iterator.map { d =>
+      dstr(d)
+    }.toMap
+
+  def typeDefinition: TypeDefinition = ???
+
+  def containsContractCodec: Boolean = true
+}
+
 object DContractCodec {
   val dObjectCstr: RawObject => DObject = new DObjectInst(_)
 

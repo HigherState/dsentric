@@ -1,6 +1,6 @@
 package dsentric.contracts
 
-import dsentric.codecs.{DContractCodec, DCoproductCodec, DTypeContractCodec, DValueCodec}
+import dsentric.codecs.{DContractCodec, DCoproductCodec, DKeyContractCollectionCodec, DTypeContractCodec, DValueCodec}
 import dsentric.failure.{
   ClosedContractFailure,
   ContractTypeResolutionFailure,
@@ -14,7 +14,7 @@ import dsentric.failure.{
   ReservedFailure
 }
 import dsentric.schema.ObjectDefinition
-import dsentric.{DNull, DObject, Data, Delta, Path}
+import dsentric.{DNull, DObject, Data, Delta, Path, RawObject}
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
@@ -416,6 +416,144 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
       }
     }
 
+    describe("Contract Key Collection Codec Type") {
+
+      case class WithKey(key: String, value: Map[String, Any]) extends DObject {
+        protected def wrap(value: RawObject): DObject = this.copy(value = value)
+      }
+      case class WithKeys(values: Vector[WithKey])
+      case class AtleastTwoWithKeys(values: Vector[WithKey])
+
+      object WithKeyContract extends ContractFor[WithKey] with Open {
+        val expected = \[String]
+        val maybe    = \?[Boolean]
+        val default  = \![Int](0)
+      }
+      object BlankContract   extends ContractFor[WithKey] with Open
+      implicit val D: DKeyContractCollectionCodec[WithKeys, WithKey]            = DKeyContractCollectionCodec[WithKeys, WithKey](
+        WithKeyContract,
+        WithKey(_, _),
+        w => w.key -> w.value,
+        a => Some(WithKeys(a)),
+        _.values
+      )
+      implicit val D2: DKeyContractCollectionCodec[AtleastTwoWithKeys, WithKey] =
+        DKeyContractCollectionCodec[AtleastTwoWithKeys, WithKey](
+          BlankContract,
+          WithKey(_, _),
+          w => w.key -> w.value,
+          a => if (a.size <= 1) None else Some(AtleastTwoWithKeys(a)),
+          _.values
+        )
+
+      object ContractCodec extends Contract {
+        val property = \[WithKeys]
+      }
+
+      object ContractAtLeastTwoCodec extends Contract {
+        val property = \?[AtleastTwoWithKeys]
+      }
+
+      it("Should return delta if current empty and delta satisfies contract conditions") {
+        val base  = DObject.empty
+        val delta = Delta("property" ::= ("one" ::= ("expected" := "value", "maybe" := false)))
+        ContractCodec.$reduceDelta(base, delta).value shouldBe delta
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return failure if current empty and delta does not satisfy contract conditions") {
+        val base  = DObject.empty
+        val delta = Delta("property" ::= ("one" ::= ("maybe" := false)))
+        ContractCodec.$reduceDelta(base, delta).left.value should contain(
+          ExpectedFailure(ContractCodec, Path("property", "one", "expected"))
+        )
+      }
+      it("Should return empty if current empty if delta does not satisfy contract conditions under dropBadTypes is true") {
+        val base  = DObject.empty
+        val delta = Delta("property" ::= ("one" ::= ("maybe" := false)))
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return empty if current set and delta is the same") {
+        val base  = DObject("property" ::= ("one" ::= ("expected" := "value", "maybe" := true)))
+        val delta = Delta("property" ::= ("one" ::= ("expected" := "value", "maybe" := true)))
+        ContractCodec.$reduceDelta(base, delta).value shouldBe Delta.empty
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return reduced delta if current empty and contract can satisfy under dropBadTypes is true") {
+        val base  = DObject.empty
+        val delta = Delta("property" ::= ("one" ::= ("expected" := "value", "maybe" := 1234)))
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe Delta(
+          "property" ::= ("one" ::= ("expected" := "value"))
+        )
+      }
+      it("Should return delta if changing current values") {
+        val base  = DObject("property" ::= ("one" ::= ("expected" := "value", "maybe" := true)))
+        val delta = Delta("property" ::= ("one" ::= ("expected" := "value2", "maybe" := false)))
+        ContractCodec.$reduceDelta(base, delta).value shouldBe delta
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return delta if removing maybe contract current values ") {
+        val base  = DObject("property" ::= ("one" ::= ("expected" := "value", "maybe" := true)))
+        val delta = Delta("property" ::= ("one" ::= ("maybe" := DNull)))
+        ContractCodec.$reduceDelta(base, delta).value shouldBe delta
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return empty if removing not existing keys") {
+        val base  = DObject("property" ::= ("one" ::= ("expected" := "value")))
+        val delta = Delta("property" ::= ("one" ::= ("maybe" := DNull)))
+        ContractCodec.$reduceDelta(base, delta).value shouldBe Delta.empty
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return failure if removing expected contract current values") {
+        val base  = DObject("property" ::= ("one" ::= ("expected" := "value", "maybe" := true)))
+        val delta = Delta("property" ::= ("one" ::= ("expected" := DNull)))
+        ContractCodec.$reduceDelta(base, delta).left.value should contain(
+          ExpectedFailure(ContractCodec, Path("property", "one", "expected"))
+        )
+      }
+      it("Should return empty if removing expected contract on empty object (Unusual case)") {
+        //val base  = DObject.empty
+        val delta = Delta("property" ::= ("one" ::= ("expected" := DNull)))
+        //ContractCodec.$reduceDelta(base, delta).value shouldBe Delta.empty
+        val base2 = DObject("property" ::= ("one" := DObject.empty))
+        ContractCodec.$reduceDelta(base2, delta).value shouldBe Delta.empty
+      }
+      it("Should return empty delta if removing expected contract current values under dropBadTypes is true") {
+        val base  = DObject("property" ::= ("one" ::= ("expected" := "value", "maybe" := true)))
+        val delta = Delta("property" ::= ("one" ::= ("expected" := DNull)))
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return failure if valid delta results in removing object of Expected property") {
+        val base  = DObject("property" ::= ("one" ::= ("maybe" := true)))
+        val delta = Delta("property" ::= ("one" ::= ("maybe" := DNull)))
+        ContractCodec.$reduceDelta(base, delta).left.value should contain(ExpectedFailure(ContractCodec.property))
+        ContractCodec.$reduceDelta(base, delta, true).left.value should contain(ExpectedFailure(ContractCodec.property))
+      }
+      it("Should return delta if valid delta results in leaving object still invalid") {
+        val base  = DObject("property" ::= ("one" ::= ("expected" := 123, "maybe" := true)))
+        val delta = Delta("property" ::= ("one" ::= ("maybe" := DNull)))
+        ContractCodec.$reduceDelta(base, delta).value shouldBe delta
+      }
+      it("should return failure if setting incorrect type even if its same type as current") {
+        val base  = DObject("property" ::= ("one" ::= ("expected" := 123, "maybe" := "fail")))
+        val delta = Delta("property" ::= ("one" ::= ("maybe" := "fail")))
+        ContractCodec.$reduceDelta(base, delta).left.value should contain(
+          IncorrectTypeFailure(ContractCodec, Path("property", "one", "maybe"), WithKeyContract.maybe._codec, "fail")
+        )
+      }
+      it("should return failure if result no longer satisfies type") {
+        val base  =
+          DObject("property" ::= ("one" ::= ("expected" := 123, "maybe" := "fail"), "two" ::= ("expected" := 4546)))
+        val delta = Delta("property" ::= ("two" := DNull))
+        ContractAtLeastTwoCodec.$reduceDelta(base, delta).left.value should contain(
+          IncorrectTypeFailure(
+            ContractAtLeastTwoCodec,
+            Path("property"),
+            ContractAtLeastTwoCodec.property._codec,
+            DObject("one" ::= ("expected" := 123, "maybe" := "fail")).value
+          )
+        )
+      }
+    }
     describe("Map Codec Type") {
       object Nested   extends Contract {
         val expected = \[String]

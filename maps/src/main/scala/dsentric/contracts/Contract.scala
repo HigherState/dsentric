@@ -8,6 +8,15 @@ trait SubContractFor[D <: DObject] extends BaseContract[D] with ExpectedProperty
   override protected def __self: BaseContract[D] = this
 }
 
+trait MaybeSubContractFor[D <: DObject]
+    extends BaseContract[D]
+    with MaybeExpectedPropertyOps[D]
+    with MaybeExpectedPropertyObjectOps[D] {
+  type Out = D
+
+  override protected def __self: BaseContract[D] = this
+}
+
 trait ContractFor[D <: DObject]
     extends BaseContract[D]
     with ExpectedPropertyOps[D]
@@ -23,6 +32,8 @@ trait ContractFor[D <: DObject]
 }
 
 trait SubContract extends SubContractFor[DObject]
+
+trait MaybeSubContract extends MaybeSubContractFor[DObject]
 
 trait Contract extends ContractFor[DObject] {
   def $create[R](f: this.type => DObject => R): R =

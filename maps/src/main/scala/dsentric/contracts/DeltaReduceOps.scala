@@ -27,6 +27,7 @@ import dsentric.codecs.{
   DCollectionCodec,
   DContractCodec,
   DCoproductCodec,
+  DKeyContractCollectionCodec,
   DMapCodec,
   DProductCodec,
   DTypeContractCodec,
@@ -177,37 +178,39 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
     path: Path,
     badTypes: BadTypes
   ): Function[(DCodec[C], Raw, Raw), DeltaReduce[Raw]] = {
-    case (_, DNull, _)                                                              =>
+    case (_, DNull, _)                                                                    =>
       DeltaRemove
-    case (d: DValueCodec[C], delta, current)                                        =>
+    case (d: DValueCodec[C], delta, current)                                              =>
       deltaReduceValue(contract, path, badTypes, d, delta, current)
-    case (d: DMapCodec[C, _, _], deltaObject: RawObject @unchecked, current: Raw)   =>
+    case (d: DMapCodec[C, _, _], deltaObject: RawObject @unchecked, current: Raw)         =>
       deltaReduceMap(contract, path, badTypes, d, deltaObject, current)
-    case (d: DCollectionCodec[C, _], deltaArray: RawArray @unchecked, current: Raw) =>
+    case (d: DCollectionCodec[C, _], deltaArray: RawArray @unchecked, current: Raw)       =>
       available2DeltaReduce(reduceCollection(contract, path, badTypes, d, deltaArray)) match {
         case DeltaReduced(dr) if dr == current =>
           DeltaEmpty
         case d                                 =>
           d
       }
-    case (d: DContractCodec[_], rawObject: RawObject @unchecked, current)           =>
+    case (d: DContractCodec[_], rawObject: RawObject @unchecked, current)                 =>
       deltaReduceContract(contract, path, badTypes, d.contract, rawObject, current)
-    case (d: DValueClassCodec[C, _], raw, current)                                  =>
+    case (d: DKeyContractCollectionCodec[C, _], rawObject: RawObject @unchecked, current) =>
+      deltaReduceKeyContractCollection(contract, path, badTypes, d, rawObject, current)
+    case (d: DValueClassCodec[C, _], raw, current)                                        =>
       deltaReduceCodec(contract, path, badTypes)((d.internalCodec, raw, current))
-    case (d: DProductCodec[C, _, _], deltaArray: RawArray @unchecked, current: Raw) =>
+    case (d: DProductCodec[C, _, _], deltaArray: RawArray @unchecked, current: Raw)       =>
       available2DeltaReduce(reduceProduct(contract, path, badTypes, d, deltaArray)) match {
         case DeltaReduced(dr) if dr == current =>
           DeltaEmpty
         case d                                 =>
           d
       }
-    case (d: DCoproductCodec[C, _], raw, current)                                   =>
+    case (d: DCoproductCodec[C, _], raw, current)                                         =>
       deltaReduceCoproduct(contract, path, badTypes, d, raw, current)
-    case (d: DTypeContractCodec[_], rawObject: RawObject @unchecked, current)       =>
+    case (d: DTypeContractCodec[_], rawObject: RawObject @unchecked, current)             =>
       deltaReduceTypeContract(contract, path, badTypes, d.contracts, d.cstr, rawObject, current)
-    case _ if badTypes == DropBadTypes                                              =>
+    case _ if badTypes == DropBadTypes                                                    =>
       DeltaEmpty
-    case (d, raw, _)                                                                =>
+    case (d, raw, _)                                                                      =>
       DeltaFailed(IncorrectTypeFailure(contract, path, d, raw))
   }
 
@@ -357,6 +360,94 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
         available2DeltaReduce(reduceContract(contract, path, badTypes, codecContract, deltaObject))
     }
 
+  protected def deltaReduceKeyContractCollection[D <: DObject, D2 <: DObject, S](
+    contract: ContractFor[D],
+    path: Path,
+    badTypes: BadTypes,
+    codec: DKeyContractCollectionCodec[S, D2],
+    deltaObject: RawObject,
+    current: Raw
+  ): DeltaReduce[RawObject] =
+    current match {
+      case currentObject: RawObject @unchecked =>
+        val nest = badTypes.nest
+        deltaObject
+          .map {
+            case (key, deltaValue) if !currentObject.contains(key) && RawOps.reducesEmpty(deltaValue) =>
+              key -> DeltaEmpty
+            case (key, DNull)                                                                         =>
+              //cannot be Empty as checked above
+              key -> DeltaRemove
+            case (key, deltaValue: RawObject @unchecked)                                              =>
+              val deltaResult =
+                currentObject.get(key) match {
+                  case Some(currentElement: RawObject @unchecked) =>
+                    val currentEntity = codec.cstr(key, currentElement)
+                    codec.contract.__reduceDelta(deltaValue, currentEntity.value, nest == DropBadTypes) match {
+                      case _: DeltaFailed if nest == DropBadTypes =>
+                        DeltaEmpty
+                      case d: DeltaFailed                         =>
+                        d.rebase(contract, path \ key)
+                      case dr                                     =>
+                        dr
+                    }
+                  case _                                          =>
+                    val entity = codec.cstr(key, deltaValue)
+                    codec.contract.__reduce(entity.value, badTypes.nest == DropBadTypes) match {
+                      case Found(rawObject)                  =>
+                        DeltaReduced(codec.dstr(entity.internalWrap(rawObject).asInstanceOf[D2])._2)
+                      case _: Failed if nest == DropBadTypes =>
+                        DeltaEmpty
+                      case NotFound                          =>
+                        DeltaEmpty
+                      case f: Failed                         =>
+                        val rebase = f.rebase(contract, path \ key)
+                        DeltaFailed(rebase.failure, rebase.tail)
+                    }
+                }
+              key -> deltaResult
+            case (key, value)                                                                         =>
+              key -> DeltaFailed(IncorrectTypeFailure(contract, path \ key, DCodecs.dObjectCodec, value))
+          }
+          .foldLeft[Either[ListBuffer[Failure], mutable.Builder[(String, Raw), Map[String, Raw]]]](
+            Right(Map.newBuilder[String, Raw])
+          ) {
+            case (Right(mb), (key, DeltaReduced(d)))      =>
+              Right(mb.addOne(key -> d))
+            case (Right(mb), (key, DeltaRemoving(d)))     =>
+              Right(mb.addOne(key -> d))
+            case (Right(mb), (key, DeltaRemove))          =>
+              Right(mb.addOne(key -> DNull))
+            case (Right(_), (_, DeltaFailed(head, tail))) =>
+              Left(new ListBuffer[Failure].addAll(head :: tail))
+            case (Left(lb), (_, DeltaFailed(head, tail))) =>
+              Left(lb.addAll(head :: tail))
+            case (result, _)                              =>
+              result
+          } match {
+          case Left(_) if badTypes == DropBadTypes =>
+            DeltaEmpty
+          case Left(lb)                            =>
+            DeltaFailed(lb.head, lb.tail.result())
+          case Right(mb)                           =>
+            val map = mb.result()
+            if (map.isEmpty) DeltaEmpty
+            else {
+              val applyDelta = RawObjectOps.deltaTraverseConcat(currentObject, map)
+              if (codec.unapply(applyDelta).isEmpty) {
+                if (badTypes == DropBadTypes)
+                  DeltaEmpty
+                else
+                  DeltaFailed(IncorrectTypeFailure(contract, path, codec, applyDelta))
+              } else if (applyDelta.isEmpty)
+                DeltaRemoving(map)
+              else
+                DeltaReduced(map)
+            }
+        }
+      case _                                   =>
+        available2DeltaReduce(reduceKeyContractCollection(contract, path, badTypes, codec, deltaObject))
+    }
   protected def deltaReduceTypeContract[D <: DObject, D2 <: DObject](
     contract: ContractFor[D],
     path: Path,
