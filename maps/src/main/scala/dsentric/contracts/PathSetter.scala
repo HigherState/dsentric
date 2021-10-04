@@ -76,7 +76,7 @@ sealed trait ValidPathSetter[D <: DObject] extends Function[D, ValidResult[D]] {
     rawApply(delta.value).map(result => new DeltaInst(result))
 
   def asDelta(v1: D): ValidResult[Delta] =
-    rawApply(v1.value).map(result => new DeltaInst(result))
+    rawDelta(v1.value).map(result => new DeltaInst(result))
 }
 
 final private[dsentric] case class IdentitySetter[D <: DObject]() extends PathSetter[D] {
