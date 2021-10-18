@@ -255,11 +255,11 @@ final class DProjection private[dsentric] (val value: RawObject) extends AnyVal 
   protected def wrap(value: RawObject) = new DProjection(value)
 
   def &(key: String): DProjection =
-    wrap(value + (key -> 1))
+    wrap(value + (key -> 1L))
 
   //TODO BUG should concat not replace.
   def &(path: Path): DProjection  =
-    wrap(value ++ PathLensOps.pathToMap(path, 1))
+    wrap(value ++ PathLensOps.pathToMap(path, 1L))
 
   //Nest projection into a new object under the given key
   def nest(key: String): DProjection =
@@ -411,7 +411,7 @@ object DProjection {
   def apply(paths: Path*): DProjection =
     new DProjection(
       paths
-        .map(p => PathLensOps.pathToMap(p, 1))
+        .map(p => PathLensOps.pathToMap(p, 1L))
         .foldLeft(Map.empty[String, Any])(RawObjectOps.traverseConcat)
     )
 }
