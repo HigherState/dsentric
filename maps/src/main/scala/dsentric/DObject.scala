@@ -279,10 +279,10 @@ final class DProjection private[dsentric](val value:Map[String, Any]) extends An
   protected def wrap(value: Map[String, Any]) = new DProjection(value)
 
   def &(key:String): DProjection =
-    wrap(value + (key -> 1))
+    wrap(value + (key -> 1L))
 
   def &(path:Path): DProjection =
-    wrap(value ++ PathLensOps.pathToMap(path, 1))
+    wrap(value ++ PathLensOps.pathToMap(path, 1L))
 
   //Nest projection into a new object under the given key
   def nest(key:String):DProjection =
@@ -405,7 +405,7 @@ object DProjection {
   val empty = new DProjection(Map.empty)
 
   def apply(paths:Path*):DProjection =
-    new DProjection(paths.map(p => PathLensOps.pathToMap(p, 1))
+    new DProjection(paths.map(p => PathLensOps.pathToMap(p, 1L))
       .foldLeft(Map.empty[String, Any])(DObjectOps.concatMap))
 }
 
