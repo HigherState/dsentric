@@ -1,28 +1,27 @@
 package dsentric.schema
 
 import dsentric.{DObject, ForceWrapper}
-
 import scala.collection.mutable
 
 object JsonSchema {
 
-  private val $SCHEMA = "$schema" -> "http://json-schema.org/schema#"
+  private val $SCHEMA = "$schema" -> "https://json-schema.org/draft/2020-12/schema"
 
   def convertObjectDefinition(objectDefinition:ObjectDefinition):DObject =
     ForceWrapper.dObject(convertTypeDefinition(objectDefinition).toMap + $SCHEMA)
 
-  def convertObjectDefinitions(objectDefinitions:(ObjectDefinition, Schema.Definitions)):DObject =
-    if (objectDefinitions._2.isEmpty)
-      convertObjectDefinition(objectDefinitions._1)
+  def convertObjectDefinitions(schema:ObjectDefinition, definitions: Definition.Definitions):DObject =
+    if (definitions.isEmpty)
+      convertObjectDefinition(schema)
     else
     ForceWrapper.dObject(
-      convertTypeDefinition(objectDefinitions._1).toMap +
-      ("definitions" -> objectDefinitions._2.map(d => d.definition.getOrElse(throw SchemaGenerationException("Definition name expected")) -> convertTypeDefinition(d).toMap).toMap) +
+      convertTypeDefinition(schema).toMap +
+      ("definitions" -> definitions.map(d => d.definition.getOrElse(throw SchemaGenerationException("Definition name expected")) -> convertTypeDefinition(d).toMap).toMap) +
       $SCHEMA
     )
 
 
-  private def convertPropertyDefinition(propertyDefinition: PropertyDefinition):(String, Map[String, Any]) = {
+  private[schema] def convertPropertyDefinition(propertyDefinition: PropertyDefinition):(String, Map[String, Any]) = {
     val m = convertTypeDefinition(propertyDefinition.typeDefinition)
     propertyDefinition.description.foreach(p => m += "description" -> p)
     propertyDefinition.examples.foreach(p => m += "example" -> p)
@@ -74,21 +73,21 @@ object JsonSchema {
       case BooleanDefinition =>
 
       case n:NumberDefinition =>
-        n.exclusiveMaximum.foreach(p => m + "exclusiveMaximum" -> p)
-        n.maximum.foreach(p => m + "maximum" -> p)
-        n.exclusiveMinimum.foreach(p => m + "exclusiveMinimum" -> p)
-        n.minimum.foreach(p => m + "minimum" -> p)
-        n.multipleOf.foreach(p => m + "multipleOf" -> p)
+        n.exclusiveMaximum.foreach(p => m += "exclusiveMaximum" -> p)
+        n.maximum.foreach(p => m += "maximum" -> p)
+        n.exclusiveMinimum.foreach(p => m += "exclusiveMinimum" -> p)
+        n.minimum.foreach(p => m += "minimum" -> p)
+        n.multipleOf.foreach(p => m += "multipleOf" -> p)
 
       case n:IntegerDefinition =>
-        n.exclusiveMaximum.foreach(p => m + "exclusiveMaximum" -> p)
-        n.maximum.foreach(p => m + "maximum" -> p)
-        n.exclusiveMinimum.foreach(p => m + "exclusiveMinimum" -> p)
-        n.minimum.foreach(p => m + "minimum" -> p)
-        n.multipleOf.foreach(p => m + "multipleOf" -> p)
+        n.exclusiveMaximum.foreach(p => m += "exclusiveMaximum" -> p)
+        n.maximum.foreach(p => m += "maximum" -> p)
+        n.exclusiveMinimum.foreach(p => m += "exclusiveMinimum" -> p)
+        n.minimum.foreach(p => m += "minimum" -> p)
+        n.multipleOf.foreach(p => m += "multipleOf" -> p)
 
       case a:ArrayDefinition =>
-        a.minLength.foreach(p => m + "minLength" -> p)
+        a.minLength.foreach(p => m += "minLength" -> p)
         a.maxLength.foreach(p => m += "maxLength" -> p)
         if (a.uniqueness) m += "uniqueness" -> true
         if (a.items.nonEmpty) m += "items" -> a.items.map(convertTypeDefinition(_).toMap)
@@ -111,7 +110,7 @@ object JsonSchema {
         }
 
         o.propertyNames.foreach(p => m += "propertyNames" -> p)
-        if (o.patternProperties.nonEmpty) m += "patternProperties" -> o.patternProperties.mapValues(convertTypeDefinition(_).toMap)
+        if (o.patternProperties.nonEmpty) m += "patternProperties" -> o.patternProperties.view.mapValues(convertTypeDefinition(_).toMap).toMap
 
       case o:ObjectDefinition =>
         val removedObj = o.copy(referencedDefinitions = Vector.empty)

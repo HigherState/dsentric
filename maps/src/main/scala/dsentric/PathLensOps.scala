@@ -1,130 +1,141 @@
 package dsentric
 
+import dsentric.failure.ValidResult
 import scala.annotation.tailrec
 
 object PathLensOps {
 
+  /**
+   * Return value found at end of traversal if present
+   * @param map
+   * @param path
+   * @return
+   */
   @tailrec
-  private[dsentric] final def traverse(map:Map[String, Any], path:Path):Option[Any] =
+  private[dsentric] final def traverse(map:RawObject, path:Path):Option[Raw] =
     path match {
       case PathKey(head, PathEnd) =>
         map.get(head)
       case PathKey(head, tail) =>
+        map.get(head) match {
+            case Some(m:RawObject@unchecked) =>
+              traverse(m, tail)
+            case Some(a:RawArray@unchecked) =>
+              traverse(a, tail)
+            case _ =>
+              None
+          }
+      case PathEnd =>
+        Some(map)
+      case _ =>
+        None
+    }
+
+  private[dsentric] final def traverse(array:RawArray, path:Path):Option[Raw] =
+    path match {
+      case PathIndex(head, PathEnd) =>
+        array.lift(head)
+      case PathIndex(head, tail) =>
+        array.lift(head) match {
+          case Some(m:RawObject@unchecked) =>
+            traverse(m, tail)
+          case Some(a:RawArray@unchecked) =>
+            traverse(a, tail)
+          case _ =>
+            None
+        }
+      case PathEnd =>
+        Some(array)
+      case _ =>
+        None
+    }
+
+  @tailrec
+  private[dsentric] final def traverseObject(map:RawObject, path:Path):Option[RawObject] =
+    path match {
+      case PathEnd =>
+        Some(map)
+      case PathKey(head, tail) =>
         map
           .get(head)
-          .collect{case m:Map[String, Any]@unchecked => m} match {
-            case None => None
-            case Some(m) => traverse(m, tail)
+          .collect{case m:RawObject@unchecked => m} match {
+            case Some(m) =>
+              traverseObject(m, tail)
+            case _ =>
+              None
           }
       case _ =>
         Some(map)
     }
 
-  private[dsentric] def set(map:Map[String, Any], path:Path, value:Any):Map[String, Any] =
+  /**
+   * Set value at end of traversal, will create objects as required to
+   * instantiate path if path not complete.
+   * Will also replace value if they appear in the path.
+   * @param map
+   * @param path
+   * @param value
+   * @return
+   */
+  private[dsentric] def set(map:RawObject, path:Path, value:Raw):RawObject =
     path match {
       case PathKey(head, PathEnd) =>
         map + (head -> value)
       case PathKey(head, tail@PathKey(_, _)) =>
         val child = map
           .get(head)
-          .collect{case m:Map[String, Any]@unchecked => m}.getOrElse(Map.empty[String, Any])
+          .collect{case m:RawObject@unchecked => m}.getOrElse(Map.empty[String, Any])
         map + (head -> set(child, tail, value))
       case _ =>
         map
     }
-  //Should handle wrong type - remember for Dsentric1
-  private[dsentric] def setIfEmpty(map:Map[String, Any], path:Path, value:Any):Option[Map[String, Any]] =
-    path match {
-      case PathKey(head, PathEnd) =>
-        if (map.contains(head)) None
-        else Some(map + (head -> value))
 
-      case PathKey(head, tail@PathKey(_, _)) =>
-        map
-          .get(head)
-          .collect{case m:Map[String, Any]@unchecked => m} match {
-            case None =>
-              Some(map + (head -> set(Map.empty, tail, value)))
-            case Some(m) =>
-              setIfEmpty(m, tail, value)
-                .map(t => map + (head -> t))
-          }
-      case _ =>
-        None
-    }
 
-  private[dsentric] def setIfNonEmpty(map:Map[String, Any], path:Path, value:Any):Option[Map[String, Any]] =
-    path match {
-      case PathKey(head, PathEnd) =>
-        if (!map.contains(head)) None
-        else Some(map + (head -> value))
-
-      case PathKey(head, tail@PathKey(_, _)) =>
-        map
-          .get(head)
-          .flatMap {
-            case m: Map[String, Any]@unchecked =>
-              setIfNonEmpty(m, tail, value)
-                .map(t => map + (head -> t))
-            case _ =>
-              None
-          }
-      case _ =>
-        None
-    }
-
-  /*
-  Returns None if no change
+  /**
+   * Transforms the value in the position, will create path if necessary.
+   * If there is no change, will return None
+   * Will clear out empty objects along the path if they should occur.
+   * @param map
+   * @param path
+   * @param f
+   * @return
    */
-  private[dsentric] def modify[T](map:Map[String, Any], path:Path, codec:DCodec[T], f:T => T):Option[Map[String, Any]] =
+  private[dsentric] def transform(map:Map[String, Any], path:Path)(f:Option[Any] => ValidResult[Option[Any]]):ValidResult[Option[Map[String, Any]]] = {
     path match {
       case PathKey(head, PathEnd) =>
-        for {
-          v <- map.get(head)
-          t <- codec.unapply(v)
-          a = codec(f(t)).value
-          r <- if (a == v) None else Some(a) //return None if same value
-        } yield map + (head -> r)
-
-      case PathKey(head, tail@PathKey(_, _)) =>
-         map
-           .get(head)
-           .collect{case m:Map[String, Any]@unchecked => m}
-           .flatMap(modify(_, tail, codec, f))
-           .map(t => map + (head -> t))
-
-      case _ =>
-        None
-    }
-
-  //Can create nested objects
-  private[dsentric] def maybeModify[T](map:Map[String, Any], path:Path, codec:DCodec[T], strictness:Strictness, f:Option[T] => T):Option[Map[String, Any]] =
-    path match {
-      case PathKey(head, PathEnd) =>
-        map.get(head) match {
-          case None =>
-            Some(map + (head -> codec(f(None)).value))
-          case Some(v) =>
-            for {
-              t <- strictness(v, codec)
-              a = codec(f(t)).value
-              r <- if (t.contains(a)) None else Some(a)
-            } yield map + (head -> r)
+        val v = map.get(head)
+        f(v).flatMap { t =>
+          if (t == v)
+            ValidResult.none
+          else
+            ValidResult.success(Some(t.fold(map - head)(value => map + (head -> value))))
         }
-
       case PathKey(head, tail@PathKey(_, _)) =>
-        val child =
-          map
-            .get(head)
-            .collect{case m:Map[String, Any]@unchecked => m}.getOrElse(Map.empty[String, Any])
-
-        maybeModify(child, tail, codec, strictness, f)
-            .map(v => map + (head -> v))
+        val child = map
+          .get(head)
+          .collect{case m:RawObject@unchecked => m}
+          .getOrElse(Map.empty[String, Any])
+        transform(child, tail)(f)
+          .map(_.map{
+            case m if m.isEmpty =>
+              map - head
+            case m =>
+              map + (head -> m)
+          })
       case _ =>
-        None
+        ValidResult.none
     }
-  //returns none if no change
-  private[dsentric] def drop(map:Map[String, Any], path:Path):Option[Map[String, Any]] =
+  }
+
+  /**
+   * Removes the value at target site.
+   * Will clear out empty objects along the path if they occur.
+   * Will not replace a value result if found in the path.
+   * @param map
+   * @param path
+   * @return
+   */
+  private[dsentric] def drop(map:RawObject, path:Path):Option[RawObject] =
     path match {
       case PathKey(head, PathEnd) =>
         if (map.contains(head)) Some(map - head)
@@ -134,7 +145,7 @@ object PathLensOps {
         map
           .get(head)
           .flatMap{
-            case child:Map[String, Any]@unchecked =>
+            case child:RawObject@unchecked =>
               drop(child, tail)
                 .map{
                   case m if m.isEmpty =>
@@ -149,39 +160,25 @@ object PathLensOps {
         None
     }
 
-  private[dsentric] def maybeModifyOrDrop[T](map:Map[String, Any], path:Path, codec:DCodec[T], strictness:Strictness, f:Option[T] => Option[T]):Option[Map[String, Any]] =
-    path match {
-      case PathKey(head, PathEnd) =>
-        map.get(head) match {
-          case None =>
-            f(None)
-              .map(codec(_).value)
-              .map(v => map + (head -> v))
-
-          case Some(v) =>
-            strictness(v, codec).map { t =>
-              f(t).map(codec(_).value).fold(map - head){r => map + (head -> r)}
-            }
-        }
-
-      case PathKey(head, tail@PathKey(_, _)) =>
-        val child =
-          map
-            .get(head)
-            .collect{case m:Map[String, Any]@unchecked => m}.getOrElse(Map.empty[String, Any])
-
-        maybeModifyOrDrop(child, tail, codec, strictness, f)
-          .map(v => map + (head -> v))
-      case _ =>
-        None
-    }
-
-  private[dsentric] def pathToMap(path:Path, value:Any):Map[String, Any] = {
+  /**
+   * converts a path to a set of nested maps with the inner most map
+   * ending with the passed value
+   *
+   * For example
+   *  first\second\third, 1
+   *
+   *  Map(first -> Map(second, Map(third -> 1) ) )
+   *
+   * @param path
+   * @param value
+   * @return
+   */
+  private[dsentric] def pathToMap(path:Path, value:Raw):RawObject = {
     path match {
       case PathEnd =>
         value match {
-          case m:Map[String,Any]@unchecked => m
-          case _ => Map.empty
+          case m:RawObject@unchecked => m
+          case _ => RawObject.empty
         }
       case PathKey(last, PathEnd) =>
         Map(last -> value)

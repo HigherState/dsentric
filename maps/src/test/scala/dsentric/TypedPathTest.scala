@@ -1,13 +1,15 @@
 package dsentric
 
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+
 
 /**
   * Created by stefano.paluello on 03/10/2016.
   */
-class TypedPathTest  extends FunSuite with Matchers {
+class TypedPathTest extends AnyFunSuite with Matchers {
   import Dsentric._
-  import PessimisticCodecs._
+  import dsentric.codecs.std.DCodecs._
 
   private val testDObject = DObject(
     "firstString" := "there we are",

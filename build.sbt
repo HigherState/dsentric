@@ -1,71 +1,64 @@
 import sbt.Keys._
 
 lazy val buildSettings = Seq(
-  organization       := "io.higherState",
-  scalaVersion       := "2.12.7",
-  version            := "0.8.1",
-  scalacOptions     ++= Seq(
+  organization := "io.higherState",
+  scalaVersion := "2.13.6",
+  version := "1.0.0",
+  scalacOptions ++= Seq(
     "-deprecation",
-    "-encoding", "UTF-8",
     "-feature",
-    "-language:implicitConversions", "-language:higherKinds", "-language:postfixOps", "-language:reflectiveCalls", "-language:existentials",
+    "-language:implicitConversions",
+    "-language:higherKinds",
+    "-language:postfixOps",
+    "-language:reflectiveCalls",
+    "-language:existentials",
     "-unchecked",
     "-Xfatal-warnings",
-    "-Yno-adapted-args",
     "-Ywarn-dead-code",
-    "-Ywarn-value-discard",
-    "-Xfuture"
+    "-Ywarn-value-discard"
   ),
+  addCompilerPlugin("com.github.ghik" % "silencer-plugin" % "1.7.5" cross CrossVersion.full),
   resolvers ++= Seq(
     DefaultMavenRepository,
     Resolver.typesafeIvyRepo("releases"),
     Resolver.sbtPluginRepo("releases"),
     Resolver.jcenterRepo,
-    "Sonatype releases" at "http://oss.sonatype.org/content/repositories/releases/",
-    "Sonatype snapshots" at "http://oss.sonatype.org/content/repositories/snapshots/"
+    "Sonatype releases" at "https://oss.sonatype.org/content/repositories/releases/",
+    "Sonatype snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
   )
 )
 
-lazy val reflect = "org.scala-lang" % "scala-reflect" % "2.12.8"
-lazy val shapeless = "com.chuusai" %% "shapeless" % "2.3.3"
-lazy val scalatest = "org.scalatest" %% "scalatest" % "3.0.5"  % "test"
-lazy val cats = "org.typelevel" %% "cats-core" % "2.1.0"
+lazy val reflect      = "org.scala-lang"     % "scala-reflect" % "2.13.6"
+lazy val shapeless    = "com.chuusai"       %% "shapeless"     % "2.3.3"
+lazy val scalatest    = "org.scalatest"     %% "scalatest"     % "3.2.7" % "test"
+lazy val cats         = "org.typelevel"     %% "cats-core"     % "2.4.2"
 lazy val commons_math = "org.apache.commons" % "commons-math3" % "3.6.1"
-
+lazy val silencer     = "com.github.ghik"    % "silencer-lib"  % "1.7.5" % Provided cross CrossVersion.full
 
 lazy val settings = buildSettings
-
-//lazy val dsentric = project.in(file("."))
-//  .settings(moduleName := "dsentric")
-//  .settings(settings)
-//  .aggregate(core, monocle)
-//  .dependsOn(core)
 
 lazy val core = project
   .settings(moduleName := "dsentric-core")
   .settings(settings)
   .settings(libraryDependencies ++= Seq(reflect, shapeless, scalatest, commons_math))
 
-//lazy val monocle = project
-//  .settings(moduleName := "dsentric-monocle")
-//  .settings(settings)
-//  .settings(libraryDependencies := Seq(reflect, scalaz, shapeless, monoclecore, scalatest))
-//  .dependsOn(core)
-
-lazy val maps = project
+lazy val maps   = project
   .settings(moduleName := "dsentric-maps")
   .settings(settings)
-  .settings(libraryDependencies ++= Seq(reflect, shapeless, scalatest, cats))
+  .settings(libraryDependencies ++= Seq(reflect, shapeless, scalatest, cats, silencer))
   .dependsOn(core, core % "test -> test")
 
-lazy val graphql = project
-  .settings(moduleName := "dsentric-graphql")
+lazy val macros = project
+  .settings(moduleName := "dsentric-macros")
   .settings(settings)
+  .settings(
+    scalacOptions ++= Seq(
+      "-Ymacro-annotations",
+      "-Xmacro-settings:materialize-derivations",
+      "-Ywarn-macros:after",
+      "-Ywarn-unused:explicits",
+      "-language:reflectiveCalls"
+    )
+  )
   .settings(libraryDependencies ++= Seq(reflect, shapeless, scalatest, commons_math))
-  .dependsOn(core, maps, core % "test -> test")
-
-//lazy val argonaut = project
-//  .settings(moduleName := "dsentric-argonaut")
-//  .settings(settings)
-//  .settings(libraryDependencies := Seq(scalatest, argo))
-//  .dependsOn(monocle)
+  .dependsOn(core, maps)

@@ -1,6 +1,13 @@
 package dsentric
 
-object Dsentric extends DataMatchers with AndMatcher with PropertyOps with ToExtensionOps {
+import dsentric.contracts.PropertySyntax
 
-  implicit def strictness:Strictness = MaybePessimistic
+object Dsentric extends DataMatchers with AndMatcher with Syntax with PropertySyntax {
+
+  type Contract = contracts.Contract
+  type SubContract = contracts.SubContract
+
+  type ContractFor[D <: DObject] = contracts.ContractFor[D]
+  type SubContractFor[D <: DObject] = contracts.SubContractFor[D]
+
 }

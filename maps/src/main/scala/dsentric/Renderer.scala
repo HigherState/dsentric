@@ -5,20 +5,20 @@ package dsentric
   */
 trait Renderer {
 
-  def print(value:Any):String
+  def print(value:Raw):String
 
-  def bytes(value:Any):Array[Byte]
+  def bytes(value:Raw):Array[Byte]
 }
 
 object SimpleRenderer extends Renderer {
 
-  def print(value:Any):String = {
+  def print(value:Raw):String = {
     val sb = new StringBuilder()
     jsonPrint(sb)(value)
     sb.result()
   }
 
-  def bytes(value: Any): Array[Byte] =
+  def bytes(value:Raw): Array[Byte] =
     print(value).getBytes("UTF-8")
 
   private[dsentric] def jsonPrint(sb:StringBuilder):Function[Any, Unit] = {
@@ -37,7 +37,7 @@ object SimpleRenderer extends Renderer {
     case DNull =>
       sb ++= "null"
       ()
-    case v:Vector[Any]@unchecked =>
+    case v:RawArray@unchecked =>
       sb += '['
       v match {
         case h +: tail =>
@@ -50,10 +50,10 @@ object SimpleRenderer extends Renderer {
       }
       sb += ']'
       ()
-    case m:Map[String, Any]@unchecked if m.isEmpty =>
+    case m:RawObject@unchecked if m.isEmpty =>
       sb ++= "{}"
       ()
-    case m:Map[String, Any]@unchecked =>
+    case m:RawObject@unchecked =>
       sb += '{'
       m.headOption.foreach{p =>
         sb ++= "\"" ++= p._1.replace("\"", "\\\"") ++= "\""

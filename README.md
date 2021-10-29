@@ -119,3 +119,144 @@ dsentric works by describing a singleton contract which represents data we might
 
 *mongo query is not a full feature set.
 
+#Verify
+
+#Delta Verify
+
+#Additional Properties object
+ - Value object with Contract
+ - Returns a D <: DObject
+ - Number of dedicated lens operation for addional properties, 
+   like add etc
+ - Get Additional Properties as a Map method?
+
+#Map Object
+ - Value object with Contract
+ - Returns a Map of correct types
+ - How do we resolve a map of a map of a contract?
+  ie `Map[String, Map[String, D]]` 
+   Contract generates an internal DCodec for D?
+   No not enough, unless we have a contract Decodec type?
+
+##Needs a specific Delta object
+
+
+(I think validate only one the delta application result not the delta value itself, IE pass through currentState and previousState, could be slow on nested objects so need to optimise)
+- Delta context - IE full replace of an nested object rather than merge (Thinking Fixtures)
+- Perhaps the difference here is A DObject or \\ will delta merge, however a Case Class Type will replace?
+
+- $get should work on Deltas/Dobjects as well as just D ie so can use contract to get delta value. OR you could provide a property object to a dobject to extract the value obj.apply(pProperty[T, D]):Option[T]
+
+Notion of emptiable objects, IE if they are empty we remove them, thinking of say a Range object ( ), or the Object object
+Perhaps the notion of emptiness can be confgurable?
+
+?Notion of Healing support, when merging two objects,
+- could ignore bad merged value
+- In a Map[Key, Object] it could drop bad objects...
+
+How to handle a keyed object map
+Ie Map(Key, Element(Key)(values)) - might be solved by above validation :)
+
+function to extract paths.
+Validation
+Immutable on optional, Ie must leave blank if blank initially. Maybe immutable and immutableOnSet?
+Query Tree
+Needs more robust tests
+Include boolean identities
+Ignore if not create
+How to handle an update on a removed nested object?
+Immutable required properties help...
+DObject sub classing
+
+PathSetter supports sub class transform, what about super class, Dobject => Dobject applied to .a D for example.
+Needs a consistent elegant approach
+
+WARNING
+
+when adding a Contract element, ie as an Additional Property or element in a vector, the process doesnt validate 
+correctness as being of the correct Type is sufficient under current definition.
+We know this is fine for types, but for Contract DOBjects, we do allow adding manually adding elements that dont 
+support the contract, where as say a delta operation, this would be checked.
+Corollary
+For Modify it will validate the entity coming out of the Object but not the value going in
+
+This may need to change in the future.
+
+Maps are tricky, empty maps will reduce to nothing
+
+Terminology
+
+set - 
+    It is not the responsibility of Dsentric to verify the values being set, beyond standard property type
+    Setting an empty object will remove the value, assuming its type is valid.
+
+unapply - 
+    extract the value, type match return None if invalid type.
+    If Contract match, also return None if contract is not valid.
+
+traversal -
+    We dont need to validate contracts in the traversal path, 
+    Just need to make sure it can be traversed
+
+    its possible to get a default value for an expected object that is not present
+    As the Expected object will return an empty object in the traversal if its not found
+
+    Traversal paths go through both the contract and the codecs, as codecs can reference contracts.
+
+reduce -
+    Removes extraneous values.
+    This would remove empty objects
+    Would clear out null values
+    If a codec returns NotFound on raw data
+
+get -
+    extract the value, return any type or other structural failures
+
+Delta
+    - if an expected property is empty, delta is Not required to fix it.  
+      Delta does not need to repair, just cannot make things worse
+    - If delta value is sent, but is the same as current value, but current value is invalid, it will fail validation.
+
+---Expected -> unapply Some(t) or None [failure or empty]
+---Maybe -> unapply Some(Some(t)) or Some(None)[empty] or None [failure]
+
+---Maybe (Empty)
+    ---Expected  -> unapply Some(None)[path empty]
+    ---Expected  -> unapply Some(None)[path empty]
+        ---Expected -> unapply Some(None)[empty]
+
+---Maybe (Valid)
+    ---Expected  -> unapply Some(Some(t)) or None[failure or empty]
+    ---Expected  -> unapply Some(None) [pathEmpty] Some(t) or None [failure] Some(Empty) [empty]
+        ---Expected -> unapply Some(None)
+
+---Expected
+    ---Expected  -> unapply Option[T]
+
+---Maybe (empty)
+    ---Expected
+            ---Expected
+== PathMaybeEmpty
+
+---Maybe
+    ---Expected (empty)
+        ---Expected
+== NotFound
+
+TODO: 
+
+ Projections PAthSetters Delta Function
+
+ Review Projections - 
+    simply properties and projections, so can do use a property as a project
+    Projections
+    Projections Should support WildCard key match, or regex key match
+    maybe "$/*/"
+    Projection building ie  DProjection("nested" -> {​​​​​​​DProjection}​​​​​​​)
+
+ADD: Contract.property.$contains()
+
+Operation,  Can we have PathSetters that apply to all additional properties or values in a map or array... good for masking.
+  Conditional mask remove flags?
+
+
