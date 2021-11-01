@@ -81,11 +81,23 @@ trait DObjectOps[+C <: DObjectOps[C]] extends Any with Data with IterableOps[(St
 //        wrap(elems.toMap)
 //    }
 
-  override protected def fromSpecific(coll: IterableOnce[(String, Data)]): C = ???
+  override protected def fromSpecific(coll: IterableOnce[(String, Data)]): C =
+    wrap(coll.iterator.map(p => p._1 -> p._2.value).toMap)
 
-  override def iterableFactory: IterableFactory[Iterable] = ???
+  override def iterableFactory: IterableFactory[Iterable] = value.iterableFactory
 
-  override protected def newSpecificBuilder: mutable.Builder[(String, Data), C] = ???
+  override protected def newSpecificBuilder: mutable.Builder[(String, Data), C] =
+    new mutable.Builder[(String, Data), C] {
+      private val builder = Map.newBuilder[String, Raw]
+      def clear(): Unit = builder.clear()
+
+      def result(): C = wrap(builder.result())
+
+      def addOne(elem: (String, Data)): this.type = {
+        builder.addOne(elem._1 -> elem._2.value)
+        this
+      }
+  }
 
   def iterator: Iterator[(String, Data)] =
     value.iterator.map(p => p._1 -> ForceWrapper.data(p._2))
