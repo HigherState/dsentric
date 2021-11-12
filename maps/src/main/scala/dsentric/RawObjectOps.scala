@@ -3,9 +3,6 @@ package dsentric
 //TODO move DObject referencing methods, make pure Raw
 trait RawObjectOps {
 
-  def traverseConcat(x: DObject, y: DObject): DObject =
-    new DObjectInst(traverseConcat(x.value, y.value))
-
   def traverseConcat(x: RawObject, y: RawObject): RawObject =
     y.foldLeft(x) {
       case (acc, (k, v: RawObject @unchecked)) =>
@@ -19,18 +16,15 @@ trait RawObjectOps {
         acc + (k -> v)
     }
 
-  def deltaTraverseConcat(x: DObject, y: Delta): DObject =
-    new DObjectInst(deltaTraverseConcat(x.value, y.value))
-
   /**
    * Applies changes in y onto x, if y contains a null, it will remove the key if present, or be ignored if not.
    * If an object has its key count reduced to empty and it is nested it will remove the key value pair.
    * @param x
-   * @param y
+   * @param delta
    * @return
    */
-  def deltaTraverseConcat(x: RawObject, y: RawObject): RawObject =
-    y.foldLeft(x) {
+  def deltaTraverseConcat(x: RawObject, delta: RawObject): RawObject =
+    delta.foldLeft(x) {
       case (acc, (k, DNull))                          =>
         acc - k
       case (acc, (k, v: Map[String, Any] @unchecked)) =>
@@ -51,9 +45,6 @@ trait RawObjectOps {
       case (acc, (k, v))                              =>
         acc + (k -> v)
     }
-
-  def rightDifference(x: DObject, y: DObject): DObject                     =
-    rightDifference(x.value -> y.value).fold(DObject.empty)(new DObjectInst(_))
 
   def rightDifference: Function[(RawObject, RawObject), Option[RawObject]] = {
     case (s, d) if d == s =>
@@ -82,9 +73,6 @@ trait RawObjectOps {
    * Left is current, right is new value, result calculates the Delta object
    * @return
    */
-  def calculateDelta(x: DObject, y: DObject): Option[Delta]               =
-    calculateDelta(x.value -> y.value).map(new DeltaInst(_))
-
   def calculateDelta: Function[(RawObject, RawObject), Option[RawObject]] = {
     case (s, d) if d == s =>
       None
@@ -109,9 +97,6 @@ trait RawObjectOps {
       if (result.nonEmpty) Some(result)
       else None
   }
-
-  def differenceDelta(d: DObject, d2: Delta): Delta                        =
-    differenceDelta(d.value -> d2.value).fold(Delta.empty)(new DeltaInst(_))
 
   /**
    * For Deltas can strip out values that do not cause any change, possibility delta does nothing at all
@@ -144,9 +129,6 @@ trait RawObjectOps {
       if (r.nonEmpty) Some(r)
       else None
   }
-
-  def select(target: DObject, projection: DProjection): DObject =
-    new DObjectInst(selectMap(target.value, projection.value))
 
   def contains(target: RawObject, projectionOrMap: RawObject, leafValuesMustMatch: Boolean): Boolean =
     projectionOrMap.forall {
@@ -223,9 +205,6 @@ trait RawObjectOps {
   /*
     Removes nulls and empty objects, return None if empty
    */
-  def reduce(target: DObject): Option[DObject] =
-    reduceMap(target.value).map(new DObjectInst(_))
-
   def reduceMap(target: RawObject): Option[RawObject] = {
     val reducedMap = target.flatMap {
       case (_, DNull)                   =>

@@ -10,6 +10,16 @@ trait RawOps {
       case _ =>
         false
     }
+
+  def deltaTraverseConcat(x: Raw, delta: Raw): Option[Raw] =
+    (x, delta) match {
+      case (xObj:RawObject@unchecked, yObj:RawObject@unchecked) =>
+        val reducedObject = RawObjectOps.deltaTraverseConcat(xObj, yObj)
+        if (reducedObject.isEmpty) None
+        else Some(reducedObject)
+      case (_, DNull) => None
+      case (_, y) => Some(y)
+    }
 }
 
 object RawOps extends RawOps

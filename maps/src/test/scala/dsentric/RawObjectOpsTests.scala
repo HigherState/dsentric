@@ -17,29 +17,6 @@ class RawObjectOpsTests extends AnyFunSuite with Matchers {
     }
   }
 
-  test("Get difference") {
-    val obj =
-      DObject("one" := 1, "obj" := DObject("two" := false, "three" := List(1, 2, 3, 4), "four" := DObject("five" := 5)))
-    RawObjectOps.rightDifference(obj, obj) should be(DObject.empty)
-    RawObjectOps.rightDifference(obj, DObject.empty) should be(DObject.empty)
-    RawObjectOps.rightDifference(obj, DObject("one" := 1)) should be(DObject.empty)
-    RawObjectOps.rightDifference(obj, DObject("one" := 1, "obj" := DObject("two" := false))) should be(DObject.empty)
-    RawObjectOps.rightDifference(obj, DObject("obj" := DObject("four" := DObject.empty))) should be(DObject.empty)
-    RawObjectOps.rightDifference(obj, DObject("obj" := DObject("four" := DObject("five" := 5)))) should be(DObject.empty)
-
-    RawObjectOps.rightDifference(obj, DObject("one" := 2)) should be(DObject("one" := 2))
-    RawObjectOps.rightDifference(obj, DObject("six" := 6)) should be(DObject("six" := 6))
-    RawObjectOps.rightDifference(obj, DObject("obj" := DObject("four" := DObject("six" := 34.56)))) should be(
-      DObject("obj" := DObject("four" := DObject("six" := 34.56)))
-    )
-    RawObjectOps.rightDifference(obj, DObject("obj" := DObject("two" := true, "three" := List(1, 2, 3, 4)))) should be(
-      DObject("obj" := DObject("two" := true))
-    )
-    RawObjectOps.rightDifference(obj, DObject("obj" := DObject("three" := List(1, 2, 3, 4, 5, 6)))) should be(
-      DObject("obj" := DObject("three" := List(1, 2, 3, 4, 5, 6)))
-    )
-  }
-
   test("nested value map") {
     val obj = DObject(
       "one" := 1,

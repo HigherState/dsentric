@@ -7,6 +7,43 @@ import org.scalatest.matchers.should.Matchers
 @silent("a type was inferred to be `Any`; this may indicate a programming error.")
 class RawObjectOpsSpec extends AnyFunSpec with Matchers {
 
+  describe("rightDifference") {
+    val obj =
+      Map("one" -> 1L, "obj" -> Map("two" -> false, "three" -> Vector(1L, 2L, 3L, 4L), "four" -> Map("five" -> 5L)))
+    it("Should return None if the same") {
+      RawObjectOps.rightDifference(obj -> obj) should be(None)
+    }
+    it("Should return None if right is empty") {
+      RawObjectOps.rightDifference(obj -> RawObject.empty) should be(None)
+    }
+    it("Should return None if right is a subset of left") {
+      RawObjectOps.rightDifference(obj -> Map("one" -> 1L)) should be(None)
+      RawObjectOps.rightDifference(obj -> Map("one" -> 1L, "obj" -> Map("two" -> false))) should be(None)
+      RawObjectOps.rightDifference(obj -> Map("obj" -> Map("four" -> RawObject.empty))) should be(None)
+      RawObjectOps.rightDifference(obj -> Map("obj" -> Map("four" -> Map("five" -> 5)))) should be(None)
+    }
+
+    it("Should return changed values") {
+      RawObjectOps.rightDifference(obj -> Map("one" -> 2L)) should be(Some(Map("one" -> 2L)))
+    }
+    it("Should return new values") {
+      RawObjectOps.rightDifference(obj -> Map("six" -> 6L)) should be(Some(Map("six" -> 6L)))
+      RawObjectOps.rightDifference(obj -> Map("obj" -> Map("four" -> Map("six" -> 34.56)))) should be(
+        Some(Map("obj" -> Map("four" -> Map("six" -> 34.56))))
+      )
+    }
+    it("Should handle combinations of changed and the same") {
+      RawObjectOps.rightDifference(obj -> Map("obj" -> Map("two" -> true, "three" -> Vector(1L, 2L, 3L, 4L)))) should be(
+        Some(Map("obj" -> Map("two" -> true)))
+      )
+    }
+    it("Should return full vector if vector changed") {
+      RawObjectOps.rightDifference(obj -> Map("obj" -> Map("three" -> Vector(1L, 2L, 3L, 4L, 5L, 6L)))) should be(
+        Some(Map("obj" -> Map("three" -> Vector(1L, 2L, 3L, 4L, 5L, 6L))))
+      )
+    }
+
+  }
   describe("differenceDelta") {
     describe("flat Objects") {
       val single = Map("one" -> 1, "two" -> "string", "three" -> Map("three-one" -> false))
