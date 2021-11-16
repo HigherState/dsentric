@@ -166,7 +166,8 @@ final case class DContractCodec[D <: DObject](contract: ContractFor[D], cstr: Ra
   def apply(t: D): RawObject =
     t.value
 
-  def typeDefinition: TypeDefinition = ???
+  lazy val typeDefinition: TypeDefinition =
+    Definition.nestedContractObjectDefinition(contract)
 }
 
 /**
@@ -206,7 +207,12 @@ final case class DKeyContractCollectionCodec[S, D <: DObject](
       dstr(d)
     }.toMap
 
-  def typeDefinition: TypeDefinition = ???
+  /**
+   * Unable to extract property definition to place into object
+   * @return
+   */
+  def typeDefinition: TypeDefinition =
+    ObjectDefinition(additionalProperties = Right(Definition.nestedContractObjectDefinition(contract)))
 
   def containsContractCodec: Boolean = true
 }

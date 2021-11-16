@@ -3,6 +3,7 @@ package dsentric
 //TODO move DObject referencing methods, make pure Raw
 trait RawObjectOps {
 
+
   def traverseConcat(x: RawObject, y: RawObject): RawObject =
     y.foldLeft(x) {
       case (acc, (k, v: RawObject @unchecked)) =>

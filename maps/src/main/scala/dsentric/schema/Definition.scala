@@ -33,7 +33,7 @@ object Definition {
       }
   }
 
-  def nestedContractObjectDefinition[D <: DObject](contract: ContractFor[D]): ObjectDefinition = {
+  def nestedContractObjectDefinition[D <: DObject](contract: BaseContract[D]): ObjectDefinition = {
     val (contractInfo, infos) = SchemaReflection.getContractInfo(contract, Vector.empty)
     val (c, _, _)             = baseContractObjectDefinition(contract._fields, contract, contractInfo, infos, Vector.empty, true)
     c

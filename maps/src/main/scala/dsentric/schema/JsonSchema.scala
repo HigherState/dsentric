@@ -96,7 +96,7 @@ object JsonSchema {
       case o:ObjectDefinition if o.referencedDefinitions.isEmpty =>
         if (o.properties.nonEmpty) m += "properties" -> o.properties.map(convertPropertyDefinition).toMap
         val required = o.properties.collect{ case p if p.required => p.key}
-        if (required.nonEmpty) m += "required" -> required
+        if (required.nonEmpty) m += "required" -> required.toVector
         o.title.foreach(p => m += "title" -> p)
         o.description.foreach(p => m += "description" -> p)
         o.minProperties.foreach(p => m += "minProperties" -> p)

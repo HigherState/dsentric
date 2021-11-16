@@ -1,12 +1,9 @@
 package dsentric.codecs.std
 
-import cats.data.NonEmptySet
 import dsentric._
 import dsentric.codecs._
 import dsentric.filter.DFilter
 import dsentric.schema._
-
-import scala.collection.immutable.SortedSet
 
 trait DValueCodecs {
 
@@ -25,7 +22,8 @@ trait DValueCodecs {
           case v            => Some(ForceWrapper.dValue(v))
         }
 
-      def typeDefinition: TypeDefinition = TypeDefinition.anyVal
+      def typeDefinition: TypeDefinition =
+        TypeDefinition.anyVal
     }
 
   implicit val stringCodec: DStringCodec[String] with DirectCodec[String] =
@@ -93,7 +91,7 @@ trait DValueCodecs {
         t.toLong
       def unapply(a: Raw): Option[Short] =
         NumericPartialFunctions.short.lift(a)
-      val typeDefinition: TypeDefinition =
+      def typeDefinition: TypeDefinition =
         IntegerDefinition(minimum = Some(Short.MinValue), maximum = Some(Short.MaxValue))
     }
   implicit val byteCodec: DValueCodec[Byte]     =
@@ -102,7 +100,7 @@ trait DValueCodecs {
         t.toLong
       def unapply(a: Raw): Option[Byte]  =
         NumericPartialFunctions.byte.lift(a)
-      val typeDefinition: TypeDefinition =
+      def typeDefinition: TypeDefinition =
         IntegerDefinition(minimum = Some(Byte.MinValue), maximum = Some(Byte.MaxValue))
     }
   implicit val floatCodec: DValueCodec[Float]   =
@@ -111,7 +109,7 @@ trait DValueCodecs {
         t.toDouble
       def unapply(a: Raw): Option[Float] =
         NumericPartialFunctions.float.lift(a)
-      val typeDefinition: TypeDefinition =
+      def typeDefinition: TypeDefinition =
         NumberDefinition(minimum = Some(Float.MinValue.toDouble), maximum = Some(Float.MaxValue.toDouble))
     }
   implicit val numberCodec: DValueCodec[Number] =
@@ -121,54 +119,9 @@ trait DValueCodecs {
       def unapply(a: Raw): Option[Number] =
         NumericPartialFunctions.number.lift(a)
 
-      val typeDefinition: TypeDefinition =
+      def typeDefinition: TypeDefinition =
         NumberDefinition.empty
     }
-
-  implicit def setCodec[T](implicit D: DStringCodec[T]): DValueCodec[Set[T]] =
-    new DValueCodec[Set[T]] {
-      def apply(t: Set[T]): RawObject     =
-        t.map(D.apply(_) -> 1).toMap
-
-      def unapply(a: Raw): Option[Set[T]] =
-        a match {
-          case obj: RawObject @unchecked =>
-            obj.foldLeft(Option(Set.empty[T])) {
-              case (Some(a), (key, 1)) =>
-                D.unapply(key).map(a + _)
-              case _                   =>
-                None
-            }
-          case _                         =>
-            None
-        }
-
-      def typeDefinition: TypeDefinition = ???
-    }
-
-  implicit def nonEmptySetCodec[T](implicit D: DStringCodec[T], O: Ordering[T]): DValueCodec[NonEmptySet[T]] =
-    new DValueCodec[NonEmptySet[T]] {
-      def apply(t: NonEmptySet[T]): RawObject     =
-        t.toNonEmptyList.toList.map(D.apply(_) -> 1).toMap
-
-      def unapply(a: Raw): Option[NonEmptySet[T]] =
-        a match {
-          case obj: RawObject @unchecked if obj.nonEmpty =>
-            obj
-              .foldLeft(Option(SortedSet.empty[T])) {
-                case (Some(a), (key, 1)) =>
-                  D.unapply(key).map(a + _)
-                case _                   =>
-                  None
-              }
-              .flatMap(NonEmptySet.fromSet)
-          case _                                         =>
-            None
-        }
-
-      def typeDefinition: TypeDefinition = ???
-    }
-
   implicit val dObjectCodec: DValueCodec[DObject] =
     new DValueCodec[DObject] {
 
