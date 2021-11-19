@@ -1,13 +1,13 @@
 package dsentric
 
-import dsentric.contracts.{BaseAux, ContractFor}
+import dsentric.contracts.{BaseAux, ContractLike}
 import dsentric.failure.{Failure, ValidResult}
 
 sealed trait MaybeAvailable[+T] {
   def toValidOption: ValidResult[Option[T]]
 
   private[dsentric] def rebase(base: BaseAux): MaybeAvailable[T]
-  private[dsentric] def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): MaybeAvailable[T]
+  private[dsentric] def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): MaybeAvailable[T]
 
   def flatMap[A](f: T => MaybeAvailable[A]): MaybeAvailable[A]
 
@@ -16,7 +16,7 @@ sealed trait MaybeAvailable[+T] {
 }
 sealed trait Available[+T] extends MaybeAvailable[T] {
   private[dsentric] def rebase(base: BaseAux): Available[T]
-  private[dsentric] def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): Available[T]
+  private[dsentric] def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): Available[T]
   def failNotFound(failure: => Failure): Available[T]
 }
 
@@ -32,7 +32,7 @@ case object PathEmptyMaybe extends MaybeAvailable[Nothing] {
     None
 
   private[dsentric] def rebase(baseContract: BaseAux): MaybeAvailable[Nothing]                                      = this
-  private[dsentric] def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): MaybeAvailable[Nothing] =
+  private[dsentric] def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): MaybeAvailable[Nothing] =
     this
 
   def flatMap[A](f: Nothing => MaybeAvailable[A]): MaybeAvailable[A] = this
@@ -47,7 +47,7 @@ case object NotFound extends Available[Nothing] {
   def toOption: Option[Nothing]                                                                                =
     None
   private[dsentric] def rebase(base: BaseAux): Available[Nothing]                                              = this
-  private[dsentric] def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): Available[Nothing] = this
+  private[dsentric] def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): Available[Nothing] = this
 
   def flatMap[A](f: Nothing => MaybeAvailable[A]): MaybeAvailable[A] = this
 
@@ -59,7 +59,7 @@ final case class Found[+T](value: T) extends Valid[T] {
     ValidResult.success((Some(value)))
 
   private[dsentric] def rebase(base: BaseAux): Found[T]                                              = this
-  private[dsentric] def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): Found[T] = this
+  private[dsentric] def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): Found[T] = this
 
   def flatMap[A](f: T => MaybeAvailable[A]): MaybeAvailable[A] =
     f(value)
@@ -79,7 +79,7 @@ final case class Failed(failure: Failure, tail: List[Failure] = Nil) extends Val
 
   private[dsentric] def rebase(base: BaseAux): Failed                                              =
     rebase(base._root, base._path)
-  private[dsentric] def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): Failed =
+  private[dsentric] def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): Failed =
     Failed(failure.rebase(rootContract, rootPath), tail.map(_.rebase(rootContract, rootPath)))
 
   def flatMap[A](f: Nothing => MaybeAvailable[A]): MaybeAvailable[A] = this
@@ -123,7 +123,7 @@ sealed trait DeltaReduce[+R]
 final case class DeltaFailed(head: Failure, tail: List[Failure] = Nil) extends DeltaReduce[Nothing] {
   private[dsentric] def rebase(base: BaseAux): DeltaFailed                                              =
     rebase(base._root, base._path)
-  private[dsentric] def rebase[G <: DObject](rootContract: ContractFor[G], rootPath: Path): DeltaFailed =
+  private[dsentric] def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): DeltaFailed =
     DeltaFailed(head.rebase(rootContract, rootPath), tail.map(_.rebase(rootContract, rootPath)))
 
   def ++(f: DeltaFailed): DeltaFailed =

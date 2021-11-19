@@ -237,6 +237,21 @@ sealed trait UnexpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]
   final def $copy(p: PropertyLens[D, T], dropBadTypes: Boolean = false): ValidPathSetter[D] =
     TraversedModifyOrDropSetter(p.__get(_, dropBadTypes), identity[Option[T]], _codec, _path)
 
+  /**
+   * Sets value for the Property if provided
+   * Will create object path to Property if objects dont exist.
+   * Is not concerned with correct type of value.
+   * @param value
+   * @param dropBadTypes
+   * @return
+   */
+  final def $setIfEmpty(value: T): PathSetter[D] =
+    ValueIfEmptySetter(_path, value)
+
+  final def $maybeSetIfEmpty(value: Option[T]): PathSetter[D] =
+    value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
+      ValueIfEmptySetter(_path, v)
+    }
 }
 
 private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D, T] with ApplicativeLens[D, T] {
@@ -426,17 +441,6 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
    */
   final def $setOrDrop(value: Option[T]): PathSetter[D] =
     value.fold[PathSetter[D]](ValueDrop(_path))(v => ValueSetter(_path, _codec(v)))
-
-  /**
-   * Sets value for the Property if provided
-   * Will create object path to Property if objects dont exist.
-   * Is not concerned with correct type of value.
-   * @param value
-   * @param dropBadTypes
-   * @return
-   */
-  final def $setIfEmpty(value: T): PathSetter[D] =
-    ValueIfEmptySetter(_path, value)
 
   /**
    * Modifies value for the property.

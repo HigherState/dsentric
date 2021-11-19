@@ -115,7 +115,7 @@ private[contracts] trait ReduceOps {
   }
 
   protected def reduceCodec[D <: DObject, C](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes
   ): Function[(DCodec[C], Raw), Available[Raw]] = {
@@ -148,7 +148,7 @@ private[contracts] trait ReduceOps {
   }
 
   protected def reduceValue[D <: DObject, V](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
     codec: DValueCodec[V],
@@ -178,7 +178,7 @@ private[contracts] trait ReduceOps {
     }
 
   protected def reduceMap[D <: DObject, C, K, V](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
     codec: DMapCodec[C, K, V],
@@ -236,7 +236,7 @@ private[contracts] trait ReduceOps {
   }
 
   protected def reduceCollection[D <: DObject, S, T](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
     codec: DCollectionCodec[S, T],
@@ -279,7 +279,7 @@ private[contracts] trait ReduceOps {
   }
 
   protected def reduceProduct[D <: DObject, T, E <: HList, H <: HList](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
     codec: DProductCodec[T, E, H],
@@ -334,10 +334,10 @@ private[contracts] trait ReduceOps {
   }
 
   protected def reduceContract[D <: DObject, D2 <: DObject](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
-    codecContract: ContractFor[D2],
+    codecContract: ContractLike[D2],
     raw: RawObject
   ): Available[RawObject] =
     codecContract.__reduce(raw, badTypes.nest == DropBadTypes) match {
@@ -352,7 +352,7 @@ private[contracts] trait ReduceOps {
     }
 
   protected def reduceKeyContractCollection[S, D <: DObject, D2 <: DObject](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
     codec: DKeyContractCollectionCodec[S, D2],
@@ -400,7 +400,7 @@ private[contracts] trait ReduceOps {
     }
 
   protected def reduceCoproduct[D <: DObject, T, H <: HList](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
     codec: DCoproductCodec[T, H],
@@ -429,10 +429,10 @@ private[contracts] trait ReduceOps {
     }
 
   protected def reduceTypeContract[D <: DObject, D2 <: DObject](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
-    typeCodecs: PartialFunction[D2, ContractFor[D2]],
+    typeCodecs: PartialFunction[D2, ContractLike[D2]],
     d2Cstr: RawObject => D2,
     raw: RawObject
   ): Available[RawObject] =

@@ -2,7 +2,7 @@ package dsentric.codecs
 
 import com.github.ghik.silencer.silent
 import dsentric._
-import dsentric.contracts.{Contract, ContractFor}
+import dsentric.contracts.{Contract, ContractLike}
 import dsentric.schema._
 import shapeless.{HList, HNil}
 import shapeless.UnaryTCConstraint.*->*
@@ -152,7 +152,7 @@ final case class DValueClassCodec[S, T](
  * @param cstr
  * @tparam D
  */
-final case class DContractCodec[D <: DObject](contract: ContractFor[D], cstr: RawObject => D) extends DCodec[D] {
+final case class DContractCodec[D <: DObject](contract: ContractLike[D], cstr: RawObject => D) extends DCodec[D] {
   def containsContractCodec: Boolean = true
 
   def unapply(a: Raw): Option[D] =
@@ -181,7 +181,7 @@ final case class DContractCodec[D <: DObject](contract: ContractFor[D], cstr: Ra
  * @tparam D
  */
 final case class DKeyContractCollectionCodec[S, D <: DObject](
-  contract: ContractFor[D],
+  contract: ContractLike[D],
   cstr: (String, RawObject) => D,
   dstr: D => (String, RawObject),
   build: Vector[D] => Option[S],
@@ -225,7 +225,7 @@ object DContractCodec {
 }
 
 final case class DTypeContractCodec[D <: DObject](typeDefinition: TypeDefinition, cstr: RawObject => D)(
-  val contracts: PartialFunction[D, ContractFor[D]]
+  val contracts: PartialFunction[D, ContractLike[D]]
 ) extends DCodec[D] {
 
   def unapply(a: Raw): Option[D] =

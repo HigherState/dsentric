@@ -97,7 +97,7 @@ private[contracts] trait GetOps {
     getCodec(propertyLens._root, propertyLens._path, badTypes)(propertyLens._codec -> raw)
 
   protected def getCodec[D <: DObject, C](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes
   ): Function[(DCodec[C], Raw), Available[C]]                                                                 = {
@@ -129,7 +129,7 @@ private[contracts] trait GetOps {
   }
 
   protected def getValue[D <: DObject, V](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
     codec: DValueCodec[V],
@@ -145,7 +145,7 @@ private[contracts] trait GetOps {
     }
 
   protected def getMap[D <: DObject, C, K, V](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
     codec: DMapCodec[C, K, V],
@@ -195,7 +195,7 @@ private[contracts] trait GetOps {
   }
 
   protected def getCollection[D <: DObject, S, T](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
     codec: DCollectionCodec[S, T],
@@ -239,10 +239,10 @@ private[contracts] trait GetOps {
   }
 
   protected def getContract[D <: DObject, D2 <: DObject](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
-    d2Contract: ContractFor[D2],
+    d2Contract: ContractLike[D2],
     d2Cstr: RawObject => D2,
     raw: RawObject
   ): Available[D2] =
@@ -256,7 +256,7 @@ private[contracts] trait GetOps {
     }
 
   protected def getKeyContractCollection[D <: DObject, D2 <: DObject, S](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
     codec: DKeyContractCollectionCodec[S, D2],
@@ -299,10 +299,10 @@ private[contracts] trait GetOps {
     }
 
   protected def getTypeContract[D <: DObject, D2 <: DObject](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
-    typeCodecs: PartialFunction[D2, ContractFor[D2]],
+    typeCodecs: PartialFunction[D2, ContractLike[D2]],
     d2Cstr: RawObject => D2,
     raw: RawObject
   ): Available[DObject] =
@@ -316,7 +316,7 @@ private[contracts] trait GetOps {
     }
 
   protected def getValueClass[D <: DObject, T, S](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
     codec: DValueClassCodec[T, S],
@@ -337,7 +337,7 @@ private[contracts] trait GetOps {
     }
 
   protected def getProduct[D <: DObject, T, E <: HList, H <: HList](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
     codec: DProductCodec[T, E, H],
@@ -403,7 +403,7 @@ private[contracts] trait GetOps {
    * @return
    */
   protected def getCoproduct[D <: DObject, T, H <: HList](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
     codec: DCoproductCodec[T, H],

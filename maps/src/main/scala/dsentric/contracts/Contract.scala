@@ -17,18 +17,24 @@ trait MaybeSubContractFor[D <: DObject]
   override protected def __self: BaseContract[D] = this
 }
 
-trait ContractFor[D <: DObject]
-    extends BaseContract[D]
+// Abstracted to include Aspects and Contracts.
+trait ContractLike[D <: DObject]
+  extends BaseContract[D]
     with ExpectedPropertyOps[D]
     with ExpectedPropertyObjectOps[D]
-    with FieldResolver[D]
     with ContractLens[D] {
 
   def _path: Path = Path.empty
 
   override protected def __self: BaseContract[D] = this
-  def _root: ContractFor[D]                      = this
   def _parent: BaseContract[D]                   = this
+}
+
+trait ContractFor[D <: DObject]
+    extends ContractLike[D]
+    with FieldResolver[D] {
+
+  def _root: ContractFor[D]                      = this
 }
 
 trait SubContract extends SubContractFor[DObject]

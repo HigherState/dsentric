@@ -174,7 +174,7 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
   }
 
   protected def deltaReduceCodec[D <: DObject, C](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes
   ): Function[(DCodec[C], Raw, Raw), DeltaReduce[Raw]] = {
@@ -215,7 +215,7 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
   }
 
   protected def deltaReduceValue[D <: DObject, V](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
     codec: DValueCodec[V],
@@ -255,7 +255,7 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
     }
 
   protected def deltaReduceMap[D <: DObject, C, K, V](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
     codec: DMapCodec[C, K, V],
@@ -339,10 +339,10 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
     }
 
   protected def deltaReduceContract[D <: DObject, D2 <: DObject](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
-    codecContract: ContractFor[D2],
+    codecContract: ContractLike[D2],
     deltaObject: RawObject,
     current: Raw
   ): DeltaReduce[RawObject] =
@@ -361,7 +361,7 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
     }
 
   protected def deltaReduceKeyContractCollection[D <: DObject, D2 <: DObject, S](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
     codec: DKeyContractCollectionCodec[S, D2],
@@ -449,10 +449,10 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
         available2DeltaReduce(reduceKeyContractCollection(contract, path, badTypes, codec, deltaObject))
     }
   protected def deltaReduceTypeContract[D <: DObject, D2 <: DObject](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
-    typeCodecs: PartialFunction[D2, ContractFor[D2]],
+    typeCodecs: PartialFunction[D2, ContractLike[D2]],
     d2Cstr: RawObject => D2,
     deltaObject: RawObject,
     current: Raw
@@ -488,7 +488,7 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
     }
 
   protected def deltaReduceCoproduct[D <: DObject, T, H <: HList](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
     codec: DCoproductCodec[T, H],

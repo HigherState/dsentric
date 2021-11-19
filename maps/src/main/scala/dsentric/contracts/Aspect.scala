@@ -2,13 +2,11 @@ package dsentric.contracts
 
 import dsentric.codecs.{DCodec, DStringCodec}
 import dsentric.operators.{DataOperator, Expected, Optional}
-import dsentric.{DObject, Path}
+import dsentric.DObject
 
 class AspectFor[D <: DObject, D2 <: D](_source: ContractFor[D])(
   f: PartialFunction[Property[D, _], Option[AspectProperty[D2, _]]] = PartialFunction.empty
-) extends SubContractFor[D2]
-    with ContractLens[D2] {
-  def _path: Path = Path.empty
+) extends ContractLike[D2] {
 
   //TODO: name override
   //TODO: DataOperators
@@ -97,7 +95,6 @@ class AspectFor[D <: DObject, D2 <: D](_source: ContractFor[D])(
       }
       __fields
     }
-
 }
 
 class Aspect[D <: DObject](_source: ContractFor[D])(

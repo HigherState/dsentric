@@ -47,7 +47,7 @@ private[dsentric] trait VerifyOps {
     verifyCodec(propertyLens._root, propertyLens._path)(propertyLens._codec -> raw)
 
   protected def verifyCodec[D <: DObject, C](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path
   ): Function[(DCodec[C], Raw), List[Failure]]                                                = {
     case (d: DValueCodec[C], raw)                                                =>
@@ -73,7 +73,7 @@ private[dsentric] trait VerifyOps {
   }
 
   protected def verifyValue[D <: DObject, V](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     codec: DValueCodec[V],
     raw: Raw
@@ -86,7 +86,7 @@ private[dsentric] trait VerifyOps {
     }
 
   protected def verifyMap[D <: DObject, C, K, V](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     codec: DMapCodec[C, K, V],
     raw: RawObject
@@ -114,7 +114,7 @@ private[dsentric] trait VerifyOps {
     }
 
   protected def verifyCollection[D <: DObject, S, T](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     codec: DCollectionCodec[S, T],
     raw: RawArray
@@ -134,15 +134,15 @@ private[dsentric] trait VerifyOps {
     }
 
   protected def verifyContract[D <: DObject, D2 <: DObject](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
-    codecContract: ContractFor[D2],
+    codecContract: ContractLike[D2],
     raw: RawObject
   ): List[Failure] =
     codecContract.__verify(raw).map(_.rebase(contract, path))
 
   protected def verifyKeyContractCollection[D <: DObject, C, D2 <: DObject](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     codec: DKeyContractCollectionCodec[C, D2],
     raw: RawObject
@@ -166,7 +166,7 @@ private[dsentric] trait VerifyOps {
     }
 
   protected def verifyProduct[D <: DObject, T, E <: HList, H <: HList](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     codec: DProductCodec[T, E, H],
     raw: RawArray
@@ -201,7 +201,7 @@ private[dsentric] trait VerifyOps {
   }
 
   protected def verifyCoproduct[D <: DObject, T, H <: HList](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
     codec: DCoproductCodec[T, H],
     raw: Raw
@@ -223,9 +223,9 @@ private[dsentric] trait VerifyOps {
     }
 
   protected def verifyTypeContract[D <: DObject, D2 <: DObject](
-    contract: ContractFor[D],
+    contract: ContractLike[D],
     path: Path,
-    typeCodecs: PartialFunction[D2, ContractFor[D2]],
+    typeCodecs: PartialFunction[D2, ContractLike[D2]],
     d2Cstr: RawObject => D2,
     raw: RawObject
   ): List[Failure] =
