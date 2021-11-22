@@ -246,11 +246,11 @@ sealed trait UnexpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]
    * @return
    */
   final def $setIfEmpty(value: T): PathSetter[D] =
-    ValueIfEmptySetter(_path, value)
+    ValueIfEmptySetter(_path, _codec(value))
 
   final def $maybeSetIfEmpty(value: Option[T]): PathSetter[D] =
     value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
-      ValueIfEmptySetter(_path, v)
+      ValueIfEmptySetter(_path, _codec(v))
     }
 }
 
