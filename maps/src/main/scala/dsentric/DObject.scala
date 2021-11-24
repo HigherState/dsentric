@@ -202,11 +202,14 @@ trait DObjectOps[+C <: DObjectOps[C]] extends Any with Data with IterableOps[(St
   def traverseConcat(additional: DObject): C =
     wrap(RawObjectOps.traverseConcat(this.value, additional.value))
 
+  def removingTraverseConcat[T](additional: DObject, removeValue:T)(implicit D:DCodec[T]): C =
+    wrap(RawObjectOps.removingTraverseConcat(this.value, additional.value, D.apply(removeValue)))
+
   def applyDelta(delta: Delta): C =
     wrap(RawObjectOps.deltaTraverseConcat(this.value, delta.value))
 
   def reduce: Option[C] =
-    RawObjectOps.reduceMap(this.value).map(wrap)
+    RawObjectOps.reduceMap(this.value, DNull).map(wrap)
 
   //Returns the differences in the compare object
   def diff(compare: DObject): DObject        =

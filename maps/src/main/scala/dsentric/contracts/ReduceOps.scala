@@ -77,7 +77,7 @@ private[contracts] trait ReduceOps {
           if (closed.isEmpty) ValidResult.success(obj)
           else
             RawObjectOps
-              .reduceMap(closed.toMap)
+              .reduceMap(closed.toMap, DNull)
               .toList
               .flatMap(_.keys.map(key => ClosedContractFailure(baseContract._root, baseContract._path, key))) match {
               case head :: tail =>
@@ -156,7 +156,7 @@ private[contracts] trait ReduceOps {
   ): Available[Raw] =
     raw match {
       case rawObject: RawObject @unchecked =>
-        RawObjectOps.reduceMap(rawObject).fold[Available[Raw]](NotFound) { r =>
+        RawObjectOps.reduceMap(rawObject, DNull).fold[Available[Raw]](NotFound) { r =>
           codec.unapply(r) match {
             case None if badTypes == DropBadTypes =>
               NotFound

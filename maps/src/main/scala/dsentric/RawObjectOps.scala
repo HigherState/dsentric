@@ -24,14 +24,14 @@ trait RawObjectOps {
    * @param delta
    * @return
    */
-  def deltaTraverseConcat(x: RawObject, delta: RawObject): RawObject =
+  def removingTraverseConcat(x: RawObject, delta: RawObject, RemoveValue:Raw): RawObject = {
     delta.foldLeft(x) {
-      case (acc, (k, DNull))                          =>
+      case (acc, (k, RemoveValue))                          =>
         acc - k
       case (acc, (k, v: Map[String, Any] @unchecked)) =>
         acc.get(k) match {
           case Some(c: RawObject @unchecked) =>
-            deltaTraverseConcat(c, v) match {
+            removingTraverseConcat(c, v, RemoveValue) match {
               case RawObject.empty =>
                 acc - k
               case d               =>
@@ -40,13 +40,23 @@ trait RawObjectOps {
           case _                             =>
             //need to reduce delta values in case there are more nulls or empty objects in the delta
             //if empty, we just remove the key
-            val m = reduceMap(v)
+            val m = reduceMap(v, RemoveValue)
             m.fold(acc - k)(vr => acc + (k -> vr))
         }
       case (acc, (k, v))                              =>
         acc + (k -> v)
     }
+  }
 
+  /**
+   * Applies changes in y onto x, if y contains a null, it will remove the key if present, or be ignored if not.
+   * If an object has its key count reduced to empty and it is nested it will remove the key value pair.
+   * @param x
+   * @param delta
+   * @return
+   */
+  def deltaTraverseConcat(x: RawObject, delta: RawObject): RawObject =
+    removingTraverseConcat(x, delta, DNull)
   def rightDifference: Function[(RawObject, RawObject), Option[RawObject]] = {
     case (s, d) if d == s =>
       None
@@ -117,12 +127,12 @@ trait RawObjectOps {
             Some(kvp)
           //Can end up replacing value with an empty map
           case (Some(_), dm: RawObject @unchecked)                       =>
-            Some(kvp._1 -> reduceMap(dm).getOrElse(RawObject.empty))
+            Some(kvp._1 -> reduceMap(dm, DNull).getOrElse(RawObject.empty))
           // Drop if delta remove doesnt remove anything
           case (None, DNull)                                             =>
             None
           case (None, dm: RawObject @unchecked)                          =>
-            reduceMap(dm).map(kvp._1 -> _)
+            reduceMap(dm, DNull).map(kvp._1 -> _)
           case _                                                         =>
             Some(kvp)
         }
@@ -206,12 +216,12 @@ trait RawObjectOps {
   /*
     Removes nulls and empty objects, return None if empty
    */
-  def reduceMap(target: RawObject): Option[RawObject] = {
+  def reduceMap(target: RawObject, Match:Raw): Option[RawObject] = {
     val reducedMap = target.flatMap {
-      case (_, DNull)                   =>
+      case (_, Match)                   =>
         None
       case (k, m: RawObject @unchecked) =>
-        reduceMap(m).map(k -> _)
+        reduceMap(m, Match).map(k -> _)
       case kvp                          =>
         Some(kvp)
     }

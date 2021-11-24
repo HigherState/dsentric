@@ -154,6 +154,24 @@ final private[dsentric] case class ValueIfEmptySetter[D <: DObject](path: Path, 
         RawObject.empty
     }
 }
+final private[dsentric] case class ValueIfNonEmptySetter[D <: DObject](path: Path, value: Raw) extends PathSetter[D] {
+
+  private[contracts] def rawApply(rawObject: RawObject): RawObject =
+    PathLensOps.traverse(rawObject, path) match {
+      case None =>
+        rawObject
+      case _    =>
+        PathLensOps.set(rawObject, path, value)
+    }
+
+  private[contracts] def rawDelta(rawObject: RawObject): RawObject =
+    PathLensOps.traverse(rawObject, path) match {
+      case None =>
+        RawObject.empty
+      case _    =>
+        PathLensOps.pathToMap(path, value)
+    }
+}
 
 final private[dsentric] case class ValidValueSetter[D <: DObject](path: Path, value: ValidResult[Raw])
     extends ValidPathSetter[D] {

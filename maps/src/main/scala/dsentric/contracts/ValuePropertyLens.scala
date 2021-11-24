@@ -236,22 +236,6 @@ sealed trait UnexpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]
    */
   final def $copy(p: PropertyLens[D, T], dropBadTypes: Boolean = false): ValidPathSetter[D] =
     TraversedModifyOrDropSetter(p.__get(_, dropBadTypes), identity[Option[T]], _codec, _path)
-
-  /**
-   * Sets value for the Property if provided
-   * Will create object path to Property if objects dont exist.
-   * Is not concerned with correct type of value.
-   * @param value
-   * @param dropBadTypes
-   * @return
-   */
-  final def $setIfEmpty(value: T): PathSetter[D] =
-    ValueIfEmptySetter(_path, _codec(value))
-
-  final def $maybeSetIfEmpty(value: Option[T]): PathSetter[D] =
-    value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
-      ValueIfEmptySetter(_path, _codec(v))
-    }
 }
 
 private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D, T] with ApplicativeLens[D, T] {
@@ -505,6 +489,36 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
    */
   final def $modifyOrDropWith(f: Option[T] => Option[ValidResult[T]], dropBadTypes: Boolean = false): ValidPathSetter[D] =
     TraversedModifyOrDropValidSetter[D, T](__get(_, dropBadTypes), f, _codec, _path)
+
+  /**
+   * Sets value for the Property if provided
+   * Will create object path to Property if objects dont exist.
+   * Is not concerned with correct type of value.
+   * @param value
+   * @param dropBadTypes
+   * @return
+   */
+  final def $setIfEmpty(value: T): PathSetter[D] =
+    ValueIfEmptySetter(_path, _codec(value))
+
+  final def $maybeSetIfEmpty(value: Option[T]): PathSetter[D] =
+    value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
+      ValueIfEmptySetter(_path, _codec(v))
+    }
+
+  /**
+   * Replaces an value if and only if it already has a value.
+   * Will replace values of the incorrect type
+   * @param value
+   * @return
+   */
+  final def $replace(value:T):PathSetter[D] =
+    ValueIfNonEmptySetter(_path, _codec(value))
+
+  final def $maybeReplace(value:Option[T]):PathSetter[D] =
+    value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
+      ValueIfNonEmptySetter(_path, _codec(v))
+    }
 
   /**
    * Unapply is only ever a simple prism to the value and its decoding
