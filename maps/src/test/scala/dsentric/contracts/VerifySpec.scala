@@ -1,7 +1,14 @@
 package dsentric.contracts
 
 import dsentric._
-import dsentric.codecs.{DContractCodec, DCoproductCodec, DKeyContractCollectionCodec, DTypeContractCodec, DValueCodec}
+import dsentric.codecs.{
+  DContractCodec,
+  DCoproductCodec,
+  DKeyContractCollectionCodec,
+  DParameterisedContractCodec,
+  DTypeContractCodec,
+  DValueCodec
+}
 import dsentric.failure.{ClosedContractFailure, _}
 import dsentric.schema.ObjectDefinition
 import org.scalatest.EitherValues
@@ -153,7 +160,53 @@ class VerifySpec extends AnyFunSpec with Matchers with EitherValues {
         ContractCodec.$verify(base).value.validObject shouldBe base
       }
     }
+    describe("Parameterised Contract Codec Type") {
 
+      case class Parametric(id: Long, _type: String, value: Map[String, Any])
+          extends DObject
+          with DObjectOps[Parametric] {
+        protected def wrap(value: RawObject): Parametric = Parametric(id, _type, value)
+      }
+      object Parametric extends ContractFor[Parametric] with Closed {
+        val expected = \[String]
+        val maybe    = \?[Boolean]
+        val default  = \![Int](0)
+      }
+
+      object ContractCodec extends Contract {
+        val property = \[Parametric](DParameterisedContractCodec(Parametric))
+      }
+      it("Should return object if contract values correct") {
+        val base = DObject("property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "maybe" := false))
+        ContractCodec.$verify(base).value.validObject shouldBe base
+      }
+      it("Should return failure if expected object missing") {
+        val base = DObject.empty
+        ContractCodec.$verify(base).left.value should contain(ExpectedFailure(ContractCodec, Path("property")))
+      }
+      it("Should return nested failure if expected property is empty") {
+        val base = DObject("property" ::= ("id" := 482, "_type" := "test", "maybe" := false))
+        ContractCodec.$verify(base).left.value should contain(ExpectedFailure(ContractCodec, Path("property", "expected")))
+      }
+      it("Should return failure if param is empty") {
+        val base = DObject("property" ::= ("id" := 482, "expected" := "value", "maybe" := false))
+        ContractCodec.$verify(base).left.value should contain(ExpectedFailure(ContractCodec, Path("property", "_type")))
+      }
+      it("Should return failure if param is wrong type") {
+        val base =
+          DObject("property" ::= ("id" := "blah", "expected" := "value", "expected" := "value", "maybe" := false))
+        ContractCodec.$verify(base).left.value should contain(
+          IncorrectTypeFailure(ContractCodec, Path("property", "id"), longCodec, "blah")
+        )
+      }
+      it("Should fail on extending closed contract") {
+        val base =
+          DObject("property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "maybe" := true, "add1" := 1234))
+        ContractCodec.$verify(base).left.value should contain(
+          ClosedContractFailure(ContractCodec, Path("property"), "add1")
+        )
+      }
+    }
     describe("Contract Key Collection Codec Type") {
 
       case class WithKey(key: String, value: Map[String, Any]) extends DObject {

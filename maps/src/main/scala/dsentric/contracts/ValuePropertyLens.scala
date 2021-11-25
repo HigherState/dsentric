@@ -29,6 +29,19 @@ sealed trait ValuePropertyLens[D <: DObject, T] extends PropertyLens[D, T] {
       case Left(failed)   =>
         ValidValueSetter(_path, Left(failed))
     }
+
+  /**
+   * Has an value at this location that is of the valid type
+   * @param obj
+   * @return
+   */
+  final def $exists(obj: D): Boolean =
+    PathLensOps.traverse(obj.value, _path) match {
+      case None    =>
+        false
+      case Some(v) =>
+        _codec.unapply(v).isDefined
+    }
 }
 
 sealed trait ExpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T] {
@@ -512,10 +525,10 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
    * @param value
    * @return
    */
-  final def $replace(value:T):PathSetter[D] =
+  final def $replace(value: T): PathSetter[D] =
     ValueIfNonEmptySetter(_path, _codec(value))
 
-  final def $maybeReplace(value:Option[T]):PathSetter[D] =
+  final def $maybeReplace(value: Option[T]): PathSetter[D] =
     value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
       ValueIfNonEmptySetter(_path, _codec(v))
     }

@@ -1,6 +1,13 @@
 package dsentric.contracts
 
-import dsentric.codecs.{DContractCodec, DCoproductCodec, DKeyContractCollectionCodec, DTypeContractCodec, DValueCodec}
+import dsentric.codecs.{
+  DContractCodec,
+  DCoproductCodec,
+  DKeyContractCollectionCodec,
+  DParameterisedContractCodec,
+  DTypeContractCodec,
+  DValueCodec
+}
 import dsentric.failure.{
   ClosedContractFailure,
   ContractTypeResolutionFailure,
@@ -14,7 +21,7 @@ import dsentric.failure.{
   ReservedFailure
 }
 import dsentric.schema.ObjectDefinition
-import dsentric.{DNull, DObject, Data, Delta, Path, RawObject}
+import dsentric.{DNull, DObject, DObjectOps, Data, Delta, Path, RawObject}
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
@@ -412,6 +419,168 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
         val delta = Delta("property" ::= ("maybe" := "fail"))
         ContractCodec.$reduceDelta(base, delta).left.value should contain(
           IncorrectTypeFailure(ContractCodec, Path("property", "maybe"), Nested.maybe._codec, "fail")
+        )
+      }
+    }
+    describe("Contract Parameterised Codec Type") {
+      case class Parametric(id: Long, _type: String, value: Map[String, Any])
+          extends DObject
+          with DObjectOps[Parametric] {
+        protected def wrap(value: RawObject): Parametric = Parametric(id, _type, value)
+      }
+      object Parametric extends ContractFor[Parametric] with Closed {
+        val expected = \[String]
+        val maybe    = \?[Boolean]
+        val default  = \![Int](0)
+      }
+
+      object ContractCodec extends Contract {
+        val property = \[Parametric](DParameterisedContractCodec(Parametric))
+      }
+      it("Should return delta if current empty and delta satisfies contract conditions") {
+        val base  = DObject.empty
+        val delta = Delta("property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "maybe" := false))
+        ContractCodec.$reduceDelta(base, delta).value shouldBe delta
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return failure if current empty and delta does not satisfy contract conditions") {
+        val base  = DObject.empty
+        val delta = Delta("property" ::= ("id" := 482, "_type" := "test", "maybe" := false))
+        ContractCodec.$reduceDelta(base, delta).left.value should contain(
+          ExpectedFailure(ContractCodec, Path("property", "expected"))
+        )
+      }
+      it("Should return failure if current empty and delta does not satisfy parameter conditions") {
+        val base  = DObject.empty
+        val delta = Delta("property" ::= ("_type" := "test", "expected" := "value"))
+        ContractCodec.$reduceDelta(base, delta).left.value should contain(
+          ExpectedFailure(ContractCodec, Path("property", "id"))
+        )
+      }
+      it("Should return empty if current empty if delta does not satisfy contract conditions under dropBadTypes is true") {
+        val base   = DObject.empty
+        val delta  = Delta("property" ::= ("id" := 482, "expected" := "value", "maybe" := false))
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+        val delta2 = Delta("property" ::= ("id" := 482, "_type" := "test", "expected" := 482392, "maybe" := false))
+        ContractCodec.$reduceDelta(base, delta2, true).value shouldBe Delta.empty
+      }
+      it("Should return empty if current set and delta is the same") {
+        val base  = DObject(
+          "property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "expected" := "value", "maybe" := true)
+        )
+        val delta = Delta(
+          "property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "expected" := "value", "maybe" := true)
+        )
+        ContractCodec.$reduceDelta(base, delta).value shouldBe Delta.empty
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return reduced delta if current empty and contract can satisfy under dropBadTypes is true") {
+        val base  = DObject.empty
+        val delta = Delta("property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "maybe" := 1234))
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe Delta(
+          "property" ::= ("id" := 482, "_type" := "test", "expected" := "value")
+        )
+      }
+      it("Should return delta if changing current values") {
+        val base  = DObject("property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "maybe" := true))
+        val delta = Delta("property" ::= ("expected" := "value2", "maybe" := false))
+        ContractCodec.$reduceDelta(base, delta).value shouldBe delta
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return delta if removing maybe contract current values ") {
+        val base  = DObject("property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "maybe" := true))
+        val delta = Delta("property" ::= ("maybe" := DNull))
+        ContractCodec.$reduceDelta(base, delta).value shouldBe delta
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return empty if removing not existing keys") {
+        val base  = DObject("property" ::= ("id" := 482, "_type" := "test", "expected" := "value"))
+        val delta = Delta("property" ::= ("maybe" := DNull))
+        ContractCodec.$reduceDelta(base, delta).value shouldBe Delta.empty
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return failure if removing expected contract current values") {
+        val base  = DObject("property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "maybe" := true))
+        val delta = Delta("property" ::= ("expected" := DNull))
+        ContractCodec.$reduceDelta(base, delta).left.value should contain(
+          ExpectedFailure(ContractCodec, Path("property", "expected"))
+        )
+      }
+      it("Should return failure if removing param value") {
+        val base  = DObject("property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "maybe" := true))
+        val delta = Delta("property" ::= ("_type" := DNull))
+        ContractCodec.$reduceDelta(base, delta).left.value should contain(
+          ExpectedFailure(ContractCodec, Path("property", "_type"))
+        )
+      }
+      it("Should return failure if setting param value to wrong type") {
+        val base  = DObject("property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "maybe" := true))
+        val delta = Delta("property" ::= ("id" := "fail"))
+        ContractCodec.$reduceDelta(base, delta).left.value should contain(
+          IncorrectTypeFailure(ContractCodec, Path("property", "id"), longCodec, "fail")
+        )
+      }
+      it("Should return failure if removing param value even if not originally set") {
+        val base  = DObject("property" ::= ("id" := 482, "expected" := "value", "maybe" := true))
+        val delta = Delta("property" ::= ("_type" := DNull))
+        ContractCodec.$reduceDelta(base, delta).left.value should contain(
+          ExpectedFailure(ContractCodec, Path("property", "_type"))
+        )
+      }
+      it("Should return failure if delta doesnt fix broken params") {
+        val base  = DObject("property" ::= ("id" := 482, "_type" := 482, "expected" := "value", "maybe" := true))
+        val delta = Delta("property" ::= ("expected" := "value2"))
+        ContractCodec.$reduceDelta(base, delta).left.value should contain(
+          IncorrectTypeFailure(ContractCodec, Path("property", "_type"), stringCodec, 482L)
+        )
+      }
+      it("Should return empty if removing expected contract on empty object (Unusual case)") {
+        val base  = DObject.empty
+        val delta = Delta("property" ::= ("expected" := DNull))
+        ContractCodec.$reduceDelta(base, delta).value shouldBe Delta.empty
+        val base2 = DObject("property" := DObject.empty)
+        ContractCodec.$reduceDelta(base2, delta).value shouldBe Delta.empty
+      }
+      it("Should return empty if removing param on empty object (Unusual case)") {
+        val base  = DObject.empty
+        val delta = Delta("property" ::= ("id" := DNull))
+        ContractCodec.$reduceDelta(base, delta).value shouldBe Delta.empty
+        val base2 = DObject("property" := DObject.empty)
+        ContractCodec.$reduceDelta(base2, delta).value shouldBe Delta.empty
+      }
+      it("Should return empty delta if removing expected contract current values under dropBadTypes is true") {
+        val base  = DObject("property" ::= ("id" := 482, "_type" := 482, "expected" := "value", "maybe" := true))
+        val delta = Delta("property" ::= ("expected" := DNull))
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return empty delta if removing param current values under dropBadTypes is true") {
+        val base  = DObject("property" ::= ("id" := 482, "_type" := 482, "expected" := "value", "maybe" := true))
+        val delta = Delta("property" ::= ("id" := DNull))
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty
+      }
+      it("Should return delta if valid delta results in removing Expected object ") {
+        val base  = DObject("property" ::= ("maybe" := true))
+        val delta = Delta("property" ::= ("maybe" := DNull))
+        ContractCodec.$reduceDelta(base, delta).value shouldBe delta
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe delta
+      }
+      it("Should return delta if valid delta results in leaving object still invalid") {
+        val base  = DObject("property" ::= ("id" := 482, "_type" := "test", "expected" := 123, "maybe" := true))
+        val delta = Delta("property" ::= ("maybe" := DNull))
+        ContractCodec.$reduceDelta(base, delta).value shouldBe delta
+      }
+      it("should return failure if setting incorrect type even if its same type as current") {
+        val base  = DObject("property" ::= ("id" := 482, "_type" := "test", "expected" := 123, "maybe" := "fail"))
+        val delta = Delta("property" ::= ("maybe" := "fail"))
+        ContractCodec.$reduceDelta(base, delta).left.value should contain(
+          IncorrectTypeFailure(ContractCodec, Path("property", "maybe"), booleanCodec, "fail")
+        )
+      }
+      it("should return failure if setting incorrect type on param even if its same type as current") {
+        val base  = DObject("property" ::= ("id" := 482, "_type" := false, "expected" := 123))
+        val delta = Delta("property" ::= ("_type" := false))
+        ContractCodec.$reduceDelta(base, delta).left.value should contain(
+          IncorrectTypeFailure(ContractCodec, Path("property", "_type"), stringCodec, false)
         )
       }
     }

@@ -1,6 +1,13 @@
 package dsentric.contracts
 
-import dsentric.codecs.{DContractCodec, DCoproductCodec, DKeyContractCollectionCodec, DTypeContractCodec, DValueCodec}
+import dsentric.codecs.{
+  DContractCodec,
+  DCoproductCodec,
+  DKeyContractCollectionCodec,
+  DParameterisedContractCodec,
+  DTypeContractCodec,
+  DValueCodec
+}
 import dsentric.failure._
 import dsentric.schema.ObjectDefinition
 import dsentric._
@@ -194,7 +201,79 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
         )
       }
     }
+    describe("Contract Parameterised Codec Type") {
 
+      case class Parametric(id: Long, _type: String, value: Map[String, Any])
+          extends DObject
+          with DObjectOps[Parametric] {
+        protected def wrap(value: RawObject): Parametric = Parametric(id, _type, value)
+      }
+      object Parametric extends ContractFor[Parametric] with Closed {
+        val expected = \[String]
+        val maybe    = \?[Boolean]
+        val default  = \![Int](0)
+      }
+
+      object ContractCodec extends Contract {
+        val property = \[Parametric](DParameterisedContractCodec(Parametric))
+      }
+      it("Should return object if contract values correct") {
+        val base = DObject("property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "maybe" := false))
+        ContractCodec.$reduce(base).value shouldBe base
+        ContractCodec.$reduce(base, true).value shouldBe base
+      }
+      it("Should return failure if expected object missing") {
+        val base = DObject.empty
+        ContractCodec.$reduce(base).left.value should contain(ExpectedFailure(ContractCodec, Path("property")))
+        ContractCodec.$reduce(base, true).left.value should contain(ExpectedFailure(ContractCodec, Path("property")))
+      }
+      it("Should return failure if contract expected property is empty") {
+        val base = DObject("property" ::= ("id" := 482, "_type" := "test", "maybe" := false))
+        ContractCodec.$reduce(base).left.value should contain(ExpectedFailure(ContractCodec, Path("property", "expected")))
+        ContractCodec.$reduce(base, true).left.value should contain(ExpectedFailure(ContractCodec, Path("property")))
+      }
+      it("Should return failure if param is empty") {
+        val base = DObject("property" ::= ("id" := 482, "expected" := "value", "maybe" := false))
+        ContractCodec.$reduce(base).left.value should contain(ExpectedFailure(ContractCodec, Path("property", "_type")))
+        ContractCodec.$reduce(base, true).left.value should contain(ExpectedFailure(ContractCodec, Path("property")))
+      }
+      it("Should return failure if param is null") {
+        val base = DObject("property" ::= ("id" := DNull, "_type" := "test", "expected" := "value", "maybe" := false))
+        ContractCodec.$reduce(base).left.value should contain(
+          IncorrectTypeFailure(ContractCodec, Path("property", "id"), longCodec, DNull)
+        )
+        ContractCodec.$reduce(base, true).left.value should contain(ExpectedFailure(ContractCodec, Path("property")))
+      }
+      it("Should return reduce if maybe and default contract properties are wrong type under dropBadTypes is true") {
+        val base = DObject(
+          "property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "maybe" := 123, "default" := false)
+        )
+        ContractCodec.$reduce(base, true).value shouldBe DObject(
+          "property" ::= ("id" := 482, "_type" := "test", "expected" := "value")
+        )
+      }
+      it("Should return reduce null and empty object values in contract") {
+        val base = DObject(
+          "property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "maybe" := DNull, "default" := 0)
+        )
+        ContractCodec.$reduce(base).value shouldBe DObject(
+          "property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "default" := 0)
+        )
+        ContractCodec.$reduce(base, true).value shouldBe DObject(
+          "property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "default" := 0)
+        )
+      }
+      it("Should return reduce additional null additional properties values in contract") {
+        val base =
+          DObject("property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "add1" := DNull, "default" := 0))
+        ContractCodec.$reduce(base).value shouldBe DObject(
+          "property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "default" := 0)
+        )
+        ContractCodec.$reduce(base, true).value shouldBe DObject(
+          "property" ::= ("id" := 482, "_type" := "test", "expected" := "value", "default" := 0)
+        )
+      }
+    }
     describe("Contract Key Collection Codec Type") {
 
       case class WithKey(key: String, value: Map[String, Any]) extends DObject {

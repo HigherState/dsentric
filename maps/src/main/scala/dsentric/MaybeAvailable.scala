@@ -94,6 +94,9 @@ final case class Failed(failure: Failure, tail: List[Failure] = Nil) extends Val
 
   def ++(f: Failed): Failed =
     Failed(failure, tail ::: f.failure :: f.tail)
+
+  def ++(f: List[Failure]): Failed =
+    Failed(failure, tail ::: f)
 }
 
 object Available {
@@ -128,6 +131,9 @@ final case class DeltaFailed(head: Failure, tail: List[Failure] = Nil) extends D
 
   def ++(f: DeltaFailed): DeltaFailed =
     DeltaFailed(head, tail ::: f.head :: f.tail)
+
+  def ++(f: List[Failure]): DeltaFailed =
+    DeltaFailed(head, tail ::: f)
 }
 final case class DeltaReduced[R](delta: R)                             extends DeltaReduce[R]
 final case class DeltaRemoving(delta: RawObject)                       extends DeltaReduce[RawObject]

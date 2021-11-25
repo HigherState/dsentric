@@ -7,6 +7,7 @@ import dsentric.codecs.{
   DCoproductCodec,
   DKeyContractCollectionCodec,
   DMapCodec,
+  DParameterisedContractCodec,
   DProductCodec,
   DTypeContractCodec,
   DValueClassCodec
@@ -123,6 +124,8 @@ trait DataOperationOps {
 
       def transformCodec[T]: Function[(Raw, DCodec[T]), Option[Raw]]                                       = {
         case (nestedObject: RawObject @unchecked, d: DContractCodec[_])                             =>
+          objectTransform(d.contract, nestedObject)
+        case (nestedObject: RawObject @unchecked, d: DParameterisedContractCodec[_, _])             =>
           objectTransform(d.contract, nestedObject)
         case (nestedObject: RawObject @unchecked, d: DKeyContractCollectionCodec[T, _])             =>
           nestedObject.keys.foldLeft(Option.empty[RawObject]) { (maybeChangedObject, mapKey) =>

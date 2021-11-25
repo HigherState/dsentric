@@ -58,6 +58,8 @@ private[dsentric] trait VerifyOps {
       verifyCollection(contract, path, d, rawArray)
     case (d: DContractCodec[_], rawObject: RawObject @unchecked)                 =>
       verifyContract(contract, path, d.contract, rawObject)
+    case (d: DParameterisedContractCodec[_, _], rawObject: RawObject @unchecked) =>
+      verifyParameterisedContract(contract, path, d, rawObject)
     case (d: DKeyContractCollectionCodec[C, _], rawObject: RawObject @unchecked) =>
       verifyKeyContractCollection(contract, path, d, rawObject)
     case (d: DValueClassCodec[C, _], raw)                                        =>
@@ -140,6 +142,26 @@ private[dsentric] trait VerifyOps {
     raw: RawObject
   ): List[Failure] =
     codecContract.__verify(raw).map(_.rebase(contract, path))
+
+  protected def verifyParameterisedContract[D <: DObject, D2 <: DObject, H <: HList](
+    contract: ContractLike[D],
+    path: Path,
+    codec: DParameterisedContractCodec[D2, H],
+    raw: RawObject
+  ): List[Failure] = {
+    val (valueRawObject, extracted) = codec.extractParameters(raw)
+    val resolvedFailure             =
+      extracted.fold(
+        _.toList.map {
+          case (field, None)                           =>
+            ExpectedFailure(contract, path \ field)
+          case (field, Some((failedRaw, failedCodec))) =>
+            IncorrectTypeFailure(contract, path \ field, failedCodec, failedRaw)
+        },
+        _ => Nil
+      )
+    codec.contract.__verify(valueRawObject).map(_.rebase(contract, path)) ++ resolvedFailure
+  }
 
   protected def verifyKeyContractCollection[D <: DObject, C, D2 <: DObject](
     contract: ContractLike[D],

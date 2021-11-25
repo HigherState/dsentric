@@ -10,6 +10,7 @@ import dsentric.codecs.{
   DCoproductCodec,
   DKeyContractCollectionCodec,
   DMapCodec,
+  DParameterisedContractCodec,
   DProductCodec,
   DTypeContractCodec,
   DValueClassCodec,
@@ -20,6 +21,7 @@ import dsentric.failure.{
   ClosedContractFailure,
   ContractTypeResolutionFailure,
   CoproductTypeValueFailure,
+  ExpectedFailure,
   Failure,
   IncorrectKeyTypeFailure,
   IncorrectTypeFailure,
@@ -109,6 +111,9 @@ private[contracts] trait GetOps {
       getCollection(contract, path, badTypes, d, rawArray)
     case (d: DContractCodec[_], rawObject: RawObject @unchecked)                 =>
       getContract(contract, path, badTypes, d.contract, d.cstr, rawObject)
+        .asInstanceOf[Available[C]]
+    case (d: DParameterisedContractCodec[_, _], rawObject: RawObject @unchecked) =>
+      getParameterisedContract(contract, path, badTypes, d, rawObject)
         .asInstanceOf[Available[C]]
     case (d: DKeyContractCollectionCodec[C, _], rawObject: RawObject @unchecked) =>
       getKeyContractCollection(contract, path, badTypes, d, rawObject)
@@ -254,6 +259,35 @@ private[contracts] trait GetOps {
       case f: Failed                             =>
         f.rebase(contract, path)
     }
+
+  protected def getParameterisedContract[D <: DObject, D2 <: DObject, H <: HList](
+    contract: ContractLike[D],
+    path: Path,
+    badTypes: BadTypes,
+    codec: DParameterisedContractCodec[D2, H],
+    raw: RawObject
+  ): Available[D2] = {
+    val (valueRawObject, extracted) = codec.extractParameters(raw)
+    val resolvedFailure             =
+      extracted.left.map(_.map {
+        case (field, None)                           =>
+          ExpectedFailure(contract, path \ field)
+        case (field, Some((failedRaw, failedCodec))) =>
+          IncorrectTypeFailure(contract, path \ field, failedCodec, failedRaw)
+      })
+    codec.contract.__get(valueRawObject, badTypes.nest == DropBadTypes) -> resolvedFailure match {
+      case (Found(rawObject), Right(function)) =>
+        Found(function(rawObject))
+      case _ if badTypes == DropBadTypes       =>
+        NotFound
+      case (f: Failed, Left(failures))         =>
+        f.rebase(contract, path) ++ failures.toList
+      case (_, Left(failures))                 =>
+        Failed(failures.head, failures.tail)
+      case (f: Failed, _)                      =>
+        f.rebase(contract, path)
+    }
+  }
 
   protected def getKeyContractCollection[D <: DObject, D2 <: DObject, S](
     contract: ContractLike[D],
