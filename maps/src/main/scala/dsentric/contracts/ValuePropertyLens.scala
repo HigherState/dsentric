@@ -291,7 +291,7 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D
   final def unapply(obj: D): Option[T] =
     PathLensOps.traverse(obj.value, _path).flatMap(_codec.unapply)
 
-  final def unapply(validated: Validated[D]): Some[T] =
+  final def unapply[D2 <: D](validated: Validated[D2]): Some[T] =
     Some {
       PathLensOps
         .traverse(validated.validObject.value, _path)
@@ -358,7 +358,7 @@ private[dsentric] trait MaybeExpectedLens[D <: DObject, T]
         None
     }
 
-  final def unapply(obj: Validated[D]): Option[T] =
+  final def unapply[D2 <: D](obj: Validated[D2]): Option[T] =
     TraversalOps.maybeTraverse(obj.validObject.value, this, false) match {
       case PathEmptyMaybe =>
         None
@@ -547,7 +547,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
         _codec.unapply(v).map(Some.apply)
     }
 
-  final def unapply(validated: Validated[D]): Some[Option[T]] =
+  final def unapply[D2 <: D](validated: Validated[D2]): Some[Option[T]] =
     PathLensOps.traverse(validated.validObject.value, _path) match {
       case None    =>
         Some(None)
@@ -675,7 +675,7 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends DefaultLensLike[D, 
       .traverse(obj.value, _path)
       .fold[Option[T]](Some(_default))(_codec.unapply)
 
-  final def unapply(obj: Validated[D]): Some[T] =
+  final def unapply[D2 <: D](obj: Validated[D2]): Some[T] =
     Some(
       PathLensOps
         .traverse(obj.validObject.value, _path)
@@ -738,7 +738,7 @@ private[dsentric] trait MaybeDefaultLens[D <: DObject, T]
         Some(Some(_default))
     }
 
-  final def unapply(obj: Validated[D]): Some[Option[T]] =
+  final def unapply[D2 <: D](obj: Validated[D2]): Some[Option[T]] =
     TraversalOps.maybeTraverse(obj.validObject.value, this, false) match {
       case PathEmptyMaybe =>
         Some(None)

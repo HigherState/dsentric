@@ -78,18 +78,22 @@ sealed trait ValidPathSetter[D <: DObject] extends Function[D, ValidResult[D]] {
   def asDelta(v1: D): ValidResult[Delta] =
     rawDelta(v1.value).map(result => new DeltaInst(result))
 
-  def identityOnError:PathSetter[D] = {
+  def identityOnError: PathSetter[D] = {
     def parent = this
     new PathSetter[D] {
-      private[contracts] def rawApply(rawObject: RawObject):RawObject =
+      private[contracts] def rawApply(rawObject: RawObject): RawObject =
         parent.rawApply(rawObject).getOrElse(rawObject)
 
-      private[contracts] def rawDelta(rawObject: RawObject):RawObject =
+      private[contracts] def rawDelta(rawObject: RawObject): RawObject =
         parent.rawDelta(rawObject).getOrElse(rawObject)
     }
   }
 }
 
+object PathSetter {
+  def identity[D <: DObject]: PathSetter[D] =
+    IdentitySetter[D]()
+}
 final private[dsentric] case class IdentitySetter[D <: DObject]() extends PathSetter[D] {
 
   private[contracts] def rawApply(rawObject: RawObject): RawObject =

@@ -5,7 +5,7 @@ import com.github.ghik.silencer.silent
 import dsentric._
 import dsentric.contracts.{Contract, ContractLike}
 import dsentric.schema._
-import shapeless.{::, HList, HNil, LabelledGeneric, Lazy, Witness, labelled}
+import shapeless.{::, labelled, HList, HNil, LabelledGeneric, Lazy, Witness}
 import shapeless.UnaryTCConstraint.*->*
 import shapeless.labelled.FieldType
 import shapeless.ops.hlist.ToTraversable
@@ -182,18 +182,18 @@ final case class DContractCodec[D <: DObject](contract: ContractLike[D], cstr: R
 }
 
 sealed trait DParameter[H <: HList] {
-  def encode(t:H):RawObject
+  def encode(t: H): RawObject
 
   //Decode will return either a list of failed key and option DCodecs (None for missing field), or the RawObject with the parameter fields removed
   //And a function which takes this raw object and produces an argument List.
-  def decode(r:RawObject): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => H])
+  def decode(r: RawObject): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => H])
 
-  def propertyDefinition:Set[PropertyDefinition]
+  def propertyDefinition: Set[PropertyDefinition]
 }
-object DParameter {
+object DParameter                   {
   implicit val hnilParameter: DParameter[HNil] =
     new DParameter[HNil] {
-      private val result:Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => HNil] =
+      private val result: Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => HNil] =
         Right(_ => HNil)
 
       def encode(t: HNil): RawObject =
@@ -202,57 +202,55 @@ object DParameter {
       def decode(r: RawObject): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => HNil]) =
         r -> result
 
-      def propertyDefinition:Set[PropertyDefinition] =
+      def propertyDefinition: Set[PropertyDefinition] =
         Set.empty
     }
 
   implicit def rawObjectValueParameter[K <: Symbol, T <: HList](implicit
-                                                          tEncoder: DParameter[T]
-                                                         ):DParameter[FieldType[K, RawObject] :: T] =
+    tEncoder: DParameter[T]
+  ): DParameter[FieldType[K, RawObject] :: T] =
     new DParameter[FieldType[K, RawObject] :: T] {
-      def encode(t: FieldType[K, RawObject] :: T): RawObject = {
+      def encode(t: FieldType[K, RawObject] :: T): RawObject =
         t.head ++ tEncoder.encode(t.tail)
-      }
 
-      def decode(r: RawObject): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => FieldType[K, RawObject] :: T]) = {
+      def decode(
+        r: RawObject
+      ): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => FieldType[K, RawObject] :: T]) = {
         val (r2, tail) = tEncoder.decode(r)
-        r2 -> tail.map{function =>
-           (rf: RawObject) => labelled.field[K](rf) :: function(rf)
-        }
+        r2 -> tail.map(function => (rf: RawObject) => labelled.field[K](rf) :: function(rf))
       }
 
-      def propertyDefinition:Set[PropertyDefinition] =
+      def propertyDefinition: Set[PropertyDefinition] =
         tEncoder.propertyDefinition
     }
 
   implicit def hListParameter[K <: Symbol, H, T <: HList](implicit
-                                                          witness: Witness.Aux[K],
-                                                          hEncoder: Lazy[DCodec[H]],
-                                                          tEncoder: DParameter[T]
-                                                         ):DParameter[FieldType[K, H] :: T] = new DParameter[FieldType[K, H] :: T]{
-    val fieldName: String = witness.value.name
-    private def failed(maybeRaw:Option[Raw]):Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], H] =
+    witness: Witness.Aux[K],
+    hEncoder: Lazy[DCodec[H]],
+    tEncoder: DParameter[T]
+  ): DParameter[FieldType[K, H] :: T] = new DParameter[FieldType[K, H] :: T] {
+    val fieldName: String                                                                                  = witness.value.name
+    private def failed(maybeRaw: Option[Raw]): Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], H] =
       Left(NonEmptyList(fieldName -> maybeRaw.map(_ -> hEncoder.value), Nil))
 
-    def encode(t: FieldType[K, H] :: T): RawObject = {
+    def encode(t: FieldType[K, H] :: T): RawObject                                                         =
       tEncoder.encode(t.tail) +
-      (fieldName -> hEncoder.value.apply(t.head))
-    }
+        (fieldName -> hEncoder.value.apply(t.head))
 
-    def decode(r: RawObject): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => FieldType[K, H] :: T]) = {
+    def decode(
+      r: RawObject
+    ): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => FieldType[K, H] :: T]) = {
       import cats.implicits._
-      val result =
-        r.get(fieldName).fold(failed(None)){raw =>
-         hEncoder.value.unapply(raw).fold(failed(Some(raw)))(Right.apply)
+      val result     =
+        r.get(fieldName).fold(failed(None)) { raw =>
+          hEncoder.value.unapply(raw).fold(failed(Some(raw)))(Right.apply)
         }
       val (r2, tail) = tEncoder.decode(r)
       (r2 - fieldName) ->
-      (result, tail).parMapN{ (head, function) =>
-        (rf:RawObject) => labelled.field[K](head) :: function(rf)
-      }
+        (result, tail).parMapN((head, function) => (rf: RawObject) => labelled.field[K](head) :: function(rf))
     }
 
-    def propertyDefinition:Set[PropertyDefinition] =
+    def propertyDefinition: Set[PropertyDefinition] =
       tEncoder.propertyDefinition + PropertyDefinition(fieldName, hEncoder.value.typeDefinition, Nil, None, true, None)
   }
 }
@@ -267,20 +265,23 @@ object DParameter {
  * @tparam H
  */
 final case class DParameterisedContractCodec[D <: DObject, H <: HList](contract: ContractLike[D])(implicit
-                                                                                                  generic: LabelledGeneric.Aux[D, H],
-                                                                                                  hCodec: Lazy[DParameter[H]]) extends DCodec[D] {
+  generic: LabelledGeneric.Aux[D, H],
+  hCodec: Lazy[DParameter[H]]
+) extends DCodec[D] {
   def unapply(raw: Raw): Option[D] =
     raw match {
-      case rawObject:RawObject@unchecked =>
+      case rawObject: RawObject @unchecked =>
         val (r2, tail) = hCodec.value.decode(rawObject)
         tail.map(f => generic.from(f(r2))).toOption
-      case _ =>
+      case _                               =>
         None
     }
 
-  def extractParameters(rawObject:RawObject): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => D]) = {
+  def extractParameters(
+    rawObject: RawObject
+  ): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => D]) = {
     val (valueObject, result) = hCodec.value.decode(rawObject)
-    valueObject -> result.map{f => (rawObject:RawObject) => generic.from(f(rawObject))}
+    valueObject -> result.map(f => (rawObject: RawObject) => generic.from(f(rawObject)))
   }
 
   def apply(t: D): RawObject =
@@ -293,7 +294,6 @@ final case class DParameterisedContractCodec[D <: DObject, H <: HList](contract:
 
   def containsContractCodec: Boolean = true
 }
-
 
 /**
  * May want to generalise away from being Contract when we have Case Class DCodecs
