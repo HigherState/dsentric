@@ -2,7 +2,6 @@ package dsentric.contracts
 
 import dsentric._
 import dsentric.codecs.{DCodec, DStringCodec}
-import dsentric.failure.{EmptyPropertyFailure, Failure, ValidResult}
 import dsentric.operators.{DataOperator, Expected, Optional}
 
 sealed trait Property[D <: DObject, T <: Any] extends PropertyLens[D, T] {
@@ -142,34 +141,13 @@ case class DynamicProperty[D <: DObject, T](
   override val _path: Path,
   override val _root: ContractFor[D]
 ) extends Property[D, T]
-    with ApplicativeLens[D, Option[T]] {
+    with ApplicativeLens[D, Option[T]]
+    with MaybeLens[D, T] {
   private[contracts] def __nameOverride: Option[String] = None
-
-  def unapply(data: D): Option[Option[T]] =
-    PathLensOps.traverse(data.value, _path) match {
-      case None    =>
-        Some(None)
-      case Some(v) =>
-        _codec.unapply(v).map(Some.apply)
-    }
 
   def _dataOperators: List[DataOperator[T]] = Nil
 
-  def _parent: BaseContract[D]                                                                        = new ContractFor[D] {}
-  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean): MaybeAvailable[T]             =
-    Failed(EmptyPropertyFailure)
-  private[contracts] def __apply(rawObject: RawObject, dropBadTypes: Boolean): ValidResult[RawObject] =
-    ValidResult.failure(EmptyPropertyFailure)
-  private[contracts] def __reduce(obj: RawObject, dropBadTypes: Boolean): ValidResult[RawObject]      =
-    ValidResult.failure(EmptyPropertyFailure)
-  private[contracts] def __verify(obj: RawObject): List[Failure]                                      =
-    List(EmptyPropertyFailure)
-  private[contracts] def __reduceDelta(
-    deltaObject: RawObject,
-    currentObject: RawObject,
-    dropBadTypes: Boolean
-  ): ValidResult[RawObject]                                                                           =
-    ValidResult.failure(EmptyPropertyFailure)
+  def _parent: BaseContract[D] = new ContractFor[D] {}
 }
 
 sealed trait AspectProperty[D <: DObject, T <: Any] extends Property[D, T]                                    {
