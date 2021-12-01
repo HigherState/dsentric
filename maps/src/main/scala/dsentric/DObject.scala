@@ -84,12 +84,12 @@ trait DObjectOps[+C <: DObjectOps[C]] extends Any with Data with IterableOps[(St
   override protected def fromSpecific(coll: IterableOnce[(String, Data)]): C =
     wrap(coll.iterator.map(p => p._1 -> p._2.value).toMap)
 
-  override def iterableFactory: IterableFactory[Iterable] = value.iterableFactory
+  override def iterableFactory: IterableFactory[Iterable]                    = value.iterableFactory
 
   override protected def newSpecificBuilder: mutable.Builder[(String, Data), C] =
     new mutable.Builder[(String, Data), C] {
       private val builder = Map.newBuilder[String, Raw]
-      def clear(): Unit = builder.clear()
+      def clear(): Unit   = builder.clear()
 
       def result(): C = wrap(builder.result())
 
@@ -97,7 +97,7 @@ trait DObjectOps[+C <: DObjectOps[C]] extends Any with Data with IterableOps[(St
         builder.addOne(elem._1 -> elem._2.value)
         this
       }
-  }
+    }
 
   def iterator: Iterator[(String, Data)] =
     value.iterator.map(p => p._1 -> ForceWrapper.data(p._2))
@@ -202,7 +202,7 @@ trait DObjectOps[+C <: DObjectOps[C]] extends Any with Data with IterableOps[(St
   def traverseConcat(additional: DObject): C =
     wrap(RawObjectOps.traverseConcat(this.value, additional.value))
 
-  def removingTraverseConcat[T](additional: DObject, removeValue:T)(implicit D:DCodec[T]): C =
+  def removingTraverseConcat[T](additional: DObject, removeValue: T)(implicit D: DCodec[T]): C =
     wrap(RawObjectOps.removingTraverseConcat(this.value, additional.value, D.apply(removeValue)))
 
   def applyDelta(delta: Delta): C =
@@ -246,6 +246,8 @@ trait DObject extends Any with DObjectOps[DObject] {
  * Deltas should never be combined to give a new Delta as information can be lost
  */
 trait Delta extends Any with DObjectOps[Delta] {
+  override protected def coll: this.type = this
+
   override def toString: String =
     s"Delta :- ${super.toString}"
 }
@@ -258,7 +260,6 @@ final class DObjectInst private[dsentric] (val value: RawObject) extends AnyVal 
 }
 
 final class DeltaInst private[dsentric] (val value: RawObject) extends AnyVal with Delta {
-  override protected def coll: this.type = this
 
   protected def wrap(value: RawObject): Delta = new DeltaInst(value)
 
