@@ -19,7 +19,7 @@ trait MaybeSubContractFor[D <: DObject]
 
 // Abstracted to include Aspects and Contracts.
 trait ContractLike[D <: DObject]
-  extends BaseContract[D]
+    extends BaseContract[D]
     with ExpectedPropertyOps[D]
     with ExpectedPropertyObjectOps[D]
     with ContractLens[D] {
@@ -30,11 +30,9 @@ trait ContractLike[D <: DObject]
   def _parent: BaseContract[D]                   = this
 }
 
-trait ContractFor[D <: DObject]
-    extends ContractLike[D]
-    with FieldResolver[D] {
+trait ContractFor[D <: DObject] extends ContractLike[D] with FieldResolver[D] {
 
-  def _root: ContractFor[D]                      = this
+  def _root: ContractFor[D] = this
 }
 
 trait SubContract extends SubContractFor[DObject]
@@ -44,4 +42,8 @@ trait MaybeSubContract extends MaybeSubContractFor[DObject]
 trait Contract extends ContractFor[DObject] {
   def $create[R](f: this.type => DObject => R): R =
     f(this)(DObject.empty)
+}
+
+object Contract {
+  val empty: Contract = new Contract {}
 }

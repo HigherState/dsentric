@@ -159,6 +159,21 @@ sealed trait ExpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T] {
       case Some(r) =>
         _codec.unapply(r).map(Some(_))
     }
+
+  def $get(delta: Delta): ValidResult[Option[T]] =
+    TraversalOps.maybeTraverse(delta.value, this, false).toValidOption.flatMap {
+      case Some(DNull) =>
+        ValidResult.failure(ExpectedFailure(this))
+      case Some(raw)   =>
+        val unapply = _codec.unapply(raw)
+        if (unapply.isEmpty)
+          ValidResult.failure(IncorrectTypeFailure(this, raw))
+        else
+          ValidResult.success(unapply)
+
+      case None =>
+        ValidResult.none
+    }
 }
 
 sealed trait UnexpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T] {
@@ -249,6 +264,21 @@ sealed trait UnexpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]
    */
   final def $copy(p: PropertyLens[D, T], dropBadTypes: Boolean = false): ValidPathSetter[D] =
     TraversedModifyOrDropSetter(p.__get(_, dropBadTypes), identity[Option[T]], _codec, _path)
+
+  def $get(delta: Delta): ValidResult[Option[DNullable[T]]] =
+    TraversalOps.maybeTraverse(delta.value, this, false).toValidOption.flatMap {
+      case Some(DNull) =>
+        ValidResult.success(Some(DNull))
+      case Some(raw)   =>
+        val unapply = _codec.unapply(raw)
+        if (unapply.isEmpty)
+          ValidResult.failure(IncorrectTypeFailure(this, raw))
+        else
+          ValidResult.success(unapply.map(DSome.apply))
+
+      case None =>
+        ValidResult.none
+    }
 }
 
 private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D, T] with ApplicativeLens[D, T] {

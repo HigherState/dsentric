@@ -245,6 +245,8 @@ Delta
 
 TODO: 
 
+  Delta, $get or unapply on a map type wont handle nulls in the value part.
+
  Projections PAthSetters Delta Function
 
  Review Projections - 

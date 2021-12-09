@@ -3,10 +3,10 @@ package dsentric.contracts
 import dsentric.{
   Available,
   DObject,
+  DObjectOps,
   Delta,
   DeltaEmpty,
   DeltaFailed,
-  DeltaInst,
   DeltaReduce,
   DeltaReduced,
   DeltaRemove,
@@ -83,15 +83,19 @@ trait ContractLens[D <: DObject] { this: BaseContract[D] =>
         ValidResult.success(Validated(obj))
     }
 
-  final def $reduceDelta(obj: D, delta: Delta, dropBadTypes: Boolean = false): ValidResult[Delta] =
+  final def $reduceDelta[DD <: Delta with DObjectOps[DD]](
+    obj: D,
+    delta: DD,
+    dropBadTypes: Boolean = false
+  ): ValidResult[DD] =
     __reduceDelta(delta.value, obj.value, dropBadTypes) match {
-      case DeltaEmpty | DeltaRemove =>
-        ValidResult.success(Delta.empty)
-      case DeltaReduced(delta)      =>
-        ValidResult.success(new DeltaInst(delta))
-      case DeltaRemoving(delta)     =>
-        ValidResult.success(new DeltaInst(delta))
-      case DeltaFailed(head, tail)  =>
+      case DeltaEmpty | DeltaRemove     =>
+        ValidResult.success(delta.internalWrap(RawObject.empty))
+      case DeltaReduced(deltaReduced)   =>
+        ValidResult.success(delta.internalWrap(deltaReduced))
+      case DeltaRemoving(deltaRemoving) =>
+        ValidResult.success(delta.internalWrap(deltaRemoving))
+      case DeltaFailed(head, tail)      =>
         ValidResult.failure(head, tail)
     }
 

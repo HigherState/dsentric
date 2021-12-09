@@ -299,6 +299,9 @@ final class DProjection private[dsentric] (val value: RawObject) extends AnyVal 
   def partition[D <: DObject](obj: D): (D, D) =
     this.select(obj) -> this.omit(obj)
 
+  def partition(obj: Delta): (Delta, Delta) =
+    this.select[DObject].apply(obj) -> this.omit[DObject].apply(obj)
+
   def toPaths: Set[Path] =
     getPaths(value, Path.empty).getOrElse(Set.empty)
 
@@ -349,7 +352,7 @@ class DArray(val value: RawArray) extends AnyVal with Data {
     value.contains(data.value)
 }
 
-sealed trait DNullable[+T] {
+sealed trait DNullable[+T] extends IterableOnce[T] {
   def isNull: Boolean
   def toOption: Option[T]
   def map[S](f: T => S): DNullable[S] =
@@ -368,6 +371,9 @@ case object DNull extends Data with DNullable[Nothing] {
   def flatMap[S](f: Nothing => DNullable[S]): DNullable[S] = DNull
 
   def getOrElse[S >: Nothing](default: => S): S = default
+
+  def iterator: Iterator[Nothing] =
+    Iterator.empty
 }
 
 final case class DSome[T](t: T) extends DNullable[T] {
@@ -380,6 +386,9 @@ final case class DSome[T](t: T) extends DNullable[T] {
 
   def getOrElse[S >: T](default: => S): S =
     default
+
+  def iterator: Iterator[T] =
+    Iterator(t)
 }
 
 object Data {

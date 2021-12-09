@@ -6,12 +6,12 @@ import dsentric.failure._
 import dsentric.operators.{Constraint, DataOperator}
 
 private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with ParameterisedAux[D] {
-  def _key:String
-  def _path:Path
+  def _key: String
+  def _path: Path
   def _codec: DCodec[T]
   def _parent: BaseContract[D]
   def _root: ContractFor[D] = _parent._root
-  def _dataOperators:List[DataOperator[_]]
+  def _dataOperators: List[DataOperator[_]]
 
   /**
    * Return the property value or failure
@@ -20,7 +20,7 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    * @param obj
    * @return
    */
-  private[contracts] def __get(base:RawObject, dropBadTypes:Boolean):MaybeAvailable[T]
+  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean): MaybeAvailable[T]
 
   /**
    * Operates like a get on the object key pair, setting the new value, including defaults.
@@ -29,7 +29,7 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    * @param dropBadTypes
    * @return
    */
-  private[contracts] def __apply(rawObject:RawObject, dropBadTypes:Boolean):ValidResult[RawObject]
+  private[contracts] def __apply(rawObject: RawObject, dropBadTypes: Boolean): ValidResult[RawObject]
 
   /**
    * Verifies the direct property against the object.
@@ -38,57 +38,49 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    * @param obj
    * @return
    */
-  private[contracts] def __reduce(obj: RawObject, dropBadTypes:Boolean):ValidResult[RawObject]
+  private[contracts] def __reduce(obj: RawObject, dropBadTypes: Boolean): ValidResult[RawObject]
 
-  private[contracts] def __reduceDelta(deltaObject:RawObject, currentObject:RawObject, dropBadTypes:Boolean):ValidResult[RawObject]
+  private[contracts] def __reduceDelta(
+    deltaObject: RawObject,
+    currentObject: RawObject,
+    dropBadTypes: Boolean
+  ): ValidResult[RawObject]
 
-  private[contracts] def __verify(obj: RawObject):List[Failure]
+  private[contracts] def __verify(obj: RawObject): List[Failure]
 
-  private[contracts] def __applyConstraints[R](reduce:Available[R], badTypes: BadTypes): Available[R] =
+  private[contracts] def __applyConstraints[R](reduce: Available[R], badTypes: BadTypes): Available[R] =
     _dataOperators.flatMap {
-      case c:Constraint[_] =>
+      case c: Constraint[_] =>
         c.verify(_root, _path, reduce)
-      case _ =>
+      case _                =>
         Nil
     } match {
-      case Nil =>
+      case Nil                           =>
         reduce
       case _ if badTypes == DropBadTypes =>
         NotFound
-      case head :: tail =>
+      case head :: tail                  =>
         Failed(head, tail)
     }
 
-  private[contracts] def __applyConstraints[R](current:R, deltaReduce:DeltaReduce[R], badTypes: BadTypes): DeltaReduce[R] =
+  private[contracts] def __applyConstraints[R](
+    current: R,
+    deltaReduce: DeltaReduce[R],
+    badTypes: BadTypes
+  ): DeltaReduce[R] =
     _dataOperators.flatMap {
-      case c:Constraint[_] =>
+      case c: Constraint[_] =>
         c.verify(_root, _path, current, deltaReduce)
-      case _ =>
+      case _                =>
         Nil
     } match {
-      case Nil =>
+      case Nil                           =>
         deltaReduce
       case _ if badTypes == DropBadTypes =>
         DeltaEmpty
-      case head :: tail =>
+      case head :: tail                  =>
         DeltaFailed(head, tail)
     }
-
-
-  def $get(delta:Delta):ValidResult[Option[T]] = {
-    TraversalOps.maybeTraverse(delta.value, this, false)
-      .toValidOption.flatMap{
-      case Some(raw) =>
-        val unapply = _codec.unapply(raw)
-        if (unapply.isEmpty)
-          ValidResult.failure(IncorrectTypeFailure(this, raw))
-         else
-          ValidResult.success(unapply)
-
-      case None =>
-        ValidResult.none
-    }
-  }
 
   /**
    * Does the object satisfy all the type and expectation constraints.
@@ -96,11 +88,11 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    * @param obj
    * @return
    */
-  def $verify(obj:D):List[Failure] =
+  def $verify(obj: D): List[Failure] =
     __get(obj.value, false) match {
       case Failed(head, tail) =>
         head :: tail
-      case _ =>
+      case _                  =>
         Nil
     }
 
@@ -111,14 +103,12 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    * @param value
    * @return
    */
-  final def $set(value:T):PathSetter[D] =
+  final def $set(value: T): PathSetter[D] =
     _codec(value) match {
-      case r:RawObject@unchecked if r.isEmpty =>
+      case r: RawObject @unchecked if r.isEmpty =>
         ValueDrop(_path)
-      case r =>
+      case r                                    =>
         ValueSetter(_path, r)
     }
 
 }
-
-

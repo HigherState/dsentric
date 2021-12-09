@@ -2,14 +2,15 @@ package dsentric
 
 import cats.data.NonEmptyList
 
-package object failure {
-  type ValidResult[+T] = Either[NonEmptyList[Failure], T]
+package object failure extends ValidResultSyntax {
+  type ValidResult[+T]    = Either[NonEmptyList[Failure], T]
   type ValidationFailures = List[Failure]
 
   object ValidationFailures {
-    val empty:ValidationFailures = Nil
+    val empty: ValidationFailures = Nil
 
-    def apply(v:Failure*):ValidationFailures =
-      List(v:_*)
+    def apply(v: Failure*): ValidationFailures =
+      List(v: _*)
   }
+
 }
