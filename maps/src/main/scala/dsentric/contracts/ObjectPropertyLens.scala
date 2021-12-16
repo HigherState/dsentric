@@ -148,8 +148,8 @@ sealed trait ExpectedObjectPropertyLensLike[D <: DObject] extends ObjectProperty
    * @return
    */
   private[contracts] def __apply(rawObject: RawObject, dropBadTypes: Boolean): ValidResult[RawObject] = {
-    def get(rawObject: RawObject): ValidResult[RawObject] =
-      GetOps.get(this, rawObject, isIgnore2BadTypes(dropBadTypes)) match {
+    def get(propertyObject: RawObject): ValidResult[RawObject] =
+      GetOps.get(this, propertyObject, isIgnore2BadTypes(dropBadTypes)) match {
         case Found(r)  =>
           ValidResult.success(rawObject + (_key -> r))
         case f: Failed =>
@@ -344,8 +344,8 @@ private[dsentric] trait MaybeObjectPropertyLens[D <: DObject]
    * @return
    */
   private[contracts] def __apply(rawObject: RawObject, dropBadTypes: Boolean): ValidResult[RawObject] = {
-    def get(rawObject: RawObject): ValidResult[RawObject] =
-      GetOps.get(this, rawObject, isIgnore2BadTypes(dropBadTypes)) match {
+    def get(propertyObject: RawObject): ValidResult[RawObject] =
+      GetOps.get(this, propertyObject, isIgnore2BadTypes(dropBadTypes)) match {
         case Found(r) if r.isEmpty =>
           ValidResult.success(rawObject - _key)
         case Found(r)              =>

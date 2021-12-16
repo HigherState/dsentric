@@ -300,7 +300,7 @@ final class DProjection private[dsentric] (val value: RawObject) extends AnyVal 
     this.select(obj) -> this.omit(obj)
 
   def partition(obj: Delta): (Delta, Delta) =
-    this.select[DObject].apply(obj) -> this.omit[DObject].apply(obj)
+    (this.select[DObject] |>> obj) -> (this.omit[DObject] |>> obj)
 
   def toPaths: Set[Path] =
     getPaths(value, Path.empty).getOrElse(Set.empty)

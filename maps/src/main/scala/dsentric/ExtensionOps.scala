@@ -2,7 +2,7 @@ package dsentric
 
 import cats.data.NonEmptyList
 import dsentric.codecs.DCodec
-import dsentric.contracts.ValidPathSetter
+import dsentric.contracts.{CompositeSetter, ConcatSetter, PathSetter, ValidPathSetter, ValueSetter}
 import dsentric.failure.{Failure, ValidResult}
 
 final class StringOps(val self: String) extends AnyVal {
@@ -87,9 +87,17 @@ trait Syntax {
   implicit def pathOps(p: Path): PathOps =
     new PathOps(p)
 
-  def ~+[D <: DObjectOps[D] with DObject](kv: (String, Data)): D => D =
-    _ + kv
+  implicit def tupleToPathSetter[D <: DObject](kv: (String, Data)): PathSetter[D]   =
+    ConcatSetter(Iterator(kv._1 -> kv._2.value))
+  implicit def pathTupleToPathSetter[D <: DObject](kv: (Path, Data)): PathSetter[D] =
+    ValueSetter(kv._1, kv._2.value)
 
-  def ~++[D <: DObjectOps[D] with DObject](kv: Seq[(String, Data)]): D => D =
-    _ ++ kv
+  implicit def tuple2ToPathSetter[D <: DObject](kv: Seq[(String, Data)]): PathSetter[D]   =
+    ConcatSetter(kv.iterator.map(p => p._1 -> p._2.value))
+  implicit def pathTuple2ToPathSetter[D <: DObject](kv: Seq[(Path, Data)]): PathSetter[D] =
+    kv.headOption.fold[PathSetter[D]](PathSetter.identity) { head =>
+      kv.tail.foldLeft[PathSetter[D]](ValueSetter(head._1, head._2)) { (c, t) =>
+        CompositeSetter(c, ValueSetter(t._1, t._2))
+      }
+    }
 }

@@ -23,8 +23,8 @@ sealed trait PathSetter[D <: DObject] extends Function[D, D] {
   def |>[D2 <: D](obj: D2): D2                         =
     applyAs(obj)
 
-  def |>(delta: Delta): Delta =
-    apply(delta)
+  def |>>[DL <: Delta with DObjectOps[DL]](delta: DL): DL =
+    delta.internalWrap(rawApply(delta.value))
 
   private[contracts] def rawApply(rawObject: RawObject): RawObject
 
@@ -35,9 +35,6 @@ sealed trait PathSetter[D <: DObject] extends Function[D, D] {
 
   def applyAs[D2 <: D](obj: D2): D2 =
     obj.internalWrap(rawApply(obj.value)).asInstanceOf[D2]
-
-  def apply(delta: Delta): Delta =
-    delta.internalWrap(rawApply(delta.value))
 
   def asDelta(v1: D): Delta =
     new DeltaInst(rawDelta(v1.value))
@@ -104,7 +101,6 @@ final private[dsentric] case class IdentitySetter[D <: DObject]() extends PathSe
   private[contracts] def rawDelta(rawObject: RawObject): RawObject =
     RawObject.empty
   override def apply(v1: D): D                                     = v1
-  override def apply(delta: Delta): Delta                          = delta
 }
 
 final private[dsentric] case class IdentityValidSetter[D <: DObject]() extends ValidPathSetter[D] {
