@@ -49,12 +49,16 @@ sealed trait ExpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T] {
     if (dropBadTypes) ToDropBadTypes
     else FailOnBadTypes
 
-  private[contracts] def __apply(rawObject: RawObject, dropBadTypes: Boolean): ValidResult[RawObject] =
+  private[contracts] def __apply(
+    rawObject: RawObject,
+    dropBadTypes: Boolean,
+    setDefaultValues: Boolean
+  ): ValidResult[RawObject] =
     rawObject.get(_key) match {
       case None      =>
         ValidResult.failure(ExpectedFailure(this))
       case Some(raw) =>
-        GetOps.get(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
+        GetOps.get(this, raw, isIgnore2BadTypes(dropBadTypes), setDefaultValues) match {
           case NotFound  =>
             ValidResult.failure(ExpectedFailure(this))
           case Found(t)  =>
@@ -139,7 +143,7 @@ sealed trait ExpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T] {
    * @return
    */
   final def $copy(p: PropertyLens[D, T], dropBadTypes: Boolean = false): ValidPathSetter[D] =
-    ModifySetter(d => p.__get(d, dropBadTypes).toValidOption, identity[T], _codec, _path)
+    ModifySetter(d => p.__get(d, dropBadTypes, false).toValidOption, identity[T], _codec, _path)
 
   /**
    * Modifies value for the property.
@@ -148,10 +152,10 @@ sealed trait ExpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T] {
    * @return
    */
   final def $modify(f: T => T, dropBadTypes: Boolean = false): ValidPathSetter[D] =
-    ModifySetter(d => __get(d, dropBadTypes).toValidOption, f, _codec, _path)
+    ModifySetter(d => __get(d, dropBadTypes, false).toValidOption, f, _codec, _path)
 
   final def $modifyWith(f: T => ValidResult[T], dropBadTypes: Boolean = false): ValidPathSetter[D] =
-    ModifyValidSetter(d => __get(d, dropBadTypes).toValidOption, f, _codec, _path)
+    ModifyValidSetter(d => __get(d, dropBadTypes, false).toValidOption, f, _codec, _path)
 
   final def unapply(d: Delta): Option[Option[T]] =
     PathLensOps.traverse(d.value, _path) match {
@@ -263,7 +267,7 @@ sealed trait UnexpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]
    * @return
    */
   final def $copy(p: PropertyLens[D, T], dropBadTypes: Boolean = false): ValidPathSetter[D] =
-    TraversedModifyOrDropSetter(p.__get(_, dropBadTypes), identity[Option[T]], _codec, _path)
+    TraversedModifyOrDropSetter(p.__get(_, dropBadTypes, false), identity[Option[T]], _codec, _path)
 
   def $get(delta: Delta): ValidResult[Option[DNullable[T]]] =
     TraversalOps.maybeTraverse(delta.value, this, false).toValidOption.flatMap {
@@ -283,12 +287,12 @@ sealed trait UnexpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T]
 
 private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D, T] with ApplicativeLens[D, T] {
 
-  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean): Valid[T] =
+  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean, setDefaultValues: Boolean): Valid[T] =
     TraversalOps.traverse(base, this, dropBadTypes) match {
       case NotFound   =>
         Failed(ExpectedFailure(this))
       case Found(raw) =>
-        GetOps.get(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
+        GetOps.get(this, raw, isIgnore2BadTypes(dropBadTypes), setDefaultValues) match {
           case NotFound  =>
             Failed(ExpectedFailure(this))
           case Found(t)  =>
@@ -307,11 +311,13 @@ private[dsentric] trait ExpectedLens[D <: DObject, T] extends ExpectedLensLike[D
    * @param obj
    * @return
    */
-  final def $get(obj: D, dropBadTypes: Boolean = false): ValidResult[T] =
-    __get(obj.value, dropBadTypes).toValid
+  final def $get(obj: D, dropBadTypes: Boolean = false, setDefaultValues: Boolean = true): ValidResult[T] =
+    __get(obj.value, dropBadTypes, setDefaultValues).toValid
 
-  final def $get[D2 <: D](validated: Validated[D2]): T =
-    __get(validated.validObject.value, false).toOption.get
+  final def $get[D2 <: D](validated: Validated[D2]): T                            =
+    __get(validated.validObject.value, false, true).toOption.get
+  final def $get[D2 <: D](validated: Validated[D2], setDefaultValues: Boolean): T =
+    __get(validated.validObject.value, false, setDefaultValues).toOption.get
 
   /**
    * Unapply is only ever a simple prism to the value and its decoding
@@ -339,12 +345,12 @@ private[dsentric] trait MaybeExpectedLens[D <: DObject, T]
     extends ExpectedLensLike[D, T]
     with ApplicativeLens[D, Option[T]] {
 
-  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean): MaybeAvailable[T] =
+  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean, setDefaultValues: Boolean): MaybeAvailable[T] =
     TraversalOps.maybeTraverse(base, this, dropBadTypes) match {
       case NotFound       =>
         Failed(ExpectedFailure(this))
       case Found(raw)     =>
-        GetOps.get(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
+        GetOps.get(this, raw, isIgnore2BadTypes(dropBadTypes), setDefaultValues) match {
           case NotFound  =>
             Failed(ExpectedFailure(this))
           case Found(t)  =>
@@ -365,11 +371,13 @@ private[dsentric] trait MaybeExpectedLens[D <: DObject, T]
    * @param obj
    * @return
    */
-  final def $get(obj: D, dropBadTypes: Boolean = false): ValidResult[Option[T]] =
-    __get(obj.value, dropBadTypes).toValidOption
+  final def $get(obj: D, dropBadTypes: Boolean = false, setDefaultValues: Boolean = true): ValidResult[Option[T]] =
+    __get(obj.value, dropBadTypes, setDefaultValues).toValidOption
 
-  final def $get[D2 <: D](validated: Validated[D2]): Option[T] =
-    __get(validated.validObject.value, false).toOption
+  final def $get[D2 <: D](validated: Validated[D2]): Option[T]                            =
+    $get(validated, true)
+  final def $get[D2 <: D](validated: Validated[D2], setDefaultValues: Boolean): Option[T] =
+    __get(validated.validObject.value, false, setDefaultValues).toOption
 
   /**
    * Unapply is only ever a simple prism to the value and its decoding
@@ -401,17 +409,21 @@ private[dsentric] trait MaybeExpectedLens[D <: DObject, T]
 
 private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D, T] with ApplicativeLens[D, Option[T]] {
 
-  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean): MaybeAvailable[T] =
+  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean, setDefaultValues: Boolean): MaybeAvailable[T] =
     TraversalOps.maybeTraverse(base, this, dropBadTypes).flatMap { raw =>
-      GetOps.get(this, raw, isIgnore2BadTypes(dropBadTypes))
+      GetOps.get(this, raw, isIgnore2BadTypes(dropBadTypes), setDefaultValues)
     }
 
-  private[contracts] def __apply(rawObject: RawObject, dropBadTypes: Boolean): ValidResult[RawObject] =
+  private[contracts] def __apply(
+    rawObject: RawObject,
+    dropBadTypes: Boolean,
+    setDefaultValues: Boolean
+  ): ValidResult[RawObject] =
     rawObject.get(_key) match {
       case None      =>
         ValidResult.success(rawObject)
       case Some(raw) =>
-        GetOps.get(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
+        GetOps.get(this, raw, isIgnore2BadTypes(dropBadTypes), setDefaultValues) match {
           case NotFound  =>
             ValidResult.success(rawObject - _key)
           case Found(t)  =>
@@ -428,11 +440,13 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
    * @param obj
    * @return
    */
-  final def $get(obj: D, dropBadTypes: Boolean = false): ValidResult[Option[T]] =
-    __get(obj.value, dropBadTypes).toValidOption
+  final def $get(obj: D, dropBadTypes: Boolean = false, setDefaultValues: Boolean = true): ValidResult[Option[T]] =
+    __get(obj.value, dropBadTypes, setDefaultValues).toValidOption
 
-  final def $get[D2 <: D](validated: Validated[D2]): Option[T] =
-    __get(validated.validObject.value, false).toOption
+  final def $get[D2 <: D](validated: Validated[D2]): Option[T]                            =
+    $get(validated, true)
+  final def $get[D2 <: D](validated: Validated[D2], setDefaultValues: Boolean): Option[T] =
+    __get(validated.validObject.value, false, setDefaultValues).toOption
 
   /**
    * Gets value for the property if found in passed object, otherwise returns default.
@@ -441,11 +455,18 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
    * @param obj
    * @return
    */
-  final def $getOrElse(obj: D, default: => T, dropBadTypes: Boolean = false): ValidResult[T] =
-    __get(obj.value, dropBadTypes).toValidOption.map(_.getOrElse(default))
+  final def $getOrElse(
+    obj: D,
+    default: => T,
+    dropBadTypes: Boolean = false,
+    setDefaultValues: Boolean = true
+  ): ValidResult[T] =
+    __get(obj.value, dropBadTypes, setDefaultValues).toValidOption.map(_.getOrElse(default))
 
-  final def $getOrElse[D2 <: D](validated: Validated[D2], default: => T): T =
-    __get(validated.validObject.value, false).toOption.getOrElse(default)
+  final def $getOrElse[D2 <: D](validated: Validated[D2], default: => T): T                            =
+    $getOrElse(validated, default, true)
+  final def $getOrElse[D2 <: D](validated: Validated[D2], default: => T, setDefaultValues: Boolean): T =
+    __get(validated.validObject.value, false, setDefaultValues).toOption.getOrElse(default)
 
   /**
    * Removes the property value from the object if it exists.
@@ -477,10 +498,10 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
    * @return
    */
   final def $modify(f: T => T, dropBadTypes: Boolean = false): ValidPathSetter[D] =
-    ModifySetter(d => __get(d, dropBadTypes).toValidOption, f, _codec, _path)
+    ModifySetter(d => __get(d, dropBadTypes, false).toValidOption, f, _codec, _path)
 
   final def $modifyWith(f: T => ValidResult[T], dropBadTypes: Boolean = false): ValidPathSetter[D] =
-    ModifyValidSetter(d => __get(d, dropBadTypes).toValidOption, f, _codec, _path)
+    ModifyValidSetter(d => __get(d, dropBadTypes, false).toValidOption, f, _codec, _path)
 
   /**
    * Modifies or sets the value if it doesnt exist.
@@ -492,7 +513,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
    * @return
    */
   final def $modifyOrSet(f: Option[T] => T, dropBadTypes: Boolean = false): ValidPathSetter[D] =
-    TraversedModifySetter(__get(_, dropBadTypes), f, _codec, _path)
+    TraversedModifySetter(__get(_, dropBadTypes, false), f, _codec, _path)
 
   /**
    * Modifies or sets the value if it doesnt exist.
@@ -503,7 +524,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
    * @return
    */
   final def $modifyOrSetWith(f: Option[T] => ValidResult[T], dropBadTypes: Boolean = false): ValidPathSetter[D] =
-    TraversedModifyValidSetter(__get(_, dropBadTypes), f, _codec, _path)
+    TraversedModifyValidSetter(__get(_, dropBadTypes, false), f, _codec, _path)
 
   /**
    * Modifies or sets the value if it doesnt exist.
@@ -517,7 +538,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
    * @return
    */
   final def $modifyOrDrop(f: Option[T] => Option[T], dropBadTypes: Boolean = false): ValidPathSetter[D] =
-    TraversedModifyOrDropSetter[D, T](__get(_, dropBadTypes), f, _codec, _path)
+    TraversedModifyOrDropSetter[D, T](__get(_, dropBadTypes, false), f, _codec, _path)
 
   /**
    * Modifies or sets the value if it doesnt exist.
@@ -531,7 +552,7 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
    * @return
    */
   final def $modifyOrDropWith(f: Option[T] => Option[ValidResult[T]], dropBadTypes: Boolean = false): ValidPathSetter[D] =
-    TraversedModifyOrDropValidSetter[D, T](__get(_, dropBadTypes), f, _codec, _path)
+    TraversedModifyOrDropValidSetter[D, T](__get(_, dropBadTypes, false), f, _codec, _path)
 
   /**
    * Sets value for the Property if provided
@@ -599,17 +620,25 @@ sealed trait DefaultLensLike[D <: DObject, T] extends UnexpectedLensLike[D, T] {
 
   def _default: T
 
-  private[contracts] def __apply(rawObject: RawObject, dropBadTypes: Boolean): ValidResult[RawObject] =
+  private[contracts] def __apply(
+    rawObject: RawObject,
+    dropBadTypes: Boolean,
+    setDefaultValues: Boolean
+  ): ValidResult[RawObject] =
     rawObject.get(_key) match {
-      case None      =>
+      case None if setDefaultValues =>
         ValidResult.success(rawObject + (_key -> _codec(_default)))
-      case Some(raw) =>
-        GetOps.get(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
-          case NotFound  =>
+      case None                     =>
+        ValidResult.success(rawObject)
+      case Some(raw)                =>
+        GetOps.get(this, raw, isIgnore2BadTypes(dropBadTypes), setDefaultValues) match {
+          case NotFound if setDefaultValues =>
             ValidResult.success(rawObject + (_key -> _codec(_default)))
-          case Found(t)  =>
+          case NotFound                     =>
+            ValidResult.success(rawObject - _key)
+          case Found(t)                     =>
             ValidResult.success(rawObject + (_key -> _codec(t)))
-          case f: Failed =>
+          case f: Failed                    =>
             f.toValid
         }
     }
@@ -622,10 +651,10 @@ sealed trait DefaultLensLike[D <: DObject, T] extends UnexpectedLensLike[D, T] {
    * @return
    */
   final def $modify(f: T => T, dropBadTypes: Boolean = false): ValidPathSetter[D] =
-    ModifySetter(d => __get(d, dropBadTypes).toValidOption, f, _codec, _path)
+    ModifySetter(d => __get(d, dropBadTypes, false).toValidOption, f, _codec, _path)
 
   final def $modifyWith(f: T => ValidResult[T], dropBadTypes: Boolean = false): ValidPathSetter[D] =
-    ModifyValidSetter(d => __get(d, dropBadTypes).toValidOption, f, _codec, _path)
+    ModifyValidSetter(d => __get(d, dropBadTypes, false).toValidOption, f, _codec, _path)
 
   /**
    * Removes the property value from the object if it exists.
@@ -661,15 +690,15 @@ sealed trait DefaultLensLike[D <: DObject, T] extends UnexpectedLensLike[D, T] {
 
 private[dsentric] trait DefaultLens[D <: DObject, T] extends DefaultLensLike[D, T] with ApplicativeLens[D, T] {
 
-  private[dsentric] def __rawDefault: Raw                                        = _codec(_default)
-  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean): Valid[T] =
+  private[dsentric] def __rawDefault: Raw                                                                   = _codec(_default)
+  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean, setDefaultValues: Boolean): Valid[T] =
     TraversalOps.traverse(base, this, dropBadTypes) match {
       case NotFound   =>
         Found(_default)
       case f: Failed  =>
         f
       case Found(raw) =>
-        GetOps.get(this, raw, isIgnore2BadTypes(dropBadTypes)) match {
+        GetOps.get(this, raw, isIgnore2BadTypes(dropBadTypes), setDefaultValues) match {
           case NotFound    =>
             Found(_default)
           case f: Failed   =>
@@ -688,11 +717,13 @@ private[dsentric] trait DefaultLens[D <: DObject, T] extends DefaultLensLike[D, 
    * @param obj
    * @return
    */
-  final def $get(obj: D, dropBadTypes: Boolean = false): ValidResult[T] =
-    __get(obj.value, dropBadTypes).toValid
+  final def $get(obj: D, dropBadTypes: Boolean = false, setDefaultValues: Boolean = true): ValidResult[T] =
+    __get(obj.value, dropBadTypes, setDefaultValues).toValid
 
-  final def $get[D2 <: D](validated: Validated[D2]): T =
-    __get(validated.validObject.value, false).toOption.getOrElse(_default)
+  final def $get[D2 <: D](validated: Validated[D2]): T                            =
+    $get(validated, true)
+  final def $get[D2 <: D](validated: Validated[D2], setDefaultValues: Boolean): T =
+    __get(validated.validObject.value, false, setDefaultValues).toOption.getOrElse(_default)
 
   /**
    * Unapply is only ever a simple prism to the value and its decoding
@@ -723,9 +754,9 @@ private[dsentric] trait MaybeDefaultLens[D <: DObject, T]
     extends DefaultLensLike[D, T]
     with ApplicativeLens[D, Option[T]] {
 
-  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean): MaybeAvailable[T] =
+  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean, setDefaultValues: Boolean): MaybeAvailable[T] =
     TraversalOps.maybeTraverse(base, this, dropBadTypes).flatMap { raw =>
-      GetOps.get(this, raw, isIgnore2BadTypes(dropBadTypes))
+      GetOps.get(this, raw, isIgnore2BadTypes(dropBadTypes), setDefaultValues)
     } match {
       case NotFound =>
         Found(_default)
@@ -740,11 +771,13 @@ private[dsentric] trait MaybeDefaultLens[D <: DObject, T]
    * @param obj
    * @return
    */
-  final def $get(obj: D, dropBadTypes: Boolean = false): ValidResult[Option[T]] =
-    __get(obj.value, dropBadTypes).toValidOption
+  final def $get(obj: D, dropBadTypes: Boolean = false, setDefaultValues: Boolean = true): ValidResult[Option[T]] =
+    __get(obj.value, dropBadTypes, setDefaultValues).toValidOption
 
-  final def $get[D2 <: D](validated: Validated[D2]): Option[T] =
-    __get(validated.validObject.value, false) match {
+  final def $get[D2 <: D](validated: Validated[D2]): Option[T]                            =
+    $get(validated, true)
+  final def $get[D2 <: D](validated: Validated[D2], setDefaultValues: Boolean): Option[T] =
+    __get(validated.validObject.value, false, setDefaultValues) match {
       case PathEmptyMaybe => None
       case Found(t)       => Some(t)
       case _              => Some(_default)

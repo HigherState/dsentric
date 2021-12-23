@@ -42,14 +42,19 @@ private[contracts] trait GetOps {
   /**
    * Validates Types and structure, applies any defaults if empty
    */
-  def get[D <: DObject](baseContract: BaseContract[D], obj: RawObject, badTypes: BadTypes): Valid[RawObject] = {
+  def get[D <: DObject](
+    baseContract: BaseContract[D],
+    obj: RawObject,
+    badTypes: BadTypes,
+    setDefaultValues: Boolean
+  ): Valid[RawObject] = {
     def getAdditionalProperties: ValidResult[RawObject] = {
       val exclude = baseContract._fields.keySet
       baseContract match {
         case a: AdditionalProperties[Any, Any] @unchecked =>
           val (baseObject, additionalObject) = obj.partition(p => exclude(p._1))
           val codec                          = DCodecs.keyValueMapCodec(a._additionalKeyCodec, a._additionalValueCodec)
-          getMap(a._root, a._path, badTypes, codec, additionalObject) match {
+          getMap(a._root, a._path, badTypes, setDefaultValues, codec, additionalObject) match {
             case Found(t)           =>
               val rawObject = codec.apply(t)
               if (rawObject == additionalObject)
@@ -79,9 +84,9 @@ private[contracts] trait GetOps {
     val drop = badTypes.nest == DropBadTypes
     baseContract._fields.foldLeft(getAdditionalProperties) {
       case (Right(d), (_, p))      =>
-        p.__apply(d, drop)
+        p.__apply(d, drop, setDefaultValues)
       case (l @ Left(nel), (_, p)) =>
-        p.__apply(obj, drop) match {
+        p.__apply(obj, drop, setDefaultValues) match {
           case Right(_)   =>
             l
           case Left(nel2) =>
@@ -95,38 +100,44 @@ private[contracts] trait GetOps {
     }
   }
 
-  def get[D <: DObject, T](propertyLens: ValuePropertyLens[D, T], raw: Raw, badTypes: BadTypes): Available[T] =
-    getCodec(propertyLens._root, propertyLens._path, badTypes)(propertyLens._codec -> raw)
+  def get[D <: DObject, T](
+    propertyLens: ValuePropertyLens[D, T],
+    raw: Raw,
+    badTypes: BadTypes,
+    setDefaultValues: Boolean
+  ): Available[T]                             =
+    getCodec(propertyLens._root, propertyLens._path, badTypes, setDefaultValues)(propertyLens._codec -> raw)
 
   protected def getCodec[D <: DObject, C](
     contract: ContractLike[D],
     path: Path,
-    badTypes: BadTypes
-  ): Function[(DCodec[C], Raw), Available[C]]                                                                 = {
+    badTypes: BadTypes,
+    setDefaultValues: Boolean
+  ): Function[(DCodec[C], Raw), Available[C]] = {
     case (d: DValueCodec[C], raw)                                                =>
       getValue(contract, path, badTypes, d, raw)
     case (d: DMapCodec[C, _, _], rawObject: RawObject @unchecked)                =>
-      getMap(contract, path, badTypes, d, rawObject)
+      getMap(contract, path, badTypes, setDefaultValues, d, rawObject)
     case (d: DCollectionCodec[C, _], rawArray: RawArray @unchecked)              =>
-      getCollection(contract, path, badTypes, d, rawArray)
+      getCollection(contract, path, badTypes, setDefaultValues, d, rawArray)
     case (d: DContractCodec[_], rawObject: RawObject @unchecked)                 =>
-      getContract(contract, path, badTypes, d.contract, d.cstr, rawObject)
+      getContract(contract, path, badTypes, setDefaultValues, d.contract, d.cstr, rawObject)
         .asInstanceOf[Available[C]]
     case (d: DParameterisedContractCodec[_, _], rawObject: RawObject @unchecked) =>
-      getParameterisedContract(contract, path, badTypes, d, rawObject)
+      getParameterisedContract(contract, path, badTypes, setDefaultValues, d, rawObject)
         .asInstanceOf[Available[C]]
     case (d: DKeyContractCollectionCodec[C, _], rawObject: RawObject @unchecked) =>
-      getKeyContractCollection(contract, path, badTypes, d, rawObject)
+      getKeyContractCollection(contract, path, badTypes, setDefaultValues, d, rawObject)
         .asInstanceOf[Available[C]]
     case (d: DTypeContractCodec[_], rawObject: RawObject @unchecked)             =>
-      getTypeContract(contract, path, badTypes, d.contracts, d.cstr, rawObject)
+      getTypeContract(contract, path, badTypes, setDefaultValues, d.contracts, d.cstr, rawObject)
         .asInstanceOf[Available[C]]
     case (d: DValueClassCodec[C, _], raw)                                        =>
-      getValueClass(contract, path, badTypes, d, raw)
+      getValueClass(contract, path, badTypes, setDefaultValues, d, raw)
     case (d: DProductCodec[C, _, _], rawArray: RawArray @unchecked)              =>
-      getProduct(contract, path, badTypes, d, rawArray)
+      getProduct(contract, path, badTypes, setDefaultValues, d, rawArray)
     case (d: DCoproductCodec[C, _], raw)                                         =>
-      getCoproduct(contract, path, badTypes, d, raw)
+      getCoproduct(contract, path, badTypes, setDefaultValues, d, raw)
     case _ if badTypes == DropBadTypes                                           =>
       NotFound
     case (d, raw)                                                                =>
@@ -153,6 +164,7 @@ private[contracts] trait GetOps {
     contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
+    setDefaultValues: Boolean,
     codec: DMapCodec[C, K, V],
     raw: RawObject
   ): Available[C] = {
@@ -168,7 +180,7 @@ private[contracts] trait GetOps {
             case Some(key)                      =>
               Found(key)
           }
-        val value = getCodec(contract, path \ p._1, nested)(codec.valueCodec -> p._2)
+        val value = getCodec(contract, path \ p._1, nested, setDefaultValues)(codec.valueCodec -> p._2)
         Available.sequence2(key, value)
       }
       .foldLeft[Either[ListBuffer[Failure], mutable.Builder[(K, V), Map[K, V]]]](Right(Map.newBuilder[K, V])) {
@@ -203,13 +215,14 @@ private[contracts] trait GetOps {
     contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
+    setDefaultValues: Boolean,
     codec: DCollectionCodec[S, T],
     raw: RawArray
   ): Available[S] = {
     val nested = badTypes.nest
     raw.zipWithIndex
       .map { p =>
-        getCodec(contract, path \ p._2, nested)(codec.valueCodec -> p._1) -> p._2
+        getCodec(contract, path \ p._2, nested, setDefaultValues)(codec.valueCodec -> p._1) -> p._2
       }
       .foldLeft[Either[ListBuffer[Failure], mutable.Builder[T, Vector[T]]]](Right(Vector.newBuilder[T])) {
         case (Right(vb), (Found(t), _))          =>
@@ -247,11 +260,12 @@ private[contracts] trait GetOps {
     contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
+    setDefaultValues: Boolean,
     d2Contract: ContractLike[D2],
     d2Cstr: RawObject => D2,
     raw: RawObject
   ): Available[D2] =
-    d2Contract.__get(raw, badTypes.nest == DropBadTypes) match {
+    d2Contract.__get(raw, badTypes.nest == DropBadTypes, setDefaultValues) match {
       case Found(rawObject)                      =>
         Found(d2Cstr(rawObject))
       case _: Failed if badTypes == DropBadTypes =>
@@ -264,6 +278,7 @@ private[contracts] trait GetOps {
     contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
+    setDefaultValues: Boolean,
     codec: DParameterisedContractCodec[D2, H],
     raw: RawObject
   ): Available[D2] = {
@@ -275,7 +290,7 @@ private[contracts] trait GetOps {
         case (field, Some((failedRaw, failedCodec))) =>
           IncorrectTypeFailure(contract, path \ field, failedCodec, failedRaw)
       })
-    codec.contract.__get(valueRawObject, badTypes.nest == DropBadTypes) -> resolvedFailure match {
+    codec.contract.__get(valueRawObject, badTypes.nest == DropBadTypes, setDefaultValues) -> resolvedFailure match {
       case (Found(rawObject), Right(function)) =>
         Found(function(rawObject))
       case _ if badTypes == DropBadTypes       =>
@@ -293,13 +308,14 @@ private[contracts] trait GetOps {
     contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
+    setDefaultValues: Boolean,
     codec: DKeyContractCollectionCodec[S, D2],
     raw: RawObject
   ): Available[S] =
     raw.foldLeft[Either[ListBuffer[Failure], mutable.Builder[D2, Vector[D2]]]](Right(Vector.newBuilder[D2])) {
       case (Right(b), (key, value: RawObject @unchecked)) =>
         val entity = codec.cstr(key, value)
-        codec.contract.__get(entity.value, badTypes.nest == DropBadTypes) match {
+        codec.contract.__get(entity.value, badTypes.nest == DropBadTypes, setDefaultValues) match {
           case Found(rawObject)                      =>
             Right(b.addOne(entity.internalWrap(rawObject).asInstanceOf[D2]))
           case _: Failed if badTypes == DropBadTypes =>
@@ -336,6 +352,7 @@ private[contracts] trait GetOps {
     contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
+    setDefaultValues: Boolean,
     typeCodecs: PartialFunction[D2, ContractLike[D2]],
     d2Cstr: RawObject => D2,
     raw: RawObject
@@ -346,17 +363,18 @@ private[contracts] trait GetOps {
       case None                             =>
         Failed(ContractTypeResolutionFailure(contract, path, raw))
       case Some(typeContract)               =>
-        getContract(contract, path, badTypes, typeContract, d2Cstr, raw)
+        getContract(contract, path, badTypes, setDefaultValues, typeContract, d2Cstr, raw)
     }
 
   protected def getValueClass[D <: DObject, T, S](
     contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
+    setDefaultValues: Boolean,
     codec: DValueClassCodec[T, S],
     raw: Raw
   ): Available[T] =
-    getCodec(contract, path, badTypes)(codec.internalCodec -> raw) match {
+    getCodec(contract, path, badTypes, setDefaultValues)(codec.internalCodec -> raw) match {
       case Found(s) =>
         codec.to(s) match {
           case Some(t)                          =>
@@ -374,6 +392,7 @@ private[contracts] trait GetOps {
     contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
+    setDefaultValues: Boolean,
     codec: DProductCodec[T, E, H],
     raw: RawArray
   ): Available[T] = {
@@ -391,7 +410,7 @@ private[contracts] trait GetOps {
         if (p._2 >= codec.codecsArray.length)
           Failed(AdditionalElementFailure(contract, path \ p._2)) -> p._2
         else
-          getCodec(contract, path \ p._2, nested)(codec.codecsArray(p._2) -> p._1) -> p._2
+          getCodec(contract, path \ p._2, nested, setDefaultValues)(codec.codecsArray(p._2) -> p._1) -> p._2
       }
       .foldRight[Either[ListBuffer[Failure], HList]](init) {
         case ((Found(t), _), Right(h))           =>
@@ -440,13 +459,14 @@ private[contracts] trait GetOps {
     contract: ContractLike[D],
     path: Path,
     badTypes: BadTypes,
+    setDefaultValues: Boolean,
     codec: DCoproductCodec[T, H],
     raw: Raw
   ): Available[T] =
     codec.codecsList.foldLeft[Available[T]](NotFound) {
       case (a: Found[T], _) => a
       case (a, c)           =>
-        getCodec(contract, path, badTypes)(c -> raw) match {
+        getCodec(contract, path, badTypes, setDefaultValues)(c -> raw) match {
           case Found(t)  => codec.lift(t, c).fold[Available[T]](NotFound)(Found(_))
           case NotFound  => NotFound
           case f: Failed =>

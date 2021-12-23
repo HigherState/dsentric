@@ -138,7 +138,7 @@ private[contracts] trait ReduceOps {
     case (d: DKeyContractCollectionCodec[C, _], rawObject: RawObject @unchecked)      =>
       reduceKeyContractCollection(contract, path, badTypes, d, rawObject)
     case (d: DValueClassCodec[C, _], raw)                                             =>
-      reduceCodec(contract, path, badTypes)(d.internalCodec -> raw)
+      reduceValueClass(contract, path, badTypes, d, raw)
     case (d: DProductCodec[C, _, _], rawArray: RawArray @unchecked)                   =>
       reduceProduct(contract, path, badTypes, d, rawArray)
     case (d: DCoproductCodec[C, _], raw)                                              =>
@@ -281,6 +281,27 @@ private[contracts] trait ReduceOps {
         Failed(head, tail)
     }
   }
+
+  protected def reduceValueClass[D <: DObject, T, S](
+    contract: ContractLike[D],
+    path: Path,
+    badTypes: BadTypes,
+    codec: DValueClassCodec[T, S],
+    raw: Raw
+  ): Available[Raw] =
+    reduceCodec(contract, path, badTypes)(codec.internalCodec -> raw) match {
+      case Found(codecRaw) =>
+        codec.unapply(codecRaw) match {
+          case Some(_)                          =>
+            Found(codecRaw)
+          case None if badTypes == DropBadTypes =>
+            NotFound
+          case None                             =>
+            Failed(IncorrectTypeFailure(contract, path, codec, raw))
+        }
+      case f               =>
+        f.asInstanceOf[Available[T]]
+    }
 
   protected def reduceProduct[D <: DObject, T, E <: HList, H <: HList](
     contract: ContractLike[D],

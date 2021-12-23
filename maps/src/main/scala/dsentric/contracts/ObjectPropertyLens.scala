@@ -147,9 +147,13 @@ sealed trait ExpectedObjectPropertyLensLike[D <: DObject] extends ObjectProperty
    * @param dropBadTypes
    * @return
    */
-  private[contracts] def __apply(rawObject: RawObject, dropBadTypes: Boolean): ValidResult[RawObject] = {
+  private[contracts] def __apply(
+    rawObject: RawObject,
+    dropBadTypes: Boolean,
+    setDefaultValues: Boolean
+  ): ValidResult[RawObject] = {
     def get(propertyObject: RawObject): ValidResult[RawObject] =
-      GetOps.get(this, propertyObject, isIgnore2BadTypes(dropBadTypes)) match {
+      GetOps.get(this, propertyObject, isIgnore2BadTypes(dropBadTypes), setDefaultValues) match {
         case Found(r)  =>
           ValidResult.success(rawObject + (_key -> r))
         case f: Failed =>
@@ -179,9 +183,9 @@ private[dsentric] trait ExpectedObjectPropertyLens[D <: DObject]
     extends ExpectedObjectPropertyLensLike[D]
     with ApplicativeLens[D, DObject] {
 
-  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean): Valid[DObject] = {
+  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean, setDefaultValues: Boolean): Valid[DObject] = {
     def get(rawObject: RawObject): Valid[DObject] =
-      GetOps.get(this, rawObject, isIgnore2BadTypes(dropBadTypes)) match {
+      GetOps.get(this, rawObject, isIgnore2BadTypes(dropBadTypes), setDefaultValues) match {
         case Found(rawObject) if rawObject.isEmpty =>
           Found(DObject.empty)
         case Found(rawObject)                      =>
@@ -208,11 +212,15 @@ private[dsentric] trait ExpectedObjectPropertyLens[D <: DObject]
 
   /**
    * Unapply is only ever a simple prism to the value and its decoding
+   * TODO: handle path failure
    * @param obj
    * @return
    */
   final def unapply(obj: D): Option[DObject] =
-    PathLensOps.traverse(obj.value, _path).flatMap(_codec.unapply)
+    PathLensOps.traverse(obj.value, _path) match {
+      case None    => Some(DObject.empty)
+      case Some(v) => _codec.unapply(v)
+    }
 
   final def unapply(obj: Validated[D]): Some[DObject] =
     PathLensOps
@@ -233,21 +241,27 @@ private[dsentric] trait ExpectedObjectPropertyLens[D <: DObject]
    * @param obj
    * @return
    */
-  final def $get(obj: D, dropBadTypes: Boolean = false): ValidResult[DObject] =
-    __get(obj.value, dropBadTypes).toValid
+  final def $get(obj: D, dropBadTypes: Boolean = false, setDefaultValues: Boolean = true): ValidResult[DObject] =
+    __get(obj.value, dropBadTypes, setDefaultValues).toValid
 
-  final def $get[D2 <: D](validated: Validated[D2]): DObject =
-    __get(validated.validObject.value, false).toOption.getOrElse(DObject.empty)
+  final def $get[D2 <: D](validated: Validated[D2]): DObject                            =
+    $get(validated, true)
+  final def $get[D2 <: D](validated: Validated[D2], setDefaultValues: Boolean): DObject =
+    __get(validated.validObject.value, false, setDefaultValues).toOption.getOrElse(DObject.empty)
 }
 
 private[dsentric] trait MaybeExpectedObjectPropertyLens[D <: DObject]
     extends ExpectedObjectPropertyLensLike[D]
     with ApplicativeLens[D, Option[DObject]] {
 
-  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean): MaybeAvailable[DObject] = {
+  private[contracts] def __get(
+    base: RawObject,
+    dropBadTypes: Boolean,
+    setDefaultValues: Boolean
+  ): MaybeAvailable[DObject] = {
     def get(rawObject: Map[String, Any]): MaybeAvailable[DObject] =
       GetOps
-        .get(this, rawObject, isIgnore2BadTypes(dropBadTypes))
+        .get(this, rawObject, isIgnore2BadTypes(dropBadTypes), setDefaultValues)
         .flatMap(a => Found(new DObjectInst(a)))
 
     TraversalOps.maybeTraverse(base, this, dropBadTypes) match {
@@ -277,8 +291,10 @@ private[dsentric] trait MaybeExpectedObjectPropertyLens[D <: DObject]
         Some(None)
       case Found(r)       =>
         _codec.unapply(r).map(Some(_))
-      case _              =>
+      case _: Failed      =>
         None
+      case _              =>
+        Some(Some(DObject.empty))
     }
 
   final def unapply(obj: Validated[D]): Some[Option[DObject]] =
@@ -291,8 +307,10 @@ private[dsentric] trait MaybeExpectedObjectPropertyLens[D <: DObject]
         Some(Some(DObject.empty))
     }
 
-  final def $get[D2 <: D](validated: Validated[D2]): Option[DObject] =
-    __get(validated.validObject.value, false) match {
+  final def $get[D2 <: D](validated: Validated[D2]): Option[DObject]                            =
+    $get(validated, true)
+  final def $get[D2 <: D](validated: Validated[D2], setDefaultValues: Boolean): Option[DObject] =
+    __get(validated.validObject.value, false, setDefaultValues) match {
       case PathEmptyMaybe => None
       case Found(d)       => Some(d)
       case _              => Some(DObject.empty)
@@ -308,8 +326,12 @@ private[dsentric] trait MaybeExpectedObjectPropertyLens[D <: DObject]
    * @param obj
    * @return
    */
-  final def $get(obj: D, dropBadTypes: Boolean = false): ValidResult[Option[DObject]] =
-    __get(obj.value, dropBadTypes).toValidOption
+  final def $get(
+    obj: D,
+    dropBadTypes: Boolean = false,
+    setDefaultValues: Boolean = true
+  ): ValidResult[Option[DObject]] =
+    __get(obj.value, dropBadTypes, setDefaultValues).toValidOption
 }
 
 /**
@@ -320,10 +342,14 @@ private[dsentric] trait MaybeObjectPropertyLens[D <: DObject]
     extends ObjectPropertyLens[D]
     with ApplicativeLens[D, Option[DObject]] {
 
-  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean): MaybeAvailable[DObject] = {
+  private[contracts] def __get(
+    base: RawObject,
+    dropBadTypes: Boolean,
+    setDefaultValues: Boolean
+  ): MaybeAvailable[DObject] = {
     def reduce(rawObject: Map[String, Any]): MaybeAvailable[DObject] =
-      ReduceOps
-        .reduce(this, rawObject, isIgnore2BadTypes(dropBadTypes))
+      GetOps
+        .get(this, rawObject, isIgnore2BadTypes(dropBadTypes), setDefaultValues)
         .flatMap(a => Found(new DObjectInst(a)))
 
     TraversalOps.maybeTraverse(base, this, dropBadTypes).flatMap {
@@ -343,9 +369,13 @@ private[dsentric] trait MaybeObjectPropertyLens[D <: DObject]
    * @param dropBadTypes
    * @return
    */
-  private[contracts] def __apply(rawObject: RawObject, dropBadTypes: Boolean): ValidResult[RawObject] = {
+  private[contracts] def __apply(
+    rawObject: RawObject,
+    dropBadTypes: Boolean,
+    setDefaultValues: Boolean
+  ): ValidResult[RawObject] = {
     def get(propertyObject: RawObject): ValidResult[RawObject] =
-      GetOps.get(this, propertyObject, isIgnore2BadTypes(dropBadTypes)) match {
+      GetOps.get(this, propertyObject, isIgnore2BadTypes(dropBadTypes), setDefaultValues) match {
         case Found(r) if r.isEmpty =>
           ValidResult.success(rawObject - _key)
         case Found(r)              =>
@@ -439,16 +469,24 @@ private[dsentric] trait MaybeObjectPropertyLens[D <: DObject]
    * @param obj
    * @return
    */
-  final def $get(obj: D, dropBadTypes: Boolean = false): ValidResult[Option[DObject]] =
-    __get(obj.value, dropBadTypes).toValidOption
+  final def $get(
+    obj: D,
+    dropBadTypes: Boolean = false,
+    setDefaultValues: Boolean = true
+  ): ValidResult[Option[DObject]] =
+    __get(obj.value, dropBadTypes, setDefaultValues).toValidOption
 
-  final def $get[D2 <: D](validated: Validated[D2]): Option[DObject] =
-    __get(validated.validObject.value, false) match {
+  final def $get[D2 <: D](validated: Validated[D2]): Option[DObject]                            =
+    $get(validated, true)
+  final def $get[D2 <: D](validated: Validated[D2], setDefaultValues: Boolean): Option[DObject] =
+    __get(validated.validObject.value, false, setDefaultValues) match {
       case PathEmptyMaybe => None
       case Found(d)       => Some(d)
       case _              => None
     }
 
-  final def $getOrElse(default: DObject)(obj: D, dropBadTypes: Boolean = false): ValidResult[DObject] =
-    __get(obj.value, dropBadTypes).toValidOption.map(_.getOrElse(default))
+  final def $getOrElse(
+    default: DObject
+  )(obj: D, dropBadTypes: Boolean = false, setDefaultValues: Boolean = true): ValidResult[DObject] =
+    __get(obj.value, dropBadTypes, setDefaultValues).toValidOption.map(_.getOrElse(default))
 }

@@ -63,7 +63,7 @@ private[dsentric] trait VerifyOps {
     case (d: DKeyContractCollectionCodec[C, _], rawObject: RawObject @unchecked) =>
       verifyKeyContractCollection(contract, path, d, rawObject)
     case (d: DValueClassCodec[C, _], raw)                                        =>
-      verifyCodec(contract, path)(d.internalCodec -> raw)
+      verifyValueClass(contract, path, d, raw)
     case (d: DProductCodec[C, _, _], rawArray: RawArray @unchecked)              =>
       verifyProduct(contract, path, d, rawArray)
     case (d: DCoproductCodec[C, _], raw)                                         =>
@@ -184,6 +184,21 @@ private[dsentric] trait VerifyOps {
             Nil
         }
       case failures            =>
+        failures
+    }
+
+  protected def verifyValueClass[D <: DObject, T, S](
+    contract: ContractLike[D],
+    path: Path,
+    codec: DValueClassCodec[T, S],
+    raw: Raw
+  ): List[Failure] =
+    verifyCodec(contract, path)(codec.internalCodec -> raw) match {
+      case Nil      =>
+        codec.unapply(raw).fold(List(IncorrectTypeFailure(contract, path, codec, raw))) { _ =>
+          Nil
+        }
+      case failures =>
         failures
     }
 

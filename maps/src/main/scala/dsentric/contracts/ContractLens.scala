@@ -26,9 +26,9 @@ trait ContractLens[D <: DObject] { this: BaseContract[D] =>
   def _fields: Map[String, Property[D, _]]
 
   //Currently not supportive of additional properties in D Constructor when nested
-  private[contracts] def __get(obj: RawObject, dropBadTypes: Boolean = false): Valid[RawObject] = {
+  private[contracts] def __get(obj: RawObject, dropBadTypes: Boolean, setDefaultValues: Boolean): Valid[RawObject] = {
     val badTypes = if (dropBadTypes) DropBadTypes else FailOnBadTypes
-    GetOps.get(this, obj, badTypes)
+    GetOps.get(this, obj, badTypes, setDefaultValues)
   }
   private[contracts] def __verify(obj: RawObject): List[Failure] =
     VerifyOps.verify(this, obj)
@@ -99,8 +99,8 @@ trait ContractLens[D <: DObject] { this: BaseContract[D] =>
         ValidResult.failure(head, tail)
     }
 
-  final def $get[D2 <: D](obj: D2, dropBadTypes: Boolean = false): ValidResult[D2] =
-    __get(obj.value, dropBadTypes) match {
+  final def $get[D2 <: D](obj: D2, dropBadTypes: Boolean = false, setDefaultValues: Boolean = true): ValidResult[D2] =
+    __get(obj.value, dropBadTypes, setDefaultValues) match {
       case Found(raw)         =>
         ValidResult.success(obj.internalWrap(raw).asInstanceOf[D2])
       case Failed(head, tail) =>

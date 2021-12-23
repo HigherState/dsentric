@@ -81,6 +81,15 @@ case class LensList[Data, L <: HList, OP <: HList, TP1](
     else
       None
 
+  def unapply(data: Validated[Data]): Some[TP1] =
+    Some(
+      ev.patternMatch(data.validObject, maybes)
+        .map { hl =>
+          tplP.apply(hl)
+        }
+        .get
+    )
+
   final def @:[P, TP2, TS2](
     prev: ApplicativeLens[Data, P]
   )(implicit tplP2: Tupler.Aux[P :: OP, TP2], genP2: Generic.Aux[TP2, P :: OP]) =
@@ -97,6 +106,9 @@ case class MatcherSingle[Data, P](matchers: List[ApplicativeMatcher[Data]], lens
       lens.unapply(data)
     else
       None
+
+  def unapply(data: Validated[Data]): Some[P] =
+    Some(lens.unapply(data.validObject).get)
 
   final def @:[P1, O](prev: ApplicativeLens[Data, P1])(implicit
     ev: ApplicativeLens.Aux[Data, ApplicativeLens[Data, P1] :: ApplicativeLens[Data, P] :: HNil, P1 :: P :: HNil],

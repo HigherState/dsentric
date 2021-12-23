@@ -1,5 +1,6 @@
 package dsentric.contracts
 
+import dsentric.DObject
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
@@ -45,6 +46,34 @@ class GetSpec extends AnyFunSpec with Matchers with EitherValues {
         l.internal.set2.$set(Set("one", "two"))
       }
       MaybeNested.$get(l1).value shouldBe (l1 +\ (MaybeNested.internal.set1._path := Set.empty[String]))
+    }
+  }
+
+  describe("constraint bug") {
+    import dsentric.codecs.std.DCodecs._
+    object SimpleConstraint extends Contract {
+      import dsentric.operators.StandardOperators._
+      val reserve = \?[Int](reserved)
+    }
+
+    it("Should return if reserved is set") {
+      SimpleConstraint.$get(DObject("reserve" := 123)).value shouldBe DObject("reserve" := 123)
+    }
+
+    object MaybeNestedConstraint extends Contract {
+      import dsentric.operators.StandardOperators._
+      val nested = new \\? {
+        val reserve = \?[Int](reserved)
+      }
+    }
+
+    it("Should return if reserved is set in maybe object property") {
+      MaybeNestedConstraint.$get(DObject("nested" ::= ("reserve" := 123))).value shouldBe DObject(
+        "nested" ::= ("reserve" := 123)
+      )
+      MaybeNestedConstraint.nested.$get(DObject("nested" ::= ("reserve" := 123))).value should contain(
+        DObject("reserve" := 123)
+      )
     }
   }
 }

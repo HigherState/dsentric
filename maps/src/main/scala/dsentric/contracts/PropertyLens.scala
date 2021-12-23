@@ -20,7 +20,7 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    * @param obj
    * @return
    */
-  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean): MaybeAvailable[T]
+  private[contracts] def __get(base: RawObject, dropBadTypes: Boolean, setDefaultValues: Boolean): MaybeAvailable[T]
 
   /**
    * Operates like a get on the object key pair, setting the new value, including defaults.
@@ -29,7 +29,11 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    * @param dropBadTypes
    * @return
    */
-  private[contracts] def __apply(rawObject: RawObject, dropBadTypes: Boolean): ValidResult[RawObject]
+  private[contracts] def __apply(
+    rawObject: RawObject,
+    dropBadTypes: Boolean,
+    setDefaultValues: Boolean
+  ): ValidResult[RawObject]
 
   /**
    * Verifies the direct property against the object.
@@ -89,7 +93,7 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
    * @return
    */
   def $verify(obj: D): List[Failure] =
-    __get(obj.value, false) match {
+    __get(obj.value, false, false) match {
       case Failed(head, tail) =>
         head :: tail
       case _                  =>

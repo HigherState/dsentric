@@ -200,7 +200,7 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
     case (d: DKeyContractCollectionCodec[C, _], rawObject: RawObject @unchecked, current) =>
       deltaReduceKeyContractCollection(contract, path, badTypes, d, rawObject, current)
     case (d: DValueClassCodec[C, _], raw, current)                                        =>
-      deltaReduceCodec(contract, path, badTypes)((d.internalCodec, raw, current))
+      deltaReduceValueClass(contract, path, badTypes, d, raw, current)
     case (d: DProductCodec[C, _, _], deltaArray: RawArray @unchecked, current: Raw)       =>
       available2DeltaReduce(reduceProduct(contract, path, badTypes, d, deltaArray)) match {
         case DeltaReduced(dr) if dr == current =>
@@ -558,6 +558,26 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
         }
       case _                                                             =>
         available2DeltaReduce(reduceTypeContract(contract, path, badTypes, typeCodecs, d2Cstr, deltaObject))
+    }
+
+  protected def deltaReduceValueClass[D <: DObject, T, S](
+    contract: ContractLike[D],
+    path: Path,
+    badTypes: BadTypes,
+    codec: DValueClassCodec[T, S],
+    delta: Raw,
+    current: Raw
+  ): DeltaReduce[Raw] =
+    deltaReduceCodec(contract, path, badTypes)((codec.internalCodec, delta, current)) match {
+      case DeltaReduced(deltaInternal) =>
+        codec.unapply(RawOps.deltaTraverseConcat(current, deltaInternal)) match {
+          case None    =>
+            DeltaFailed(IncorrectTypeFailure(contract, path, codec, delta))
+          case Some(_) =>
+            DeltaReduced(deltaInternal)
+        }
+      case deltaReduce                 =>
+        deltaReduce
     }
 
   protected def deltaReduceCoproduct[D <: DObject, T, H <: HList](
