@@ -298,7 +298,7 @@ object MaybeObjectAspectProperty {
       case _                             =>
         new MaybeObjectAspectProperty[D](objectProperty._codec, _dataOperators)
     }
-    property.__setKey(property._key)
+    property.__setKey(objectProperty._key)
     property
   }
 
