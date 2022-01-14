@@ -570,7 +570,11 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
   ): DeltaReduce[Raw] =
     deltaReduceCodec(contract, path, badTypes)((codec.internalCodec, delta, current)) match {
       case DeltaReduced(deltaInternal) =>
-        codec.unapply(RawOps.deltaTraverseConcat(current, deltaInternal)) match {
+        //validate the potential resulting entity, we know it cannot return None reduce to None as
+        //we have a DeltaReducedType
+        RawOps.deltaTraverseConcat(current, deltaInternal).flatMap { combined =>
+          codec.unapply(combined)
+        } match {
           case None    =>
             DeltaFailed(IncorrectTypeFailure(contract, path, codec, delta))
           case Some(_) =>
