@@ -24,48 +24,52 @@ trait DMapCodecs {
         ObjectDefinition(additionalProperties = Right(V.typeDefinition), propertyNames = Some(K.typeDefinition))
     }
 
-  private def oneCodec:DCodec[Long] = new DValueCodec[Long] {
-    def apply(t: Long): RawValue = 1L
+  private def oneCodec:DCodec[1] = new DValueCodec[1] {
+    def apply(t: 1): RawValue = 1L
 
-    def unapply(a: Raw): Option[Long] =
+    def unapply(a: Raw): Option[1] =
       a match {
-        case 1L => Some(1L)
+        case 1L => Some(1)
         case _ => None
       }
 
     def typeDefinition: TypeDefinition = NumberDefinition(List(1L))
   }
 
-  implicit def setCodec[T](implicit D: DStringCodec[T]):DMapCodec[Set[T], T, Long] =
-    new DMapCodec[Set[T], T, Long] {
+  implicit def setCodec[T](implicit D: DStringCodec[T]):DMapCodec[Set[T], T, 1] =
+    new DMapCodec[Set[T], T, 1] {
       def keyCodec: DStringCodec[T] = D
 
-      def valueCodec: DCodec[Long] = oneCodec
+      def valueCodec: DCodec[1] = oneCodec
 
-      def build(m: Map[T, Long]): Option[Set[T]] =
+      def build(m: Map[T, 1]): Option[Set[T]] =
         Some(m.keySet)
 
-      def extract(m: Set[T]): Map[T, Long] =
-        m.iterator.map(_ -> 1L).toMap
+      def extract(m: Set[T]): Map[T, 1] = {
+        val mb = Map.newBuilder[T, 1]
+        mb.addAll(m.map(_ -> valueOf[1]))
+        mb.result()
+      }
+
 
       def typeDefinition: TypeDefinition =
         ObjectDefinition(additionalProperties = Right(oneCodec.typeDefinition), propertyNames = Some(D.typeDefinition))
     }
 
 
-  implicit def nonEmptySetCodec[T](implicit D: DStringCodec[T], O: Ordering[T]):DMapCodec[NonEmptySet[T], T, Long] =
-    new DMapCodec[NonEmptySet[T], T, Long] {
+  implicit def nonEmptySetCodec[T](implicit D: DStringCodec[T], O: Ordering[T]):DMapCodec[NonEmptySet[T], T, 1] =
+    new DMapCodec[NonEmptySet[T], T, 1] {
       def keyCodec: DStringCodec[T] = D
 
-      def valueCodec: DCodec[Long] = oneCodec
+      def valueCodec: DCodec[1] = oneCodec
 
-      def build(m: Map[T, Long]): Option[NonEmptySet[T]] =
+      def build(m: Map[T, 1]): Option[NonEmptySet[T]] =
         NonEmptySet.fromSet(SortedSet.from(m.keySet))
 
-      def extract(m: NonEmptySet[T]): Map[T, Long] = {
-        val mb = Map.newBuilder[T, Long]
-        mb.addOne(m.head -> 1L)
-        mb.addAll(m.tail.iterator.map(_ -> 1L))
+      def extract(m: NonEmptySet[T]): Map[T, 1] = {
+        val mb = Map.newBuilder[T, 1]
+        mb.addOne(m.head -> valueOf[1])
+        mb.addAll(m.tail.iterator.map(_ -> valueOf[1]))
         mb.result()
       }
 
