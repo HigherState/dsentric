@@ -68,6 +68,18 @@ trait DValueCodecs {
         IntegerDefinition(minimum = Some(Long.MinValue), maximum = Some(Long.MaxValue))
     }
 
+  implicit val oneCodec: DCodec[1] = new DValueCodec[1] {
+    def apply(t: 1): RawValue = 1L
+
+    def unapply(a: Raw): Option[1] =
+      a match {
+        case 1L => Some(1)
+        case _ => None
+      }
+
+    def typeDefinition: TypeDefinition = NumberDefinition(List(1L))
+  }
+
   implicit val doubleCodec: DValueCodec[Double] =
     new DValueCodec[Double] with DirectCodec[Double] {
       def unapply(a: Raw): Option[Double] =

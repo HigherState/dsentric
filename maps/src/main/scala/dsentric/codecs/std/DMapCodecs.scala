@@ -24,23 +24,11 @@ trait DMapCodecs {
         ObjectDefinition(additionalProperties = Right(V.typeDefinition), propertyNames = Some(K.typeDefinition))
     }
 
-  implicit def oneCodec: DCodec[1] = new DValueCodec[1] {
-    def apply(t: 1): RawValue = 1L
-
-    def unapply(a: Raw): Option[1] =
-      a match {
-        case 1L => Some(1)
-        case _ => None
-      }
-
-    def typeDefinition: TypeDefinition = NumberDefinition(List(1L))
-  }
-
-  implicit def setCodec[T](implicit D: DStringCodec[T]):DMapCodec[Set[T], T, 1] =
+  implicit def setCodec[T](implicit D: DStringCodec[T], I: DCodec[1]):DMapCodec[Set[T], T, 1] =
     new DMapCodec[Set[T], T, 1] {
       def keyCodec: DStringCodec[T] = D
 
-      def valueCodec: DCodec[1] = oneCodec
+      def valueCodec: DCodec[1] = I
 
       def build(m: Map[T, 1]): Option[Set[T]] =
         Some(m.keySet)
@@ -53,15 +41,15 @@ trait DMapCodecs {
 
 
       def typeDefinition: TypeDefinition =
-        ObjectDefinition(additionalProperties = Right(oneCodec.typeDefinition), propertyNames = Some(D.typeDefinition))
+        ObjectDefinition(additionalProperties = Right(I.typeDefinition), propertyNames = Some(D.typeDefinition))
     }
 
 
-  implicit def nonEmptySetCodec[T](implicit D: DStringCodec[T], O: Ordering[T]):DMapCodec[NonEmptySet[T], T, 1] =
+  implicit def nonEmptySetCodec[T](implicit D: DStringCodec[T], O: Ordering[T], I: DCodec[1]):DMapCodec[NonEmptySet[T], T, 1] =
     new DMapCodec[NonEmptySet[T], T, 1] {
       def keyCodec: DStringCodec[T] = D
 
-      def valueCodec: DCodec[1] = oneCodec
+      def valueCodec: DCodec[1] = I
 
       def build(m: Map[T, 1]): Option[NonEmptySet[T]] =
         NonEmptySet.fromSet(SortedSet.from(m.keySet))
@@ -74,7 +62,7 @@ trait DMapCodecs {
       }
 
       def typeDefinition: TypeDefinition =
-        ObjectDefinition(additionalProperties = Right(oneCodec.typeDefinition), propertyNames = Some(D.typeDefinition), minProperties = Some(1))
+        ObjectDefinition(additionalProperties = Right(I.typeDefinition), propertyNames = Some(D.typeDefinition), minProperties = Some(1))
     }
 }
 
