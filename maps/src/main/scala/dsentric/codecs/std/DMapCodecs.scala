@@ -24,7 +24,7 @@ trait DMapCodecs {
         ObjectDefinition(additionalProperties = Right(V.typeDefinition), propertyNames = Some(K.typeDefinition))
     }
 
-  private def oneCodec:DCodec[1] = new DValueCodec[1] {
+  implicit def oneCodec: DCodec[1] = new DValueCodec[1] {
     def apply(t: 1): RawValue = 1L
 
     def unapply(a: Raw): Option[1] =
