@@ -1,9 +1,8 @@
 package dsentric.codecs.std
 
 import cats.data.NonEmptySet
-import dsentric.{Raw, RawValue}
-import dsentric.codecs.{DCodec, DMapCodec, DStringCodec, DValueCodec}
-import dsentric.schema.{NumberDefinition, ObjectDefinition, TypeDefinition}
+import dsentric.codecs.{DCodec, DMapCodec, DStringCodec}
+import dsentric.schema.{ObjectDefinition, TypeDefinition}
 import scala.collection.immutable.SortedSet
 
 trait DMapCodecs {
