@@ -1,6 +1,7 @@
 package dsentric.operators
 
 import dsentric._
+import dsentric.codecs.DKeyContractCollectionCodec
 import dsentric.contracts.Open
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
@@ -123,6 +124,7 @@ class ContractSanitizationSpec extends AnyFunSpec with Matchers with EitherValue
         WithContract.$sanitize(obj) shouldBe result
       }
     }
+
     describe("Collection sanitization") {
       describe("Empty object") {
         object EmptyContract extends Contract
@@ -285,6 +287,62 @@ class ContractSanitizationSpec extends AnyFunSpec with Matchers with EitherValue
           ProductSanitize.$sanitize(objR) shouldBe resultR
           ProductSanitize.$sanitize(objL) shouldBe objL
         }
+      }
+    }
+
+    describe("Key Contract sanitization") {
+      case class KeyedObject(key: String, value: Map[String, Any]) extends DObjectOps[KeyedObject] with DObject {
+        override protected def wrap(value: RawObject): KeyedObject = this.copy(value = value)
+      }
+      case class Store(v: Vector[KeyedObject])
+      it("Should sanitize nested contract") {
+        case class KeyedObject(key: String, value: Map[String, Any]) extends DObjectOps[KeyedObject] with DObject {
+          override protected def wrap(value: RawObject): KeyedObject = this.copy(value = value)
+        }
+        case class Store(v: Vector[KeyedObject])
+        object KeyContract extends ContractFor[KeyedObject] {
+          val a = \[String]
+          val b = \[String](mask("****"))
+        }
+        implicit val D = new DKeyContractCollectionCodec[Store, KeyedObject](
+          KeyContract,
+          (key, value) => KeyedObject(key, value),
+          p => p.key -> p.value,
+          v => Some(Store(v)),
+          v => v.v
+        )
+        object KeyedSanitize extends Contract {
+          val prop = \[Int]
+          val keyedProp = \[Store]
+        }
+        val content = DObject("prop" := 1, "keyedProp" ::= ("key1" ::= ("a" := "v1", "b" := "v2"), "key2" ::= ("a" := "v3", "b" := "v4")))
+
+        KeyedSanitize.$sanitize(content) shouldBe DObject(
+          "prop" := 1, "keyedProp" ::= ("key1" ::= ("a" := "v1", "b" := "****"), "key2" ::= ("a" := "v3", "b" := "****"))
+        )
+      }
+      it("Should ignore no sanitized nested contract") {
+
+        object KeyContract extends ContractFor[KeyedObject] {
+          val a = \[String]
+          val b = \[String]
+        }
+        implicit val D = new DKeyContractCollectionCodec[Store, KeyedObject](
+          KeyContract,
+          (key, value) => KeyedObject(key, value),
+          p => p.key -> p.value,
+          v => Some(Store(v)),
+          v => v.v
+        )
+        object KeyedSanitize extends Contract {
+          val prop = \[Int]
+          val keyedProp = \[Store]
+        }
+        val content = DObject("prop" := 1, "keyedProp" ::= ("key1" ::= ("a" := "v1", "b" := "v2"), "key2" ::= ("a" := "v3", "b" := "v4")))
+
+        KeyedSanitize.$sanitize(content) shouldBe DObject(
+          "prop" := 1, "keyedProp" ::= ("key1" ::= ("a" := "v1", "b" := "v2"), "key2" ::= ("a" := "v3", "b" := "v4"))
+        )
       }
     }
   }

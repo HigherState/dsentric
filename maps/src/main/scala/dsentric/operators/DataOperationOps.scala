@@ -129,11 +129,14 @@ trait DataOperationOps {
           objectTransform(d.contract, nestedObject)
         case (nestedObject: RawObject @unchecked, d: DKeyContractCollectionCodec[T, _])             =>
           nestedObject.keys.foldLeft(Option.empty[RawObject]) { (maybeChangedObject, mapKey) =>
-            maybeChangedObject
-              .getOrElse(nestedObject)
-              .get(mapKey)
-              .collect { case rawObject: RawObject @unchecked => objectTransform(d.contract, rawObject) }
-              .map(newObject => rawObject + (mapKey -> newObject))
+            val workingObject =
+              maybeChangedObject.getOrElse(nestedObject)
+            workingObject.get(mapKey)
+              .flatMap {
+                case rawObject: RawObject @unchecked => objectTransform(d.contract, rawObject)
+                case _ => None
+              }.map(newObject => workingObject + (mapKey -> newObject))
+              .orElse(maybeChangedObject)
           }
         case (nestedObject: RawObject @unchecked, d: DTypeContractCodec[_])                         =>
           d.contracts.lift(d.cstr(nestedObject)).flatMap { typeContract =>

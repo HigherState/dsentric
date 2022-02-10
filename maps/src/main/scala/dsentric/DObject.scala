@@ -385,7 +385,7 @@ final case class DSome[T](t: T) extends DNullable[T] {
     f(t)
 
   def getOrElse[S >: T](default: => S): S =
-    default
+    t
 
   def iterator: Iterator[T] =
     Iterator(t)
