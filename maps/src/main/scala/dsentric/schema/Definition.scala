@@ -61,13 +61,15 @@ object Definition {
       else
         (Vector.empty, newInfos, newDefs)
 
-    val objDef =
+    val (additionalProperties, _, _, _) = additionalPropertiesDefinition(contract, infos, defs, forceNested)
+    val objDef               =
       ObjectDefinition(
         contractInfo.schemaAnnotations.typeName.orElse(contractInfo.displayName),
         contractInfo.schemaAnnotations.title,
         contractInfo.schemaAnnotations.description,
         referencedDefinitions,
-        propertyDefs
+        propertyDefs,
+        additionalProperties
       )
     (objDef, newInfos2, newDefs2)
   }
@@ -187,16 +189,19 @@ object Definition {
 
   private def getDefault[D <: DObject](p: Property[D, _]): Option[Any] =
     p match {
-      case d: DefaultProperty[_, Any] @unchecked =>
+      case d: DefaultProperty[_, Any] @unchecked      =>
         Some(d._codec(d._default))
-      case _                                     => None
+      case d: MaybeDefaultProperty[_, Any] @unchecked =>
+        Some(d._codec(d._default))
+      case _                                          => None
     }
 
   private def skipProperty[D <: DObject](p: Property[D, _]): Boolean =
     p._dataOperators.contains(Internal)
 
   private def isRequired[D <: DObject](p: Property[D, _]): Boolean =
-    p.isInstanceOf[ExpectedProperty[D, _]] || p.isInstanceOf[ExpectedObjectProperty[D]] || p.isInstanceOf[MaybeExpectedProperty[D, _]]
+    p.isInstanceOf[ExpectedProperty[D, _]] || p.isInstanceOf[ExpectedObjectProperty[D]] || p
+      .isInstanceOf[MaybeExpectedProperty[D, _]]
 
   private def inheritFold[D <: DObject](
     fields: Map[String, Property[D, _]],
