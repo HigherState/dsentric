@@ -168,7 +168,7 @@ trait DAspectSyntax {
   type AspectPropertyFunction[D <: DObject, D2 <: DObject] =
     PartialFunction[Property[D, _], Option[AspectProperty[D2, _]]]
 
-  implicit def toPropertyAspectOps[D <: DObject](p: Property[D, _]): PropertyAspectOps[D, _] =
+  implicit def toPropertyAspectOps[D <: DObject](p: Property[D, _]): PropertyAspectOps[D] =
     new PropertyAspectOps(p)
 
   implicit def toObjectPropertyAspectOps[D <: DObject](p: ObjectProperty[D]): ObjectPropertyAspectOps[D] =
@@ -212,7 +212,7 @@ trait DAspectSyntax {
 
 object DAspectSyntax extends DAspectSyntax
 
-final class PropertyAspectOps[D <: DObject, _](val p: Property[D, _]) extends AnyVal {
+final class PropertyAspectOps[D <: DObject](val p: Property[D, _]) extends AnyVal {
   def $asExpected[D2 <: D](): AspectProperty[D2, _] =
     p match {
       case o: ObjectProperty[D]   =>

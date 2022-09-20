@@ -104,7 +104,7 @@ trait DCollectionCodec[S, T] extends DCodec[S] {
 
   def apply(t: S): RawArray =
     valueCodec match {
-      case _: DirectCodec[T] =>
+      case _: DirectCodec[T] @unchecked =>
         extract(t)
       case _                 =>
         extract(t).map(valueCodec.apply)

@@ -4,7 +4,7 @@ import scala.util.matching.Regex
 
 sealed trait TypeDefinition {
   def name:String
-  def enum:List[Any]
+  def `enum`:List[Any]
 }
 
 
@@ -12,7 +12,7 @@ sealed trait SingleTypeDefinition extends TypeDefinition {
   def isEmpty:Boolean
 }
 
-case class IntegerDefinition(enum:List[Any] = Nil,
+case class IntegerDefinition(`enum`:List[Any] = Nil,
                             minimum:Option[Long] = None,
                             exclusiveMinimum:Option[Long] = None,
                             maximum:Option[Long] = None,
@@ -28,7 +28,7 @@ object IntegerDefinition {
   val empty:IntegerDefinition = IntegerDefinition()
 }
 
-case class NumberDefinition(enum:List[Any] = Nil,
+case class NumberDefinition(`enum`:List[Any] = Nil,
                             minimum:Option[Double] = None,
                             exclusiveMinimum:Option[Double] = None,
                             maximum:Option[Double] = None,
@@ -44,7 +44,7 @@ object NumberDefinition {
   val empty:NumberDefinition = NumberDefinition()
 }
 
-case class StringDefinition(enum:List[Any] = Nil,
+case class StringDefinition(`enum`:List[Any] = Nil,
                             format:Option[String] = None,  //should be an enum
                             pattern:Option[String] = None,
                             minLength:Option[Int] = None,
@@ -64,7 +64,7 @@ object StringDefinition {
 case object BooleanDefinition extends SingleTypeDefinition {
   def name:String = "boolean"
 
-  def enum: List[Any] = Nil
+  def `enum`: List[Any] = Nil
 
   def isEmpty: Boolean = true
 }
@@ -77,7 +77,7 @@ case class ArrayDefinition(
                           ) extends SingleTypeDefinition {
   def name:String = "array"
 
-  def enum: List[Any] = Nil
+  def `enum`: List[Any] = Nil
 
   def isEmpty: Boolean = this == ArrayDefinition.empty
 }
@@ -89,13 +89,13 @@ object ArrayDefinition {
 case object NullDefinition extends SingleTypeDefinition {
   def name:String = "null"
 
-  def enum: List[Any] = Nil
+  def `enum`: List[Any] = Nil
 
   def isEmpty: Boolean = true
 }
 
 case class ByRefDefinition(name:String) extends SingleTypeDefinition {
-  def enum: List[Any] = Nil
+  def `enum`: List[Any] = Nil
 
   def isEmpty: Boolean = false
 }
@@ -121,7 +121,7 @@ case class ObjectDefinition(
                            ) extends SingleTypeDefinition {
 
   def name:String = "object"
-  def enum: List[Any] = Nil
+  def `enum`: List[Any] = Nil
 
   def isEmpty: Boolean = this == ObjectDefinition.empty
 }
@@ -132,7 +132,7 @@ object ObjectDefinition {
 
 case class MultipleTypeDefinition(typeDefinitions:Vector[SingleTypeDefinition]) extends TypeDefinition {
   def name:String = typeDefinitions.map(_.name).mkString(",")
-  def enum: List[Any] = Nil
+  def `enum`: List[Any] = Nil
 
   def remap(f:PartialFunction[TypeDefinition,TypeDefinition]):MultipleTypeDefinition = {
     val singleTypeDefinitions =
