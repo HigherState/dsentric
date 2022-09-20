@@ -167,7 +167,7 @@ private[contracts] trait ReduceOps {
             case None                             =>
               Failed(IncorrectTypeFailure(contract, path, codec, raw))
             case Some(_)                          =>
-              Found(raw)
+              Found(r)
           }
         }
       case r                               =>
@@ -177,7 +177,7 @@ private[contracts] trait ReduceOps {
           case None                             =>
             Failed(IncorrectTypeFailure(contract, path, codec, raw))
           case Some(_)                          =>
-            Found(raw)
+            Found(r)
         }
     }
 
