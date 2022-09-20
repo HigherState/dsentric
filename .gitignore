@@ -39,4 +39,4 @@ metals.sbt
 .bloop/
 project/.bloop
 project/project/
-/.bsp
+/.bsp/
