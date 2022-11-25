@@ -34,7 +34,7 @@ final case class IncorrectTypeFailure[D <: DObject, T](
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): IncorrectTypeFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
 
-  def message = s"${TypeDescriber(codec.typeDefinition)} was expected, $foundRaw was found."
+  def message = s"${TypeDescriber.apply(codec.typeDefinition)} was expected, $foundRaw was found."
 }
 
 final case class IncorrectKeyTypeFailure[D <: DObject, T](
@@ -47,7 +47,7 @@ final case class IncorrectKeyTypeFailure[D <: DObject, T](
     copy(contract = rootContract, path = rootPath ++ path)
 
   def message =
-    s"${TypeDescriber(codec.typeDefinition)} was expected for additional properties key, $foundRaw was found."
+    s"${TypeDescriber.apply(codec.typeDefinition)} was expected for additional properties key, $foundRaw was found."
 }
 
 final case class ClosedContractFailure[D <: DObject](contract: ContractLike[D], path: Path, field: String)
@@ -76,7 +76,7 @@ final case class ContractTypeResolutionFailure[D <: DObject](contract: ContractL
 
 final case class MissingElementFailure[D <: DObject, T](contract: ContractLike[D], codec: DCodec[T], path: Path)
     extends Failure {
-  def message: String = s"${TypeDescriber(codec.typeDefinition)} was expected, nothing was found."
+  def message: String = s"${TypeDescriber.apply(codec.typeDefinition)} was expected, nothing was found."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): MissingElementFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
@@ -97,7 +97,7 @@ final case class UnexpectedValueFailure[D <: DObject, T](
   path: Path
 ) extends Failure {
   def message =
-    s"${TypeDescriber(codec.typeDefinition)} expected value $expectedValue value, but $unexpectedValue was found."
+    s"${TypeDescriber.apply(codec.typeDefinition)} expected value $expectedValue value, but $unexpectedValue was found."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): UnexpectedValueFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
@@ -109,7 +109,7 @@ final case class CoproductTypeValueFailure[D <: DObject, T, H <: HList](
   coproductFailures: List[Failure],
   foundRaw: Raw
 ) extends Failure {
-  def message = s"${TypeDescriber(codec.typeDefinition)} was expected, $foundRaw was found."
+  def message = s"${TypeDescriber.apply(codec.typeDefinition)} was expected, $foundRaw was found."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): CoproductTypeValueFailure[G, T, H] =
     copy(contract = rootContract, path = rootPath ++ path)
