@@ -3,7 +3,7 @@ import sbt.Keys._
 lazy val buildSettings = Seq(
   organization := "io.higherState",
   scalaVersion := "2.13.8",
-  version := "1.0.8",
+  version := "1.0.9",
   scalacOptions ++= Seq(
     "-deprecation",
     "-feature",
@@ -30,7 +30,7 @@ lazy val buildSettings = Seq(
 
 lazy val reflect      = "org.scala-lang"     % "scala-reflect" % "2.13.8"
 lazy val shapeless    = "com.chuusai"       %% "shapeless"     % "2.3.3"
-lazy val scalatest    = "org.scalatest"     %% "scalatest"     % "3.2.7" % "test"
+lazy val scalatest    = "org.scalatest"     %% "scalatest"     % "3.2.7"  % "test"
 lazy val cats         = "org.typelevel"     %% "cats-core"     % "2.8.0"
 lazy val commons_math = "org.apache.commons" % "commons-math3" % "3.6.1"
 lazy val silencer     = "com.github.ghik"    % "silencer-lib"  % "1.7.11" % Provided cross CrossVersion.full
