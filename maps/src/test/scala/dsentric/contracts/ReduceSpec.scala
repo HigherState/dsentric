@@ -706,14 +706,34 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       import dsentric.operators.StandardOperators._
 
       object Constrained extends Contract {
-        val expected = \[String](immutable)
-        val maybe    = \?[Int](internal)
-        val default  = \![String]("value", mask("******"))
-
+        val expected       = \[String](immutable)
+        val maybe          = \?[Int](internal)
+        val default        = \![String]("value", mask("******"))
+        val reserve        = \?[Boolean](reserved)
         val expectedObject = new \\?(reserved) {
           val property1 = \[Int]
           val property2 = \?[String]
         }
+      }
+      object Temp        extends Contract {
+        val bob = new \\?(reserved) {
+          val property1 = \[Int]
+        }
+      }
+      it("Should fail reserved on nested object, even if wrong type") {
+        val base = DObject("bob" := "next")
+        val b    = Temp.$reduce(base).left.value
+        b should contain only (ReservedFailure(Temp, Path("bob")))
+      }
+      it("Should return constraint failure even if type is wrong") {
+        val base = DObject("expected" := "value", "default" := "value", "reserve" := "blah")
+        val b    = Constrained.$reduce(base).left.value
+        b should contain only (ReservedFailure(Constrained, Path("reserve")))
+      }
+      it("Should return constraint failure even if type is wrong and reserved is object") {
+        val base = DObject("expected" := "value", "default" := "value", "expectedObject" := true)
+        val b    = Constrained.$reduce(base).left.value
+        b should contain only (ReservedFailure(Constrained, Path("expectedObject")))
       }
 
       it("Should return object if constraint not trigger") {

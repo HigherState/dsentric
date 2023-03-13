@@ -412,7 +412,8 @@ private[dsentric] trait MaybeObjectPropertyLens[D <: DObject]
       case Some(_) if dropBadTypes                                    =>
         NotFound
       case Some(r)                                                    =>
-        Failed(IncorrectTypeFailure(this, r))
+        val f = Failed(IncorrectTypeFailure(this, r))
+        __applyConstraints(f, isIgnore2BadTypes(dropBadTypes))
     }) match {
       case NotFound                  =>
         ValidResult.success(obj - _key)

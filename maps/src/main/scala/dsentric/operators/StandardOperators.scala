@@ -9,7 +9,6 @@ import dsentric.{
   DeltaFailed,
   DeltaReduce,
   DeltaReduced,
-  Failed,
   Found,
   NotFound,
   Path,
@@ -27,9 +26,9 @@ trait StandardOperators {
 
       def verify[D <: DObject](contract: ContractFor[D], path: Path, value: Available[Raw]): ValidationFailures =
         value match {
-          case NotFound | _: Failed =>
+          case NotFound =>
             ValidationFailures.empty
-          case _                    =>
+          case _        =>
             ValidationFailures(ReservedFailure(contract, path))
         }
 
