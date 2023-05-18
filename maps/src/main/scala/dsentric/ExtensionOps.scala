@@ -10,6 +10,8 @@ final class StringOps(val self: String) extends AnyVal {
     self :: part :: PathEnd
   def \(part: Int): Path                                 =
     self :: part :: PathEnd
+  def \(path: Path): Path                                =
+    self :: path
   def :=[T](t: T)(implicit D: DCodec[T]): (String, Data) =
     self -> Data(t)
 
@@ -24,6 +26,9 @@ final class IntOps(val self: Int) extends AnyVal {
     self :: part :: PathEnd
   def \(part: Int): Path    =
     self :: part :: PathEnd
+
+  def \(path: Path): Path =
+    self :: path
 }
 
 final class PathOps(val self: Path) extends AnyVal {

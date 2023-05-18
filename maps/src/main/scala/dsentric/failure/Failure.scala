@@ -3,7 +3,7 @@ package dsentric.failure
 import dsentric.codecs.{DCodec, DCoproductCodec}
 import dsentric.contracts.{ContractLike, PropertyLens}
 import dsentric.schema._
-import dsentric.{DObject, Data, Path, Raw, RawObject}
+import dsentric.{DObject, Data, Path, Raw, RawObject, Renderer}
 import shapeless.HList
 
 import scala.util.matching.Regex
@@ -13,7 +13,13 @@ sealed trait Failure {
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): Failure
 
-  def message: String
+  def message(implicit renderer: Renderer): String
+
+  protected def convertJson(raw:Raw)(implicit renderer: Renderer) = {
+    val a = renderer.print(raw)
+    if (a.length > 50) "'" + a.take(50) ++ "...'"
+    else "'" + a + "'"
+  }
 }
 
 sealed trait TypeFailure extends Failure
@@ -22,7 +28,7 @@ final case class ExpectedFailure[D <: DObject](contract: ContractLike[D], path: 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): ExpectedFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
 
-  def message = "Expected value not found."
+  def message(implicit renderer: Renderer) = "Expected value not found."
 }
 
 final case class IncorrectTypeFailure[D <: DObject, T](
@@ -34,7 +40,7 @@ final case class IncorrectTypeFailure[D <: DObject, T](
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): IncorrectTypeFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
 
-  def message = s"${TypeDescriber.apply(codec.typeDefinition)} was expected, $foundRaw was found."
+  def message(implicit renderer: Renderer) = s"${TypeDescriber.apply(codec.typeDefinition)} was expected, ${convertJson(foundRaw)} was found."
 }
 
 final case class IncorrectKeyTypeFailure[D <: DObject, T](
@@ -46,13 +52,13 @@ final case class IncorrectKeyTypeFailure[D <: DObject, T](
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): IncorrectKeyTypeFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
 
-  def message =
-    s"${TypeDescriber.apply(codec.typeDefinition)} was expected for additional properties key, $foundRaw was found."
+  def message(implicit renderer: Renderer) =
+    s"${TypeDescriber.apply(codec.typeDefinition)} was expected for additional properties key, ${convertJson(foundRaw)} was found."
 }
 
 final case class ClosedContractFailure[D <: DObject](contract: ContractLike[D], path: Path, field: String)
     extends Failure {
-  def message: String = s"Contract is closed and cannot have value for field '$field'."
+  def message(implicit renderer: Renderer): String = s"Contract is closed and cannot have value for field '$field'."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): ClosedContractFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
@@ -60,7 +66,7 @@ final case class ClosedContractFailure[D <: DObject](contract: ContractLike[D], 
 
 final case class ContractFieldFailure[D <: DObject](contract: ContractLike[D], path: Path, field: String)
     extends Failure {
-  def message: String = s"Contract field '$field' is already defined and cannot be used for additional property."
+  def message(implicit renderer: Renderer): String = s"Contract field '$field' is already defined and cannot be used for additional property."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): Failure =
     copy(contract = rootContract, path = rootPath ++ path)
@@ -68,7 +74,7 @@ final case class ContractFieldFailure[D <: DObject](contract: ContractLike[D], p
 
 final case class ContractTypeResolutionFailure[D <: DObject](contract: ContractLike[D], path: Path, foundRaw: RawObject)
     extends Failure {
-  def message: String = s"Contract type cannot be resolved with given object."
+  def message(implicit renderer: Renderer): String = s"Contract type cannot be resolved with given object."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): Failure =
     copy(contract = rootContract, path = rootPath ++ path)
@@ -76,14 +82,14 @@ final case class ContractTypeResolutionFailure[D <: DObject](contract: ContractL
 
 final case class MissingElementFailure[D <: DObject, T](contract: ContractLike[D], codec: DCodec[T], path: Path)
     extends Failure {
-  def message: String = s"${TypeDescriber.apply(codec.typeDefinition)} was expected, nothing was found."
+  def message(implicit renderer: Renderer): String = s"${TypeDescriber.apply(codec.typeDefinition)} was expected, nothing was found."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): MissingElementFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
 }
 
 final case class AdditionalElementFailure[D <: DObject](contract: ContractLike[D], path: Path) extends Failure {
-  def message: String = s"Array contained unexpected element."
+  def message(implicit renderer: Renderer): String = s"Array contained unexpected element."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): AdditionalElementFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
@@ -96,8 +102,8 @@ final case class UnexpectedValueFailure[D <: DObject, T](
   unexpectedValue: Raw,
   path: Path
 ) extends Failure {
-  def message =
-    s"${TypeDescriber.apply(codec.typeDefinition)} expected value $expectedValue value, but $unexpectedValue was found."
+  def message(implicit renderer: Renderer) =
+    s"${TypeDescriber.apply(codec.typeDefinition)} expected value ${convertJson(expectedValue)} value, but ${convertJson(unexpectedValue)} was found."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): UnexpectedValueFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
@@ -109,7 +115,7 @@ final case class CoproductTypeValueFailure[D <: DObject, T, H <: HList](
   coproductFailures: List[Failure],
   foundRaw: Raw
 ) extends Failure {
-  def message = s"${TypeDescriber.apply(codec.typeDefinition)} was expected, $foundRaw was found."
+  def message(implicit renderer: Renderer) = s"${TypeDescriber.apply(codec.typeDefinition)} was expected, ${convertJson(foundRaw)} was found."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): CoproductTypeValueFailure[G, T, H] =
     copy(contract = rootContract, path = rootPath ++ path)
@@ -118,24 +124,26 @@ final case class CoproductTypeValueFailure[D <: DObject, T, H <: HList](
 
 final case class DeltaNotSupportedFailure[D <: DObject, T](contract: ContractLike[D], codec: DCodec[T], path: Path)
     extends Failure {
-  def message = s"Delta operation not supported."
+  def message(implicit renderer: Renderer) = s"Delta operation not supported."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): DeltaNotSupportedFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
 
 }
 
-final case class CustomPathFailure[D <: DObject, T](contract: ContractLike[D], path: Path, message: String)
+final case class CustomPathFailure[D <: DObject, T](contract: ContractLike[D], path: Path, msg: String)
     extends Failure {
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): Failure =
     copy(contract = rootContract, path = rootPath ++ path)
+
+  def message(implicit renderer: Renderer): String = msg
 }
 
 final case class MatchFailure[D <: DObject](contract: ContractLike[D], path: Path, value: Data) extends Failure {
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): Failure =
     copy(contract = rootContract, path = rootPath ++ path)
 
-  def message: String = "Unexpected match failure."
+  def message(implicit renderer: Renderer): String = "Unexpected match failure."
 }
 
 object EmptyPropertyFailure extends Failure {
@@ -143,7 +151,7 @@ object EmptyPropertyFailure extends Failure {
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): Failure = this
 
-  def message: String = "Unexpected operation performed on an empty property."
+  def message(implicit renderer: Renderer): String = "Unexpected operation performed on an empty property."
 }
 
 object ExpectedFailure {
@@ -178,28 +186,28 @@ final case class RequiredFailure[D <: DObject](contract: ContractLike[D], path: 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): RequiredFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
 
-  def message: String = "Value is required and cannot be dropped."
+  def message(implicit renderer: Renderer): String = "Value is required and cannot be dropped."
 }
 
 final case class ReservedFailure[D <: DObject](contract: ContractLike[D], path: Path) extends ConstraintFailure {
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): ReservedFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
 
-  def message: String = "Value is reserved and cannot be provided."
+  def message(implicit renderer: Renderer): String = "Value is reserved and cannot be provided."
 }
 
 final case class ImmutableFailure[D <: DObject](contract: ContractLike[D], path: Path) extends ConstraintFailure {
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): ImmutableFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
 
-  def message: String = "Value is immutable and cannot be changed."
+  def message(implicit renderer: Renderer): String = "Value is immutable and cannot be changed."
 }
 
 final case class WriteOnceFailure[D <: DObject](contract: ContractLike[D], path: Path) extends ConstraintFailure {
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): WriteOnceFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
 
-  def message: String = "Once provided, value cannot be changed."
+  def message(implicit renderer: Renderer): String = "Once provided, value cannot be changed."
 }
 
 final case class NumericalFailure[D <: DObject](
@@ -209,7 +217,7 @@ final case class NumericalFailure[D <: DObject](
   compare: Number,
   operation: String
 ) extends ConstraintFailure {
-  def message: String = s"Value $found is not $operation $compare."
+  def message(implicit renderer: Renderer): String = s"Value $found is not $operation $compare."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): NumericalFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
@@ -221,7 +229,7 @@ final case class MinimumLengthFailure[D <: DObject](
   minLength: Int,
   foundLength: Int
 ) extends ConstraintFailure {
-  def message: String = s"Value with length of $foundLength must have a minimum length of $minLength."
+  def message(implicit renderer: Renderer): String = s"Value with length of $foundLength must have a minimum length of $minLength."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): MinimumLengthFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
@@ -233,7 +241,7 @@ final case class MaximumLengthFailure[D <: DObject](
   maxLength: Int,
   foundLength: Int
 ) extends ConstraintFailure {
-  def message: String = s"Value with length of $foundLength must have a maximum length of $maxLength."
+  def message(implicit renderer: Renderer): String = s"Value with length of $foundLength must have a maximum length of $maxLength."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): MaximumLengthFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
@@ -241,7 +249,7 @@ final case class MaximumLengthFailure[D <: DObject](
 
 final case class InvalidValueFailure[D <: DObject, T](contract: ContractLike[D], path: Path, value: T)
     extends ConstraintFailure {
-  def message: String = s"Value $value is not a permitted value."
+  def message(implicit renderer: Renderer): String = s"Value $value is not a permitted value."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): InvalidValueFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
@@ -249,7 +257,7 @@ final case class InvalidValueFailure[D <: DObject, T](contract: ContractLike[D],
 
 final case class NonEmptyOrWhitespaceFailure[D <: DObject](contract: ContractLike[D], path: Path)
     extends ConstraintFailure {
-  def message: String = s"String value cannot be empty or whitespace."
+  def message(implicit renderer: Renderer): String = s"String value cannot be empty or whitespace."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): NonEmptyOrWhitespaceFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
@@ -259,11 +267,13 @@ final case class CustomConstraintFailure[D <: DObject, T](
   contract: ContractLike[D],
   path: Path,
   value: T,
-  message: String
+  msg: String
 ) extends ConstraintFailure {
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): CustomConstraintFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
+
+  def message(implicit renderer: Renderer): String = msg
 }
 
 final case class RegexFailure[D <: DObject](
@@ -271,16 +281,18 @@ final case class RegexFailure[D <: DObject](
   path: Path,
   regex: Regex,
   value: String,
-  message: String
+  msg: String
 ) extends ConstraintFailure {
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): RegexFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)
+
+  def message(implicit renderer: Renderer): String = msg
 }
 
 final case class KeyRemovalFailure[D <: DObject, T](contract: ContractLike[D], path: Path, keyString: String)
     extends ConstraintFailure {
-  def message: String = s"Key '$keyString' cannot be removed."
+  def message(implicit renderer: Renderer): String = s"Key '$keyString' cannot be removed."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): KeyRemovalFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
@@ -288,7 +300,7 @@ final case class KeyRemovalFailure[D <: DObject, T](contract: ContractLike[D], p
 
 final case class MaskFailure[D <: DObject, T](contract: ContractLike[D], path: Path, mask: T)
     extends ConstraintFailure {
-  def message: String = s"Value cannot be the same as the mask value '$mask'."
+  def message(implicit renderer: Renderer): String = s"Value cannot be the same as the mask value '$mask'."
 
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): MaskFailure[G, T] =
     copy(contract = rootContract, path = rootPath ++ path)
