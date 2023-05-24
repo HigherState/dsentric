@@ -17,6 +17,18 @@ sealed trait ValuePropertyLens[D <: DObject, T] extends PropertyLens[D, T] {
       ValueSetter(_path, _codec(v))
     }
 
+  /**
+   * Sets value for the Property if provided Property doesn't already have a valid value.
+   * Will create object path to Property if objects dont exist.
+   * Is not concerned with correct type of value.
+   *
+   * @param value
+   * @param dropBadTypes
+   * @return
+   */
+  def $setIfInvalid(value: T): PathSetter[D] =
+    IfInvalidSetter(_path, _codec(value), _codec)
+
   final def $validSet(value: ValidResult[T]): ValidPathSetter[D] =
     ValidValueSetter(_path, value.map(_codec.apply))
 
@@ -178,6 +190,9 @@ sealed trait ExpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T] {
       case None =>
         ValidResult.none
     }
+
+  final override def $setIfInvalid(value: T): PathSetter[D] =
+    ValueIfEmptyOrInvalidSetter(_path, _codec(value), _codec)
 }
 
 sealed trait UnexpectedLensLike[D <: DObject, T] extends ValuePropertyLens[D, T] {
@@ -555,19 +570,34 @@ private[dsentric] trait MaybeLens[D <: DObject, T] extends UnexpectedLensLike[D,
     TraversedModifyOrDropValidSetter[D, T](__get(_, dropBadTypes, false), f, _codec, _path)
 
   /**
-   * Sets value for the Property if provided
+   * Sets value for the Property if Property doesn't already have a value
    * Will create object path to Property if objects dont exist.
    * Is not concerned with correct type of value.
    * @param value
-   * @param dropBadTypes
    * @return
    */
   final def $setIfEmpty(value: T): PathSetter[D] =
     ValueIfEmptySetter(_path, _codec(value))
 
+  /**
+   * Sets value for the Property if Property doesn't already have a valid value.
+   * Will create object path to Property if objects dont exist.
+   * Is not concerned with correct type of value.
+   *
+   * @param value
+   * @return
+   */
+  final def $setIfEmptyOrInvalid(value: T): PathSetter[D] =
+    ValueIfEmptyOrInvalidSetter(_path, _codec(value), _codec)
+
   final def $maybeSetIfEmpty(value: Option[T]): PathSetter[D] =
     value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
       ValueIfEmptySetter(_path, _codec(v))
+    }
+
+  final def $maybeSetIfEmptyOrInvalid(value: Option[T]): PathSetter[D] =
+    value.fold[PathSetter[D]](IdentitySetter[D]()) { v =>
+      ValueIfEmptyOrInvalidSetter(_path, _codec(v), _codec)
     }
 
   /**

@@ -2,20 +2,9 @@ package dsentric.operators
 
 import com.github.ghik.silencer.silent
 import dsentric.codecs.DCodec
-import dsentric.{
-  Available,
-  DObject,
-  DeltaEmpty,
-  DeltaFailed,
-  DeltaReduce,
-  DeltaReduced,
-  Found,
-  NotFound,
-  Path,
-  Raw
-}
+import dsentric.{Available, DObject, DeltaEmpty, DeltaFailed, DeltaReduce, DeltaReduced, DeltaRemove, DeltaRemoving, Found, NotFound, Path, Raw}
 import dsentric.contracts.ContractFor
-import dsentric.failure.{ImmutableFailure, MaskFailure, ReservedFailure, ValidationFailures}
+import dsentric.failure.{DeprecatedFailure, ImmutableFailure, MaskFailure, ReservedFailure, ValidationFailures}
 
 trait StandardOperators {
   //Shouldnt be used in an And or Or validator
@@ -87,6 +76,42 @@ trait StandardOperators {
         }
     }
 
+  val deprecated: Constraint[Nothing] with Optional = deprecated("")
+
+  def deprecated(remediation: String): Constraint[Nothing] with Optional =
+    new Constraint[Nothing] with Optional {
+
+      def verify[D <: DObject](contract: ContractFor[D], path: Path, value: Available[Raw]): ValidationFailures =
+        value match {
+          case NotFound =>
+            ValidationFailures.empty
+          case Found(_) =>
+            ValidationFailures(
+              DeprecatedFailure(contract, path, remediation)
+            )
+          case _ =>
+            ValidationFailures(
+              DeprecatedFailure(contract, path, remediation)
+            )
+        }
+
+      def verify[D <: DObject](
+                                contract: ContractFor[D],
+                                path: Path,
+                                current: Raw,
+                                delta: DeltaReduce[Raw]
+                              ): ValidationFailures =
+        delta match {
+          case DeltaEmpty =>
+            ValidationFailures.empty
+          case DeltaReduced(_) =>
+            ValidationFailures(DeprecatedFailure(contract, path, remediation))
+          case DeltaFailed(_, _) =>
+            ValidationFailures(DeprecatedFailure(contract, path, remediation))
+          case DeltaRemove | DeltaRemoving(_) =>
+            ValidationFailures.empty
+        }
+    }
 //  val increment: Constraint[Numeric] =
 //    new Constraint[Numeric] {
 //      def apply[S >: Numeric, D <: DObject](contract:ContractFor[D], path:Path, value: S, currentState: => Option[S]): ValidationFailures =

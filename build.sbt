@@ -3,7 +3,7 @@ import sbt.Keys._
 lazy val buildSettings = Seq(
   organization := "io.higherState",
   scalaVersion := "2.13.8",
-  version := "1.0.11",
+  version := "1.0.12",
   scalacOptions ++= Seq(
     "-deprecation",
     "-feature",
@@ -27,6 +27,23 @@ lazy val buildSettings = Seq(
     "Sonatype snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
   )
 )
+// sbt-release plugin settings
+
+releaseUseGlobalVersion := false
+
+// Replace 'publish' step with 'publishLocal' step
+releaseProcess -= ReleaseTransformations.publishArtifacts
+
+// end sbt-release plugin settings
+
+// enable publishing the jar produced by `test:package`
+Test / packageBin / publishArtifact := true
+
+// enable publishing the test API jar
+Test / packageDoc / publishArtifact := true
+
+// enable publishing the test sources jar
+Test / packageSrc / publishArtifact := true
 
 lazy val reflect      = "org.scala-lang"     % "scala-reflect" % "2.13.8"
 lazy val shapeless    = "com.chuusai"       %% "shapeless"     % "2.3.3"

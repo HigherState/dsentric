@@ -644,6 +644,18 @@ class ObjectPropertyLensSpec extends AnyFunSpec with Matchers with EitherValues 
         }
       }
     }
+    describe("$setIfInvalid") {
+      it("Should set if value incorrect") {
+        val base  = DObject("withExpected" ::= ("expected" := 1234))
+        val value = DObject("withExpected" ::= ("expected" := "value"))
+        ExpectedStructure.withExpected.expected.$setIfInvalid("value")(base) shouldBe value
+      }
+      it("Should set if value missing") {
+        val base  = DObject("withExpected" ::= ("default" := 1234))
+        val value = DObject("withExpected" ::= ("default" := 1234, "expected" := "value"))
+        ExpectedStructure.withExpected.expected.$setIfInvalid("value")(base) shouldBe value
+      }
+    }
     describe("additionalProperties") {
       describe("$get") {
         it("Should return Some value if found for key") {
@@ -1174,6 +1186,29 @@ class ObjectPropertyLensSpec extends AnyFunSpec with Matchers with EitherValues 
             "objects" ::= ("expected" := "value", "add1" ::= ("value" := 123))
           )
         }
+      }
+    }
+    describe("$setIfInvalid") {
+      it("Should set if value incorrect") {
+        val base  = DObject("withExpected" ::= ("maybe" := 1234))
+        val value = DObject("withExpected" ::= ("maybe" := "value"))
+        MaybeStructure.withExpected.maybe.$setIfInvalid("value")(base) shouldBe value
+      }
+      it("Should do nothing if value missing") {
+        val base = DObject("withExpected" ::= ("default" := 1234))
+        MaybeStructure.withExpected.maybe.$setIfInvalid("value")(base) shouldBe base
+      }
+    }
+    describe("$setIfEmptyOrInvalid") {
+      it("Should set if value incorrect") {
+        val base  = DObject("withExpected" ::= ("maybe" := 1234))
+        val value = DObject("withExpected" ::= ("maybe" := "value"))
+        MaybeStructure.withExpected.maybe.$setIfEmptyOrInvalid("value")(base) shouldBe value
+      }
+      it("Should set valud if value missing") {
+        val base  = DObject("withExpected" ::= ("default" := 1234))
+        val value = DObject("withExpected" ::= ("default" := 1234, "maybe" := "value"))
+        MaybeStructure.withExpected.maybe.$setIfEmptyOrInvalid("value")(base) shouldBe value
       }
     }
   }

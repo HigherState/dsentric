@@ -203,6 +203,13 @@ final case class ImmutableFailure[D <: DObject](contract: ContractLike[D], path:
   def message(implicit renderer: Renderer): String = "Value is immutable and cannot be changed."
 }
 
+final case class DeprecatedFailure[D <: DObject](contract: ContractLike[D], path: Path, remediation:String) extends ConstraintFailure {
+  def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): DeprecatedFailure[G] =
+    copy(contract = rootContract, path = rootPath ++ path)
+
+  def message(implicit renderer: Renderer): String = s"Field is deprecated, value should not be provided. $remediation"
+}
+
 final case class WriteOnceFailure[D <: DObject](contract: ContractLike[D], path: Path) extends ConstraintFailure {
   def rebase[G <: DObject](rootContract: ContractLike[G], rootPath: Path): WriteOnceFailure[G] =
     copy(contract = rootContract, path = rootPath ++ path)

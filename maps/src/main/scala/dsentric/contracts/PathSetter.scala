@@ -130,6 +130,25 @@ final private[dsentric] case class ValueSetter[D <: DObject](path: Path, value: 
     PathLensOps.pathToMap(path, value)
 }
 
+final private[dsentric] case class IfInvalidSetter[D <: DObject](path: Path, value: Raw, codec:DCodec[_]) extends PathSetter[D] {
+
+  private[contracts] def rawApply(rawObject: RawObject): RawObject =
+    PathLensOps.traverse(rawObject, path) match {
+      case Some(codec(_)) | None =>
+        rawObject
+      case Some(_) =>
+        PathLensOps.set(rawObject, path, value)
+    }
+
+  private[contracts] def rawDelta(rawObject: RawObject): RawObject =
+    PathLensOps.traverse(rawObject, path) match {
+      case Some(codec(_)) | None =>
+        PathLensOps.pathToMap(path, value)
+      case _ =>
+        RawObject.empty
+    }
+}
+
 final private[dsentric] case class ConcatSetter[D <: DObject](values: Iterator[(String, Raw)]) extends PathSetter[D] {
 
   private[contracts] def rawApply(rawObject: RawObject): RawObject =
@@ -155,6 +174,30 @@ final private[dsentric] case class ValueIfEmptySetter[D <: DObject](path: Path, 
         PathLensOps.pathToMap(path, value)
       case _    =>
         RawObject.empty
+    }
+}
+
+final private[dsentric] case class ValueIfEmptyOrInvalidSetter[D <: DObject](path: Path, value: Raw, codec: DCodec[_])
+    extends PathSetter[D] {
+
+  private[contracts] def rawApply(rawObject: RawObject): RawObject =
+    PathLensOps.traverse(rawObject, path) match {
+      case None     =>
+        PathLensOps.set(rawObject, path, value)
+      case Some(codec(_)) =>
+        rawObject
+      case _        =>
+        PathLensOps.set(rawObject, path, value)
+    }
+
+  private[contracts] def rawDelta(rawObject: RawObject): RawObject =
+    PathLensOps.traverse(rawObject, path) match {
+      case None     =>
+        PathLensOps.pathToMap(path, value)
+      case codec(_) =>
+        RawObject.empty
+      case _        =>
+        PathLensOps.pathToMap(path, value)
     }
 }
 final private[dsentric] case class ValueIfNonEmptySetter[D <: DObject](path: Path, value: Raw) extends PathSetter[D] {
