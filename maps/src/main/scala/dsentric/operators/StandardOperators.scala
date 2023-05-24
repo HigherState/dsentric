@@ -2,7 +2,20 @@ package dsentric.operators
 
 import com.github.ghik.silencer.silent
 import dsentric.codecs.DCodec
-import dsentric.{Available, DObject, DeltaEmpty, DeltaFailed, DeltaReduce, DeltaReduced, DeltaRemove, DeltaRemoving, Found, NotFound, Path, Raw}
+import dsentric.{
+  Available,
+  DObject,
+  DeltaEmpty,
+  DeltaFailed,
+  DeltaReduce,
+  DeltaReduced,
+  DeltaRemove,
+  DeltaRemoving,
+  Found,
+  NotFound,
+  Path,
+  Raw
+}
 import dsentric.contracts.ContractFor
 import dsentric.failure.{DeprecatedFailure, ImmutableFailure, MaskFailure, ReservedFailure, ValidationFailures}
 
@@ -82,31 +95,20 @@ trait StandardOperators {
     new Constraint[Nothing] with Optional {
 
       def verify[D <: DObject](contract: ContractFor[D], path: Path, value: Available[Raw]): ValidationFailures =
-        value match {
-          case NotFound =>
-            ValidationFailures.empty
-          case Found(_) =>
-            ValidationFailures(
-              DeprecatedFailure(contract, path, remediation)
-            )
-          case _ =>
-            ValidationFailures(
-              DeprecatedFailure(contract, path, remediation)
-            )
-        }
+        Nil
 
       def verify[D <: DObject](
-                                contract: ContractFor[D],
-                                path: Path,
-                                current: Raw,
-                                delta: DeltaReduce[Raw]
-                              ): ValidationFailures =
+        contract: ContractFor[D],
+        path: Path,
+        current: Raw,
+        delta: DeltaReduce[Raw]
+      ): ValidationFailures =
         delta match {
-          case DeltaEmpty =>
+          case DeltaEmpty                     =>
             ValidationFailures.empty
-          case DeltaReduced(_) =>
+          case DeltaReduced(_)                =>
             ValidationFailures(DeprecatedFailure(contract, path, remediation))
-          case DeltaFailed(_, _) =>
+          case DeltaFailed(_, _)              =>
             ValidationFailures(DeprecatedFailure(contract, path, remediation))
           case DeltaRemove | DeltaRemoving(_) =>
             ValidationFailures.empty
