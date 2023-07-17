@@ -11,7 +11,7 @@ sealed trait Property[D <: DObject, T <: Any] extends PropertyLens[D, T] {
   def _codec: DCodec[T]
 
   def $ : DProjection =
-    new DProjection(PathLensOps.pathToMap(_path, 1))
+    new DProjection(NoWildcard, PathLensOps.pathToMap(_path, 1))
 }
 
 sealed trait ValueProperty[D <: DObject, T] extends Property[D, T]

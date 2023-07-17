@@ -3,7 +3,6 @@ package dsentric
 //TODO move DObject referencing methods, make pure Raw
 trait RawObjectOps {
 
-
   def traverseConcat(x: RawObject, y: RawObject): RawObject =
     y.foldLeft(x) {
       case (acc, (k, v: RawObject @unchecked)) =>
@@ -24,9 +23,9 @@ trait RawObjectOps {
    * @param delta
    * @return
    */
-  def removingTraverseConcat(x: RawObject, delta: RawObject, RemoveValue:Raw): RawObject = {
+  def removingTraverseConcat(x: RawObject, delta: RawObject, RemoveValue: Raw): RawObject =
     delta.foldLeft(x) {
-      case (acc, (k, RemoveValue))                          =>
+      case (acc, (k, RemoveValue))                    =>
         acc - k
       case (acc, (k, v: Map[String, Any] @unchecked)) =>
         acc.get(k) match {
@@ -46,7 +45,6 @@ trait RawObjectOps {
       case (acc, (k, v))                              =>
         acc + (k -> v)
     }
-  }
 
   /**
    * Applies changes in y onto x, if y contains a null, it will remove the key if present, or be ignored if not.
@@ -55,7 +53,7 @@ trait RawObjectOps {
    * @param delta
    * @return
    */
-  def deltaTraverseConcat(x: RawObject, delta: RawObject): RawObject =
+  def deltaTraverseConcat(x: RawObject, delta: RawObject): RawObject       =
     removingTraverseConcat(x, delta, DNull)
   def rightDifference: Function[(RawObject, RawObject), Option[RawObject]] = {
     case (s, d) if d == s =>
@@ -171,17 +169,32 @@ trait RawObjectOps {
         }
     }
 
-  def selectMap(target: RawObject, projection: RawObject): RawObject =
+  def selectMap(target: RawObject, projection: RawObject, wildCard: ProjectionWildcard): RawObject =
     projection.foldLeft(RawObject.empty) {
-      case (acc, (k, 1)) =>
+      case (acc, (k, j: RawObject @unchecked)) if wildCard.matches(k) =>
+        target.foldLeft(acc) {
+          //ignore explicitly defined properties
+          case (a, (k, _)) if projection.contains(k) =>
+            a
+          case (a, (k, m: RawObject @unchecked))     =>
+            val result = selectMap(m, j, wildCard)
+            if (result.nonEmpty)
+              a + (k -> result)
+            else a
+          case (a, _)                                =>
+            a
+        }
+      case (acc, (k, 1)) if wildCard.matches(k)                       =>
+        //ignore explicitly defined properties
+        acc ++ target.view.filterKeys(k => !projection.contains(k))
+      case (acc, (k, 1))                                              =>
         target.get(k).fold(acc) { v =>
           acc + (k -> v)
         }
-
-      case (acc, (k, j: RawObject @unchecked)) =>
+      case (acc, (k, j: RawObject @unchecked))                        =>
         target.get(k).fold(acc) {
           case m: RawObject @unchecked =>
-            val result = selectMap(m, j)
+            val result = selectMap(m, j, wildCard)
             if (result.nonEmpty)
               acc + (k -> result)
             else
@@ -189,19 +202,36 @@ trait RawObjectOps {
           case _                       =>
             acc
         }
-      case (acc, _)                            =>
+      case (acc, _)                                                   =>
         acc
     }
 
-  def omitMap(target: RawObject, projection: RawObject): RawObject =
+  def omitMap(target: RawObject, projection: RawObject, wildCard: ProjectionWildcard): RawObject =
     projection.foldLeft(target) {
+
+      case (acc, (k, j: RawObject @unchecked)) if wildCard.matches(k) =>
+        target.foldLeft(acc) {
+          case (a, (k, m: RawObject @unchecked)) =>
+            val result = omitMap(m, j, wildCard)
+            if (result.nonEmpty)
+              a + (k -> result)
+            else
+              a - k
+          case (a, _)                       =>
+            a
+        }
+
+      case (acc, (k, 1)) if wildCard.matches(k) =>
+        //ignore explicitly defined properties
+        acc -- target.view.keys.filter(k => !projection.contains(k))
+
       case (acc, (k, 1)) =>
         acc - k
 
-      case (acc, (k, j: RawObject @unchecked)) =>
+      case (acc, (k, j: RawObject @unchecked))                        =>
         target.get(k).fold(acc) {
           case m: RawObject @unchecked =>
-            val result = omitMap(m, j)
+            val result = omitMap(m, j, wildCard)
             if (result.nonEmpty)
               acc + (k -> result)
             else
@@ -209,14 +239,14 @@ trait RawObjectOps {
           case _                       =>
             acc
         }
-      case (acc, _)                            =>
+      case (acc, _)                                                   =>
         acc
     }
 
   /*
     Removes nulls and empty objects, return None if empty
    */
-  def reduceMap(target: RawObject, Match:Raw): Option[RawObject] = {
+  def reduceMap(target: RawObject, Match: Raw): Option[RawObject] = {
     val reducedMap = target.flatMap {
       case (_, Match)                   =>
         None

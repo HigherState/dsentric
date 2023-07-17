@@ -562,7 +562,7 @@ final private[dsentric] case class TraversedModifyOrDropValidSetter[D <: DObject
 
 final private[dsentric] case class SelectPathSetter[D <: DObject](projection: DProjection) extends PathSetter[D] {
   private[contracts] def rawApply(rawObject: RawObject): RawObject =
-    RawObjectOps.selectMap(rawObject, projection.value)
+    RawObjectOps.selectMap(rawObject, projection.value, projection.wildCard)
 
   private[contracts] def rawDelta(rawObject: RawObject): RawObject =
     ???
@@ -570,7 +570,7 @@ final private[dsentric] case class SelectPathSetter[D <: DObject](projection: DP
 
 final private[dsentric] case class OmitPathSetter[D <: DObject](projection: DProjection) extends PathSetter[D] {
   private[contracts] def rawApply(rawObject: RawObject): RawObject =
-    RawObjectOps.omitMap(rawObject, projection.value)
+    RawObjectOps.omitMap(rawObject, projection.value, projection.wildCard)
 
   private[contracts] def rawDelta(rawObject: RawObject): RawObject = {
     val asDelta = RawObjectOps.leafMap(projection.value) {

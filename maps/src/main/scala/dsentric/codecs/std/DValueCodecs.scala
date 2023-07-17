@@ -74,7 +74,7 @@ trait DValueCodecs {
     def unapply(a: Raw): Option[1] =
       a match {
         case 1L => Some(1)
-        case _ => None
+        case _  => None
       }
 
     def typeDefinition: TypeDefinition = NumberDefinition(List(1L))
@@ -88,7 +88,7 @@ trait DValueCodecs {
         NumberDefinition(minimum = Some(Double.MinValue), maximum = Some(Double.MaxValue))
     }
 
-  implicit val intCodec: DValueCodec[Int]       =
+  implicit val intCodec: DValueCodec[Int]         =
     new DValueCodec[Int] {
       def apply(t: Int): Raw             =
         t.toLong
@@ -97,7 +97,7 @@ trait DValueCodecs {
       val typeDefinition: TypeDefinition =
         IntegerDefinition(minimum = Some(Int.MinValue), maximum = Some(Int.MaxValue))
     }
-  implicit val shortCodec: DValueCodec[Short]   =
+  implicit val shortCodec: DValueCodec[Short]     =
     new DValueCodec[Short] {
       def apply(t: Short): Raw           =
         t.toLong
@@ -106,7 +106,7 @@ trait DValueCodecs {
       def typeDefinition: TypeDefinition =
         IntegerDefinition(minimum = Some(Short.MinValue), maximum = Some(Short.MaxValue))
     }
-  implicit val byteCodec: DValueCodec[Byte]     =
+  implicit val byteCodec: DValueCodec[Byte]       =
     new DValueCodec[Byte] {
       def apply(t: Byte): Raw            =
         t.toLong
@@ -115,7 +115,7 @@ trait DValueCodecs {
       def typeDefinition: TypeDefinition =
         IntegerDefinition(minimum = Some(Byte.MinValue), maximum = Some(Byte.MaxValue))
     }
-  implicit val floatCodec: DValueCodec[Float]   =
+  implicit val floatCodec: DValueCodec[Float]     =
     new DValueCodec[Float] {
       def apply(t: Float): Raw           =
         t.toDouble
@@ -124,7 +124,7 @@ trait DValueCodecs {
       def typeDefinition: TypeDefinition =
         NumberDefinition(minimum = Some(Float.MinValue.toDouble), maximum = Some(Float.MaxValue.toDouble))
     }
-  implicit val numberCodec: DValueCodec[Number] =
+  implicit val numberCodec: DValueCodec[Number]   =
     new DValueCodec[Number] {
       def apply(t: Number): Raw           =
         t.doubleValue()
@@ -185,6 +185,24 @@ trait DValueCodecs {
         ObjectDefinition.empty
     }
 
+  def DProjectionWithWildCardCodec(wildCard: ProjectionWildcard): DValueCodec[DProjection] =
+    new DValueCodec[DProjection] {
+
+      def apply(t: DProjection): RawValue =
+        t.value
+
+      def unapply(a: Raw): Option[DProjection] =
+        a match {
+          case r: RawObject @unchecked =>
+            Some(new DProjection(wildCard, r))
+          case _                       =>
+            None
+        }
+
+      def typeDefinition: TypeDefinition =
+        ObjectDefinition.empty
+    }
+
   implicit val dProjectionCodec: DValueCodec[DProjection] =
     new DValueCodec[DProjection] {
 
@@ -194,7 +212,7 @@ trait DValueCodecs {
       def unapply(a: Raw): Option[DProjection] =
         a match {
           case r: RawObject @unchecked =>
-            Some(new DProjection(r))
+            Some(new DProjection(NoWildcard, r))
           case _                       =>
             None
         }

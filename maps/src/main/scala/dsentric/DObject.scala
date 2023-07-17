@@ -265,10 +265,22 @@ final class DeltaInst private[dsentric] (val value: RawObject) extends AnyVal wi
 
 }
 
-final class DProjection private[dsentric] (val value: RawObject) extends AnyVal with DObject with DObjectOps[DProjection] {
+sealed trait ProjectionWildcard {
+  def matches(key: String): Boolean
+}
+case object NoWildcard                      extends ProjectionWildcard {
+  def matches(key: String): Boolean = false
+}
+final case class DefinedWildcard(s: String) extends ProjectionWildcard {
+  def matches(key: String): Boolean = s == key
+}
+
+final class DProjection private[dsentric] (val wildCard: ProjectionWildcard, val value: RawObject)
+    extends DObject
+    with DObjectOps[DProjection] {
   projection =>
 
-  protected def wrap(value: RawObject) = new DProjection(value)
+  protected def wrap(value: RawObject) = new DProjection(wildCard, value)
 
   def &(key: String): DProjection =
     wrap(value + (key -> 1L))
@@ -284,8 +296,14 @@ final class DProjection private[dsentric] (val value: RawObject) extends AnyVal 
   def nest(path: Path): DProjection  =
     wrap(PathLensOps.pathToMap(path, value))
 
-  def &(d: DProjection): DProjection =
-    new DProjection(RawObjectOps.traverseConcat(value, d.value))
+  def &(d: DProjection): DProjection = {
+    val wc = wildCard -> d.wildCard match {
+      case (d: DefinedWildcard, _) => d
+      case (_, d: DefinedWildcard) => d
+      case _                       => NoWildcard
+    }
+    new DProjection(wc, RawObjectOps.traverseConcat(value, d.value))
+  }
 
   def select[D <: DObject]: PathSetter[D] =
     SelectPathSetter(this)
@@ -431,14 +449,37 @@ object DArray {
 
 object DProjection {
 
-  val empty = new DProjection(Map.empty)
+  val empty = new DProjection(NoWildcard, Map.empty)
+
+  def empty(wildCard: String): DProjection = new DProjection(DefinedWildcard(wildCard), Map.empty)
 
   def apply(paths: Path*): DProjection =
     new DProjection(
+      NoWildcard,
       paths
         .map(p => PathLensOps.pathToMap(p, 1L))
         .foldLeft(Map.empty[String, Any])(RawObjectOps.traverseConcat)
     )
+
+  def apply(wildCard: ProjectionWildcard, paths: Path*): DProjection =
+    new DProjection(
+      wildCard,
+      paths
+        .map(p => PathLensOps.pathToMap(p, 1L))
+        .foldLeft(Map.empty[String, Any])(RawObjectOps.traverseConcat)
+    )
+
+  def fromKeys(keys: String*): DProjection                               =
+    new DProjection(NoWildcard, keys.map(_ -> 1L).toMap)
+
+  def fromKeys(wildCard: ProjectionWildcard, keys: String*): DProjection =
+    new DProjection(wildCard, keys.map(_ -> 1L).toMap)
+
+  def fromObject(d: DObject): DProjection                                =
+    new DProjection(NoWildcard, d.value)
+
+  def fromObject(wildCard: ProjectionWildcard, d: DObject): DProjection =
+    new DProjection(wildCard, d.value)
 }
 
 object Delta {
@@ -485,5 +526,8 @@ object ForceWrapper {
     new DFilter(value)
 
   def dProjection(value: RawObject): DProjection =
-    new DProjection(value)
+    new DProjection(NoWildcard, value)
+
+  def dProjection(wildCard: ProjectionWildcard, value: RawObject): DProjection =
+    new DProjection(wildCard, value)
 }
