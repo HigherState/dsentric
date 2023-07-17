@@ -326,6 +326,49 @@ final class DProjection private[dsentric] (val wildCard: ProjectionWildcard, val
   def toDObject: DObject =
     new DObjectInst(value)
 
+  /**
+   * Returns true if the key is expressed in the projection as a leaf key pair only
+   * @param key
+   * @return
+   */
+  def selectsValue(key: String): Boolean =
+    value.get(key) -> wildCard match {
+      case (None, DefinedWildcard(wc)) =>
+        value.get(wc).contains(1L)
+      case (Some(1L), _)               => true
+      case _                           => false
+    }
+
+  /**
+   * Returns true if the whole path is expressed in the projection as a leaf key pair only
+   * @param key
+   * @return
+   */
+  def selectsValue(path: Path): Boolean =
+    selectsValue(value, path)
+
+  private def selectsValue(projection: RawObject, path: Path): Boolean =
+    path match {
+      case PathKey(key, PathEnd) =>
+        selectsValue(key)
+      case PathKey(key, tail)    =>
+        value.get(key) -> wildCard match {
+          case (None, DefinedWildcard(wc))        =>
+            projection.get(wc) match {
+              case Some(1L)                      => true
+              case Some(m: RawObject @unchecked) =>
+                selectsValue(m, tail)
+              case _                             => false
+            }
+          case (Some(1L), _)                      => true
+          case (Some(m: RawObject @unchecked), _) =>
+            selectsValue(m, tail)
+          case _                                  =>
+            false
+        }
+      case _                     => false
+    }
+
   private def getPaths(projection: RawObject, segments: Path): Option[Set[Path]] = {
     val pairs = projection.flatMap {
       case (key, 1)                       =>
