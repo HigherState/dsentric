@@ -296,6 +296,30 @@ final class DProjection private[dsentric] (val wildCard: ProjectionWildcard, val
   def nest(path: Path): DProjection  =
     wrap(PathLensOps.pathToMap(path, value))
 
+  /**
+   * Extracts a possible sub projection as the key value
+   * @param key
+   * @return Left true, if key is simply selected, false if not selected at all and Right if
+   *         the selection is a projection.
+   */
+  def unnest(key: String): Either[Boolean, DProjection] =
+    value.get(key) match {
+      case Some(m: RawObject @unchecked) => Right(wrap(m))
+      case Some(1L)                      => Left(true)
+      case None                          =>
+        resolveWildCard(value).map(wrap)
+      case _                             => Left(false)
+    }
+
+  /**
+   * Extracts a possible sub projection for the path
+   * @param path
+   * @return Left true, the path and any sub paths are all selected, false if path is not selected,
+   *         Right if the path leads to a projection.
+   */
+  def unnest(path: Path): Either[Boolean, DProjection] =
+    selectsTraverse(value, path).map(wrap)
+
   def &(d: DProjection): DProjection = {
     val wc = wildCard -> d.wildCard match {
       case (d: DefinedWildcard, _) => d
@@ -327,16 +351,41 @@ final class DProjection private[dsentric] (val wildCard: ProjectionWildcard, val
     new DObjectInst(value)
 
   /**
+   * Returns true if the key is expressed in the projection, similar to contains, however
+   * takes into account wildcard and noop values
+   * @param key
+   * @return
+   */
+  def selects(key: String): Boolean =
+    value.get(key) match {
+      case None                          =>
+        resolveWildCard(value).fold(identity, _ => true)
+      case Some(1L)                      => true
+      case Some(_: RawObject @unchecked) => true
+      case _                             => false
+    }
+
+  /**
+   * Returns true if the key is expressed in the projection, similar to contains, however
+   * takes into account wildcard and noop values
+   *
+   * @param key
+   * @return
+   */
+  def selects(path: Path): Boolean =
+    selectsNested(selects)(value, path)
+
+  /**
    * Returns true if the key is expressed in the projection as a leaf key pair only
    * @param key
    * @return
    */
   def selectsValue(key: String): Boolean =
-    value.get(key) -> wildCard match {
-      case (None, DefinedWildcard(wc)) =>
-        value.get(wc).contains(1L)
-      case (Some(1L), _)               => true
-      case _                           => false
+    value.get(key) match {
+      case None     =>
+        resolveWildCard(value).fold(identity, _ => false)
+      case Some(1L) => true
+      case _        => false
     }
 
   /**
@@ -345,28 +394,60 @@ final class DProjection private[dsentric] (val wildCard: ProjectionWildcard, val
    * @return
    */
   def selectsValue(path: Path): Boolean =
-    selectsValue(value, path)
+    selectsNested(selectsValue)(value, path)
 
-  private def selectsValue(projection: RawObject, path: Path): Boolean =
+  private def selectsNested(tailF: String => Boolean)(projection: RawObject, path: Path): Boolean =
     path match {
       case PathKey(key, PathEnd) =>
-        selectsValue(key)
+        tailF(key)
       case PathKey(key, tail)    =>
-        value.get(key) -> wildCard match {
-          case (None, DefinedWildcard(wc))        =>
-            projection.get(wc) match {
-              case Some(1L)                      => true
-              case Some(m: RawObject @unchecked) =>
-                selectsValue(m, tail)
-              case _                             => false
-            }
-          case (Some(1L), _)                      => true
-          case (Some(m: RawObject @unchecked), _) =>
-            selectsValue(m, tail)
-          case _                                  =>
+        projection.get(key) match {
+          case None                          =>
+            resolveWildCard(projection).fold(identity, selectsNested(tailF)(_, tail))
+          case Some(1L)                      => true
+          case Some(m: RawObject @unchecked) =>
+            selectsNested(tailF)(m, tail)
+          case _                             =>
             false
         }
       case _                     => false
+    }
+
+  private def selectsTraverse(projection: RawObject, path: Path): Either[Boolean, RawObject] =
+    path match {
+      case PathKey(key, PathEnd) =>
+        projection.get(key) match {
+          case None                          => resolveWildCard(projection)
+          case Some(1L)                      => Left(true)
+          case Some(m: RawObject @unchecked) => Right(m)
+          case _                             => Left(false)
+        }
+      case PathKey(key, tail)    =>
+        projection.get(key) match {
+          case None                          =>
+            resolveWildCard(projection)
+              .flatMap(selectsTraverse(_, tail))
+          case Some(1L)                      =>
+            Left(true)
+          case Some(m: RawObject @unchecked) =>
+            selectsTraverse(m, tail)
+          case _                             =>
+            Left(false)
+        }
+      case _                     =>
+        Left(false)
+    }
+
+  private def resolveWildCard(layer: RawObject): Either[Boolean, RawObject] =
+    wildCard match {
+      case DefinedWildcard(s) =>
+        layer.get(s) match {
+          case Some(1L)                      => Left(true)
+          case Some(m: RawObject @unchecked) => Right(m)
+          case _                             => Left(false)
+        }
+      case _                  =>
+        Left(false)
     }
 
   private def getPaths(projection: RawObject, segments: Path): Option[Set[Path]] = {
@@ -381,6 +462,17 @@ final class DProjection private[dsentric] (val wildCard: ProjectionWildcard, val
     if (pairs.length < projection.size) None
     else Some(pairs.reduce(_ ++ _))
   }
+
+  override def equals(obj: Any): Boolean =
+    obj match {
+      case c: DProjection =>
+        c.wildCard == this.wildCard && c.value == this.value
+      case _              =>
+        false
+    }
+
+  override def hashCode(): Int =
+    value.hashCode()
 }
 
 class DArray(val value: RawArray) extends AnyVal with Data {

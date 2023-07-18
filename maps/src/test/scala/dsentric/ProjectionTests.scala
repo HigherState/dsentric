@@ -171,4 +171,56 @@ class ProjectionTests extends AnyFunSuite with Matchers {
       )
     )
   }
+
+  test("Unnest") {
+    val wc         = DefinedWildcard("*")
+    val projection = DProjection.fromObject(
+      wc,
+      DObject(
+        "one" := 1,
+        "two" := 0,
+        "*" ::= (
+          "one" := 1,
+          "two" := 0
+        ),
+        "three" ::= (
+          "one" := 1,
+          "two" := 0,
+          "*" ::= (
+            "one" := 1,
+            "two" := 0
+          )
+        )
+      )
+    )
+    projection.unnest("one") shouldBe Left(true)
+    projection.unnest("two") shouldBe Left(false)
+    val t          = projection.unnest("three")
+    t shouldBe Right(
+      DProjection.fromObject(
+        wc,
+        DObject(
+          "one" := 1,
+          "two" := 0,
+          "*" ::= (
+            "one" := 1,
+            "two" := 0
+          )
+        )
+      )
+    )
+    projection.unnest("four") shouldBe Right(DProjection.fromObject(wc, DObject("one" := 1, "two" := 0)))
+
+    projection.unnest(Path("two", "one")) shouldBe Left(false)
+    projection.unnest(Path("three", "one")) shouldBe Left(true)
+    projection.unnest(Path("three", "one", "two")) shouldBe Left(true)
+    projection.unnest(Path("three", "two")) shouldBe Left(false)
+    projection.unnest(Path("three", "three", "one")) shouldBe Left(true)
+    projection.unnest(Path("three", "three", "two")) shouldBe Left(false)
+    projection.unnest(Path("three", "three", "three")) shouldBe Left(false)
+    projection.unnest(Path("four", "one")) shouldBe Left(true)
+    projection.unnest(Path("four", "two")) shouldBe Left(false)
+    projection.unnest(Path("four", "two", "two")) shouldBe Left(false)
+    projection.unnest(Path("four", "four")) shouldBe Left(false)
+  }
 }
