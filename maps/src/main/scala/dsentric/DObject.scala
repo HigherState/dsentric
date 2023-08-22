@@ -505,7 +505,7 @@ class DArray(val value: RawArray) extends AnyVal with Data {
     value.contains(data.value)
 }
 
-sealed trait DNullable[+T] extends IterableOnce[T] {
+sealed trait DNullable[+T] extends IterableOnce[T] with Product with Serializable {
   def isNull: Boolean
   def toOption: Option[T]
   def map[S](f: T => S): DNullable[S] =

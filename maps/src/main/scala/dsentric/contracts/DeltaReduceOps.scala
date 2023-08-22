@@ -455,27 +455,39 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
               val deltaResult =
                 currentObject.get(key) match {
                   case Some(currentElement: RawObject @unchecked) =>
-                    val currentEntity = codec.cstr(key, currentElement)
-                    codec.contract.__reduceDelta(deltaValue, currentEntity.value, nest == DropBadTypes) match {
-                      case _: DeltaFailed if nest == DropBadTypes =>
+                    codec.cstr(key, currentElement) match {
+                      case None if nest == DropBadTypes =>
                         DeltaEmpty
-                      case d: DeltaFailed                         =>
-                        d.rebase(contract, path \ key)
-                      case dr                                     =>
-                        dr
+                      case None =>
+                        DeltaFailed(IncorrectTypeFailure(contract, path, codec, currentElement))
+                      case Some(currentEntity) =>
+                        codec.contract.__reduceDelta(deltaValue, currentEntity.value, nest == DropBadTypes) match {
+                          case _: DeltaFailed if nest == DropBadTypes =>
+                            DeltaEmpty
+                          case d: DeltaFailed =>
+                            d.rebase(contract, path \ key)
+                          case dr =>
+                            dr
+                        }
                     }
-                  case _                                          =>
-                    val entity = codec.cstr(key, deltaValue)
-                    codec.contract.__reduce(entity.value, badTypes.nest == DropBadTypes) match {
-                      case Found(rawObject)                  =>
-                        DeltaReduced(codec.dstr(entity.internalWrap(rawObject).asInstanceOf[D2])._2)
-                      case _: Failed if nest == DropBadTypes =>
+                  case _ =>
+                    codec.cstr(key, deltaValue) match {
+                      case None if nest == DropBadTypes =>
                         DeltaEmpty
-                      case NotFound                          =>
-                        DeltaEmpty
-                      case f: Failed                         =>
-                        val rebase = f.rebase(contract, path \ key)
-                        DeltaFailed(rebase.failure, rebase.tail)
+                      case None =>
+                        DeltaFailed(IncorrectTypeFailure(contract, path, codec, deltaValue))
+                      case Some(entity) =>
+                        codec.contract.__reduce(entity.value, badTypes.nest == DropBadTypes) match {
+                          case Found(rawObject) =>
+                            DeltaReduced(codec.dstr(entity.internalWrap(rawObject).asInstanceOf[D2])._2)
+                          case _: Failed if nest == DropBadTypes =>
+                            DeltaEmpty
+                          case NotFound =>
+                            DeltaEmpty
+                          case f: Failed =>
+                            val rebase = f.rebase(contract, path \ key)
+                            DeltaFailed(rebase.failure, rebase.tail)
+                        }
                     }
                 }
               key -> deltaResult

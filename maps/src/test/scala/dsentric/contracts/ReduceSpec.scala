@@ -290,7 +290,7 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       object BlankContract   extends ContractFor[WithKey] with Open
       implicit val D: DKeyContractCollectionCodec[WithKeys, WithKey]            = DKeyContractCollectionCodec[WithKeys, WithKey](
         WithKeyContract,
-        WithKey(_, _),
+        (k,d) => Some(WithKey(k,d)),
         w => w.key -> w.value,
         a => Some(WithKeys(a)),
         _.values
@@ -298,7 +298,7 @@ class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
       implicit val D2: DKeyContractCollectionCodec[AtleastTwoWithKeys, WithKey] =
         DKeyContractCollectionCodec[AtleastTwoWithKeys, WithKey](
           BlankContract,
-          WithKey(_, _),
+          (k,d) => Some(WithKey(k,d)),
           w => w.key -> w.value,
           a => if (a.size <= 1) None else Some(AtleastTwoWithKeys(a)),
           _.values

@@ -419,20 +419,31 @@ private[contracts] trait ReduceOps {
       Right(Map.newBuilder[String, Raw])
     ) {
       case (Right(b), (key, value: RawObject @unchecked)) =>
-        val entity = codec.cstr(key, value)
-        codec.contract.__reduce(entity.value, badTypes.nest == DropBadTypes) match {
-          case Found(rawObject)                      =>
-            Right(b.addOne(codec.dstr(entity.internalWrap(rawObject).asInstanceOf[D2])))
-          case _: Failed if badTypes == DropBadTypes =>
+        codec.cstr(key, value) match {
+          case None if badTypes == DropBadTypes =>
             Right(b)
-          case NotFound                              =>
-            Right(b)
-          case f: Failed                             =>
-            val rebase = f.rebase(contract, path \ key)
-            Left(new ListBuffer[Failure].addAll(rebase.failure :: rebase.tail))
+          case None =>
+            Left(new ListBuffer[Failure].addOne(IncorrectTypeFailure(contract, path, codec, raw)))
+          case Some(entity) =>
+            codec.contract.__reduce(entity.value, badTypes.nest == DropBadTypes) match {
+              case Found(rawObject) =>
+                Right(b.addOne(codec.dstr(entity.internalWrap(rawObject).asInstanceOf[D2])))
+              case _: Failed if badTypes == DropBadTypes =>
+                Right(b)
+              case NotFound =>
+                Right(b)
+              case f: Failed =>
+                val rebase = f.rebase(contract, path \ key)
+                Left(new ListBuffer[Failure].addAll(rebase.failure :: rebase.tail))
+            }
         }
       case (Left(vf), (key, value: RawObject @unchecked)) =>
-        Left(vf.addAll(codec.contract.__verify(codec.cstr(key, value).value).map(_.rebase(contract, path \ key))))
+        codec.cstr(key, value) match {
+          case None =>
+            Left(vf.addOne(IncorrectTypeFailure(contract, path, codec, raw)))
+          case Some(entity) =>
+            Left(vf.addAll(codec.contract.__verify(entity.value).map(_.rebase(contract, path \ key))))
+        }
       case (Right(_), (key, value))                       =>
         Left(new ListBuffer[Failure].addOne(IncorrectTypeFailure(contract, path \ key, DCodecs.dObjectCodec, value)))
       case (Left(vf), (key, value))                       =>

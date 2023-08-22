@@ -306,7 +306,7 @@ class ContractSanitizationSpec extends AnyFunSpec with Matchers with EitherValue
         }
         implicit val D = new DKeyContractCollectionCodec[Store, KeyedObject](
           KeyContract,
-          (key, value) => KeyedObject(key, value),
+          (key, value) => Some(KeyedObject(key, value)),
           p => p.key -> p.value,
           v => Some(Store(v)),
           v => v.v
@@ -329,7 +329,7 @@ class ContractSanitizationSpec extends AnyFunSpec with Matchers with EitherValue
         }
         implicit val D = new DKeyContractCollectionCodec[Store, KeyedObject](
           KeyContract,
-          (key, value) => KeyedObject(key, value),
+          (key, value) => Some(KeyedObject(key, value)),
           p => p.key -> p.value,
           v => Some(Store(v)),
           v => v.v

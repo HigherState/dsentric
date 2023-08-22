@@ -171,10 +171,13 @@ private[dsentric] trait VerifyOps {
   ): List[Failure] =
     raw.view.flatMap {
       case (key, rawObject: RawObject @unchecked) =>
-        val e = codec.cstr(key, rawObject)
-        codec.contract.__verify(e.value).map(_.rebase(contract, path \ key))
+        codec.cstr(key, rawObject) match {
+          case None => List(IncorrectTypeFailure(contract, path, codec, raw))
+          case Some(e) =>
+            codec.contract.__verify(e.value).map(_.rebase(contract, path \ key))
+        }
       case (key, raw)                             =>
-        List(IncorrectTypeFailure(contract, path \ key, DCodecs.dObjectCodec, raw))
+        List(IncorrectTypeFailure(contract, path \ key, codec, raw))
     }.toList match {
       case Nil if raw.nonEmpty =>
         codec.unapply(raw) match {

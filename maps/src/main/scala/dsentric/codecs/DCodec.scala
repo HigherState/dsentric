@@ -307,7 +307,7 @@ final case class DParameterisedContractCodec[D <: DObject, H <: HList](contract:
  */
 final case class DKeyContractCollectionCodec[S, D <: DObject](
   contract: ContractLike[D],
-  cstr: (String, RawObject) => D,
+  cstr: (String, RawObject) => Option[D],
   dstr: D => (String, RawObject),
   build: Vector[D] => Option[S],
   extract: S => Vector[D]
@@ -318,7 +318,7 @@ final case class DKeyContractCollectionCodec[S, D <: DObject](
         m.view
           .foldLeft(Option(Vector.newBuilder[D])) {
             case (Some(b), (key, value: RawObject @unchecked)) =>
-              Some(b.addOne(cstr(key, value)))
+              cstr(key, value).map(b.addOne)
             case _                                             =>
               None
           }
