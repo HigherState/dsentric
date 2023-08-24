@@ -2,7 +2,9 @@ package dsentric.filter
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
-import dsentric.{DArray, DObject, Dsentric}
+import dsentric.{DArray, DObject, Dsentric, Path}
+
+import scala.annotation.nowarn
 
 class DFilterTests extends AnyFunSuite with Matchers {
 
@@ -170,5 +172,15 @@ class DFilterTests extends AnyFunSuite with Matchers {
     query.isMatch(DObject("elements" ::= ("child" ::= ("value" := 56.78)))) should be(true)
     query.isMatch(DObject("elements" ::= ("child" ::= ("value" := 33)))) should be(false)
 
+  }
+
+  test("toPaths") {
+    @nowarn
+    val query = DFilter(
+      "first" := 1,
+      "$and" := Vector(DObject("second" := 1), DObject("third" ::= ("fourth" := 4))),
+      "fifth" ::= ("$not" ::= ("sixth" := false))
+    )
+    query.toPaths shouldBe Set(Path("first"), Path("second"), Path("third", "fourth"), Path("fifth", "sixth"))
   }
 }

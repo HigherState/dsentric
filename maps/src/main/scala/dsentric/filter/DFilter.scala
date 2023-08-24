@@ -1,7 +1,7 @@
 package dsentric.filter
 
 import com.github.ghik.silencer.silent
-import dsentric.{DObject, DObjectOps, Data, RawArray, RawObject, RawObjectOps}
+import dsentric.{DObject, DObjectOps, Data, Path, RawArray, RawObject, RawObjectOps}
 
 final class DFilter private[dsentric] (val value: RawObject) extends AnyVal with DObject with DObjectOps[DFilter] {
 
@@ -44,6 +44,29 @@ final class DFilter private[dsentric] (val value: RawObject) extends AnyVal with
 
   def not: DFilter            = this.!
 
+  def toPaths: Set[Path] =
+    getPaths(value, Path.empty).getOrElse(Set.empty)
+
+  private def getPaths(filter: RawObject, segments: Path): Option[Set[Path]] = {
+    val paths = filter
+      .flatMap {
+        case (key, j: RawObject @unchecked) if key.startsWith("$") =>
+          getPaths(j, segments)
+        case (key, j: RawObject @unchecked)                        =>
+          getPaths(j, segments \ key)
+        case ("$and" | "$or", j: RawArray @unchecked)              =>
+          j.iterator.collect { case m: RawObject @unchecked => getPaths(m, segments) }.flatten
+        case (key, _) if key.startsWith("$")                       =>
+          Some(Set(segments))
+        case (key, _)                                              =>
+          Some(Set(segments \ key))
+        case _                                                     =>
+          None
+      }
+      .reduce(_ ++ _)
+    if (paths.isEmpty) None
+    else Some(paths)
+  }
 }
 
 object DFilter {
