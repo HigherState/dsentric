@@ -72,43 +72,43 @@ class JsonSchemaSpec extends AnyFunSpec with Matchers {
   }
 
   private def validateRootObject(schema: DObject): Unit = {
-    (schema \ [Boolean] (Path("additionalProperties"))) should contain(true)
-    (schema \ [String] (Path("type"))) should contain("object")
-    (schema \ [String] (Path(s"$$schema"))) should contain("https://json-schema.org/draft/2020-12/schema")
+    (schema.\[Boolean] (Path("additionalProperties"))) should contain(true)
+    (schema.\[String] (Path("type"))) should contain("object")
+    (schema.\[String] (Path(s"$$schema"))) should contain("https://json-schema.org/draft/2020-12/schema")
     ()
   }
 
   private def validateObject(schema: DObject) = {
-    (schema \ [Boolean] (Path("additionalProperties"))) should contain(false)
-    (schema \ [String] (Path("type"))) should contain("object")
+    (schema.\[Boolean] (Path("additionalProperties"))) should contain(false)
+    (schema.\[String] (Path("type"))) should contain("object")
   }
 
   private def validateLong(longObj: DObject) = {
-    longObj \ [Long] (Path("maximum")) should contain(Long.MaxValue)
-    longObj \ [Long] (Path("minimum")) should contain(Long.MinValue)
-    longObj \ [String] (Path("type")) should contain("integer")
+    longObj.\[Long] (Path("maximum")) should contain(Long.MaxValue)
+    longObj.\[Long] (Path("minimum")) should contain(Long.MinValue)
+    longObj.\[String] (Path("type")) should contain("integer")
   }
 
   private def validateInt(longObj: DObject) = {
-    longObj \ [Long] (Path("maximum")) should contain(Int.MaxValue)
-    longObj \ [Long] (Path("minimum")) should contain(Int.MinValue)
-    longObj \ [String] (Path("type")) should contain("integer")
+    longObj.\[Long] (Path("maximum")) should contain(Int.MaxValue)
+    longObj.\[Long] (Path("minimum")) should contain(Int.MinValue)
+    longObj.\[String] (Path("type")) should contain("integer")
   }
 
   private def validateFloat(longObj: DObject) = {
-    longObj \ [Float] (Path("maximum")) should contain(Float.MaxValue)
-    longObj \ [Float] (Path("minimum")) should contain(Float.MinValue)
-    longObj \ [String] (Path("type")) should contain("number")
+    longObj.\[Float] (Path("maximum")) should contain(Float.MaxValue)
+    longObj.\[Float] (Path("minimum")) should contain(Float.MinValue)
+    longObj.\[String] (Path("type")) should contain("number")
   }
 
   private def validateString(longObj: DObject) =
-    longObj \ [String] (Path("type")) should contain("string")
+    longObj.\[String] (Path("type")) should contain("string")
 
   private def findDObject(schema: DObject)(path: Path): DObject =
     schema.get(path).flatMap(_.asObject).getOrElse(DObject.empty)
 
   private def validateRequiredValues(schema: DObject)(required: String*) =
-    (schema \ [DValue](Path("required"))).map(_.value) should contain(Set(required: _*))
+    (schema.\[DValue](Path("required"))).map(_.value) should contain(Set(required: _*))
 
   private object SimpleContract extends Contract {
     val optionalStringField = \?[String]

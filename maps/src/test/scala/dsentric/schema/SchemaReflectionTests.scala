@@ -1,11 +1,10 @@
 package dsentric.schema
 
-import dsentric.Dsentric._
+import dsentric.Dsentric.*
 import namespaced.{AnotherNested, AnotherNested2, InheritedNested}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
-
-import dsentric.codecs.std.DCodecs._
+import dsentric.codecs.std.DCodecs.*
 
 @Type("Renamed")
 trait NestedNamed extends SubContract {
@@ -42,7 +41,6 @@ object Query1 extends Contract {
   val newOne = new \\ {
     val inside = \[Int]
   }
-
 }
 
 object Query2 extends Contract with AnotherNested with AnotherNested2

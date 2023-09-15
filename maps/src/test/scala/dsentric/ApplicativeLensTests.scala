@@ -22,15 +22,13 @@ class ApplicativeLensTests extends AnyFunSuite with Matchers {
     val json = DObject("int" := 1, "bool" := false, "string" := "Test")
 
     json match {
-      case WithTest.triple(s, i, b) =>
+      case WithTest.triple((s, i, b)) =>
         s should equal("Test")
         i should equal(1)
         b should equal(false)
       case _                        =>
         assert(false)
     }
-
-    // WithTest.triple.$set(("string", 3, true))(json) should be (DObject("int" := 3, "bool" := true, "string" := "string"))
   }
 
   trait TestSubObject extends SubContract {
@@ -47,11 +45,11 @@ class ApplicativeLensTests extends AnyFunSuite with Matchers {
     val json = DObject("int" := 1, "bool" := false, "string" := "Test")
 
     json match {
-      case WithTest.triple(s, i, b) =>
+      case WithTest.triple((s, i, b)) =>
         s should equal("Test")
         i should equal(1)
         b should equal(false)
-      case _                        =>
+      case _                          =>
         assert(false)
     }
   }

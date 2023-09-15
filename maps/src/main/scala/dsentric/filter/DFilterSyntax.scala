@@ -1,11 +1,12 @@
 package dsentric.filter
 
-import com.github.ghik.silencer.silent
+//import com.github.ghik.silencer.silent
 import dsentric.{DArray, DObject, Data, Path, PathLensOps}
 import dsentric.codecs.{DCollectionCodec, DataCodec}
 import dsentric.contracts.{DynamicProperty, ExpectedProperty, MaybeProperty, Property}
 import dsentric.operators.Optionable
 
+import scala.annotation.nowarn
 import scala.util.matching.Regex
 
 sealed trait PropertyFilterOps[T] extends Any {
@@ -103,7 +104,7 @@ final class StringFilterOps[T >: Optionable[String]](val prop: Property[_, T])
     with PropertyFilterOps[T] {
 
   def $regex(value: String): DFilter                  = nest(Map("$regex" -> value))
-  @silent
+  @nowarn("msg=possible missing interpolator")
   def $regex(value: String, options: String): DFilter =
     nest(Map("$regex" -> value, "$options" -> options))
   def $regex(r: Regex): DFilter                       = nest(Map("$regex" -> r.regex))

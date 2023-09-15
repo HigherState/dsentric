@@ -1,7 +1,9 @@
 package dsentric.filter
 
-import com.github.ghik.silencer.silent
+//import com.github.ghik.silencer.silent
 import dsentric.{DObject, DObjectOps, Data, Path, RawArray, RawObject, RawObjectOps}
+
+import scala.annotation.nowarn
 
 final class DFilter private[dsentric] (val value: RawObject) extends AnyVal with DObject with DObjectOps[DFilter] {
 
@@ -38,7 +40,8 @@ final class DFilter private[dsentric] (val value: RawObject) extends AnyVal with
       case _                                                              =>
         new DFilter(Map("$or" -> Vector(value, d.value)))
     }
-  @silent
+
+  @nowarn("msg=possible missing interpolator")
   def ! : DFilter             =
     new DFilter(Map("$not" -> value))
 
@@ -60,7 +63,7 @@ final class DFilter private[dsentric] (val value: RawObject) extends AnyVal with
           Some(Set(segments))
         case (key, _)                                              =>
           Some(Set(segments \ key))
-        case _                                                     =>
+        case null                                                     =>
           None
       }
       .reduce(_ ++ _)

@@ -104,7 +104,7 @@ class AdditionalPropertiesLensSpec extends AnyFunSpec with Matchers with EitherV
           "newOne" := 1234,
           "anotherOne" := false
         )
-      NestedAdditionalProperties.maybeAdditional.$putMany(props)(DObject.empty).value shouldBe DObject("maybeAdditional" ::= (props:_*))
+      NestedAdditionalProperties.maybeAdditional.$putMany(props)(DObject.empty).value shouldBe DObject("maybeAdditional".::=(props*))
     }
     it("Should add into an existing nested object") {
       val props =

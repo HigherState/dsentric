@@ -14,7 +14,7 @@ import dsentric._
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
-import shapeless.HList
+import dsentric.aliases.HList
 
 class ReduceSpec extends AnyFunSpec with Matchers with EitherValues {
   import dsentric.Dsentric._

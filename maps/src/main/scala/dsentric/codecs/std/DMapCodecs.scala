@@ -7,8 +7,8 @@ import scala.collection.immutable.SortedSet
 
 trait DMapCodecs {
 
-  implicit def keyValueMapCodec[K, V](implicit K:DStringCodec[K], V:DCodec[V]):DMapCodec[Map[K, V], K, V] =
-    new DMapCodec[Map[K, V], K, V]{
+  implicit def keyValueMapCodec[K, V](implicit K: DStringCodec[K], V: DCodec[V]): DMapCodec[Map[K, V], K, V] =
+    new DMapCodec[Map[K, V], K, V] {
       def valueCodec: DCodec[V] = V
 
       def keyCodec: DStringCodec[K] = K
@@ -23,7 +23,7 @@ trait DMapCodecs {
         ObjectDefinition(additionalProperties = Right(V.typeDefinition), propertyNames = Some(K.typeDefinition))
     }
 
-  implicit def setCodec[T](implicit D: DStringCodec[T], I: DCodec[1]):DMapCodec[Set[T], T, 1] =
+  implicit def setCodec[T](implicit D: DStringCodec[T], I: DCodec[1]): DMapCodec[Set[T], T, 1] =
     new DMapCodec[Set[T], T, 1] {
       def keyCodec: DStringCodec[T] = D
 
@@ -38,13 +38,15 @@ trait DMapCodecs {
         mb.result()
       }
 
-
       def typeDefinition: TypeDefinition =
         ObjectDefinition(additionalProperties = Right(I.typeDefinition), propertyNames = Some(D.typeDefinition))
     }
 
-
-  implicit def nonEmptySetCodec[T](implicit D: DStringCodec[T], O: Ordering[T], I: DCodec[1]):DMapCodec[NonEmptySet[T], T, 1] =
+  implicit def nonEmptySetCodec[T](implicit
+    D: DStringCodec[T],
+    O: Ordering[T],
+    I: DCodec[1]
+  ): DMapCodec[NonEmptySet[T], T, 1] =
     new DMapCodec[NonEmptySet[T], T, 1] {
       def keyCodec: DStringCodec[T] = D
 
@@ -61,7 +63,11 @@ trait DMapCodecs {
       }
 
       def typeDefinition: TypeDefinition =
-        ObjectDefinition(additionalProperties = Right(I.typeDefinition), propertyNames = Some(D.typeDefinition), minProperties = Some(1))
+        ObjectDefinition(
+          additionalProperties = Right(I.typeDefinition),
+          propertyNames = Some(D.typeDefinition),
+          minProperties = Some(1)
+        )
     }
 }
 
