@@ -378,7 +378,7 @@ class ObjectPropertyLensSpec extends AnyFunSpec with Matchers with EitherValues 
         }
         it("Should not apply contract defaults") {
           val base = DObject("objects" ::= ("expected" := "value", "add1" ::= ("value" := 123)))
-          ExpectedStructure.objects.$get(base).value shouldBe Some(
+          ExpectedStructure.objects.$get(base, setDefaultValues = false).value shouldBe Some(
             DObject("expected" := "value", "add1" ::= ("value" := 123))
           )
         }
@@ -918,7 +918,7 @@ class ObjectPropertyLensSpec extends AnyFunSpec with Matchers with EitherValues 
         }
         it("Should not provide default values if not set") {
           val base = DObject("withExpected" ::= ("expected" := "value", "maybe" := "value"))
-          MaybeStructure.withExpected.$get(base).value shouldBe Some(DObject("expected" := "value", "maybe" := "value"))
+          MaybeStructure.withExpected.$get(base, setDefaultValues = false).value shouldBe Some(DObject("expected" := "value", "maybe" := "value"))
         }
         it("Should return IncorrectTypeFailure for any properties with incorrect types") {
           val base = DObject("withExpected" ::= ("expected" := "value", "default" := "four", "maybe" := false))
@@ -955,11 +955,11 @@ class ObjectPropertyLensSpec extends AnyFunSpec with Matchers with EitherValues 
       describe("Additional properties") {
         it("Should return object if additional properties") {
           val base = DObject("withExpected" ::= ("expected" := "value", "additional" := 1))
-          MaybeStructure.withExpected.$get(base).value shouldBe Some(DObject("expected" := "value", "additional" := 1))
+          MaybeStructure.withExpected.$get(base).value shouldBe Some(DObject("expected" := "value", "additional" := 1, "default" := 1))
         }
         it("Should return object if additional properties and nested") {
           val base = DObject("withExpected" ::= ("expected" := "value", "additional" := 1))
-          MaybeStructure.withExpected.$get(base).value shouldBe Some(DObject("expected" := "value", "additional" := 1))
+          MaybeStructure.withExpected.$get(base).value shouldBe Some(DObject("expected" := "value", "additional" := 1, "default" := 1))
         }
       }
       describe("Additional values") {

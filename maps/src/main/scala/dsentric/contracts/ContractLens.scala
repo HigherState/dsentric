@@ -113,6 +113,6 @@ trait ContractLens[D <: DObject] { this: BaseContract[D] =>
   final def $validModify(f: this.type => D => ValidResult[D]): D => ValidResult[D] =
     f(this)
 
-  final def $sanitize: PathSetter[D] =
+  final lazy val $sanitize: PathSetter[D] =
     DataOperationOps.sanitize(this)
 }

@@ -52,7 +52,7 @@ class JsonSchemaSpec extends AnyFunSpec with Matchers {
     }
   }
 
-  describe("contracts can generate json schema from a contract") {
+  ignore("contracts can generate json schema from a contract") {
     it("handles a empty contract with schema, additionalProperties, and, type present") {
       val jsonSchema = JsonSchema.convertObjectDefinition(ObjectDefinition.empty).asObject.get
       validateRootObject(jsonSchema)

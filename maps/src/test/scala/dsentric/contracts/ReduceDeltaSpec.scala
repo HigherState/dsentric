@@ -403,7 +403,7 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
         val delta = Delta("property" ::= ("expected" := DNull))
         ContractCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty
       }
-      it("Should return delta if valid delta results in removing Expected object ") {
+      it("Should return delta if valid delta results in removing Expected object") {
         val base  = DObject("property" ::= ("maybe" := true))
         val delta = Delta("property" ::= ("maybe" := DNull))
         ContractCodec.$reduceDelta(base, delta).value shouldBe delta
@@ -558,11 +558,11 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
         val delta = Delta("property" ::= ("id" := DNull))
         ContractCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty
       }
-      it("Should return delta if valid delta results in removing Expected object ") {
-        val base  = DObject("property" ::= ("maybe" := true))
+      it("Should return delta if valid delta results in removing Expected object") {
+        val base  = DObject("property" := DObject.empty)
         val delta = Delta("property" ::= ("maybe" := DNull))
-        ContractCodec.$reduceDelta(base, delta).value shouldBe delta
-        ContractCodec.$reduceDelta(base, delta, true).value shouldBe delta
+        ContractCodec.$reduceDelta(base, delta).value shouldBe Delta.empty
+        ContractCodec.$reduceDelta(base, delta, true).value shouldBe Delta.empty
       }
       it("Should return delta if valid delta results in leaving object still invalid") {
         val base  = DObject("property" ::= ("id" := 482, "_type" := "test", "expected" := 123, "maybe" := true))
@@ -601,7 +601,7 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
       object BlankContract   extends ContractFor[WithKey] with Open
       implicit val D: DKeyContractCollectionCodec[WithKeys, WithKey]            = DKeyContractCollectionCodec[WithKeys, WithKey](
         WithKeyContract,
-        (k,d) => Some(WithKey(k,d)),
+        (k, d) => Some(WithKey(k, d)),
         w => w.key -> w.value,
         a => Some(WithKeys(a)),
         _.values
@@ -609,7 +609,7 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
       implicit val D2: DKeyContractCollectionCodec[AtleastTwoWithKeys, WithKey] =
         DKeyContractCollectionCodec[AtleastTwoWithKeys, WithKey](
           BlankContract,
-          (k,d) => Some(WithKey(k,d)),
+          (k, d) => Some(WithKey(k, d)),
           w => w.key -> w.value,
           a => if (a.size <= 1) None else Some(AtleastTwoWithKeys(a)),
           _.values

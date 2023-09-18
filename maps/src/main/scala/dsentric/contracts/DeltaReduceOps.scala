@@ -360,6 +360,8 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
           case dr                                         =>
             dr
         }
+      case _ if RawObjectOps.reducesEmpty(deltaObject)                   =>
+        DeltaEmpty
       case _                                                             =>
         available2DeltaReduce(reduceContract(contract, path, badTypes, codecContract, deltaObject))
     }
@@ -381,7 +383,7 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
         val paramDelta       = RawObjectOps.differenceDelta(currentObject -> (deltaObject -- deltaValueRawObject.keySet))
         //If our current state has failures, we need to make sure the final delta succeeds, so ignore those failures
         //and try again on the combined failures, otherwise take the delta failures
-        val resolvedFailures =
+        val resolvedParamFailures =
           currentExtracted.fold(
             _ =>
               codec
@@ -414,7 +416,7 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
           deltaValueRawObject,
           currentValueRawObject,
           badTypes.nest == DropBadTypes
-        ) -> resolvedFailures match {
+        ) -> resolvedParamFailures match {
           case (_: DeltaFailed, _) | (_, _ :: _) if badTypes == DropBadTypes =>
             DeltaEmpty
           case (d: DeltaFailed, failures)                                    =>
@@ -429,6 +431,8 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
           case (_, head :: tail)                                             =>
             DeltaFailed(head, tail)
         }
+      case _ if RawObjectOps.reducesEmpty(deltaObject) =>
+        DeltaEmpty
       case _                                                             =>
         available2DeltaReduce(reduceParameterisedContract(contract, path, badTypes, codec, deltaObject))
     }
@@ -458,33 +462,33 @@ private[contracts] trait DeltaReduceOps extends ReduceOps {
                     codec.cstr(key, currentElement) match {
                       case None if nest == DropBadTypes =>
                         DeltaEmpty
-                      case None =>
+                      case None                         =>
                         DeltaFailed(IncorrectTypeFailure(contract, path, codec, currentElement))
-                      case Some(currentEntity) =>
+                      case Some(currentEntity)          =>
                         codec.contract.__reduceDelta(deltaValue, currentEntity.value, nest == DropBadTypes) match {
                           case _: DeltaFailed if nest == DropBadTypes =>
                             DeltaEmpty
-                          case d: DeltaFailed =>
+                          case d: DeltaFailed                         =>
                             d.rebase(contract, path \ key)
-                          case dr =>
+                          case dr                                     =>
                             dr
                         }
                     }
-                  case _ =>
+                  case _                                          =>
                     codec.cstr(key, deltaValue) match {
                       case None if nest == DropBadTypes =>
                         DeltaEmpty
-                      case None =>
+                      case None                         =>
                         DeltaFailed(IncorrectTypeFailure(contract, path, codec, deltaValue))
-                      case Some(entity) =>
+                      case Some(entity)                 =>
                         codec.contract.__reduce(entity.value, badTypes.nest == DropBadTypes) match {
-                          case Found(rawObject) =>
+                          case Found(rawObject)                  =>
                             DeltaReduced(codec.dstr(entity.internalWrap(rawObject).asInstanceOf[D2])._2)
                           case _: Failed if nest == DropBadTypes =>
                             DeltaEmpty
-                          case NotFound =>
+                          case NotFound                          =>
                             DeltaEmpty
-                          case f: Failed =>
+                          case f: Failed                         =>
                             val rebase = f.rebase(contract, path \ key)
                             DeltaFailed(rebase.failure, rebase.tail)
                         }
