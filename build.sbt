@@ -3,7 +3,7 @@ import sbt.Keys._
 lazy val buildSettings = Seq(
   organization := "io.higherState",
   scalaVersion := "2.13.8",
-  version := "1.1.6",
+  version := "1.1.7",
   scalacOptions ++= Seq(
     "-deprecation",
     "-feature",
@@ -30,23 +30,6 @@ lazy val buildSettings = Seq(
 // sbt-release plugin settings
 
 releaseUseGlobalVersion := false
-
-// Replace 'publish' step with 'publishLocal' step
-releaseProcess -= ReleaseTransformations.publishArtifacts
-
-// end sbt-release plugin settings
-
-// enable publishing the jar produced by `test:package`
-Test / packageBin / publishArtifact := true
-
-// enable publishing the test API jar
-Test / packageDoc / publishArtifact := true
-
-// enable publishing the test sources jar
-Test / packageSrc / publishArtifact := true
-publishTo in ThisBuild := Some(
-  "Artifactory Realm" at "https://artifactory.orgvue.com:443/artifactory/company-sbt-release"
-)
 
 lazy val reflect      = "org.scala-lang"     % "scala-reflect" % "2.13.8"
 lazy val shapeless    = "com.chuusai"       %% "shapeless"     % "2.3.3"

@@ -3,19 +3,19 @@ package dsentric
 import dsentric.codecs.DCodec
 
 sealed trait Matcher  {
-  def apply(j:Raw):Boolean
+  def isTypeMatch(j:Raw):Boolean
   protected def default:Any
 }
 
 object ExistenceMatcher extends Matcher {
-  def apply(j:Raw):Boolean = true
+  def isTypeMatch(j:Raw):Boolean = true
   protected def default:Any = DNull
 
 }
 
-case class ValueMatcher[T](value:T)(implicit _codec:DCodec[T]) extends Matcher {
+final case class ValueMatcher[T](value:T)(implicit _codec:DCodec[T]) extends Matcher {
   val default: Raw = _codec(value)
-  def apply(j: Raw): Boolean = j == default
+  def isTypeMatch(j: Raw): Boolean = j == default
 }
 
 trait DataMatchers {
@@ -27,6 +27,6 @@ class MatcherUnapply private[dsentric](key: String, matcher:Matcher) extends App
   def unapply(j:DObject):Boolean = {
     j.value
       .get(key)
-      .fold(false) { v => matcher(v) }
+      .fold(false) { v => matcher.isTypeMatch(v) }
   }
 }

@@ -1,11 +1,11 @@
 package dsentric
 
 import dsentric.codecs.{DCodec, DataCodec}
-import dsentric.contracts.{OmitPathSetter, PathSetter, SelectPathSetter, ValidPathSetter}
+import dsentric.contracts.{DefaultProperty, OmitPathSetter, PathSetter, Property, SelectPathSetter, ValidPathSetter}
 import dsentric.failure.ValidResult
 import dsentric.filter.DFilter
 
-import scala.collection.{mutable, Iterable, IterableFactory, IterableOps}
+import scala.collection.{Iterable, IterableFactory, IterableOps, mutable}
 
 trait Data extends Any {
 
@@ -125,7 +125,20 @@ trait DObjectOps[+C <: DObjectOps[C]] extends Any with Data with IterableOps[(St
       .traverse(value, path)
       .collect { case D(t) => t }
 
-  def +\(v: (Path, Data)): C                             =
+  def \[T](property: Property[_, T]): Option[T] =
+    \(property._path)(property._codec)
+
+  def \![T](path: Path, default:T)(implicit D: DCodec[T]): T =
+    PathLensOps
+      .traverse(value, path) match {
+        case Some(D(t)) => t
+        case _ => default
+    }
+
+  def \![T](property: DefaultProperty[_, T]): T =
+    \!(property._path, property._default)(property._codec)
+
+  def +\(v: (Path, Data)): C =
     wrap(PathLensOps.set(value, v._1, v._2.value))
 
   def ++\(paths: IterableOnce[(Path, Data)]): C =
