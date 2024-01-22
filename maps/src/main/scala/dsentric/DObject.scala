@@ -5,7 +5,7 @@ import dsentric.contracts.{DefaultProperty, OmitPathSetter, PathSetter, Property
 import dsentric.failure.ValidResult
 import dsentric.filter.DFilter
 
-import scala.collection.{Iterable, IterableFactory, IterableOps, mutable}
+import scala.collection.{mutable, Iterable, IterableFactory, IterableOps}
 
 trait Data extends Any {
 
@@ -125,14 +125,14 @@ trait DObjectOps[+C <: DObjectOps[C]] extends Any with Data with IterableOps[(St
       .traverse(value, path)
       .collect { case D(t) => t }
 
-  def \[T](property: Property[_, T]): Option[T] =
+  def \[T](property: Property[_, T]): Option[T]          =
     \(property._path)(property._codec)
 
-  def \![T](path: Path, default:T)(implicit D: DCodec[T]): T =
+  def \![T](path: Path, default: T)(implicit D: DCodec[T]): T =
     PathLensOps
       .traverse(value, path) match {
-        case Some(D(t)) => t
-        case _ => default
+      case Some(D(t)) => t
+      case _          => default
     }
 
   def \![T](property: DefaultProperty[_, T]): T =
@@ -247,6 +247,9 @@ trait DObjectOps[+C <: DObjectOps[C]] extends Any with Data with IterableOps[(St
 
   override def nestedKeyMap(pf: PartialFunction[String, Option[String]]): C =
     wrap(DataOps.nestedKeyMap(value, pf).asInstanceOf[RawObject])
+
+  def nestedExists(f: (String, Data) => Boolean): Boolean =
+    DataOps.nestedExists(this)(f)
 }
 
 trait DObject extends Any with DObjectOps[DObject] {

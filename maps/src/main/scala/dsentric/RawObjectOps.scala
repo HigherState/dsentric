@@ -278,6 +278,7 @@ trait RawObjectOps {
       case (k, v)                       =>
         k -> f(v)
     }
+
 }
 
 object RawObjectOps extends RawObjectOps
