@@ -138,13 +138,13 @@ object SchemaReflection  {
 
     members.collect {
       case (termSymbol: TermSymbol) if !termSymbol.isAccessor =>
-        val rawObj = instanceMirror.reflectField(termSymbol).get
-        val keyName = rawObj.asInstanceOf[Property[_, _]]._key
+        val rawObj      = instanceMirror.reflectField(termSymbol).get
+        val keyName     = rawObj.asInstanceOf[Property[_, _]]._key
         val annotations = getSchemaAnnotation(termSymbol.annotations)
         keyName.trim() -> annotations
-      case (methodSymbol: MethodSymbol) =>
-        val rawObj = instanceMirror.reflectMethod(methodSymbol).apply()
-        val keyName = rawObj.asInstanceOf[Property[_, _]]._key
+      case (methodSymbol: MethodSymbol)                       =>
+        val rawObj      = instanceMirror.reflectMethod(methodSymbol).apply()
+        val keyName     = rawObj.asInstanceOf[Property[_, _]]._key
         val annotations = getSchemaAnnotation(methodSymbol.annotations)
         keyName.trim() -> annotations
     }.toMap

@@ -130,7 +130,7 @@ object SchemaReflection  {
               if (inherited.size == 1 && annotationFields.isEmpty)
                 inherited.head.displayName
               else
-                None
+                Some(getDisplayName_(simpleName))
             else
               Some(getDisplayName_(simpleName))
           }
