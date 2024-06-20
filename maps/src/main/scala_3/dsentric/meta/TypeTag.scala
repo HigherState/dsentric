@@ -593,7 +593,7 @@ object TypeTag:
     typeRef: quotes.reflect.TypeRepr,
     parentClassPath: String,
     inherited: Boolean
-  ): FieldInfo[typeRef.asType.Underlying] =
+  ): FieldInfo[?] =
     import quotes.reflect.*
 
     val name        = symbol.name
@@ -632,7 +632,7 @@ object TypeTag:
       isMutable,
       accessor,
       parentClassPath
-    )//.asInstanceOf[FieldInfo[?]]
+    )
 
   private def resolveForChild(quotes: Quotes)(
     symbol: quotes.reflect.Symbol,
