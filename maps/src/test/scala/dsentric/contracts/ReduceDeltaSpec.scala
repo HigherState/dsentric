@@ -1,31 +1,13 @@
 package dsentric.contracts
 
-import dsentric.codecs.{
-  DContractCodec,
-  DCoproductCodec,
-  DKeyContractCollectionCodec,
-  DParameterisedContractCodec,
-  DTypeContractCodec,
-  DValueCodec
-}
-import dsentric.failure.{
-  ClosedContractFailure,
-  ContractTypeResolutionFailure,
-  CoproductTypeValueFailure,
-  ExpectedFailure,
-  ImmutableFailure,
-  IncorrectKeyTypeFailure,
-  IncorrectTypeFailure,
-  MaskFailure,
-  MissingElementFailure,
-  ReservedFailure
-}
+import dsentric.codecs.{DContractCodec, DCoproductCodec, DKeyContractCollectionCodec, DParameterisedContractCodec, DTypeContractCodec, DValueCodec}
+import dsentric.failure.{ClosedContractFailure, ContractTypeResolutionFailure, CoproductTypeValueFailure, ExpectedFailure, ImmutableFailure, IncorrectKeyTypeFailure, IncorrectTypeFailure, MaskFailure, MissingElementFailure, ReservedFailure}
 import dsentric.schema.ObjectDefinition
 import dsentric.{DNull, DObject, DObjectOps, Data, Delta, Path, RawObject}
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
-import shapeless.HList
+import dsentric.aliases.HList
 
 class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
   import dsentric.Dsentric._
@@ -435,6 +417,28 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
       }
 
       object ContractCodec extends Contract {
+        /*import shapeless.labelled.KeyTag
+        import shapeless.tag.Tagged
+        import shapeless.{::, HNil}
+        import shapeless.labelled.FieldType
+        val codec0: DParameterisedContractCodec[Parametric,
+          FieldType[Long with KeyTag[Symbol with Tagged[ {type id}], Long], Long] ::
+            FieldType[String with KeyTag[Symbol with Tagged[ {type _type}], String], String] ::
+            FieldType[Map[String, Any] with KeyTag[Symbol with Tagged[ {type value}], Map[String, Any]], Map[String, Any]] ::
+            HNil
+        ] = DParameterisedContractCodec(Parametric)*/
+        /*import scala.deriving.Mirror
+        import dsentric.codecs.DParameter
+        import dsentric.meta.labelled.FieldType
+
+        val mirror = summon[Mirror.ProductOf[Parametric]]
+        //val hCodec = DParameter.hListParameter
+
+        val test0: DParameter[FieldType["id", Long] *: EmptyTuple] =
+          DParameter.tupleParameter[Long, "id", EmptyTuple]
+        val test1: DParameter[FieldType["id", Long] *: FieldType["_type", String] *: FieldType["value", Map[String, Any]] *: EmptyTuple] =
+          DParameter.tupleParameter //[Parametric, Long, "id", FieldType["_type", String] *: FieldType["value", Map[String, Any]] *: EmptyTuple]*/
+
         val property = \[Parametric](DParameterisedContractCodec(Parametric))
       }
       it("Should return delta if current empty and delta satisfies contract conditions") {

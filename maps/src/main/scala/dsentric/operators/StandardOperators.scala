@@ -1,6 +1,6 @@
 package dsentric.operators
 
-import com.github.ghik.silencer.silent
+//import com.github.ghik.silencer.silent
 import dsentric.codecs.DCodec
 import dsentric.{
   Available,
@@ -178,8 +178,8 @@ trait StandardOperators {
         }
 
     }
-  @silent
-  def maskTo[T, U](function: T => Option[U], default: Option[U])(implicit DT: DCodec[T], DU: DCodec[U]): Sanitizer[T]    =
+  //@silent
+  def maskTo[T, U](function: T => Option[U], default: Option[U])(implicit DT: DCodec[T]): Sanitizer[T]    =
     (value: Option[Raw]) => value.flatMap(DT.unapply).fold(default)(function)
 
   //Include:

@@ -56,7 +56,7 @@ object JsonSchema {
   private def convertSingleTypeDefinition(typeDefinition: SingleTypeDefinition):mutable.HashMap[String, Any] = {
     val m = new mutable.HashMap[String, Any]()
     m += "type" -> typeDefinition.name
-    if (typeDefinition.enum.nonEmpty) m += "enum" -> typeDefinition.enum.toVector
+    if (typeDefinition.`enum`.nonEmpty) m += "enum" -> typeDefinition.`enum`.toVector
     typeDefinition match {
       case r:ByRefDefinition =>
         m.clear()

@@ -1,10 +1,10 @@
 package dsentric.schema
 
-import com.github.ghik.silencer.silent
+//import com.github.ghik.silencer.silent
 
 import scala.collection.mutable
 
-@silent
+//@silent
 class MsonSchema(tab: String, newLine: String) {
 
   def convertObjectDefinition(objectDefinition: ObjectDefinition): String = {
@@ -72,11 +72,11 @@ class MsonSchema(tab: String, newLine: String) {
           convertPropertyDefinition(stringBuilder, tabs + tab, p)
         }
 
-      case m: MultipleTypeDefinition =>
+      case _: MultipleTypeDefinition =>
         //TODO
         ???
 
-      case a: ArrayDefinition =>
+      case _: ArrayDefinition =>
         propertyDefinition.examples.headOption.collect { case s: Iterable[Any] =>
           stringBuilder.append(s.map(i => escape(i.toString)).mkString(": ", ", ", ""))
         }
@@ -91,8 +91,8 @@ class MsonSchema(tab: String, newLine: String) {
           }
 
       case t: TypeDefinition =>
-        if (t.enum.nonEmpty) {
-          stringBuilder.append(s": " + t.enum.map(i => escape(i.toString)).mkString(", "))
+        if (t.`enum`.nonEmpty) {
+          stringBuilder.append(s": " + t.`enum`.map(i => escape(i.toString)).mkString(", "))
           stringBuilder.append(s" (enum[${t.name}]$tags)")
         } else {
           propertyDefinition.examples.headOption.foreach(p => s": " + escape(p.toString))

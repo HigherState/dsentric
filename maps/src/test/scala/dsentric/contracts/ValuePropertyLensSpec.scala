@@ -7,7 +7,7 @@ import dsentric.failure.{CoproductTypeValueFailure, ExpectedFailure, IncorrectTy
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
-import shapeless.HList
+import dsentric.aliases.HList
 
 class ValuePropertyLensSpec extends AnyFunSpec with Matchers with EitherValues {
 

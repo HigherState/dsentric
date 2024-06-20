@@ -2,7 +2,7 @@ package dsentric
 
 import cats.data.NonEmptyList
 
-package object failure extends ValidResultSyntax {
+package object failure {
   type ValidResult[+T]    = Either[NonEmptyList[Failure], T]
   type ValidationFailures = List[Failure]
 
@@ -13,4 +13,6 @@ package object failure extends ValidResultSyntax {
       List(v: _*)
   }
 
+  implicit def toValidResultOps[T](validResult: ValidResult[T]): ValidResultOps[T] =
+    new ValidResultOps[T](validResult)
 }
