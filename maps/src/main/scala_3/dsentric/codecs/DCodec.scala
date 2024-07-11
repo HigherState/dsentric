@@ -1,9 +1,9 @@
 package dsentric.codecs
 
 import cats.data.NonEmptyList
-import dsentric._
+import dsentric.*
 import dsentric.contracts.{Contract, ContractLike}
-import dsentric.schema._
+import dsentric.schema.*
 
 
 import dsentric.meta.{labelled, LabelledType}
@@ -26,14 +26,90 @@ sealed trait DCodec[T] {
 
   def containsContractCodec: Boolean
 
-  @inline protected def deltaNull(deltaValue: Raw): Boolean =
+  inline protected def deltaNull(deltaValue: Raw): Boolean =
     deltaValue.isInstanceOf[DNull.type]
 }
+
+object DCodec:
+  import scala.quoted.*
+
+  transparent inline def derived[T]: DCodec[T] = ${ derivedMacro[T] }
+
+  def derivedMacro[T: Type](using q: Quotes): Expr[DCodec[T]] =
+    import quotes.reflect.*
+    import scala.compiletime.summonInline
+
+    val tpe          = TypeRepr.of[T]
+    val isValueClass =
+      tpe.baseClasses.contains(Symbol.classSymbol("scala.AnyVal")) &&
+        !Set("scala.AnyVal", "java.lang.Object").contains(tpe.typeSymbol.fullName)
+
+    def getUnderlyingType(t: TypeRepr): TypeRepr =
+      t.typeSymbol.primaryConstructor.paramSymss.flatten.headOption match
+        case Some(param) => param.termRef.widenTermRefByName
+        case None        => t
+
+    def getUnderlyingField(t: TypeRepr): Symbol =
+      t.typeSymbol.primaryConstructor.paramSymss.flatten.headOption.getOrElse {
+        q.reflect.report.errorAndAbort(s"Value class must contain a field")
+      }
+
+    if isValueClass then
+      val underlyingType      = getUnderlyingType(tpe)
+      val hasTypeParams       = tpe.typeSymbol.typeMembers.nonEmpty
+      val hasStringUnderlying = underlyingType =:= TypeRepr.of[String]
+      val underlyingFieldName = getUnderlyingField(tpe).name
+
+      if hasTypeParams then
+        q.reflect.report.errorAndAbort(s"Value Class ${Type.show[T]} cannot contain type parameters")
+      else if hasStringUnderlying then
+        '{ new DStringCodec[T] {
+             def apply(t: T): String =
+               ${
+                 val fieldSelect = Select.unique('{t}.asTerm, underlyingFieldName)
+                 fieldSelect.asExprOf[String]
+               }
+             def fromString(s: String): Option[T] = Some(
+               ${
+                 val constructor = tpe.typeSymbol.primaryConstructor
+                 val newInstance = Select(New(TypeTree.of[T]), constructor)
+                 Apply(newInstance, List('{s}.asTerm)).asExprOf[T]
+               }
+             )
+             def typeDefinition: StringDefinition = StringDefinition.empty
+           }
+        }
+      else
+        underlyingType.asType match
+          case '[underlying] =>
+            Expr.summon[DCodec[underlying]] match
+              case Some(imp) =>
+                '{
+                  DValueClassCodec[T, underlying](
+                    t => ${
+                      val fieldSelect = Select.unique('{t}.asTerm, underlyingFieldName)
+                      fieldSelect.asExprOf[underlying]
+                    },
+                    v => Some(
+                      ${
+                        val constructor = tpe.typeSymbol.primaryConstructor
+                        val newInstance = Select(New(TypeTree.of[T]), constructor)
+                        Apply(newInstance, List('{v}.asTerm)).asExprOf[T]
+                      }
+                    )
+                  )(using $imp)
+                }
+              case None =>
+                q.reflect.report.errorAndAbort(s"Cannot derive DCodec for type ${Type.show[T]} as it couldn't find an implicit instance for type ${Type.show[underlying]}")
+
+    else
+      q.reflect.report.errorAndAbort(s"Type ${Type.show[T]} must be a value class")
 
 trait DValueCodec[T]  extends DCodec[T]      {
   def apply(t: T): RawValue
   def containsContractCodec: Boolean = false
 }
+
 //Required for handling bridge generation of value classes
 trait DValueBridge[T] extends DValueCodec[T] {
   def bridge(t: T): Data
@@ -216,70 +292,6 @@ object DParameter                   {
       def propertyDefinition: Set[PropertyDefinition] =
         tEncoder.propertyDefinition
     }
-
-  /*implicit def hListParameter[K <: String, H, T <: Tuple](implicit
-    //ev: K <:< Singleton,
-    witness: ValueOf[K],
-    hEncoder: => DCodec[H],
-    tEncoder: DParameter[T]
-  ): DParameter[FieldType[K, H] *: T] = new DParameter[FieldType[K, H] *: T] {
-    val fieldName: String                                                                                  = witness.value
-    private def failed(maybeRaw: Option[Raw]): Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], H] =
-      Left(NonEmptyList(fieldName -> maybeRaw.map(_ -> hEncoder), Nil))
-
-    def encode(t: FieldType[K, H] *: T): RawObject                                                         =
-      tEncoder.encode(t.tail) +
-        (fieldName -> hEncoder.apply(t.head))
-
-    def decode(
-      r: RawObject
-    ): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => FieldType[K, H] *: T]) = {
-      import cats.implicits._
-      val result     =
-        r.get(fieldName).fold(failed(None)) { raw =>
-          hEncoder.unapply(raw).fold(failed(Some(raw)))(Right.apply)
-        }
-      val (r2, tail) = tEncoder.decode(r)
-      (r2 - fieldName) ->
-        (result, tail).parMapN((head, function) => (rf: RawObject) => labelled.field[K](head) *: function(rf))
-    }
-
-    def propertyDefinition: Set[PropertyDefinition] =
-      tEncoder.propertyDefinition + PropertyDefinition(fieldName, hEncoder.typeDefinition, Nil, None, true, None)
-  }*/
-
-  /*implicit def tupleParameter[P <: Product, H, K <: String, T <: Tuple](implicit
-    gen: Mirror.ProductOf[P] { type MirroredElemTypes <: H *: Tuple; type MirroredElemLabels <: K *: Tuple },
-    witness: ValueOf[K],
-    hEncoder: => DCodec[H],
-    tEncoder: => DParameter[T]
-  ): DParameter[FieldType[K, H] *: T] = new DParameter[FieldType[K, H] *: T] {
-    val fieldName: String = witness.value
-
-    private def failed(maybeRaw: Option[Raw]): Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], H] =
-      Left(NonEmptyList(fieldName -> maybeRaw.map(_ -> hEncoder), Nil))
-
-    def encode(t: FieldType[K, H] *: T): RawObject =
-      tEncoder.encode(t.tail) + (fieldName -> hEncoder.apply(t.head))
-
-    def decode(
-      r: RawObject
-    ): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => FieldType[K, H] *: T]) = {
-      import cats.implicits._
-
-      val result =
-        r.get(fieldName).fold(failed(None)) { raw =>
-          hEncoder.unapply(raw).fold(failed(Some(raw)))(Right.apply)
-        }
-
-      val (r2, tail) = tEncoder.decode(r)
-
-      (r2 - fieldName) -> (result, tail).parMapN((head, function) => (rf: RawObject) => labelled.field[K](head) *: function(rf))
-    }
-
-    def propertyDefinition: Set[PropertyDefinition] =
-      Set(PropertyDefinition(fieldName, hEncoder.typeDefinition, Nil, None, true, None))
-  }*/
 
   implicit def tupleParameter[H, K <: String, T <: Tuple](implicit
     witness: ValueOf[K],

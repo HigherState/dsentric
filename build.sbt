@@ -3,7 +3,7 @@ import sbt.Keys._
 lazy val buildSettings = Seq(
   organization := "io.higherState",
   scalaVersion := "2.13.8",
-  version := "1.3.0",
+  version := "1.3.1",
   scalacOptions ++= (scalaPartV.value match {
     case Some((3, _)) =>
       Seq("-language:postfixOps", "-language:reflectiveCalls", "-language:existentials")
@@ -94,3 +94,18 @@ lazy val maps = project
   }))
   .dependsOn(core, core % "test -> test")
   .settings(crossScalaVersions := Seq("2.13.8", "3.3.1"))
+
+lazy val macros = project
+  .settings(moduleName := "dsentric-macros")
+  .settings(settings)
+  .settings(
+    scalacOptions ++= Seq(
+      "-Ymacro-annotations",
+      "-Xmacro-settings:materialize-derivations",
+      "-Ywarn-macros:after",
+      "-Ywarn-unused:explicits",
+      "-language:reflectiveCalls"
+    )
+  )
+  .settings(libraryDependencies ++= Seq(reflect, shapeless, scalatest, commons_math))
+  .dependsOn(core, maps)
