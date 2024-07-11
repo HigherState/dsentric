@@ -55,16 +55,6 @@ object LabelledType {
         EmptyTuple
     }
 
-  /*def fieldTypes[Labels <: Tuple, Types <: Tuple](types: Types): FieldTypes[Labels, Types] =
-    erasedValue[Labels] match {
-      case _: EmptyTuple => EmptyTuple.asInstanceOf[FieldTypes[Labels, Types]]
-      case _: (hl *: tl) =>
-        types match {
-          case _: EmptyTuple => EmptyTuple.asInstanceOf[FieldTypes[Labels, Types]]
-          case tt: (_ *: tt) => (field[hl](tt.head) *: fieldTypes[tl, tt](tt.tail)).asInstanceOf[FieldTypes[Labels, Types]]
-        }
-    }*/
-
   def fieldTypes[Labels <: Tuple, Types <: Tuple](labels: Labels, types: Types): FieldTypes[Labels, Types] =
     (labels, types) match {
       case (labelHead *: labelTail, typeHead *: typeTail) =>
