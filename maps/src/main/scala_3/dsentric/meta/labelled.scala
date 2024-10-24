@@ -30,11 +30,12 @@ object Labelling {
 
   inline given [T](using m: Mirror.Of[T]): Labelling.Aux[T, m.MirroredElemLabels] = {
     val tuple = constValueTuple[m.MirroredElemLabels]
+    new InnerLabel[m.MirroredElemLabels, T](tuple)
 
-    new Labelling[T] {
-      override type Out = m.MirroredElemLabels
-      override def apply(): Out = tuple
-    }
+  }
+  private class InnerLabel[A <: Tuple, T](tuple:A) extends Labelling[T] {
+    override type Out = A
+    override def apply(): A = tuple
   }
 }
 
@@ -63,13 +64,17 @@ object LabelledType {
         EmptyTuple.asInstanceOf[FieldTypes[Labels, Types]]
     }
 
-  inline given [T <: Product](using m: Mirror.ProductOf[T]): LabelledType.Aux[T, FieldTypes[m.MirroredElemLabels, m.MirroredElemTypes]] =
-    new LabelledType[T] {
-      override type Out = FieldTypes[m.MirroredElemLabels, m.MirroredElemTypes]
-      override def apply(t: T): Out =
-        fieldTypes[m.MirroredElemLabels, m.MirroredElemTypes](
-          constValueTuple[m.MirroredElemLabels],
-          Tuple.fromProductTyped(t)
-        )
-    }
+  inline given [T <: Product](using m: Mirror.ProductOf[T]): LabelledType.Aux[T, FieldTypes[m.MirroredElemLabels, m.MirroredElemTypes]] = {
+    def f(t:T) =
+      fieldTypes[m.MirroredElemLabels, m.MirroredElemTypes](
+        constValueTuple[m.MirroredElemLabels],
+        Tuple.fromProductTyped(t)
+      )
+    new InnerLabelledType[T,m.MirroredElemLabels, m.MirroredElemTypes](f)
+  }
+
+  private class InnerLabelledType[T <: Product, EL <: Tuple, ET <: Tuple](f:T => FieldTypes[EL, ET]) extends LabelledType[T] {
+    override type Out = FieldTypes[EL, ET]
+    override def apply(t: T): Out = f(t)
+  }
 }

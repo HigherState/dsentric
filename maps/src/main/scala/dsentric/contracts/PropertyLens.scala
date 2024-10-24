@@ -11,7 +11,7 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
   def _codec: DCodec[T]
   def _parent: BaseContract[D]
   def _root: ContractFor[D] = _parent._root
-  def _dataOperators: List[DataOperator[_]]
+  def _dataOperators: List[DataOperator[?]]
 
   /**
    * Return the property value or failure
@@ -54,7 +54,7 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
 
   private[contracts] def __applyConstraints[R](reduce: Available[R], badTypes: BadTypes): Available[R] =
     _dataOperators.flatMap {
-      case c: Constraint[_] =>
+      case c: Constraint[?] =>
         c.verify(_root, _path, reduce)
       case _                =>
         Nil
@@ -73,7 +73,7 @@ private[dsentric] trait PropertyLens[D <: DObject, T] extends BaseAux with Param
     badTypes: BadTypes
   ): DeltaReduce[R] =
     _dataOperators.flatMap {
-      case c: Constraint[_] =>
+      case c: Constraint[?] =>
         c.verify(_root, _path, current, deltaReduce)
       case _                =>
         Nil

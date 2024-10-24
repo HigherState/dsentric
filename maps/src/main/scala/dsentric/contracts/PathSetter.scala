@@ -23,7 +23,7 @@ sealed trait PathSetter[D <: DObject] extends Function[D, D] {
   def |>[D2 <: D](obj: D2): D2                         =
     applyAs(obj)
 
-  def |>>[DL <: Delta with DObjectOps[DL]](delta: DL): DL =
+  def |>>[DL <: Delta & DObjectOps[DL]](delta: DL): DL =
     delta.internalWrap(rawApply(delta.value))
 
   private[contracts] def rawApply(rawObject: RawObject): RawObject
@@ -130,7 +130,7 @@ final private[dsentric] case class ValueSetter[D <: DObject](path: Path, value: 
     PathLensOps.pathToMap(path, value)
 }
 
-final private[dsentric] case class IfInvalidSetter[D <: DObject](path: Path, value: Raw, codec:DCodec[_]) extends PathSetter[D] {
+final private[dsentric] case class IfInvalidSetter[D <: DObject](path: Path, value: Raw, codec:DCodec[?]) extends PathSetter[D] {
 
   private[contracts] def rawApply(rawObject: RawObject): RawObject =
     PathLensOps.traverse(rawObject, path) match {
@@ -177,7 +177,7 @@ final private[dsentric] case class ValueIfEmptySetter[D <: DObject](path: Path, 
     }
 }
 
-final private[dsentric] case class ValueIfEmptyOrInvalidSetter[D <: DObject](path: Path, value: Raw, codec: DCodec[_])
+final private[dsentric] case class ValueIfEmptyOrInvalidSetter[D <: DObject](path: Path, value: Raw, codec: DCodec[?])
     extends PathSetter[D] {
 
   private[contracts] def rawApply(rawObject: RawObject): RawObject =

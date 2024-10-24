@@ -17,8 +17,8 @@ trait DValueCodecs {
 
       def unapply(a: Raw): Option[DValue] =
         a match {
-          case _: Vector[_] => None
-          case _: Map[_, _] => None
+          case _: Vector[?] => None
+          case _: Map[?, ?] => None
           case v            => Some(ForceWrapper.dValue(v))
         }
 
@@ -26,7 +26,7 @@ trait DValueCodecs {
         TypeDefinition.anyVal
     }
 
-  implicit val stringCodec: DStringCodec[String] with DirectCodec[String] =
+  implicit val stringCodec: DStringCodec[String] & DirectCodec[String] =
     new DStringCodec[String] with DirectCodec[String] {
 
       def fromString(s: String): Option[String] =

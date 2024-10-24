@@ -125,7 +125,7 @@ trait DObjectOps[+C <: DObjectOps[C]] extends Any with Data with IterableOps[(St
       .traverse(value, path)
       .collect { case D(t) => t }
 
-  def \[T](property: Property[_, T]): Option[T]          =
+  def \[T](property: Property[?, T]): Option[T]          =
     \(property._path)(property._codec)
 
   def \![T](path: Path, default: T)(implicit D: DCodec[T]): T =
@@ -135,7 +135,7 @@ trait DObjectOps[+C <: DObjectOps[C]] extends Any with Data with IterableOps[(St
       case _          => default
     }
 
-  def \![T](property: DefaultProperty[_, T]): T =
+  def \![T](property: DefaultProperty[?, T]): T =
     \!(property._path, property._default)(property._codec)
 
   def +\(v: (Path, Data)): C =

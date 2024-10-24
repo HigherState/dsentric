@@ -23,7 +23,7 @@ object Sanitization {
     }
 
     contract._fields.foldLeft[Option[RawObject]](None) {
-      case (maybeObj, (field, property: BaseContract[DObject]@unchecked with ExpectedObjectProperty[D])) =>
+      case (maybeObj, (field, property: (BaseContract[DObject] & ExpectedObjectProperty[D]) @unchecked)) =>
         getSanitizer(property) match {
           case None =>
             val obj =
@@ -34,7 +34,7 @@ object Sanitization {
               .orElse(maybeObj)
         }
 
-      case (maybeObj, (field, property: BaseContract[DObject]@unchecked with Property[D, _])) =>
+      case (maybeObj, (field, property: (BaseContract[DObject]@unchecked & Property[D, ?]))) =>
         getSanitizer(property) match {
           case None =>
             value.get(field).collect {

@@ -10,7 +10,7 @@ import scala.annotation.nowarn
 import scala.util.matching.Regex
 
 sealed trait PropertyFilterOps[T] extends Any {
-  def prop: Property[_, T]
+  def prop: Property[?, T]
   protected def nest(value: Any): DFilter =
     new DFilter(PathLensOps.pathToMap(prop._path, value))
 
@@ -18,22 +18,22 @@ sealed trait PropertyFilterOps[T] extends Any {
 
 trait DFilterSyntax {
 
-  implicit def toValueFilterOps[T](prop: Property[_, T]): ValueFilterOps[T] =
+  implicit def toValueFilterOps[T](prop: Property[?, T]): ValueFilterOps[T] =
     new ValueFilterOps(prop)
 
-  implicit def toMaybeFilterOps[T](prop: MaybeProperty[_, T]): ExistsFilterOps[T] =
+  implicit def toMaybeFilterOps[T](prop: MaybeProperty[?, T]): ExistsFilterOps[T] =
     new ExistsFilterOps(prop)
 
-  implicit def toEmptyFilterOps[T](prop: DynamicProperty[_, T]): ExistsFilterOps[T] =
+  implicit def toEmptyFilterOps[T](prop: DynamicProperty[?, T]): ExistsFilterOps[T] =
     new ExistsFilterOps(prop)
 
-  implicit def toNumericFilterOps[T >: dsentric.operators.Numeric](prop: Property[_, T]): NumericFilterOps[T] =
+  implicit def toNumericFilterOps[T >: dsentric.operators.Numeric](prop: Property[?, T]): NumericFilterOps[T] =
     new NumericFilterOps(prop)
 
-  implicit def toStringFilterOps[T >: Optionable[String]](prop: Property[_, T]): StringFilterOps[T] =
+  implicit def toStringFilterOps[T >: Optionable[String]](prop: Property[?, T]): StringFilterOps[T] =
     new StringFilterOps(prop)
 
-  implicit def toIterableFilterOps[R <: DObject, T, C[_] <: Iterable[_]](
+  implicit def toIterableFilterOps[R <: DObject, T, C[_] <: Iterable[?]](
     prop: Property[R, C[T]]
   ): IterableFilterOps[R, T, C] =
     new IterableFilterOps(prop)
@@ -43,7 +43,7 @@ trait DFilterSyntax {
 
 }
 
-final class IterableFilterOps[R <: DObject, T, C[_] <: Iterable[_]](val prop: Property[R, C[T]])
+final class IterableFilterOps[R <: DObject, T, C[_] <: Iterable[?]](val prop: Property[R, C[T]])
     extends AnyVal
     with PropertyFilterOps[C[T]] {
 
@@ -61,7 +61,7 @@ final class DArrayFilterOps[R <: DObject](val prop: ExpectedProperty[R, DArray])
     nest(Map("$elemMatch" -> f(DynamicProperty(DataCodec, "", Path.empty, prop._root)).value))
 
 }
-final class ValueFilterOps[T](val prop: Property[_, T]) extends AnyVal with PropertyFilterOps[T] {
+final class ValueFilterOps[T](val prop: Property[?, T]) extends AnyVal with PropertyFilterOps[T] {
 
   def $eq(value: T): DFilter    =
     if (prop._path.isEmpty)
@@ -78,11 +78,11 @@ final class ValueFilterOps[T](val prop: Property[_, T]) extends AnyVal with Prop
 
 }
 
-final class ExistsFilterOps[T](val prop: Property[_, T]) extends AnyVal with PropertyFilterOps[T] {
+final class ExistsFilterOps[T](val prop: Property[?, T]) extends AnyVal with PropertyFilterOps[T] {
   def $exists(value: Boolean): DFilter = nest(Map("$exists" -> value))
 }
 
-final class NumericFilterOps[T >: dsentric.operators.Numeric](val prop: Property[_, T])
+final class NumericFilterOps[T >: dsentric.operators.Numeric](val prop: Property[?, T])
     extends AnyVal
     with PropertyFilterOps[T] {
 
@@ -99,7 +99,7 @@ final class NumericFilterOps[T >: dsentric.operators.Numeric](val prop: Property
   def $gte(value: Long): DFilter   = nest(Map("$gte" -> value))
 }
 
-final class StringFilterOps[T >: Optionable[String]](val prop: Property[_, T])
+final class StringFilterOps[T >: Optionable[String]](val prop: Property[?, T])
     extends AnyVal
     with PropertyFilterOps[T] {
 
@@ -112,7 +112,7 @@ final class StringFilterOps[T >: Optionable[String]](val prop: Property[_, T])
 
 }
 
-final class CaseInsensitiveFilterOps[T](val prop: Property[_, T]) extends PropertyFilterOps[T] {
+final class CaseInsensitiveFilterOps[T](val prop: Property[?, T]) extends PropertyFilterOps[T] {
 
   def $eq(value: T): DFilter =
     nest(Map("$regex" -> ("^" + DFilterOps.string2RegexEscapedString(value.toString) + "$"), "$options" -> "i"))

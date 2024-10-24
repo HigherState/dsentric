@@ -82,7 +82,7 @@
 //      }
 //
 //    @inline
-//    def validateContractProperty[D2 <: DObject](field:String, property:BaseContract[DObject] with Property[D2, _], value:RawObject, maybeCurrentState:Option[RawObject]):ValidationFailures =
+//    def validateContractProperty[D2 <: DObject](field:String, property:BaseContract[DObject] with Property[D2, ?], value:RawObject, maybeCurrentState:Option[RawObject]):ValidationFailures =
 //      value.get(field).collect {
 //        case rv:RawObject@unchecked =>
 //          validateContract(property, rv, maybeCurrentState.flatMap(_.get(field).collect{case rs:RawObject@unchecked => rs}))
@@ -125,13 +125,13 @@
 ////          additionalProperties.filterNot(kv => baseContract._fields.keySet(kv._1) || (kv._2 == DNull && maybeCurrentState.nonEmpty))
 ////            .map { kv =>
 ////              baseContract match {
-////                case p: Property[D2, _]@unchecked =>
+////                case p: Property[D2, ?]@unchecked =>
 ////                  ClosedContractFailure(p._root, p._path, kv._1)
 ////                case b: ContractFor[D] =>
 ////                  ClosedContractFailure(b, Path.empty, kv._1)
 ////              }
 ////            }.toList
-////        case p:PatternProperties[_]@unchecked => ???
+////        case p:PatternProperties[?]@unchecked => ???
 ////        case _ => ???
 //////          lazy val t = additionalProperties.map{ case (p.keyCodec(k), p) =>
 //////            p.data
@@ -161,7 +161,7 @@
 //        failures ++
 //        validateProperty(field, property, newValue, maybeCurrentState) ++
 //        validateContractProperty(field, property, newValue, maybeCurrentState)
-//      case (failures, (field, property:BaseContract[DObject]@unchecked with Property[D, _])) =>
+//      case (failures, (field, property:BaseContract[DObject]@unchecked with Property[D, ?])) =>
 //        failures ++
 //        validateProperty(field, property, value, maybeCurrentState) ++
 //        validateContractProperty(field, property, value, maybeCurrentState)
