@@ -373,7 +373,7 @@
 //            x match {
 //              case s: Seq[Any]@unchecked =>
 //                Some(s.size)
-//              case a: Iterable[_] =>
+//              case a: Iterable[?] =>
 //                Some(a.size)
 //              case s: String =>
 //                Some(s.size)

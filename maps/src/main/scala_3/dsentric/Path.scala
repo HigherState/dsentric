@@ -165,8 +165,6 @@ object Path {
         PathIndex(i, a)
       case (s: String, a) =>
         PathKey(s, a)
-      case (_, a)         =>
-        a
     }
 
   //TODO handle chars \ " etc

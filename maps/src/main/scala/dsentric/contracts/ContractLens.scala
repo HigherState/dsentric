@@ -23,7 +23,7 @@ import dsentric.operators.DataOperationOps
 
 trait ContractLens[D <: DObject] { this: BaseContract[D] =>
 
-  def _fields: Map[String, Property[D, _]]
+  def _fields: Map[String, Property[D, ?]]
 
   //Currently not supportive of additional properties in D Constructor when nested
   private[contracts] def __get(obj: RawObject, dropBadTypes: Boolean, setDefaultValues: Boolean): Valid[RawObject] = {
@@ -83,7 +83,7 @@ trait ContractLens[D <: DObject] { this: BaseContract[D] =>
         ValidResult.success(Validated(obj))
     }
 
-  final def $reduceDelta[DD <: Delta with DObjectOps[DD]](
+  final def $reduceDelta[DD <: Delta & DObjectOps[DD]](
     obj: D,
     delta: DD,
     dropBadTypes: Boolean = false

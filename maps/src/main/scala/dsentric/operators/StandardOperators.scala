@@ -23,7 +23,7 @@ trait StandardOperators {
   //Shouldnt be used in an And or Or validator
   val internal: Internal.type = Internal
 
-  val reserved: Constraint[Nothing] with Optional =
+  val reserved: Constraint[Nothing] & Optional =
     new Constraint[Nothing] with Optional {
 
       def verify[D <: DObject](contract: ContractFor[D], path: Path, value: Available[Raw]): ValidationFailures =
@@ -59,7 +59,7 @@ trait StandardOperators {
         }
     }
 
-  val immutable: Constraint[Nothing] with Optional with Expected =
+  val immutable: Constraint[Nothing] & Optional & Expected =
     new Constraint[Nothing] with Optional with Expected {
 
       def verify[D <: DObject](contract: ContractFor[D], path: Path, value: Available[Raw]): ValidationFailures = Nil
@@ -89,9 +89,9 @@ trait StandardOperators {
         }
     }
 
-  val deprecated: Constraint[Nothing] with Optional = deprecated("")
+  val deprecated: Constraint[Nothing] & Optional = deprecated("")
 
-  def deprecated(remediation: String): Constraint[Nothing] with Optional =
+  def deprecated(remediation: String): Constraint[Nothing] & Optional =
     new Constraint[Nothing] with Optional {
 
       def verify[D <: DObject](contract: ContractFor[D], path: Path, value: Available[Raw]): ValidationFailures =
@@ -135,7 +135,7 @@ trait StandardOperators {
 //
 //    }
 
-  def mask[T](mask: T, maskIfEmpty: Boolean = false)(implicit D: DCodec[T]): Constraint[Nothing] with Sanitizer[Nothing] =
+  def mask[T](mask: T, maskIfEmpty: Boolean = false)(implicit D: DCodec[T]): Constraint[Nothing] & Sanitizer[Nothing] =
     new Constraint[Nothing] with Sanitizer[Nothing] {
       private val dataMask: Raw = D(mask)
 

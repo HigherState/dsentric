@@ -44,7 +44,7 @@ object Definition {
   }
 
   private def baseContractObjectDefinition[D <: DObject](
-    fields: Map[String, Property[D, _]],
+    fields: Map[String, Property[D, ?]],
     contract: BaseContract[D],
     contractInfo: ContractInfo,
     infos: Infos,
@@ -71,7 +71,7 @@ object Definition {
   }
 
   private def contractPropertyDefinitions[D <: DObject](
-    properties: Iterable[(String, Property[D, _], SchemaAnnotations)],
+    properties: Iterable[(String, Property[D, ?], SchemaAnnotations)],
     infos: Infos,
     defs: Definitions,
     forceNested: Boolean
@@ -81,7 +81,7 @@ object Definition {
         case (a, (_, prop, _)) if skipProperty(prop) =>
           a
         //Nested, display all properties
-        case ((p, infos0, defs0), (name, b: BaseContract[D] @unchecked with Property[D, _], schema))
+        case ((p, infos0, defs0), (name, b: (BaseContract[D] & Property[D, ?])@unchecked, schema))
             if schema.nested || forceNested =>
           val (objectDefinition, infos1, defs1) = resolveNestedContract(b, infos0, defs0, forceNested)
           val resolvedDefinition                = resolveDataOperators(b, objectDefinition)
@@ -95,7 +95,7 @@ object Definition {
           )
           (p + property, infos1, defs1)
 
-        case ((p, infos0, defs0), (name, b: BaseContract[D] @unchecked with Property[D, _], schema)) =>
+        case ((p, infos0, defs0), (name, b: (BaseContract[D]& Property[D, ?])@unchecked, schema)) =>
           val (bInfo, infos1) = SchemaReflection.getContractInfo(b, infos0)
           //Internal object is a single type inheritance
           if (bInfo.inherits.size == 1 && bInfo.fields.isEmpty && b._dataOperators.isEmpty) {
@@ -180,24 +180,24 @@ object Definition {
     (objectDefinition, infos3, defs2)
   }
 
-  private def resolveDataOperators[D <: DObject, T <: TypeDefinition](property: Property[D, _], typeDef: T): T =
+  private def resolveDataOperators[D <: DObject, T <: TypeDefinition](property: Property[D, ?], typeDef: T): T =
     property._dataOperators.foldLeft(typeDef)((a, d) => d.definition.lift(a).getOrElse(a))
 
-  private def getDefault[D <: DObject](p: Property[D, _]): Option[Any] =
+  private def getDefault[D <: DObject](p: Property[D, ?]): Option[Any] =
     p match {
-      case d: DefaultProperty[_, Any] @unchecked =>
+      case d: DefaultProperty[?, Any] @unchecked =>
         Some(d._codec(d._default))
       case _                                     => None
     }
 
-  private def skipProperty[D <: DObject](p: Property[D, _]): Boolean =
+  private def skipProperty[D <: DObject](p: Property[D, ?]): Boolean =
     p._dataOperators.contains(Internal)
 
-  private def isRequired[D <: DObject](p: Property[D, _]): Boolean =
-    p.isInstanceOf[ExpectedProperty[D, _]] || p.isInstanceOf[ExpectedObjectProperty[D]] || p.isInstanceOf[MaybeExpectedProperty[D, _]]
+  private def isRequired[D <: DObject](p: Property[D, ?]): Boolean =
+    p.isInstanceOf[ExpectedProperty[D, ?]] || p.isInstanceOf[ExpectedObjectProperty[D]] || p.isInstanceOf[MaybeExpectedProperty[D, ?]]
 
   private def inheritFold[D <: DObject](
-    fields: Map[String, Property[D, _]],
+    fields: Map[String, Property[D, ?]],
     contract: BaseContract[D],
     inherits: Vector[ContractInfo],
     infos: Vector[ContractInfo],
@@ -218,10 +218,10 @@ object Definition {
     }
 
   private def findPropertyAnnotations[D <: DObject](
-    fields: Map[String, Property[D, _]],
+    fields: Map[String, Property[D, ?]],
     info: ContractInfo,
     nestedOverride: Boolean
-  ): Iterable[(String, Property[D, _], SchemaAnnotations)] =
+  ): Iterable[(String, Property[D, ?], SchemaAnnotations)] =
     fields.flatMap { case (key, value) =>
       val schema =
         if (nestedOverride || info.schemaAnnotations.nested)
@@ -236,7 +236,7 @@ object Definition {
     infos: Infos,
     defs: Definitions
   ): (Either[Boolean, TypeDefinition], Option[StringDefinition], Infos, Definitions) = {
-    def getPattern(c: DStringCodec[_]): Option[StringDefinition] = {
+    def getPattern(c: DStringCodec[?]): Option[StringDefinition] = {
       val s = c.typeDefinition
       if (s == StringDefinition.empty) None
       else Some(s)

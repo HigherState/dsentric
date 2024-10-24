@@ -186,20 +186,20 @@ sealed trait DParameter[H <: HList] {
 
   //Decode will return either a list of failed key and option DCodecs (None for missing field), or the RawObject with the parameter fields removed
   //And a function which takes this raw object and produces an argument List.
-  def decode(r: RawObject): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => H])
+  def decode(r: RawObject): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[?])])], RawObject => H])
 
   def propertyDefinition: Set[PropertyDefinition]
 }
 object DParameter                   {
   implicit val hnilParameter: DParameter[HNil] =
     new DParameter[HNil] {
-      private val result: Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => HNil] =
+      private val result: Either[NonEmptyList[(String, Option[(Raw, DCodec[?])])], RawObject => HNil] =
         Right(_ => HNil)
 
       def encode(t: HNil): RawObject =
         RawObject.empty
 
-      def decode(r: RawObject): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => HNil]) =
+      def decode(r: RawObject): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[?])])], RawObject => HNil]) =
         r -> result
 
       def propertyDefinition: Set[PropertyDefinition] =
@@ -215,7 +215,7 @@ object DParameter                   {
 
       def decode(
         r: RawObject
-      ): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => FieldType[K, RawObject] :: T]) = {
+      ): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[?])])], RawObject => FieldType[K, RawObject] :: T]) = {
         val (r2, tail) = tEncoder.decode(r)
         r2 -> tail.map(function => (rf: RawObject) => labelled.field[K](rf) :: function(rf))
       }
@@ -230,7 +230,7 @@ object DParameter                   {
     tEncoder: DParameter[T]
   ): DParameter[FieldType[K, H] :: T] = new DParameter[FieldType[K, H] :: T] {
     val fieldName: String                                                                                  = witness.value.name
-    private def failed(maybeRaw: Option[Raw]): Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], H] =
+    private def failed(maybeRaw: Option[Raw]): Either[NonEmptyList[(String, Option[(Raw, DCodec[?])])], H] =
       Left(NonEmptyList(fieldName -> maybeRaw.map(_ -> hEncoder.value), Nil))
 
     def encode(t: FieldType[K, H] :: T): RawObject                                                         =
@@ -239,7 +239,7 @@ object DParameter                   {
 
     def decode(
       r: RawObject
-    ): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => FieldType[K, H] :: T]) = {
+    ): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[?])])], RawObject => FieldType[K, H] :: T]) = {
       import cats.implicits._
       val result     =
         r.get(fieldName).fold(failed(None)) { raw =>
@@ -279,7 +279,7 @@ final case class DParameterisedContractCodec[D <: DObject, H <: HList](contract:
 
   def extractParameters(
     rawObject: RawObject
-  ): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[_])])], RawObject => D]) = {
+  ): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[?])])], RawObject => D]) = {
     val (valueObject, result) = hCodec.value.decode(rawObject)
     valueObject -> result.map(f => (rawObject: RawObject) => generic.from(f(rawObject)))
   }
@@ -383,7 +383,7 @@ object DTypeContractCodec {
 
 @silent
 abstract class DProductCodec[T, E <: HList, H <: HList: *->*[DCodec]#λ](val codecs: H)(implicit
-  T: ToTraversable.Aux[H, Array, DCodec[_]]
+  T: ToTraversable.Aux[H, Array, DCodec[?]]
 ) extends DCodec[T] {
 
   def apply(t: T): RawArray
@@ -405,7 +405,7 @@ abstract class DProductCodec[T, E <: HList, H <: HList: *->*[DCodec]#λ](val cod
 
   def build(e: E): Option[T]
 
-  val codecsArray: Array[DCodec[_]] =
+  val codecsArray: Array[DCodec[?]] =
     codecs.toArray
 
   def containsContractCodec: Boolean =
@@ -417,9 +417,9 @@ abstract class DProductCodec[T, E <: HList, H <: HList: *->*[DCodec]#λ](val cod
 
 @silent
 abstract class DCoproductCodec[T, H <: HList: *->*[DCodec]#λ](val codecs: H)(implicit
-  T: ToTraversable.Aux[H, List, DCodec[_]]
+  T: ToTraversable.Aux[H, List, DCodec[?]]
 ) extends DCodec[T] {
-  val codecsList: List[DCodec[_]] = codecs.toList
+  val codecsList: List[DCodec[?]] = codecs.toList
 
   def lift[A](a: A, codec: DCodec[A]): Option[T]
 

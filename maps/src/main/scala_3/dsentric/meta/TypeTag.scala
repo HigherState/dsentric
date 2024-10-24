@@ -1,6 +1,7 @@
 package dsentric.meta
 
 import scala.annotation.tailrec
+import scala.annotation.nowarn
 
 trait HasAccessorField:
   def accessor: Accessor
@@ -21,7 +22,7 @@ case class BaseClass(
   isTrait: Boolean,
   accessor: Accessor
 ) extends HasAccessorField with HasBaseClasses:
-  def typeTag: TypeTag[_] =
+  def typeTag: TypeTag[?] =
     TypeTag.ofClass(Class.forName(fullName))
 
   override def baseClasses: List[BaseClass] =
@@ -47,7 +48,7 @@ case class FieldInfo[T](
 ) extends HasAccessorField with HasBaseClasses:
   type Out = T
 
-  def typeTags: List[TypeTag[_]] =
+  def typeTags: List[TypeTag[?]] =
     TypeInfo.unsafePaths(typeInfo).map: path =>
       TypeTag.ofClass(TypeTag.findClass(path))
 
@@ -84,7 +85,7 @@ case class MethodInfo(
   accessor: Accessor,
   parentClassPath: String
 ) extends HasAccessorField with HasBaseClasses:
-  def typeTags: List[TypeTag[_]] =
+  def typeTags: List[TypeTag[?]] =
     TypeInfo.unsafePaths(returnType).map: path =>
       TypeTag.ofClass(TypeTag.findClass(path))
 
@@ -891,7 +892,7 @@ object TypeTag:
 
     resolveRefinedTypes(ref, Nil)
 
-  private inline def resolveAnnotations(quotes: Quotes)(terms: List[quotes.reflect.Term]): List[Annotation] =
+  private def resolveAnnotations(quotes: Quotes)(terms: List[quotes.reflect.Term]): List[Annotation] =
     import quotes.reflect.*
 
     terms.collect:
@@ -905,7 +906,7 @@ object TypeTag:
           properties = fields.zip(values)
         )
 
-  private inline def annotationParams(quotes: Quotes)(terms: List[quotes.reflect.Term]): List[PrimitiveType] =
+  private def annotationParams(quotes: Quotes)(terms: List[quotes.reflect.Term]): List[PrimitiveType] =
     import quotes.reflect.*
 
     terms.collect:

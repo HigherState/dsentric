@@ -51,14 +51,14 @@ object SchemaReflection  {
   private val NestedTpe       = TypeTag.of[Nested]
   private val ExampleTpe      = TypeTag.of[Examples]
   private val DescriptionTpe  = TypeTag.of[Description]
-  private val BaseContractTpe = TypeTag.of[BaseContract[_]]
-  private val PropertyTpe     = TypeTag.of[Property[_, _]]
+  private val BaseContractTpe = TypeTag.of[BaseContract[?]]
+  private val PropertyTpe     = TypeTag.of[Property[?, ?]]
 
   private val objectRegex   = "\\$(\\w*)\\$.*".r
   private val dollarSign    = "(\\w*)\\$".r
   private val objDollarSign = "(\\w|.*)\\$".r
 
-  def getDisplayName(contract: BaseContract[_]): String =
+  def getDisplayName(contract: BaseContract[?]): String =
     getDisplayName_(contract.getClass.getSimpleName)
 
   def getDisplayName_(str: String): String =
@@ -76,7 +76,7 @@ object SchemaReflection  {
   private inline def normalize(str: String): String =
     if str.contains("$anon$") then str else str.replace("$", ".")
 
-  def getContractInfo[A <: BaseContract[_]](
+  def getContractInfo[A <: BaseContract[?]](
     contract: A,
     current: Vector[ContractInfo] = Vector.empty
   )(using typeTag: TypeTag[A]): (ContractInfo, Vector[ContractInfo]) =
@@ -90,7 +90,7 @@ object SchemaReflection  {
       typeTag.methods
     )
 
-  private def getContractInfo[A <: BaseContract[_]](
+  private def getContractInfo[A <: BaseContract[?]](
     contract: A,
     simpleName: String,
     fullName: String,
@@ -98,7 +98,7 @@ object SchemaReflection  {
     annotations: List[Annotation],
     fields: List[FieldInfo[?]],
     methods: List[MethodInfo]
-  )(using typeTag: TypeTag[_]): (ContractInfo, Vector[ContractInfo]) =
+  )(using typeTag: TypeTag[?]): (ContractInfo, Vector[ContractInfo]) =
     val fullName_ = getDisplayName_(fullName)
 
     current.find(_.fullName == fullName_) match {
@@ -180,7 +180,7 @@ object SchemaReflection  {
         .filter(_.baseClasses.map(_.fullName).exists(path => TypeInfo.is(PropertyTpe.typeInfo, path)))
         .map { field =>
           val rawObj      = field.reflect(instance)
-          val keyName     = rawObj.asInstanceOf[Property[_, _]]._key
+          val keyName     = rawObj.asInstanceOf[Property[?, ?]]._key
           val annotations = getSchemaAnnotation(field.annotations)
           keyName.trim() -> annotations
         }
@@ -191,7 +191,7 @@ object SchemaReflection  {
         .filter(_.baseClasses.map(_.fullName).exists(path => TypeInfo.is(PropertyTpe.typeInfo, path)))
         .map { method =>
           val rawObj      = method.reflect(instance)
-          val keyName     = rawObj.asInstanceOf[Property[_, _]]._key
+          val keyName     = rawObj.asInstanceOf[Property[?, ?]]._key
           val annotations = getSchemaAnnotation(method.annotations)
           keyName.trim() -> annotations
         }

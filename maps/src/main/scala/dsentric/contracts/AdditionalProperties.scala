@@ -16,7 +16,7 @@ import dsentric.failure.{ContractFieldFailure, IncorrectTypeFailure, ValidResult
 trait AdditionalProperties[Key, Value] extends BaseContractAux {
   import cats.implicits._
 
-  def _additionalDataOperators: List[DataOperator[Map[Key, Value]] with Optional]
+  def _additionalDataOperators: List[DataOperator[Map[Key, Value]] & Optional]
   def _additionalKeyCodec: DStringCodec[Key]
   def _additionalValueCodec: DCodec[Value]
 
@@ -143,7 +143,7 @@ trait AdditionalProperties[Key, Value] extends BaseContractAux {
 }
 
 trait Open extends AdditionalProperties[String, Data] {
-  def _additionalDataOperators: List[DataOperator[Map[String, Data]] with Optional] = Nil
+  def _additionalDataOperators: List[DataOperator[Map[String, Data]] & Optional] = Nil
 
   def _additionalKeyCodec: DStringCodec[String] =
     DValueCodecs.stringCodec
@@ -157,23 +157,23 @@ trait Open extends AdditionalProperties[String, Data] {
  */
 
 abstract class DefinedAdditionalProperties[K, V](
-  val _additionalDataOperators: List[DataOperator[Map[K, V]] with Optional],
+  val _additionalDataOperators: List[DataOperator[Map[K, V]] & Optional],
   val _additionalKeyCodec: DStringCodec[K],
   val _additionalValueCodec: DCodec[V]
 ) extends AdditionalProperties[K, V] {
 
   def this(
-    additionalPropertyDataOperators: DataOperator[Map[K, V]] with Optional*
+    additionalPropertyDataOperators: DataOperator[Map[K, V]] & Optional*
   )(implicit keyCodec: DStringCodec[K], valueCodec: DCodec[V]) =
     this(additionalPropertyDataOperators.toList, keyCodec, valueCodec)
 
-  def this(contract: Contract, additionalPropertyDataOperators: DataOperator[Map[K, V]] with Optional*)(implicit
+  def this(contract: Contract, additionalPropertyDataOperators: DataOperator[Map[K, V]] & Optional*)(implicit
     keyCodec: DStringCodec[K],
     evidence: V =:= DObject
   ) =
     this(additionalPropertyDataOperators.toList, keyCodec, DContractCodec(contract).asInstanceOf[DCodec[V]])
 
-  def this(valueCodec: DCodec[V], additionalPropertyDataOperators: DataOperator[Map[K, V]] with Optional*)(implicit
+  def this(valueCodec: DCodec[V], additionalPropertyDataOperators: DataOperator[Map[K, V]] & Optional*)(implicit
     keyCodec: DStringCodec[K]
   ) =
     this(additionalPropertyDataOperators.toList, keyCodec, valueCodec)

@@ -10,7 +10,7 @@ package object failure {
     val empty: ValidationFailures = Nil
 
     def apply(v: Failure*): ValidationFailures =
-      List(v: _*)
+      List(v*)
   }
 
   implicit def toValidResultOps[T](validResult: ValidResult[T]): ValidResultOps[T] =

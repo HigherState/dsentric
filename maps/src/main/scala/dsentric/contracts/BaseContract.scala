@@ -2,6 +2,8 @@ package dsentric.contracts
 
 import dsentric.{DObject, DProjection, Path}
 
+import scala.annotation.nowarn
+
 /**
  * Use supports mixin of AdditionalProperties: Open
  */
@@ -15,7 +17,7 @@ private[dsentric] trait BaseAux {
 
 private[dsentric] trait BaseContractAux extends BaseAux {
 
-  def _fields: Map[String, Property[AuxD, _]]
+  def _fields: Map[String, Property[AuxD, ?]]
 }
 
 /**
@@ -37,22 +39,23 @@ private[dsentric] trait BaseContract[D <: DObject] extends BaseContractAux with 
     projection.nest(this._path)
 
   final def $$(paths: Path*): DProjection =
-    DProjection(paths: _*).nest(this._path)
+    DProjection(paths*).nest(this._path)
 }
 
 private[contracts] trait FieldResolver[D <: DObject] {
 
-  private[contracts] var __fields: Map[String, Property[D, _]] = _
+  @nowarn
+  private[contracts] var __fields: Map[String, Property[D, ?]] = ???
   @volatile
   private var _bitmap0: Boolean                                = false
 
-  final def _fields: Map[String, Property[D, _]] =
+  final def _fields: Map[String, Property[D, ?]] =
     if (_bitmap0) __fields
     else {
       this.synchronized {
         __fields = this.getClass.getMethods.flatMap { m =>
           if (
-            classOf[Property[D, _]].isAssignableFrom(
+            classOf[Property[D, ?]].isAssignableFrom(
               m.getReturnType
             ) && m.getTypeParameters.isEmpty && m.getParameterTypes.isEmpty
           )

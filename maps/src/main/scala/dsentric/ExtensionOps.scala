@@ -16,7 +16,7 @@ final class StringOps(val self: String) extends AnyVal {
     self -> Data(t)
 
   def ::=(pairs: (String, Data)*): (String, DObject) =
-    self -> DObject(pairs: _*)
+    self -> DObject(pairs*)
 
   def p: Path = Path(self)
 }
@@ -37,7 +37,7 @@ final class PathOps(val self: Path) extends AnyVal {
 
 }
 
-final class FunctionOps[D <: DObjectOps[D] with DObject](val f: D => D) extends AnyVal {
+final class FunctionOps[D <: DObjectOps[D] & DObject](val f: D => D) extends AnyVal {
   def ~+(kv: (String, Data)): D => D =
     f.andThen(_ + kv)
 
@@ -51,14 +51,14 @@ final class FunctionOps[D <: DObjectOps[D] with DObject](val f: D => D) extends 
     f(d)
 }
 
-final class ValidFunctionOps[D <: DObjectOps[D] with DObject](val f: D => ValidResult[D]) extends AnyVal {
+final class ValidFunctionOps[D <: DObjectOps[D] & DObject](val f: D => ValidResult[D]) extends AnyVal {
   def ~+(kv: (String, Data)): D => ValidResult[D] =
     f.andThen(_.map(_ + kv))
 
   def ~++(kv: Seq[(String, Data)]): D => ValidResult[D] =
     f.andThen(_.map(_ ++ kv))
 
-  def ~[T <: D with ValidResult[D]](f2: D => T): D => ValidResult[D] =
+  def ~[T <: D & ValidResult[D]](f2: D => T): D => ValidResult[D] =
     (j: D) =>
       f(j).flatMap { d =>
         val r = f2(d)
@@ -83,10 +83,10 @@ trait Syntax {
   implicit def toIntOps(i: Int): IntOps =
     new IntOps(i)
 
-  implicit def toFunctionOps[D <: DObjectOps[D] with DObject](f: D => D): FunctionOps[D] =
+  implicit def toFunctionOps[D <: DObjectOps[D] & DObject](f: D => D): FunctionOps[D] =
     new FunctionOps[D](f)
 
-  implicit def toValidFunctionOps[D <: DObjectOps[D] with DObject](f: D => ValidResult[D]): ValidFunctionOps[D] =
+  implicit def toValidFunctionOps[D <: DObjectOps[D] & DObject](f: D => ValidResult[D]): ValidFunctionOps[D] =
     new ValidFunctionOps[D](f)
 
   implicit def pathOps(p: Path): PathOps =

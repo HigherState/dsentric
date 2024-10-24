@@ -5,29 +5,29 @@ import dsentric.codecs.{DMapCodec, DataCodec}
 
 trait PropertySyntax {
 
-  implicit def toMapFilterOps[R <: DObject, K, V, C[_, _] <: Map[_, _]](
+  implicit def toMapFilterOps[R <: DObject, K, V, C[_, _] <: Map[?, ?]](
     prop: Property[R, C[K, V]]
   ): MapFilterOps[R, K, V, C] =
     MapFilterOps(prop)
 
   implicit def toContractAdditionalOps[R <: DObject, K, V](
-    contract: ContractFor[R] with AdditionalProperties[K, V]
+    contract: ContractFor[R] & AdditionalProperties[K, V]
   ): ContractAdditionalOps[R, K, V] =
     ContractAdditionalOps(contract)
 
   implicit def toPropertyAdditionalOps[R <: DObject, K, V](
-    property: ObjectProperty[R] with AdditionalProperties[K, V]
+    property: ObjectProperty[R] & AdditionalProperties[K, V]
   ): PropertyAdditionalOps[R, K, V] =
     PropertyAdditionalOps(property)
 
   implicit def toDObjectFilterOps[R <: DObject, D <: DObject](prop: Property[R, D]): DObjectFilterOps[R, D] =
     DObjectFilterOps(prop)
 
-  implicit def property2Path[V](prop: Property[_, V]): Path =
+  implicit def property2Path[V](prop: Property[?, V]): Path =
     prop._path
 }
 
-final case class ContractAdditionalOps[R <: DObject, K, V](contract: ContractFor[R] with AdditionalProperties[K, V])
+final case class ContractAdditionalOps[R <: DObject, K, V](contract: ContractFor[R] & AdditionalProperties[K, V])
     extends AnyVal {
 
   def \(key: K): DynamicProperty[R, V] = {
@@ -38,7 +38,7 @@ final case class ContractAdditionalOps[R <: DObject, K, V](contract: ContractFor
 
 }
 
-final case class PropertyAdditionalOps[R <: DObject, K, V](property: ObjectProperty[R] with AdditionalProperties[K, V])
+final case class PropertyAdditionalOps[R <: DObject, K, V](property: ObjectProperty[R] & AdditionalProperties[K, V])
     extends AnyVal {
 
   def \(key: K): DynamicProperty[R, V] = {
@@ -49,7 +49,7 @@ final case class PropertyAdditionalOps[R <: DObject, K, V](property: ObjectPrope
 
 }
 
-final case class MapFilterOps[R <: DObject, K, V, C[_, _] <: Map[_, _]](prop: Property[R, C[K, V]]) extends AnyVal {
+final case class MapFilterOps[R <: DObject, K, V, C[_, _] <: Map[?, ?]](prop: Property[R, C[K, V]]) extends AnyVal {
 
   def \(key: K): DynamicProperty[R, V] = {
     val codec     = prop._codec.asInstanceOf[DMapCodec[C[K, V], K, V]]
@@ -72,7 +72,7 @@ final case class DObjectFilterOps[R <: DObject, D <: DObject](prop: Property[R, 
         DynamicProperty(DataCodec, "{Index Key}", prop._path ++ path, prop._root)
     }
 
-  def \\[T](property: Property[_, T]): DynamicProperty[R, T] =
+  def \\[T](property: Property[?, T]): DynamicProperty[R, T] =
     property._path.tailKeyOption match {
       case Some(key) =>
         DynamicProperty(property._codec, key, prop._path ++ property._path, prop._root)
