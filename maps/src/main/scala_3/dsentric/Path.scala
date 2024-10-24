@@ -157,10 +157,9 @@ final case class PathIndex(index: Int, next: Path) extends Path {
 }
 
 object Path {
-  type Mix = Int with String
   val empty: Path = PathEnd
 
-  def apply[T >: Mix](s: T*): Path =
+  def apply(s: Int | String*): Path =
     s.foldRight(Path.empty) {
       case (i: Int, a)    =>
         PathIndex(i, a)

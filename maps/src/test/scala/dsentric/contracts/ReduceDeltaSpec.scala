@@ -878,6 +878,7 @@ class ReduceDeltaSpec extends AnyFunSpec with Matchers with EitherValues {
           IncorrectTypeFailure(CollectionCodec, Path("property"), CollectionCodec.property._codec, "a")
         )
       }
+
       it("Should return failure if current empty and collection element fails type") {
         val base  = DObject.empty
         val delta = Delta("property" := List(Data(12), Data("b")))

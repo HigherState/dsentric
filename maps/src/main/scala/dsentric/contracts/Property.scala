@@ -1,8 +1,10 @@
 package dsentric.contracts
 
-import dsentric._
+import dsentric.*
 import dsentric.codecs.{DCodec, DStringCodec}
 import dsentric.operators.{DataOperator, Expected, Optional}
+
+import scala.annotation.nowarn
 
 sealed trait Property[D <: DObject, T <: Any] extends PropertyLens[D, T] {
 
@@ -183,21 +185,21 @@ sealed trait ObjectAspectProperty[D <: DObject]     extends AspectProperty[D, DO
   }
 
 }
-
+@nowarn
 final case class ExpectedAspectProperty[D <: DObject, T] private[contracts] (
   _key: String,
   _codec: DCodec[T],
   _dataOperators: List[DataOperator[T]]
 ) extends ValueAspectProperty[D, T]
     with ExpectedLens[D, T]
-
+@nowarn
 final case class MaybeAspectProperty[D <: DObject, T] private[contracts] (
   _key: String,
   _codec: DCodec[T],
   _dataOperators: List[DataOperator[T] with Optional]
 ) extends ValueAspectProperty[D, T]
     with MaybeLens[D, T]
-
+@nowarn
 final case class DefaultAspectProperty[D <: DObject, T] private[contracts] (
   _key: String,
   _default: T,

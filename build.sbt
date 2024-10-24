@@ -1,9 +1,9 @@
-import sbt.Keys._
+
 
 lazy val buildSettings = Seq(
   organization := "io.higherState",
-  scalaVersion := "2.13.8",
-  version := "1.3.1",
+  scalaVersion := "2.13.14",
+  version := "1.3.2",
   scalacOptions ++= (scalaPartV.value match {
     case Some((3, _)) =>
       Seq("-language:postfixOps", "-language:reflectiveCalls", "-language:existentials")
@@ -22,6 +22,12 @@ lazy val buildSettings = Seq(
         "-Ywarn-value-discard",
         "-Xsource:3"
       )
+  }),
+  scalacOptions --= (scalaPartV.value match {
+    case Some((3, _)) =>
+      Seq("-Ykind-projector")
+    case _            =>
+      Seq()
   }),
   resolvers ++= Seq(
     DefaultMavenRepository,
@@ -51,7 +57,7 @@ lazy val buildSettings = Seq(
     case Some((3, _)) =>
       Seq.empty
     case _            =>
-      Seq(compilerPlugin("com.github.ghik" % "silencer-plugin" % "1.7.11" cross CrossVersion.full))
+      Seq(compilerPlugin("com.github.ghik" % "silencer-plugin" % "1.7.19" cross CrossVersion.full))
   })
 )
 
@@ -68,7 +74,7 @@ lazy val shapeless    = "com.chuusai"       %% "shapeless"      % "2.3.3"
 lazy val scalatest    = "org.scalatest"     %% "scalatest"      % "3.2.10" % "test"
 lazy val cats         = "org.typelevel"     %% "cats-core"      % "2.8.0"
 lazy val commons_math = "org.apache.commons" % "commons-math3"  % "3.6.1"
-lazy val silencer     = "com.github.ghik"    % "silencer-lib"   % "1.7.11" % Provided cross CrossVersion.full
+lazy val silencer     = "com.github.ghik"    % "silencer-lib"   % "1.7.19" % Provided cross CrossVersion.full
 
 lazy val settings = buildSettings
 
@@ -81,7 +87,7 @@ lazy val core = project
     case _            =>
       Seq(reflect, shapeless, scalatest, commons_math)
   }))
-  .settings(crossScalaVersions := Seq("2.13.8", "3.3.1"))
+  .settings(crossScalaVersions := Seq("2.13.14", "3.5.2"))
 
 lazy val maps = project
   .settings(moduleName := "dsentric-maps")
@@ -93,7 +99,7 @@ lazy val maps = project
       Seq(reflect, shapeless, scalatest, cats, silencer)
   }))
   .dependsOn(core, core % "test -> test")
-  .settings(crossScalaVersions := Seq("2.13.8", "3.3.1"))
+  .settings(crossScalaVersions := Seq("2.13.14", "3.5.2"))
 
 lazy val macros = project
   .settings(moduleName := "dsentric-macros")
@@ -109,3 +115,5 @@ lazy val macros = project
   )
   .settings(libraryDependencies ++= Seq(reflect, shapeless, scalatest, commons_math))
   .dependsOn(core, maps)
+
+publishTo in ThisBuild := Some("orgvue-orgvue-api" at "https://orgvue-357102143434.d.codeartifact.eu-west-1.amazonaws.com/maven/orgvue-api")
