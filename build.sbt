@@ -115,5 +115,3 @@ lazy val macros = project
   )
   .settings(libraryDependencies ++= Seq(reflect, shapeless, scalatest, commons_math))
   .dependsOn(core, maps)
-
-publishTo in ThisBuild := Some("orgvue-orgvue-api" at "https://orgvue-357102143434.d.codeartifact.eu-west-1.amazonaws.com/maven/orgvue-api")
