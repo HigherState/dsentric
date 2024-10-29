@@ -108,7 +108,7 @@ class JsonSchemaSpec extends AnyFunSpec with Matchers {
     schema.get(path).flatMap(_.asObject).getOrElse(DObject.empty)
 
   private def validateRequiredValues(schema: DObject)(required: String*) =
-    (schema.\[DValue](Path("required"))).map(_.value) should contain(Set(required: _*))
+    (schema.\[DValue](Path("required"))).map(_.value) should contain(Set(required*))
 
   private object SimpleContract extends Contract {
     val optionalStringField = \?[String]

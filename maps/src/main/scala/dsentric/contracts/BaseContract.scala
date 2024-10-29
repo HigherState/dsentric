@@ -3,6 +3,7 @@ package dsentric.contracts
 import dsentric.{DObject, DProjection, Path}
 
 import scala.annotation.nowarn
+import scala.compiletime.uninitialized
 
 /**
  * Use supports mixin of AdditionalProperties: Open
@@ -45,7 +46,7 @@ private[dsentric] trait BaseContract[D <: DObject] extends BaseContractAux with 
 private[contracts] trait FieldResolver[D <: DObject] {
 
   @nowarn
-  private[contracts] var __fields: Map[String, Property[D, ?]] = ???
+  private[contracts] var __fields: Map[String, Property[D, ?]] = uninitialized
   @volatile
   private var _bitmap0: Boolean                                = false
 

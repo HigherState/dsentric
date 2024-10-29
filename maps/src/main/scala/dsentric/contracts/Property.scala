@@ -5,6 +5,7 @@ import dsentric.codecs.{DCodec, DStringCodec}
 import dsentric.operators.{DataOperator, Expected, Optional}
 
 import scala.annotation.nowarn
+import scala.compiletime.uninitialized
 
 sealed trait Property[D <: DObject, T <: Any] extends PropertyLens[D, T] {
 
@@ -23,9 +24,9 @@ sealed trait ObjectProperty[D <: DObject]   extends Property[D, DObject] with Ba
 
 private[contracts] trait PropertyResolver[D <: DObject, T] extends Property[D, T] {
   @nowarn
-  private var __path: Path      = ???
+  private var __path: Path       = uninitialized
   @nowarn
-  private var __key: String     = ???
+  private var __key: String      = uninitialized
   @volatile
   private var _bitmap1: Boolean = false
 
@@ -156,7 +157,7 @@ case class DynamicProperty[D <: DObject, T](
 
 sealed trait AspectProperty[D <: DObject, T <: Any] extends Property[D, T]                                    {
   @nowarn
-  private var __parent: BaseContract[D] = ???
+  private var __parent: BaseContract[D]  = uninitialized
 
   def _parent: BaseContract[D] = __parent
 
@@ -169,9 +170,9 @@ sealed trait AspectProperty[D <: DObject, T <: Any] extends Property[D, T]      
 sealed trait ValueAspectProperty[D <: DObject, T]   extends AspectProperty[D, T] with ValueProperty[D, T]
 sealed trait ObjectAspectProperty[D <: DObject]     extends AspectProperty[D, DObject] with ObjectProperty[D] {
   @nowarn
-  private var __fields: Map[String, AspectProperty[D, ?]] = ???
+  private var __fields: Map[String, AspectProperty[D, ?]]  = uninitialized
   @nowarn
-  private var __key: String                               = ???
+  private var __key: String                                = uninitialized
   private var _bitmap1: Boolean                           = false
 
   def _fields: Map[String, AspectProperty[D, ?]] = __fields

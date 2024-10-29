@@ -87,7 +87,7 @@ class AdditionalPropertiesLensSpec extends AnyFunSpec with Matchers with EitherV
           "newOne" := 1234,
           "anotherOne" := false
         )
-      SimpleAdditionalProperties.$putMany(props)(DObject.empty).value shouldBe DObject(props:_*)
+      SimpleAdditionalProperties.$putMany(props)(DObject.empty).value shouldBe DObject(props*)
     }
     it("Should replace any existing keys") {
       val props =
@@ -96,7 +96,7 @@ class AdditionalPropertiesLensSpec extends AnyFunSpec with Matchers with EitherV
           "anotherOne" := false,
           "replacedOne" := "bob"
         )
-      SimpleAdditionalProperties.$putMany(props)(DObject("replacedOne" := "Mary")).value shouldBe DObject(props:_*)
+      SimpleAdditionalProperties.$putMany(props)(DObject("replacedOne" := "Mary")).value shouldBe DObject(props*)
     }
     it("Should create object if nested and doesn't exists") {
       val props =

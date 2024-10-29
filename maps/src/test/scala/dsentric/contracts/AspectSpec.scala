@@ -39,8 +39,8 @@ class AspectSpec extends AnyFunSpec with Matchers with EitherValues {
 
   describe("Aspect structure") {
     import DAspectSyntax._
-    val f: PartialFunction[Property[DObject, _], Option[AspectProperty[DObject, _]]] = {
-      case p: ValueProperty[DObject, _] =>
+    val f: PartialFunction[Property[DObject, ?], Option[AspectProperty[DObject, ?]]] = {
+      case p: ValueProperty[DObject, ?] =>
         Some(p.$asExpected())
     }
     lazy val a                                                                       =
@@ -53,8 +53,8 @@ class AspectSpec extends AnyFunSpec with Matchers with EitherValues {
   }
   describe("Child structure") {
     import DAspectSyntax._
-    val f: PartialFunction[Property[Parent, _], Option[AspectProperty[Child, _]]] = {
-      case p: ValueProperty[Parent, _] =>
+    val f: PartialFunction[Property[Parent, ?], Option[AspectProperty[Child, ?]]] = {
+      case p: ValueProperty[Parent, ?] =>
         Some(p.$asExpected())
     }
     lazy val a                                                                    =
@@ -75,7 +75,7 @@ class AspectSpec extends AnyFunSpec with Matchers with EitherValues {
     val a =
       new Aspect(Nested)() {
         val nested = \\(Nested.nested) {
-          case p: ValueProperty[DObject, _] if p._path.tailKeyOption.contains("property1") =>
+          case p: ValueProperty[DObject, ?] if p._path.tailKeyOption.contains("property1") =>
             Some(p.$asMaybe())
         }
       }

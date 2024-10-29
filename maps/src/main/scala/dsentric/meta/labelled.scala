@@ -73,7 +73,7 @@ object LabelledType {
     new InnerLabelledType[T,m.MirroredElemLabels, m.MirroredElemTypes](f)
   }
 
-  private class InnerLabelledType[T <: Product, EL <: Tuple, ET <: Tuple](f:T => FieldTypes[EL, ET]) extends LabelledType[T] {
+  class InnerLabelledType[T <: Product, EL <: Tuple, ET <: Tuple](f:T => FieldTypes[EL, ET]) extends LabelledType[T] {
     override type Out = FieldTypes[EL, ET]
     override def apply(t: T): Out = f(t)
   }
