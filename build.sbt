@@ -1,5 +1,3 @@
-
-
 lazy val buildSettings = Seq(
   organization := "io.higherState",
   scalaVersion := "3.5.2",
@@ -19,7 +17,7 @@ lazy val buildSettings = Seq(
 releaseUseGlobalVersion := false
 
 lazy val reflect      = "org.scala-lang"     % "scala-reflect"  % "2.13.8"
-lazy val staging      = "org.scala-lang"    %% "scala3-staging" % "3.3.1"
+lazy val staging      = "org.scala-lang"    %% "scala3-staging" % "3.5.2"
 lazy val shapeless    = "com.chuusai"       %% "shapeless"      % "2.3.3"
 lazy val scalatest    = "org.scalatest"     %% "scalatest"      % "3.2.10" % "test"
 lazy val cats         = "org.typelevel"     %% "cats-core"      % "2.8.0"
@@ -37,5 +35,3 @@ lazy val maps = project
   .settings(settings)
   .settings(libraryDependencies ++= Seq(scalatest, cats, staging))
   .dependsOn(core, core % "test -> test")
-
-
