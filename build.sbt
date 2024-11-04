@@ -3,7 +3,7 @@
 lazy val buildSettings = Seq(
   organization := "io.higherState",
   scalaVersion := "3.5.2",
-  version := "1.3.3",
+  version := "1.3.4",
   scalacOptions ++= Seq("-language:postfixOps", "-language:reflectiveCalls", "-language:existentials"),
   scalacOptions --= Seq("-Ykind-projector"),
   resolvers ++= Seq(

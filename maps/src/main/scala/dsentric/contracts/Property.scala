@@ -192,21 +192,21 @@ sealed trait ObjectAspectProperty[D <: DObject]     extends AspectProperty[D, DO
 
 }
 @nowarn
-final case class ExpectedAspectProperty[D <: DObject, T] private[contracts] (
+final case class ExpectedAspectProperty[D <: DObject, T](
   _key: String,
   _codec: DCodec[T],
   _dataOperators: List[DataOperator[T] & Expected]
 ) extends ValueAspectProperty[D, T]
     with ExpectedLens[D, T]
 @nowarn
-final case class MaybeAspectProperty[D <: DObject, T] private[contracts] (
+final case class MaybeAspectProperty[D <: DObject, T](
   _key: String,
   _codec: DCodec[T],
   _dataOperators: List[DataOperator[T] & Optional]
 ) extends ValueAspectProperty[D, T]
     with MaybeLens[D, T]
 @nowarn
-final case class DefaultAspectProperty[D <: DObject, T] private[contracts] (
+final case class DefaultAspectProperty[D <: DObject, T](
   _key: String,
   _default: T,
   _codec: DCodec[T],
@@ -214,13 +214,13 @@ final case class DefaultAspectProperty[D <: DObject, T] private[contracts] (
 ) extends ValueAspectProperty[D, T]
     with DefaultLens[D, T]
 
-sealed class ExpectedObjectAspectProperty[D <: DObject] private[contracts] (
+sealed class ExpectedObjectAspectProperty[D <: DObject](
   val _codec: DCodec[DObject],
   val _dataOperators: List[DataOperator[DObject] & Expected]
 ) extends ObjectAspectProperty[D]
     with ExpectedObjectProperty[D] {}
 
-final class ExpectedObjectAspectPropertyWithAdditional[D <: DObject, Key, Value] private[contracts] (
+final class ExpectedObjectAspectPropertyWithAdditional[D <: DObject, Key, Value](
   override val _codec: DCodec[DObject],
   override val _dataOperators: List[DataOperator[DObject] & Expected],
   val _additionalDataOperators: List[DataOperator[Map[Key, Value]] & Optional],
