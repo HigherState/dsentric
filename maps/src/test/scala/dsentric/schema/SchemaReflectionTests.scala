@@ -73,11 +73,13 @@ class SchemaReflectionTests extends AnyFunSuite with Matchers {
     )
   }
 
-  //Not supported by reflection
-  // test("Internal nested annotations") {
-  //   val (nestedInfo, _) = SchemaReflection.getContractInfo(Query1.nested)
-  //   nestedInfo.fields("field2") shouldBe SchemaAnnotations(None, None, false, Nil, Some("nested field"))
-  // }
+
+  test("Internal nested annotations") {
+    val (nestedInfo, _) = SchemaReflection.getContractInfo(Query1.nested)
+    nestedInfo.fields.contains("field2") shouldBe true
+    //Not supported by reflection
+    //nestedInfo.fields("field2") shouldBe SchemaAnnotations(None, None, false, Nil, Some("nested field"))
+  }
 
   test("internal inherited annotations") {
     val (inherited, _) = SchemaReflection.getContractInfo(Query1.inherited)

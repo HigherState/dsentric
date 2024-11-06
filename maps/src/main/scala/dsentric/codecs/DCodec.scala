@@ -5,11 +5,9 @@ import dsentric.*
 import dsentric.contracts.{Contract, ContractLike}
 import dsentric.schema.*
 
-
-import dsentric.meta.{labelled, LabelledType}
-import dsentric.meta.labelled.FieldType
-import dsentric.meta.UnaryTCConstraint.*->*
-import dsentric.meta.ToTraversable
+import shapeless3.ToTraversable
+import shapeless3.labelled.{field, FieldType, LabelledType}
+import shapeless3.UnaryTCConstraint.*->*
 
 import scala.collection.immutable.VectorBuilder
 import scala.collection.mutable
@@ -286,7 +284,7 @@ object DParameter                   {
         r: RawObject
       ): (RawObject, Either[NonEmptyList[(String, Option[(Raw, DCodec[?])])], RawObject => FieldType[K, RawObject] *: T]) = {
         val (r2, tail) = tEncoder.decode(r)
-        r2 -> tail.map(function => (rf: RawObject) => labelled.field[K](rf) *: function(rf))
+        r2 -> tail.map(function => (rf: RawObject) => field[K](rf) *: function(rf))
       }
 
       def propertyDefinition: Set[PropertyDefinition] =
@@ -318,7 +316,7 @@ object DParameter                   {
 
       val (r2, tail) = tEncoder.decode(r)
 
-      (r2 - fieldName) -> (result, tail).parMapN((head, function) => (rf: RawObject) => labelled.field[K](head) *: function(rf))
+      (r2 - fieldName) -> (result, tail).parMapN((head, function) => (rf: RawObject) => field[K](head) *: function(rf))
     }
 
     def propertyDefinition: Set[PropertyDefinition] =
