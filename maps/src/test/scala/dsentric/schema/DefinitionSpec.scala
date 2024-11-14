@@ -98,7 +98,6 @@ object TestFixture3 extends SubTypeTraitContract with HasMoreDynamicAttributes {
 class DefinitionTests extends AnyFunSuite with Matchers {
   test("nestedContractObjectDefinition") {
     val definition = Definition.nestedContractObjectDefinition(TestFixture)
-    println(definition)
     definition.properties should not be empty
   }
 }

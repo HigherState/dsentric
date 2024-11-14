@@ -622,7 +622,7 @@ object TypeTag:
     val isProtected = symbol.flags.is(Flags.Protected)
     val accessor    = if isPrivate then Accessor.Private else if isProtected then Accessor.Protected else Accessor.Public
 
-    new FieldInfo(
+    FieldInfo(
       name,
       fullName,
       typeInfo,

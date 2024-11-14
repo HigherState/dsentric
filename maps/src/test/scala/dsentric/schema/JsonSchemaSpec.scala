@@ -48,7 +48,6 @@ class JsonSchemaSpec extends AnyFunSpec with Matchers {
         required = false,
         description = None
       )
-      println(JsonSchema.convertPropertyDefinition(propertyDefinition))
     }
   }
 

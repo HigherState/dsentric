@@ -164,7 +164,7 @@ object Definition {
     defs: Definitions,
     forceNested: Boolean
   ): (ObjectDefinition, Infos, Definitions) = {
-    val (bInfo, infos1)                        = SchemaReflection.getContractInfo(contract, infos)
+    val (bInfo, infos1)                        = SchemaReflection.getContractInfoNested(contract, infos)
     val subProperties                          = findPropertyAnnotations(contract._fields, bInfo, true)
     val (subPropertyDefs, infos2, defs1)       = contractPropertyDefinitions(subProperties, infos1, defs, forceNested)
     val (additional, propNames, infos3, defs2) = additionalPropertiesDefinition(contract, infos2, defs1)
