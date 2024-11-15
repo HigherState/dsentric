@@ -2,29 +2,34 @@ package dsentric.schema
 
 import dsentric.DObject
 import dsentric.contracts.{BaseContract, Property}
-
 import dsentric.meta.{Annotation, BaseClass, FieldInfo, MethodInfo, TypeInfo, TypeTag}
+
+import java.lang.reflect.{Field, Method}
+import scala.reflect.ClassTag
+import scala.reflect.runtime.universe
+import scala.reflect.runtime.universe.*
+import scala.util.Try
 
 case object IgnoreExample
 case class Type(typeName: String)    extends scala.annotation.StaticAnnotation
 case class Title(title: String)      extends scala.annotation.StaticAnnotation
 case class Nested()                  extends scala.annotation.StaticAnnotation
 case class Examples(
-  example: Any,
-  example2: Any = IgnoreExample,
-  example3: Any = IgnoreExample,
-  example4: Any = IgnoreExample,
-  example5: Any = IgnoreExample
-)                                    extends scala.annotation.StaticAnnotation
+                     example: Any,
+                     example2: Any = IgnoreExample,
+                     example3: Any = IgnoreExample,
+                     example4: Any = IgnoreExample,
+                     example5: Any = IgnoreExample
+                   )                                    extends scala.annotation.StaticAnnotation
 case class Description(text: String) extends scala.annotation.StaticAnnotation
 
 case class ContractInfo(
-  fullName: String,
-  displayName: Option[String],
-  schemaAnnotations: SchemaAnnotations,
-  inherits: Vector[ContractInfo],
-  fields: Map[String, SchemaAnnotations]
-) {
+                         fullName: String,
+                         displayName: Option[String],
+                         schemaAnnotations: SchemaAnnotations,
+                         inherits: Vector[ContractInfo],
+                         fields: Map[String, SchemaAnnotations]
+                       ) {
 
   def isSubClass(contractInfo: ContractInfo): Boolean =
     contractInfo.fullName == fullName || inherits.exists(_.isSubClass(contractInfo))
@@ -34,12 +39,12 @@ case class ContractInfo(
 }
 
 case class SchemaAnnotations(
-  typeName: Option[String],
-  title: Option[String],
-  nested: Boolean,
-  examples: List[Any],
-  description: Option[String]
-)
+                              typeName: Option[String],
+                              title: Option[String],
+                              nested: Boolean,
+                              examples: List[Any],
+                              description: Option[String]
+                            )
 
 object SchemaAnnotations {
   val empty: SchemaAnnotations = SchemaAnnotations(None, None, false, Nil, None)
@@ -79,7 +84,11 @@ object SchemaReflection  {
   def getContractInfo[A <: BaseContract[?]](
     contract: A,
     current: Vector[ContractInfo] = Vector.empty
-  )(using typeTag: TypeTag[A]): (ContractInfo, Vector[ContractInfo]) =
+  )(using typeTag: TypeTag[A], classTag: ClassTag[A]): (ContractInfo, Vector[ContractInfo]) =
+    val mirror         = scala.reflect.runtime.universe.runtimeMirror(contract.getClass.getClassLoader)
+    val typ            = Try(mirror.classSymbol(contract.getClass)).toOption
+    val instanceMirror = mirror.reflect(contract)
+
     getContractInfo(
       contract,
       contract.getClass.getSimpleName,
@@ -87,8 +96,54 @@ object SchemaReflection  {
       current,
       typeTag.annotations,
       typeTag.fields,
-      typeTag.methods
+      typeTag.methods,
+      typ,
+      instanceMirror
     )
+
+  def getContractInfoNested[A <: BaseContract[?]: ClassTag](
+    contract: A,
+    current: Vector[ContractInfo] = Vector.empty
+  ): (ContractInfo, Vector[ContractInfo]) = {
+    val clazz          = contract.getClass
+    val mirror         = scala.reflect.runtime.universe.runtimeMirror(clazz.getClassLoader)
+    val typ            = Try(mirror.classSymbol(clazz)).toOption
+    val instanceMirror = mirror.reflect(contract)
+    val fullName       = getDisplayName_(clazz.getName)
+
+    current.find(_.fullName == fullName) match {
+      case Some(ci) =>
+        ci -> current
+      case None =>
+        typ match
+          case Some(classSymbol) =>
+            val name        = normalizeClassName(classSymbol.name.decodedName.toString)
+            val baseClasses = getBaseClasses(classSymbol.baseClasses, name, classSymbol.owner)
+            val annotations = getSchemaAnnotation_(classSymbol.annotations)
+            val fields      = clazz.getDeclaredFields.toList
+            val methods     = clazz.getDeclaredMethods.toList
+
+            val annotationFields =
+              getFieldsSchemaAnnotationsReflect(contract, fields, methods) ++
+              getFieldsSchemaAnnotations_(classSymbol)(instanceMirror)
+
+            val displayName             =
+              annotations.typeName.orElse {
+                Some(getDisplayName_(clazz.getSimpleName))
+              }
+
+            val contractInfo            =
+              ContractInfo(fullName, displayName, annotations, Vector.empty, annotationFields)
+
+            contractInfo -> (current :+ contractInfo)
+
+          case None =>
+            getContractInfo(contract, current)(using
+              TypeTag.ofClass(clazz.asInstanceOf[Class[A]]),
+              summon[ClassTag[A]]
+            )
+    }
+  }
 
   private def getContractInfo[A <: BaseContract[?]](
     contract: A,
@@ -97,7 +152,9 @@ object SchemaReflection  {
     current: Vector[ContractInfo],
     annotations: List[Annotation],
     fields: List[FieldInfo[?]],
-    methods: List[MethodInfo]
+    methods: List[MethodInfo],
+    classSymbol: Option[ClassSymbol],
+    instanceMirror: InstanceMirror
   )(using typeTag: TypeTag[?]): (ContractInfo, Vector[ContractInfo]) =
     val fullName_ = getDisplayName_(fullName)
 
@@ -107,6 +164,7 @@ object SchemaReflection  {
       case None =>
         val schema                  = getSchemaAnnotation(annotations)
         val baseClasses             = getBaseClasses(typeTag)
+
         val (inherited, newCurrent) =
           baseClasses.foldLeft(Vector.empty[ContractInfo] -> current) { case ((contracts, curr), baseClass) =>
             val baseTypeTag            = baseClass.typeTag
@@ -119,11 +177,16 @@ object SchemaReflection  {
               curr,
               baseClass.annotations,
               fields ++ extraFields,
-              methods ++ extraMethods
+              methods ++ extraMethods,
+              None,
+              instanceMirror,
             )(using baseTypeTag)
             (contracts :+ newContract) -> newCurr
           }
-        val annotationFields        = getFieldsSchemaAnnotations(contract, fullName_, fields, methods)
+        val annotationFields        =
+          getFieldsSchemaAnnotations(contract, fullName_, fields, methods) ++
+            classSymbol.map(symbol => getFieldsSchemaAnnotations_(symbol)(instanceMirror)).getOrElse(Map.empty)
+
         val displayName             =
           schema.typeName.orElse {
             if (contract.getClass.getName.contains("$anon$"))
@@ -145,12 +208,23 @@ object SchemaReflection  {
   private def getBaseClasses(typeTag: TypeTag[?]): List[BaseClass] =
     typeTag.baseClasses.filter { c =>
       (c.name != typeTag.name || c.owner != typeTag.owner) && c.userDefined && !c.fullName.startsWith("dsentric.") &&
-        c.baseClasses.map(_.fullName.toString).exists(path => TypeInfo.is(BaseContractTpe.typeInfo, path))
+        c.baseClasses.map(_.fullName).exists(path => TypeInfo.is(BaseContractTpe.typeInfo, path))
+    }
+
+  private def isLangSymbol(symbol: Symbol): Boolean =
+    symbol.fullName.startsWith("scala.") || symbol.fullName.startsWith("java.")
+
+  private def normalizeClassName(name: String): String =
+    name.stripSuffix("$")
+
+  private def getBaseClasses(baseClasses: List[Symbol], name: String, owner: Symbol): List[Symbol] =
+    baseClasses.filter { c =>
+      (c.name.decodedName.toString != name || c.owner != owner) && !isLangSymbol(c) && !c.fullName.startsWith("dsentric.") &&
+        c.asClass.baseClasses.map(_.fullName).exists(path => TypeInfo.is(BaseContractTpe.typeInfo, path))
     }
 
   def getSchemaAnnotation(annotations: List[Annotation]): SchemaAnnotations =
     annotations
-      .toList
       .foldLeft(SchemaAnnotations.empty) { case (s, annotation) =>
         annotation.properties match {
           case (_, typeName) :: _ if TypeInfo.is(TypeTpe.typeInfo, annotation.fullName)           =>
@@ -166,6 +240,24 @@ object SchemaReflection  {
           case _                                                                                  =>
             s
         }
+      }
+
+  private def getSchemaAnnotation_(annotations: List[universe.Annotation]): SchemaAnnotations =
+    annotations
+      .map(t => t.tree.tpe.typeSymbol.fullName -> t.tree.children.tail)
+      .foldLeft(SchemaAnnotations.empty) {
+        case (s, (path, tail)) if TypeInfo.is(TypeTpe.typeInfo, path)        =>
+          s.copy(typeName = tail.collectFirst { case Literal(Constant(c: String)) => c })
+        case (s, (path, tail)) if TypeInfo.is(TitleTpe.typeInfo, path)       =>
+          s.copy(title = tail.collectFirst { case Literal(Constant(c: String)) => c })
+        case (s, (path, _)) if TypeInfo.is(NestedTpe.typeInfo, path)         =>
+          s.copy(nested = true)
+        case (s, (path, tail)) if TypeInfo.is(ExampleTpe.typeInfo, path)     =>
+          s.copy(examples = tail.collect { case Literal(Constant(c)) => c })
+        case (s, (path, tail)) if TypeInfo.is(DescriptionTpe.typeInfo, path) =>
+          s.copy(description = tail.collectFirst { case Literal(Constant(c: String)) => c })
+        case (s, (_, _))                 =>
+          s
       }
 
   private def getFieldsSchemaAnnotations(
@@ -197,5 +289,60 @@ object SchemaReflection  {
         }
 
     (fieldMembers ++ methodMembers).toMap
+  }
+
+  private def getFieldsSchemaAnnotationsReflect(
+    instance: AnyRef,
+    fields: List[Field],
+    methods: List[Method]
+  ): Map[String, SchemaAnnotations] = {
+    val fieldMembers =
+      fields
+        .filter(_.canAccess(instance))
+        .flatMap { field =>
+          field.get(instance) match
+            case value: Property[?, ?] =>
+              Some(value._key.trim() -> SchemaAnnotations.empty)
+            case _ =>
+              None
+        }
+
+    val methodMembers =
+      methods
+        .filter(method => method.getParameterCount == 0 && method.canAccess(instance))
+        .flatMap { method =>
+          method.invoke(instance) match {
+            case value: Property[?, ?] =>
+              Some(value._key.trim() -> SchemaAnnotations.empty)
+            case _ =>
+              None
+          }
+        }
+
+    (fieldMembers ++ methodMembers).toMap
+  }
+
+  def getFieldsSchemaAnnotations_(t: ClassSymbol)(instanceMirror: InstanceMirror): Map[String, SchemaAnnotations] = {
+    val members0 =
+      t.toType.decls
+
+    val members = members0.filter(m =>
+      m.typeSignature.baseClasses.map(_.fullName).exists(
+        TypeInfo.is(PropertyTpe.typeInfo, _)
+      ) && !m.isClass && m.owner == t && (t.isTrait || !m.isMethod) && m.overrides.isEmpty
+    )
+
+    members.collect {
+      case (termSymbol: TermSymbol) if !termSymbol.isAccessor && !termSymbol.isVar =>
+        val rawObj      = instanceMirror.reflectField(termSymbol).get
+        val keyName     = rawObj.asInstanceOf[Property[?, ?]]._key
+        val annotations = getSchemaAnnotation_(termSymbol.annotations)
+        keyName.trim() -> annotations
+      case (methodSymbol: MethodSymbol)                       =>
+        val rawObj      = instanceMirror.reflectMethod(methodSymbol).apply()
+        val keyName     = rawObj.asInstanceOf[Property[?, ?]]._key
+        val annotations = getSchemaAnnotation_(methodSymbol.annotations)
+        keyName.trim() -> annotations
+    }.toMap
   }
 }

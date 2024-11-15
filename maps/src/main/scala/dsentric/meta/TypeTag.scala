@@ -1,7 +1,6 @@
 package dsentric.meta
 
-import scala.annotation.tailrec
-import scala.annotation.nowarn
+import scala.annotation.{nowarn, tailrec}
 
 trait HasAccessorField:
   def accessor: Accessor
@@ -90,10 +89,18 @@ case class MethodInfo(
       TypeTag.ofClass(TypeTag.findClass(path))
 
   def reflect(instance: AnyRef): Any =
-    val clazz  = Class.forName(parentClassPath)
-    val method = clazz.getDeclaredMethod(name)
-    method.setAccessible(true)
-    method.invoke(instance)
+    val clazz   = Class.forName(parentClassPath)
+    val methods = clazz.getDeclaredMethods.toList
+
+    methods.find(_.getName == name) match
+      case Some(field) =>
+        val method = clazz.getDeclaredMethod(name)
+        method.setAccessible(true)
+        method.invoke(instance)
+      case None        =>
+        val method = clazz.getMethod(name)
+        method.setAccessible(true)
+        method.invoke(instance)
 
 case class TypeFieldInfo(
   name: String,
@@ -163,11 +170,11 @@ enum TypeInfo:
   case Reference(names: List[String])
   case Refinement(base: TypeInfo, refined: List[(String, TypeInfo)])
   case Method(
-    typeParams: List[(String, TypeBounds)],
-    parameters: List[List[(String, TypeInfo)]],
-    implicits: List[List[(String, TypeInfo)]],
-    returnType: TypeInfo
-  )
+     typeParams: List[(String, TypeBounds)],
+     parameters: List[List[(String, TypeInfo)]],
+     implicits: List[List[(String, TypeInfo)]],
+     returnType: TypeInfo
+   )
   case Constant(value: ConstantValue)
   case Repeated
   case Unknown
@@ -521,7 +528,7 @@ object TypeTag:
       val declared  = typeRef.typeSymbol.declaredMethods
       val fullName  = symbolFullName(method)
       val inherited = !declared.exists(symbol => symbolFullName(symbol) == fullName && symbol.name == method.name)
-      resolveForMethod(quotes)(method, typeRef.memberType(method), classPath, inherited)
+      resolveForMethod(quotes, false)(method, typeRef.memberType(method), classPath, inherited)
 
     inline def resolveType_(typeSymbol: Symbol): TypeFieldInfo =
       val declared    = typeRef.typeSymbol.declaredTypes
@@ -614,9 +621,8 @@ object TypeTag:
     val isPrivate   = symbol.flags.is(Flags.Private)
     val isProtected = symbol.flags.is(Flags.Protected)
     val accessor    = if isPrivate then Accessor.Private else if isProtected then Accessor.Protected else Accessor.Public
-    val typeTpe     = typeRef.asType
 
-    new FieldInfo(
+    FieldInfo(
       name,
       fullName,
       typeInfo,
@@ -670,7 +676,7 @@ object TypeTag:
       accessor
     )
 
-  private def resolveForMethod(quotes: Quotes)(
+  private def resolveForMethod(quotes: Quotes, recursive: Boolean = true)(
     symbol: quotes.reflect.Symbol,
     typeRef: quotes.reflect.TypeRepr,
     parentClassPath: String,
@@ -678,7 +684,7 @@ object TypeTag:
   ): MethodInfo =
     import quotes.reflect.*
 
-    def methodInfo(
+    inline def methodInfo(
       typeParams: List[(String, TypeInfo.TypeBounds)],
       parameters: List[List[(String, TypeInfo)]],
       implicits: List[List[(String, TypeInfo)]],
@@ -729,13 +735,13 @@ object TypeTag:
         val TypeInfo.Method(typeParams, parameters, implicits, returnType) = resolveMethodTypeInfo(quotes)(poly)
         methodInfo(typeParams, parameters, implicits, returnType)
       case applied @ AppliedType(_, _)                                   =>
-        methodInfo(Nil, Nil, Nil, resolveAppliedType(quotes)(applied))
+        methodInfo(Nil, Nil, Nil, resolveAppliedType(quotes, false)(applied))
       case ref @ TypeRef(_, _)                                           =>
         methodInfo(Nil, Nil, Nil, TypeInfo.Simple(ref.name, ref.typeSymbol.fullName))
-      case ByNameType(ref)                                               =>
-        resolveForMethod(quotes)(symbol, ref, parentClassPath, inherited)
-      case AnnotatedType(ref, _)                                         =>
-        resolveForMethod(quotes)(symbol, ref, parentClassPath, inherited)
+      case ByNameType(ref) if recursive                                  =>
+        resolveForMethod(quotes, false)(symbol, ref, parentClassPath, inherited)
+      case AnnotatedType(ref, _) if recursive                            =>
+        resolveForMethod(quotes, false)(symbol, ref, parentClassPath, inherited)
       case _                                                             =>
         methodInfo(Nil, Nil, Nil, TypeInfo.Unknown)
 
@@ -750,15 +756,15 @@ object TypeTag:
     ): TypeInfo.Method =
       methodRef match
         case outer @ MethodType(names, types, inner @MethodType(_, _, _)) =>
-          val parameters = names.zip(types).map((name, tpeRef) => name -> resolveTypeInfo(quotes)(tpeRef))
+          val parameters = names.zip(types).map((name, tpeRef) => name -> resolveTypeInfo(quotes, false)(tpeRef))
 
           if (outer.isImplicit)
           then resolveMethodParameters(typeParams, inner, params, implicits :+ parameters)
           else resolveMethodParameters(typeParams, inner, params :+ parameters, implicits)
 
         case method @ MethodType(names, types, ref)                       =>
-          val parameters = names.zip(types).map((name, tpeRef) => name -> resolveTypeInfo(quotes)(tpeRef))
-          val returnType = resolveTypeInfo(quotes)(ref)
+          val parameters = names.zip(types).map((name, tpeRef) => name -> resolveTypeInfo(quotes, false)(tpeRef))
+          val returnType = resolveTypeInfo(quotes, false)(ref)
 
           if (method.isImplicit)
           then TypeInfo.Method(typeParams, params, implicits :+ parameters, returnType)
@@ -768,21 +774,21 @@ object TypeTag:
       case method @ MethodType(_, _, _)                                  =>
         resolveMethodParameters(Nil, method, Nil, Nil)
       case PolyType(typeNames, typeBounds, method @ MethodType(_, _, _)) =>
-        val typeParams = typeNames.zip(typeBounds).map { case (name, TypeBounds(ref0, ref1)) => name -> resolveTypeBounds(quotes)(ref0, ref1) }
+        val typeParams = typeNames.zip(typeBounds).map { case (name, TypeBounds(ref0, ref1)) => name -> resolveTypeBounds(quotes, false)(ref0, ref1) }
         resolveMethodParameters(typeParams, method, Nil, Nil)
       case PolyType(typeNames, typeBounds, ref)                          =>
-        val typeParams = typeNames.zip(typeBounds).map { case (name, TypeBounds(ref0, ref1)) => name -> resolveTypeBounds(quotes)(ref0, ref1) }
-        val returnType = resolveTypeInfo(quotes)(ref)
+        val typeParams = typeNames.zip(typeBounds).map { case (name, TypeBounds(ref0, ref1)) => name -> resolveTypeBounds(quotes, false)(ref0, ref1) }
+        val returnType = resolveTypeInfo(quotes, false)(ref)
         TypeInfo.Method(typeParams, Nil, Nil, returnType)
 
-  private def resolveTypeInfo(quotes: Quotes)(typeRef: quotes.reflect.TypeRepr): TypeInfo =
+  private def resolveTypeInfo(quotes: Quotes, recursive: Boolean = true)(typeRef: quotes.reflect.TypeRepr): TypeInfo =
     import quotes.reflect.*
 
     typeRef match
       case ref @ TypeRef(_, _)                =>
         TypeInfo.Simple(ref.name, ref.typeSymbol.fullName)
       case applied @ AppliedType(_, _)        =>
-        resolveAppliedType(quotes)(applied)
+        resolveAppliedType(quotes, recursive)(applied)
       case ParamRef(PolyType(names, _, _), _) =>
         TypeInfo.Reference(names)
       case method @ MethodType(_, _, _)       =>
@@ -796,19 +802,21 @@ object TypeTag:
       case TypeBounds(ref0, ref1)             =>
         resolveTypeBounds(quotes)(ref0, ref1)
       case AnnotatedType(ref, _)              =>
-        resolveTypeInfo(quotes)(ref)
+        resolveTypeInfo(quotes, recursive)(ref)
       case ByNameType(ref)                    =>
-        TypeInfo.ByName(resolveTypeInfo(quotes)(ref))
+        TypeInfo.ByName(resolveTypeInfo(quotes, recursive)(ref))
       case ref @ TermRef(_, _)                =>
         TypeInfo.Simple(ref.name, normalizeClassName(ref.typeSymbol.fullName))
       case ThisType(ref)                      =>
-        resolveTypeInfo(quotes)(ref)
+        resolveTypeInfo(quotes, recursive)(ref)
       case ref @ Refinement(_, _, _)          =>
         resolveRefinementType(quotes)(ref)
       case RecursiveType(ref)                 =>
-        resolveTypeInfo(quotes)(ref)
-      case RecursiveThis(ref)                 =>
-        resolveTypeInfo(quotes)(ref)
+        resolveTypeInfo(quotes, recursive)(ref)
+      case RecursiveThis(ref) if recursive    =>
+        resolveTypeInfo(quotes, recursive)(ref)
+      case RecursiveThis(ref)    =>
+        TypeInfo.Unknown
       case ConstantType(constant)             =>
         val constantValue =
           if (constant.value.isInstanceOf[PrimitiveType])
@@ -829,12 +837,12 @@ object TypeTag:
     val typeInfo = resolveTypeInfo(quotes)(typeRef)
     if typeInfo == TypeInfo.Unknown then resolveTypeInfo(quotes)(fallback) else typeInfo
 
-  private def resolveAppliedType(quotes: Quotes)(applied: quotes.reflect.AppliedType): TypeInfo.Applied =
+  private def resolveAppliedType(quotes: Quotes, recursive: Boolean)(applied: quotes.reflect.AppliedType): TypeInfo.Applied =
     val typeConstructorRef    = applied.tycon
     val typeConstructorSymbol = typeConstructorRef.typeSymbol
     val typeConstructorName   = typeConstructorSymbol.name
     val typeConstructoPath    = typeConstructorSymbol.fullName
-    val argsInfo              = applied.args.map(resolveTypeInfo(quotes))
+    val argsInfo              = applied.args.map(resolveTypeInfo(quotes, recursive))
     val simpleTypeInfo        = TypeInfo.Simple(typeConstructorName, typeConstructoPath)
     val typeInfo              = if (typeConstructoPath == "scala.<repeated>") then TypeInfo.Repeated else simpleTypeInfo
     TypeInfo.Applied(typeInfo, argsInfo)
@@ -851,11 +859,11 @@ object TypeTag:
   ): TypeInfo.Union =
     TypeInfo.Union(resolveTypeInfo(quotes)(typeRef0), resolveTypeInfo(quotes)(typeRef1))
 
-  private def resolveTypeBounds(quotes: Quotes)(
+  private def resolveTypeBounds(quotes: Quotes, recursive: Boolean = true)(
     typeRef0: quotes.reflect.TypeRepr,
     typeRef1: quotes.reflect.TypeRepr
   ): TypeInfo.TypeBounds =
-    TypeInfo.TypeBounds(resolveTypeInfo(quotes)(typeRef0), resolveTypeInfo(quotes)(typeRef1))
+    TypeInfo.TypeBounds(resolveTypeInfo(quotes, recursive)(typeRef0), resolveTypeInfo(quotes, recursive)(typeRef1))
 
   private def resolveType(quotes: Quotes)(
     symbol: quotes.reflect.Symbol,
@@ -892,7 +900,8 @@ object TypeTag:
 
     resolveRefinedTypes(ref, Nil)
 
-  private def resolveAnnotations(quotes: Quotes)(terms: List[quotes.reflect.Term]): List[Annotation] =
+  @nowarn
+  private inline def resolveAnnotations(quotes: Quotes)(terms: List[quotes.reflect.Term]): List[Annotation] =
     import quotes.reflect.*
 
     terms.collect:
@@ -906,7 +915,8 @@ object TypeTag:
           properties = fields.zip(values)
         )
 
-  private def annotationParams(quotes: Quotes)(terms: List[quotes.reflect.Term]): List[PrimitiveType] =
+  @nowarn
+  private inline def annotationParams(quotes: Quotes)(terms: List[quotes.reflect.Term]): List[PrimitiveType] =
     import quotes.reflect.*
 
     terms.collect:

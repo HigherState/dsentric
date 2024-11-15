@@ -6,6 +6,8 @@ import dsentric.contracts.*
 import dsentric.operators.Internal
 import dsentric.meta.TypeTag
 
+import scala.reflect.ClassTag
+
 object Definition {
   type Definitions = Vector[ObjectDefinition]
   type Infos       = Vector[ContractInfo]
@@ -18,7 +20,7 @@ object Definition {
     infos: Infos,
     defs: Definitions,
     forceNested: Boolean = false
-  )(using typeTag: TypeTag[C]): (String, Infos, Definitions) = {
+  )(using typeTag: TypeTag[C], classTag: ClassTag[C]): (String, Infos, Definitions) = {
     val name = contractName(contract)
     defs
       .find(_.definition.contains(name))
@@ -31,13 +33,13 @@ object Definition {
       }
   }
 
-  def nestedContractObjectDefinition[D <: DObject, C <: BaseContract[D]](contract: C)(using typeTag: TypeTag[C]): ObjectDefinition = {
+  def nestedContractObjectDefinition[D <: DObject, C <: BaseContract[D]](contract: C)(using typeTag: TypeTag[C], classTag: ClassTag[C]): ObjectDefinition = {
     val (contractInfo, infos) = SchemaReflection.getContractInfo(contract, Vector.empty)(using typeTag)
     val (c, _, _)             = baseContractObjectDefinition(contract._fields, contract, contractInfo, infos, Vector.empty, true)
     c
   }
 
-  def contractObjectDefinitions[D <: DObject, C <: BaseContract[D]](contract: C)(using typeTag: TypeTag[C]): (ObjectDefinition, Definitions) = {
+  def contractObjectDefinitions[D <: DObject, C <: BaseContract[D]](contract: C)(using typeTag: TypeTag[C], classTag: ClassTag[C]): (ObjectDefinition, Definitions) = {
     val (contractInfo, newInfos) = SchemaReflection.getContractInfo(contract, Vector.empty)(using typeTag)
     val (c, _, d)                = baseContractObjectDefinition(contract._fields, contract, contractInfo, newInfos, Vector.empty, false)
     c -> d
@@ -162,7 +164,7 @@ object Definition {
     defs: Definitions,
     forceNested: Boolean
   ): (ObjectDefinition, Infos, Definitions) = {
-    val (bInfo, infos1)                        = SchemaReflection.getContractInfo(contract, infos)(using TypeTag.ofClass(contract.getClass.asInstanceOf[Class[BaseContract[D]]]))
+    val (bInfo, infos1)                        = SchemaReflection.getContractInfoNested(contract, infos)
     val subProperties                          = findPropertyAnnotations(contract._fields, bInfo, true)
     val (subPropertyDefs, infos2, defs1)       = contractPropertyDefinitions(subProperties, infos1, defs, forceNested)
     val (additional, propNames, infos3, defs2) = additionalPropertiesDefinition(contract, infos2, defs1)
