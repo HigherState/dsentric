@@ -245,7 +245,7 @@ final case class DContractCodec[D <: DObject](contract: ContractLike[D], cstr: R
     t.value
 
   lazy val typeDefinition: TypeDefinition =
-    Definition.nestedContractObjectDefinition(contract)
+    Definition.nestedContractObjectDefinitionRuntime(contract)
 }
 
 sealed trait DParameter[H <: Tuple] {
@@ -358,7 +358,7 @@ final case class DParameterisedContractCodec[D <: DObject](contract: ContractLik
     hCodec.encode(label(t))
 
   lazy val typeDefinition: TypeDefinition = {
-    val contractDefinition = Definition.nestedContractObjectDefinition(contract)
+    val contractDefinition = Definition.nestedContractObjectDefinitionRuntime(contract)
     contractDefinition.copy(properties = contractDefinition.properties ++ hCodec.propertyDefinition)
   }
 
@@ -407,7 +407,7 @@ final case class DKeyContractCollectionCodec[S, D <: DObject](
    * @return
    */
   def typeDefinition: TypeDefinition =
-    ObjectDefinition(additionalProperties = Right(Definition.nestedContractObjectDefinition(contract)))
+    ObjectDefinition(additionalProperties = Right(Definition.nestedContractObjectDefinitionRuntime(contract)))
 
   def containsContractCodec: Boolean = true
 }

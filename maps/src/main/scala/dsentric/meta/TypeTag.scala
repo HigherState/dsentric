@@ -1,6 +1,7 @@
 package dsentric.meta
 
 import scala.annotation.{nowarn, tailrec}
+import scala.util.Try
 
 trait HasAccessorField:
   def accessor: Accessor
@@ -21,7 +22,7 @@ case class BaseClass(
   isTrait: Boolean,
   accessor: Accessor
 ) extends HasAccessorField with HasBaseClasses:
-  def typeTag: TypeTag[?] =
+  lazy val typeTag: TypeTag[?] =
     TypeTag.ofClass(Class.forName(fullName))
 
   override def baseClasses: List[BaseClass] =
@@ -52,17 +53,23 @@ case class FieldInfo[T](
       TypeTag.ofClass(TypeTag.findClass(path))
 
   def reflect(instance: AnyRef): Any =
-    val clazz  = TypeTag.findClass(parentClassPath)
-    val fields = clazz.getDeclaredFields.toList
+    tryReflect(instance, TypeTag.findClass(parentClassPath))
+      .orElse(tryReflect(instance, TypeTag.findClass(TypeTag.normalizeClassName(parentClassPath))))
+      .get
 
-    fields.find(_.getName == name) match
-      case Some(field) =>
+  private def tryReflect(instance: AnyRef, clazz: Class[?]): Option[Any] =
+    val fields  = clazz.getDeclaredFields.toList
+    val methods = clazz.getDeclaredMethods.toList
+
+    (fields.find(_.getName == name), methods.find(_.getName == name)) match
+      case (Some(field), _)  =>
         field.setAccessible(true)
-        field.get(instance)
-      case None        =>
-        val method = clazz.getDeclaredMethod(name)
+        Some(field.get(instance))
+      case (_, Some(method)) =>
         method.setAccessible(true)
-        method.invoke(instance)
+        Some(method.invoke(instance))
+      case _                 =>
+        None
 
 case class MethodInfo(
   name: String,
@@ -545,7 +552,7 @@ object TypeTag:
     val baseClasses = typeRef.baseClasses.map(clazz => resolveForClass(quotes)(clazz, typeRef.memberType(clazz)))
     val fields      = symbol.fieldMembers.map(resolveField(_, classPath))
     val methods     = symbol.methodMembers.map(resolveMethod(_, classPath))
-    val types       = symbol.typeMembers.filterNot(_.isNoSymbol).map(resolveType_(_))
+    val types       = symbol.typeMembers.filterNot(_.isNoSymbol).map(resolveType_)
     val children    = symbol.children.map(child => resolveForChild(quotes)(child, typeRef.memberType(child), typeRef.select(child)))
     val isFinal     = symbol.flags.is(Flags.Final)
     val isModule    = symbol.flags.is(Flags.Module)
@@ -583,8 +590,9 @@ object TypeTag:
     import quotes.reflect.Flags
 
     val typeSymbol  = typeRef.typeSymbol
+    val name        = typeSymbol.name
     val owner       = normalizeClassName(symbol.maybeOwner.fullName)
-    val typeName    = normalizeClassName(typeSymbol.name)
+    val typeName    = normalizeClassName(name)
     val fullName    = normalizeClassName(typeSymbol.fullName)
     val annotations = resolveAnnotations(quotes)(symbol.annotations)
     val userDefined = !isLangSymbol(quotes)(typeSymbol)
@@ -692,7 +700,6 @@ object TypeTag:
     ): MethodInfo =
       val name          = symbol.name
       val returnTypeSig = symbol.signature.resultSig
-      val typeSymbol    = typeRef.typeSymbol
       val owner         = normalizeClassName(symbol.maybeOwner.fullName)
       val annotations   = resolveAnnotations(quotes)(symbol.annotations)
       val baseClasses   = typeRef.baseClasses.map(clazz => resolveForClass(quotes)(clazz, typeRef.memberType(clazz)))
@@ -874,7 +881,6 @@ object TypeTag:
     import quotes.reflect.Flags
 
     val name        = symbol.name
-    val typeSymbol  = typeRef.typeSymbol
     val typeInfo    = resolveTypeInfoWithFallback(quotes)(typeRef, fallback)
     val owner       = normalizeClassName(symbol.maybeOwner.fullName)
     val annotations = resolveAnnotations(quotes)(symbol.annotations)
@@ -901,7 +907,7 @@ object TypeTag:
     resolveRefinedTypes(ref, Nil)
 
   @nowarn
-  private inline def resolveAnnotations(quotes: Quotes)(terms: List[quotes.reflect.Term]): List[Annotation] =
+  private[dsentric] inline def resolveAnnotations(quotes: Quotes)(terms: List[quotes.reflect.Term]): List[Annotation] =
     import quotes.reflect.*
 
     terms.collect:
@@ -916,7 +922,7 @@ object TypeTag:
         )
 
   @nowarn
-  private inline def annotationParams(quotes: Quotes)(terms: List[quotes.reflect.Term]): List[PrimitiveType] =
+  private[dsentric] inline def annotationParams(quotes: Quotes)(terms: List[quotes.reflect.Term]): List[PrimitiveType] =
     import quotes.reflect.*
 
     terms.collect:
@@ -948,7 +954,7 @@ object TypeTag:
   private inline def isLangSymbol(quotes: Quotes)(symbol: quotes.reflect.Symbol): Boolean =
     symbol.fullName.startsWith("scala.") || symbol.fullName.startsWith("java.")
 
-  private inline def normalizeClassName(name: String): String =
+  private[meta] inline def normalizeClassName(name: String): String =
     name.stripSuffix("$")
 
   private[meta] inline def denormalizeClassName(name: String): String =
