@@ -1,7 +1,7 @@
 lazy val buildSettings = Seq(
   organization := "io.higherState",
-  scalaVersion := "3.5.2",
-  version := "1.3.4",
+  scalaVersion := "3.6.3",
+  version := "1.3.5",
   scalacOptions ++= Seq("-language:postfixOps", "-language:reflectiveCalls", "-language:existentials"),
   scalacOptions --= Seq("-Ykind-projector"),
   resolvers ++= Seq(
@@ -17,7 +17,7 @@ lazy val buildSettings = Seq(
 releaseUseGlobalVersion := false
 
 lazy val reflect      = "org.scala-lang"     % "scala-reflect"   % "2.13.8"
-lazy val staging      = "org.scala-lang"    %% "scala3-staging"  % "3.5.2"
+lazy val staging      = "org.scala-lang"    %% "scala3-staging"  % "3.6.2"
 lazy val scalatest    = "org.scalatest"     %% "scalatest"       % "3.2.10" % "test"
 lazy val cats         = "org.typelevel"     %% "cats-core"       % "2.8.0"
 lazy val commons_math = "org.apache.commons" % "commons-math3"   % "3.6.1"
