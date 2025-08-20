@@ -633,3 +633,16 @@ private[contracts] object Setter {
       PathLensOps.pathToMap(path, DNull)
 
 }
+
+final private[dsentric] case class MovePathSetter[D <: DObject](fromPath:Path, toPath:Path) extends PathSetter[D]:
+  private[contracts] def rawApply(rawObject: RawObject): RawObject =
+    PathLensOps
+      .traverse(rawObject, fromPath)
+      .fold(rawObject) { value =>
+        val removed = PathLensOps.drop(rawObject, fromPath).getOrElse(RawObject.empty)
+        PathLensOps.set(removed, toPath, value)
+      }
+
+
+  private[contracts] def rawDelta(rawObject: RawObject): RawObject =
+    rawApply(rawObject)

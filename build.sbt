@@ -1,7 +1,7 @@
 lazy val buildSettings = Seq(
   organization := "io.higherState",
   scalaVersion := "3.6.3",
-  version := "1.3.5",
+  version := "1.3.6",
   scalacOptions ++= Seq("-language:postfixOps", "-language:reflectiveCalls", "-language:existentials"),
   scalacOptions --= Seq("-Ykind-projector"),
   resolvers ++= Seq(
@@ -35,3 +35,5 @@ lazy val maps = project
   .settings(settings)
   .settings(libraryDependencies ++= Seq(scalatest, cats, staging, shapeless3))
   .dependsOn(core, core % "test -> test")
+
+publishTo in ThisBuild := Some("orgvue-orgvue-api" at "https://orgvue-357102143434.d.codeartifact.eu-west-1.amazonaws.com/maven/orgvue-api")

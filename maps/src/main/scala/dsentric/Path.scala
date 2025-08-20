@@ -1,7 +1,7 @@
 package dsentric
 
 import dsentric.codecs.DCodec
-import dsentric.contracts.PathSetter
+import dsentric.contracts.{MovePathSetter, PathSetter}
 
 import scala.annotation.tailrec
 import scala.util.Try
@@ -64,6 +64,9 @@ sealed trait Path {
     _hasSubPath(this -> path)
 
   def take(index: Int): Path
+
+  def moveTo(targetPath:Path):PathSetter[DObject] =
+    MovePathSetter[DObject](this, targetPath)
 
   override def toString: String =
     this match {
