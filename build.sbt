@@ -35,5 +35,3 @@ lazy val maps = project
   .settings(settings)
   .settings(libraryDependencies ++= Seq(scalatest, cats, staging, shapeless3))
   .dependsOn(core, core % "test -> test")
-
-publishTo in ThisBuild := Some("orgvue-orgvue-api" at "https://orgvue-357102143434.d.codeartifact.eu-west-1.amazonaws.com/maven/orgvue-api")
