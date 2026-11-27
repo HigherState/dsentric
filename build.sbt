@@ -1,7 +1,7 @@
 lazy val buildSettings = Seq(
   organization := "io.higherState",
   scalaVersion := "3.10.1",
-  version      := "1.4.0",
+  version      := "1.4.1",
   scalacOptions ++= Seq("-source:3.6", "-language:postfixOps", "-language:reflectiveCalls", "-language:existentials"),
   scalacOptions --= Seq("-Ykind-projector"),
   scalacOptions ~= (_.map { case "-Xfatal-warnings" => "-Werror"; case option => option }),
