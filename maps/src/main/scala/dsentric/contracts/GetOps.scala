@@ -4,14 +4,25 @@ import cats.data.NonEmptyList
 import dsentric._
 import dsentric.codecs._
 import dsentric.codecs.std.DCodecs
-import dsentric.failure.{AdditionalElementFailure, ClosedContractFailure, ContractTypeResolutionFailure, CoproductTypeValueFailure, ExpectedFailure, Failure, IncorrectKeyTypeFailure, IncorrectTypeFailure, MissingElementFailure, ValidResult}
+import dsentric.failure.{
+  AdditionalElementFailure,
+  ClosedContractFailure,
+  ContractTypeResolutionFailure,
+  CoproductTypeValueFailure,
+  ExpectedFailure,
+  Failure,
+  IncorrectKeyTypeFailure,
+  IncorrectTypeFailure,
+  MissingElementFailure,
+  ValidResult
+}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 /**
- * Validates and returns the element, bad values can be removed or generate failures.
- * Empty objects or Null values are left
+ * Validates and returns the element, bad values can be removed or generate failures. Empty objects or Null values are
+ * left
  */
 private[contracts] trait GetOps {
 
@@ -81,7 +92,7 @@ private[contracts] trait GetOps {
     raw: Raw,
     badTypes: BadTypes,
     setDefaultValues: Boolean
-  ): Available[T]                             =
+  ): Available[T] =
     getCodec(propertyLens._root, propertyLens._path, badTypes, setDefaultValues)(propertyLens._codec -> raw)
 
   protected def getCodec[D <: DObject, C](
@@ -293,22 +304,22 @@ private[contracts] trait GetOps {
         codec.cstr(key, value) match {
           case None if badTypes == DropBadTypes =>
             Right(b)
-          case None =>
+          case None                             =>
             Left(new ListBuffer[Failure].addOne(IncorrectTypeFailure(contract, path, codec, raw)))
-          case Some(entity) =>
+          case Some(entity)                     =>
             codec.contract.__get(entity.value, badTypes.nest == DropBadTypes, setDefaultValues) match {
-              case Found(rawObject) =>
+              case Found(rawObject)                      =>
                 Right(b.addOne(entity.internalWrap(rawObject).asInstanceOf[D2]))
               case _: Failed if badTypes == DropBadTypes =>
                 Right(b)
-              case f: Failed =>
+              case f: Failed                             =>
                 val rebase = f.rebase(contract, path \ key)
                 Left(new ListBuffer[Failure].addAll(rebase.failure :: rebase.tail))
             }
         }
       case (Left(vf), (key, value: RawObject @unchecked)) =>
         codec.cstr(key, value) match {
-          case None =>
+          case None         =>
             Left(vf.addOne(IncorrectTypeFailure(contract, path, codec, raw)))
           case Some(entity) =>
             Left(vf.addAll(codec.contract.__verify(entity.value).map(_.rebase(contract, path \ key))))
@@ -397,7 +408,10 @@ private[contracts] trait GetOps {
         if (p._2 >= codec.codecsArray.length)
           Failed(AdditionalElementFailure(contract, path \ p._2)) -> p._2
         else
-          getCodec(contract, path \ p._2, nested, setDefaultValues)(codec.codecsArray(p._2) -> p._1) -> p._2
+          codec.codecsArray(p._2) match {
+            case elementCodec: DCodec[t] =>
+              getCodec[D, t](contract, path \ p._2, nested, setDefaultValues)(elementCodec -> p._1) -> p._2
+          }
       }
       .foldRight[Either[ListBuffer[Failure], Tuple]](init) {
         case ((Found(t), _), Right(h))           =>
@@ -461,7 +475,6 @@ private[contracts] trait GetOps {
               case f2: Failed => f2 ++ f
               case _          => f
             }
-          case _ => NotFound
         }
     } match {
       case Failed(head, tail) =>

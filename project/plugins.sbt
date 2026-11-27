@@ -6,3 +6,5 @@ addSbtPlugin("ch.epfl.scala"                     % "sbt-scalafix"         % "0.1
 addSbtPlugin("net.virtual-void"                  % "sbt-dependency-graph" % "0.10.0-RC1")
 addSbtPlugin("com.typesafe.sbt"                  % "sbt-git"              % "1.0.2")
 addSbtPlugin("io.github.davidgregory084"         % "sbt-tpolecat"         % "0.4.1")
+
+addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.6.2")
