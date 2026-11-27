@@ -66,6 +66,7 @@ trait MaybeExpectedPropertyOps[D <: DObject] extends PropertyOps[D] {
 
 }
 
+// Use AuxD for nested property types to avoid recursive ScalaDoc substitution of the outer D.
 trait PropertyObjectOps[D <: DObject] { __internal: BaseContract[D] =>
 
   /**
@@ -78,9 +79,9 @@ trait PropertyObjectOps[D <: DObject] { __internal: BaseContract[D] =>
     override private[contracts] val __nameOverride: Option[String],
     override val _codec: DCodec[DObject],
     override val _dataOperators: List[DataOperator[DObject] & Optional]
-  ) extends MaybeObjectProperty[D]
-      with FieldResolver[D]
-      with PropertyResolver[D, DObject]
+  ) extends MaybeObjectProperty[__internal.AuxD]
+      with FieldResolver[__internal.AuxD]
+      with PropertyResolver[__internal.AuxD, DObject]
       with reflect.Selectable {
 
     def this(dataOperators: DataOperator[DObject] & Optional*)(implicit codec: DCodec[DObject]) =
@@ -89,7 +90,7 @@ trait PropertyObjectOps[D <: DObject] { __internal: BaseContract[D] =>
     def this(name: String, dataOperators: DataOperator[DObject] & Optional*)(implicit codec: DCodec[DObject]) =
       this(Some(name), codec, dataOperators.toList)
 
-    def _parent: BaseContract[D] = __internal
+    def _parent: BaseContract[__internal.AuxD] = __internal
   }
 
   /**
@@ -111,9 +112,9 @@ trait PropertyObjectOps[D <: DObject] { __internal: BaseContract[D] =>
     val _additionalKeyCodec: DStringCodec[K],
     val _additionalValueCodec: DCodec[V]
   ) extends AdditionalProperties[K, V]
-      with MaybeObjectProperty[D]
-      with FieldResolver[D]
-      with PropertyResolver[D, DObject]
+      with MaybeObjectProperty[__internal.AuxD]
+      with FieldResolver[__internal.AuxD]
+      with PropertyResolver[__internal.AuxD, DObject]
       with reflect.Selectable {
 
     def this(dataOperators: DataOperator[DObject] & Optional*)(
@@ -136,7 +137,7 @@ trait PropertyObjectOps[D <: DObject] { __internal: BaseContract[D] =>
     )(implicit codec: DCodec[DObject], keyCodec: DStringCodec[K]) =
       this(Some(name), codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
 
-    def _parent: BaseContract[D] = __internal
+    def _parent: BaseContract[__internal.AuxD] = __internal
   }
 
 }
@@ -153,9 +154,9 @@ trait ExpectedPropertyObjectOps[D <: DObject] extends PropertyObjectOps[D] { __i
     override private[contracts] val __nameOverride: Option[String],
     override val _codec: DCodec[DObject],
     override val _dataOperators: List[DataOperator[DObject] & Expected]
-  ) extends ExpectedObjectProperty[D]
-      with FieldResolver[D]
-      with PropertyResolver[D, DObject]
+  ) extends ExpectedObjectProperty[__internal.AuxD]
+      with FieldResolver[__internal.AuxD]
+      with PropertyResolver[__internal.AuxD, DObject]
       with reflect.Selectable {
 
     def this(dataOperators: DataOperator[DObject] & Expected*)(implicit codec: DCodec[DObject]) =
@@ -164,7 +165,7 @@ trait ExpectedPropertyObjectOps[D <: DObject] extends PropertyObjectOps[D] { __i
     def this(name: String, dataOperators: DataOperator[DObject] & Expected*)(implicit codec: DCodec[DObject]) =
       this(Some(name), codec, dataOperators.toList)
 
-    def _parent: BaseContract[D] = __internal
+    def _parent: BaseContract[__internal.AuxD] = __internal
   }
 
   /**
@@ -186,9 +187,9 @@ trait ExpectedPropertyObjectOps[D <: DObject] extends PropertyObjectOps[D] { __i
     val _additionalKeyCodec: DStringCodec[K],
     val _additionalValueCodec: DCodec[V]
   ) extends AdditionalProperties[K, V]
-      with ExpectedObjectProperty[D]
-      with FieldResolver[D]
-      with PropertyResolver[D, DObject]
+      with ExpectedObjectProperty[__internal.AuxD]
+      with FieldResolver[__internal.AuxD]
+      with PropertyResolver[__internal.AuxD, DObject]
       with reflect.Selectable {
 
     def this(dataOperators: DataOperator[DObject] & Expected*)(
@@ -211,7 +212,7 @@ trait ExpectedPropertyObjectOps[D <: DObject] extends PropertyObjectOps[D] { __i
     )(implicit codec: DCodec[DObject], keyCodec: DStringCodec[K]) =
       this(Some(name), codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
 
-    def _parent: BaseContract[D] = __internal
+    def _parent: BaseContract[__internal.AuxD] = __internal
   }
 }
 
@@ -227,9 +228,9 @@ trait MaybeExpectedPropertyObjectOps[D <: DObject] extends PropertyObjectOps[D] 
     override private[contracts] val __nameOverride: Option[String],
     override val _codec: DCodec[DObject],
     override val _dataOperators: List[DataOperator[DObject] & Expected]
-  ) extends MaybeExpectedObjectProperty[D]
-      with FieldResolver[D]
-      with PropertyResolver[D, DObject]
+  ) extends MaybeExpectedObjectProperty[__internal.AuxD]
+      with FieldResolver[__internal.AuxD]
+      with PropertyResolver[__internal.AuxD, DObject]
       with reflect.Selectable {
 
     def this(dataOperators: DataOperator[DObject] & Expected*)(implicit codec: DCodec[DObject]) =
@@ -238,7 +239,7 @@ trait MaybeExpectedPropertyObjectOps[D <: DObject] extends PropertyObjectOps[D] 
     def this(name: String, dataOperators: DataOperator[DObject] & Expected*)(implicit codec: DCodec[DObject]) =
       this(Some(name), codec, dataOperators.toList)
 
-    def _parent: BaseContract[D] = __internal
+    def _parent: BaseContract[__internal.AuxD] = __internal
   }
 
   /**
@@ -260,9 +261,9 @@ trait MaybeExpectedPropertyObjectOps[D <: DObject] extends PropertyObjectOps[D] 
     val _additionalKeyCodec: DStringCodec[K],
     val _additionalValueCodec: DCodec[V]
   ) extends AdditionalProperties[K, V]
-      with MaybeExpectedObjectProperty[D]
-      with FieldResolver[D]
-      with PropertyResolver[D, DObject]
+      with MaybeExpectedObjectProperty[__internal.AuxD]
+      with FieldResolver[__internal.AuxD]
+      with PropertyResolver[__internal.AuxD, DObject]
       with reflect.Selectable {
 
     def this(dataOperators: DataOperator[DObject] & Expected*)(
@@ -285,6 +286,6 @@ trait MaybeExpectedPropertyObjectOps[D <: DObject] extends PropertyObjectOps[D] 
     )(implicit codec: DCodec[DObject], keyCodec: DStringCodec[K]) =
       this(Some(name), codec, dataOperators.toList, additionalPropertyDataOperators.toList, keyCodec, valueCodec)
 
-    def _parent: BaseContract[D] = __internal
+    def _parent: BaseContract[__internal.AuxD] = __internal
   }
 }
