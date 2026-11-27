@@ -4,22 +4,32 @@ import cats.data.NonEmptyList
 import dsentric._
 import dsentric.codecs._
 import dsentric.codecs.std.DCodecs
-import dsentric.failure.{AdditionalElementFailure, ClosedContractFailure, ContractTypeResolutionFailure, CoproductTypeValueFailure, ExpectedFailure, Failure, IncorrectKeyTypeFailure, IncorrectTypeFailure, MissingElementFailure, ValidResult}
+import dsentric.failure.{
+  AdditionalElementFailure,
+  ClosedContractFailure,
+  ContractTypeResolutionFailure,
+  CoproductTypeValueFailure,
+  ExpectedFailure,
+  Failure,
+  IncorrectKeyTypeFailure,
+  IncorrectTypeFailure,
+  MissingElementFailure,
+  ValidResult
+}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 /**
- * Verifies the structure of the document and removes any Empty objects or Null values.
- * Bad types can be dropped or return failures
+ * Verifies the structure of the document and removes any Empty objects or Null values. Bad types can be dropped or
+ * return failures
  */
 private[contracts] trait ReduceOps {
 
   /**
    * Reduces empty property fields, removing DCodec values that return NotFound
    *
-   * Ultimately clearing out empty Objects as well
-   * Will also remove any nulls
+   * Ultimately clearing out empty Objects as well Will also remove any nulls
    */
   def reduce[D <: DObject](baseContract: BaseContract[D], obj: RawObject, badTypes: BadTypes): Available[RawObject] = {
 
@@ -197,7 +207,7 @@ private[contracts] trait ReduceOps {
       } match {
       case Right(mb)                           =>
         val map = mb.result()
-        //Incase codec has constraint like max/min size
+        // Incase codec has constraint like max/min size
         if (map.isEmpty)
           NotFound
         else if (codec.unapply(map).isEmpty)
@@ -301,7 +311,10 @@ private[contracts] trait ReduceOps {
         if (p._2 >= codec.codecsArray.length)
           Failed(AdditionalElementFailure(contract, path \ p._2)) -> p._2
         else
-          reduceCodec(contract, path \ p._2, nest)(codec.codecsArray(p._2) -> p._1) -> p._2
+          codec.codecsArray(p._2) match {
+            case elementCodec: DCodec[t] =>
+              reduceCodec[D, t](contract, path \ p._2, nest)(elementCodec -> p._1) -> p._2
+          }
       }
       .foldLeft[Either[ListBuffer[Failure], mutable.Builder[Raw, Vector[Raw]]]](init) {
         case (Right(vb), (Found(t), _))          =>
@@ -398,24 +411,24 @@ private[contracts] trait ReduceOps {
         codec.cstr(key, value) match {
           case None if badTypes == DropBadTypes =>
             Right(b)
-          case None =>
+          case None                             =>
             Left(new ListBuffer[Failure].addOne(IncorrectTypeFailure(contract, path, codec, raw)))
-          case Some(entity) =>
+          case Some(entity)                     =>
             codec.contract.__reduce(entity.value, badTypes.nest == DropBadTypes) match {
-              case Found(rawObject) =>
+              case Found(rawObject)                      =>
                 Right(b.addOne(codec.dstr(entity.internalWrap(rawObject).asInstanceOf[D2])))
               case _: Failed if badTypes == DropBadTypes =>
                 Right(b)
-              case NotFound =>
+              case NotFound                              =>
                 Right(b)
-              case f: Failed =>
+              case f: Failed                             =>
                 val rebase = f.rebase(contract, path \ key)
                 Left(new ListBuffer[Failure].addAll(rebase.failure :: rebase.tail))
             }
         }
       case (Left(vf), (key, value: RawObject @unchecked)) =>
         codec.cstr(key, value) match {
-          case None =>
+          case None         =>
             Left(vf.addOne(IncorrectTypeFailure(contract, path, codec, raw)))
           case Some(entity) =>
             Left(vf.addAll(codec.contract.__verify(entity.value).map(_.rebase(contract, path \ key))))

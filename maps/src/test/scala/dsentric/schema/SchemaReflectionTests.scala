@@ -1,5 +1,7 @@
 package dsentric.schema
 
+import java.util.concurrent.{Callable, Executors, TimeUnit}
+
 import dsentric.Dsentric.*
 import namespaced.{AnotherNested, AnotherNested2, InheritedNested}
 import org.scalatest.funsuite.AnyFunSuite
@@ -51,6 +53,30 @@ object Query3 extends Contract with InheritedNested {
 }
 
 class SchemaReflectionTests extends AnyFunSuite with Matchers {
+  test("runtime schemas retain contract and property annotations") {
+    val (info, _) = SchemaReflection.getContractInfoNested(Query1)
+    info.schemaAnnotations.description shouldBe Some("Contract Description")
+    info.fields("actualName").description shouldBe Some("Its a float")
+    info.fields("actualName").typeName shouldBe Some("FLOATIES")
+  }
+
+  test("runtime schemas retain properties inherited by anonymous nested contracts") {
+    val (info, _) = SchemaReflection.getContractInfoNested(Query1.inherited)
+    info.getInheritedFieldAnnotation("prop").flatMap(_.description) shouldBe Some("Another nested prop")
+  }
+
+  test("runtime schemas retain annotations when resolved from different threads") {
+    val executor = Executors.newFixedThreadPool(2)
+    try {
+      val requests = Vector.fill(4)(executor.submit(new Callable[ContractInfo] {
+        def call(): ContractInfo = SchemaReflection.getContractInfoNested(Query1)._1
+      }))
+      requests.foreach { request =>
+        request.get(30, TimeUnit.SECONDS).fields("actualName").description shouldBe Some("Its a float")
+      }
+    } finally executor.shutdownNow()
+  }
+
   test("field annotations") {
     val (contractInfo, _) = SchemaReflection.getContractInfo(Query1)
     contractInfo.fields("field") shouldBe SchemaAnnotations(None, None, false, List(123, "Pants"), None)
@@ -73,12 +99,11 @@ class SchemaReflectionTests extends AnyFunSuite with Matchers {
     )
   }
 
-
   test("Internal nested annotations") {
     val (nestedInfo, _) = SchemaReflection.getContractInfo(Query1.nested)
     nestedInfo.fields.contains("field2") shouldBe true
-    //Not supported by reflection
-    //nestedInfo.fields("field2") shouldBe SchemaAnnotations(None, None, false, Nil, Some("nested field"))
+    // Not supported by reflection
+    // nestedInfo.fields("field2") shouldBe SchemaAnnotations(None, None, false, Nil, Some("nested field"))
   }
 
   test("internal inherited annotations") {

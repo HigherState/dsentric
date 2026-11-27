@@ -6,16 +6,15 @@ import dsentric.codecs.std.DCodecs
 import dsentric.failure._
 
 /**
- * Verifies the structure of the document and removes any Empty objects or Null values.
- * Bad types can be dropped or return failures
+ * Verifies the structure of the document and removes any Empty objects or Null values. Bad types can be dropped or
+ * return failures
  */
 private[dsentric] trait VerifyOps {
 
   /**
    * Reduces empty property fields, removing DCodec values that return NotFound
    *
-   * Ultimately clearing out empty Objects as well
-   * Will also remove any nulls
+   * Ultimately clearing out empty Objects as well Will also remove any nulls
    */
   def verify[D <: DObject](baseContract: BaseContract[D], obj: RawObject): List[Failure] = {
 
@@ -33,9 +32,8 @@ private[dsentric] trait VerifyOps {
               additionalProperties.toMap
             ).iterator
           case _                                            =>
-            additionalProperties.keys.iterator.map(key =>
-              ClosedContractFailure(baseContract._root, baseContract._path, key)
-            )
+            additionalProperties.keys.iterator
+              .map(key => ClosedContractFailure(baseContract._root, baseContract._path, key))
         }
     }
 
@@ -48,7 +46,7 @@ private[dsentric] trait VerifyOps {
   protected def verifyCodec[D <: DObject, C](
     contract: ContractLike[D],
     path: Path
-  ): Function[(DCodec[C], Raw), List[Failure]]                                                = {
+  ): Function[(DCodec[C], Raw), List[Failure]] = {
     case (d: DValueCodec[C], raw)                                                =>
       verifyValue(contract, path, d, raw)
     case (d: DMapCodec[C, _, _], rawObject: RawObject @unchecked)                =>
@@ -171,7 +169,7 @@ private[dsentric] trait VerifyOps {
     raw.view.flatMap {
       case (key, rawObject: RawObject @unchecked) =>
         codec.cstr(key, rawObject) match {
-          case None => List(IncorrectTypeFailure(contract, path, codec, raw))
+          case None    => List(IncorrectTypeFailure(contract, path, codec, raw))
           case Some(e) =>
             codec.contract.__verify(e.value).map(_.rebase(contract, path \ key))
         }
@@ -223,7 +221,9 @@ private[dsentric] trait VerifyOps {
         if (p._2 >= codec.codecsArray.length)
           List(AdditionalElementFailure(contract, path \ p._2))
         else
-          verifyCodec(contract, path \ p._2)(codec.codecsArray(p._2) -> p._1)
+          codec.codecsArray(p._2) match {
+            case elementCodec: DCodec[t] => verifyCodec[D, t](contract, path \ p._2)(elementCodec -> p._1)
+          }
       }.toList
     elementFailures ++ missingFailures match {
       case Nil      =>
